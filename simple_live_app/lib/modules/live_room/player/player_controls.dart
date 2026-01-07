@@ -190,7 +190,7 @@ Widget buildFullControls(
                     visible: Platform.isAndroid,
                     child: IconButton(
                       onPressed: () {
-                        controller.enablePIP();
+
                       },
                       icon: const Icon(
                         Icons.picture_in_picture,
