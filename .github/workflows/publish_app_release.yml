@@ -34,7 +34,10 @@ jobs:
       - name: Build Windows
         run: |
           cd simple_live_app
+          flutter build windows --release
           flutter_distributor package --platform windows --targets msix,zip --skip-clean
+          # 查看构建输出目录结构
+          dir build\dist /s
 
       # 上传Windows至Artifacts
       - name: Upload Windows APP to Artifacts
