@@ -29,32 +29,20 @@ jobs:
         run: |
           cd simple_live_app
           flutter pub get
-      # 设置flutter_distributor环境
-      - name: Install flutter_distributor
-        run: dart pub global activate flutter_distributor
-      # build Windows ZIP\MSIX
+      
+      # build Windows
       - name: Build Windows
         run: |
           cd simple_live_app
-          # 查看当前目录结构
-          Get-ChildItem -Path . -Recurse | Select-Object -First 20
           # 构建Windows版本
           flutter build windows --release
           # 查看构建输出目录结构
-          Get-ChildItem -Path build -Recurse
-          # 使用flutter_distributor打包
-          flutter_distributor package --platform windows --targets msix,zip --skip-clean
-          # 再次查看构建输出目录结构
-          Get-ChildItem -Path build -Recurse
+          Get-ChildItem -Path build/windows/runner/Release -Recurse
       # 上传Windows至Artifacts
       - name: Upload Windows APP to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: |
-            simple_live_app/build/**/*.msix
-            simple_live_app/build/**/*.zip
-            simple_live_app/build/**/*.exe
-          if-no-files-found: warn
+          path: simple_live_app/build/windows/runner/Release/**/*
         #完成
       - run: echo "🍏 Windows job's status is ${{ job.status }}."
