@@ -210,6 +210,9 @@ class AppSettingsController extends GetxController {
     dbVer = LocalStorageService.instance
         .getValue(LocalStorageService.kHiveDbVer, 10708);
 
+    windowStartMaximized.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kWindowStartMaximized, true);
+
     followSortMethod.value = SortMethodStore.fromStore(
         LocalStorageService.instance.getValue(
             LocalStorageService.kFollowSortMethod,
@@ -698,6 +701,14 @@ class AppSettingsController extends GetxController {
     douyinHlsFirst.value = e;
     LocalStorageService.instance
         .setValue(LocalStorageService.kDouyinHlsFirst, e);
+  }
+
+  var windowStartMaximized = false.obs;
+
+  void setWindowStartMaximized(bool e) {
+    windowStartMaximized.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kWindowStartMaximized, e);
   }
 
   var followSortMethod = SortMethod.watchDuration.obs;
