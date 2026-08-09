@@ -758,7 +758,8 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
                 },
               ),
               title: Text(item.quality),
-              trailing: TextButton(
+              trailing: IconButton(
+                icon: const Icon(Icons.copy),
                 onPressed: () async {
                   try {
                     var playUrl = await site.liveSite
@@ -773,7 +774,6 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
                     SmartDialog.showToast("获取直链失败: $e");
                   }
                 },
-                child: const Text("复制直链"),
               ),
               onTap: () async {
                 Get.back();

@@ -712,6 +712,23 @@ void showQualitesInfo(LiveRoomController controller) {
             style: const TextStyle(fontSize: 14),
           ),
           minLeadingWidth: 16,
+          trailing: IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: () async {
+              try {
+                var playUrl = await controller.site.liveSite
+                    .getPlayUrls(detail: controller.detail.value!, quality: item);
+                if (playUrl.urls.isNotEmpty) {
+                  Utils.copyToClipboard(playUrl.urls.first);
+                  SmartDialog.showToast("已复制直链");
+                } else {
+                  SmartDialog.showToast("无法获取播放链接");
+                }
+              } catch (e) {
+                SmartDialog.showToast("获取直链失败: $e");
+              }
+            },
+          ),
           onTap: () {
             Utils.hideRightDialog();
             controller.currentQuality = i;
