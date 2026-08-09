@@ -747,9 +747,39 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
           itemCount: qualites.length,
           itemBuilder: (_, i) {
             var item = qualites[i];
-            return RadioListTile(
-              value: i,
+            return ListTile(
+              leading: Radio<int>(
+                value: i,
+                groupValue: currentQuality,
+                onChanged: (e) async {
+                  Get.back();
+                  currentQuality = e ?? 0;
+                  await getPlayUrl();
+                },
+              ),
               title: Text(item.quality),
+              trailing: TextButton(
+                onPressed: () async {
+                  try {
+                    var playUrl = await site.liveSite
+                        .getPlayUrls(detail: detail.value!, quality: item);
+                    if (playUrl.urls.isNotEmpty) {
+                      Utils.copyToClipboard(playUrl.urls.first);
+                      SmartDialog.showToast("已复制直链");
+                    } else {
+                      SmartDialog.showToast("无法获取播放链接");
+                    }
+                  } catch (e) {
+                    SmartDialog.showToast("获取直链失败: $e");
+                  }
+                },
+                child: const Text("复制直链"),
+              ),
+              onTap: () async {
+                Get.back();
+                currentQuality = i;
+                await getPlayUrl();
+              },
             );
           },
         ),
