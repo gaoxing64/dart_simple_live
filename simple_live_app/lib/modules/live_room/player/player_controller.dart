@@ -918,6 +918,8 @@ class PlayerController extends BaseController
     disposeStream();
     disposeDanmakuController();
     await resetSystem();
+    // todo: https://github.com/media-kit/media-kit/issues/1443
+    // only in debug mode
     await player.dispose();
     super.onClose();
   }
