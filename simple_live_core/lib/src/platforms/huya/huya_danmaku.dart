@@ -4,9 +4,13 @@ import 'dart:typed_data';
 
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:simple_live_core/src/common/web_socket_util.dart';
-import 'package:simple_live_core/src/model/tars/huya_danmaku.dart';
+import 'package:simple_live_core/src/platforms/huya/model/huya_damaku_model.dart';
+import 'package:simple_live_core/src/platforms/huya/tars/huya_danmaku.dart';
+import 'package:simple_live_core/src/platforms/huya/tars/types.dart';
 import 'package:tars_dart/tars/codec/tars_input_stream.dart';
 import 'package:tars_dart/tars/codec/tars_output_stream.dart';
+import 'package:tars_dart/tars/tup/request_packet.dart';
+import 'package:tars_dart/tars/tup/tars_message.dart';
 
 import 'huya_utils.dart';
 
@@ -32,6 +36,13 @@ class HuyaDanmakuArgs {
 }
 
 class HuyaDanmaku implements LiveDanmaku {
+  String get dHuyaUa {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final now = DateTime.now();
+    return "webh5&${(now.year % 100).toString().padLeft(2, '0')}${twoDigits(now.month)}${twoDigits(now.day)}${twoDigits(now.hour)}${twoDigits(now.minute)}&websocket";
+  }
+  String cookie = "__yamid_new=CB839821F9D0000153B312C11F40C3A0; game_did=c2NmeJsovdYnQ--7ekVF9JDx9YgQBaX9Xb4; SoundValue=0.50; guid=0a7d4b0826af6c69380199dc9adc6b50; __yamid_tt1=0.6713380860053619; alphaValue=0.80; _qimei_fingerprint=f573835586d8fec5ce3c6cc8a9ae286e; guid=0a7d4b0826af6c69380199dc9adc6b50; udb_guiddata=1a85f8398bc4400eb85f02564f4f321f; udb_appid=5002; udb_deviceid=w_1143239981674745856; isInLiveRoom=true; __yasmid=0.6713380860053619; _yasids=__rootsid%3DCBC935D812800001D2591C504BA0A320; udb_passdata=3; rep_cnt=38; _rep_cnt=3; sdid=csid_beac615f0cf34135b6ea6e1530a0853f; huya_flash_rep_cnt=60; huya_web_rep_cnt=214; huya_ua=webh5&0.1.0&websocket";
+  String device = "chrome";
   @override
   int heartbeatTime = 60 * 1000;
 
@@ -41,22 +52,16 @@ class HuyaDanmaku implements LiveDanmaku {
   Function(String msg)? onClose;
   @override
   Function()? onReady;
-  String serverUrl = "wss://cdnws.api.huya.com";
+  String serverUrl = "wss://cdnws.api.huya.com:443";
 
   WebScoketUtils? webScoketUtils;
 
-  final heartbeatData = [
-    0x00, 0x03, 0x1d, 0x00, 0x00, 0x69, 0x00, 0x00, 0x00, 0x69, 0x10, 0x03,
-    0x2c, 0x3c, 0x4c, 0x56, 0x08, 0x6f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x75,
-    0x69, 0x66, 0x0f, 0x4f, 0x6e, 0x55, 0x73, 0x65, 0x72, 0x48, 0x65, 0x61,
-    0x72, 0x74, 0x42, 0x65, 0x61, 0x74, 0x7d, 0x00, 0x00, 0x3c, 0x08, 0x00,
-    0x01, 0x06, 0x04, 0x74, 0x52, 0x65, 0x71, 0x1d, 0x00, 0x00, 0x2f, 0x0a,
-    0x0a, 0x0c, 0x16, 0x00, 0x26, 0x00, 0x36, 0x07, 0x61, 0x64, 0x72, 0x5f,
-    0x77, 0x61, 0x70, 0x46, 0x00, 0x0b, 0x12, 0x03, 0xae, 0xf0, 0x0f, 0x22,
-    0x03, 0xae, 0xf0, 0x0f, 0x3c, 0x42, 0x6d, 0x52, 0x02, 0x60, 0x5c, 0x60,
-    0x01, 0x7c, 0x82, 0x00, 0x0b, 0xb0, 0x1f, 0x9c, 0xac, 0x0b, 0x8c, 0x98,
-    0x0c, 0xa8, 0x0c, 0x20,
-  ];
+  List<int> get heartbeatData {
+    var cmd = WebSocketCommand()
+      ..cmdType = EWebSocketCommandType.EWSCmdC2S_HeartBeatReq.value
+      ..data = TarsOutputStream().toUint8List();
+    return cmd.toByteArray();
+  }
 
   late HuyaDanmakuArgs danmakuArgs;
 
@@ -71,6 +76,7 @@ class HuyaDanmaku implements LiveDanmaku {
       },
       onReady: () {
         onReady?.call();
+        // 这里开始握手
         joinRoom();
       },
       onHeartBeat: () {
@@ -85,31 +91,100 @@ class HuyaDanmaku implements LiveDanmaku {
     );
     webScoketUtils?.connect();
   }
-
-  void joinRoom() {
-    var joinData = getJoinData(danmakuArgs.ayyuid);
-    webScoketUtils?.sendMessage(joinData);
+  // 业务流程
+  // handshake:
+  // 1. send live_info-> build_live_info_data
+  // 2. send do_launch-> build_do_launch_data
+  // 3. send join_groud-> build_join_group_data // vp.js
+  // 解码：
+  //  WupReq_14: Uri_1400->message
+  //  PushMessage_22:iUri_2001314 -> sc
+  List<int> buildJoinGroupData({required int pid}){
+    WsRegisterGroupReq wsReq = WsRegisterGroupReq()
+      ..groupId = ["live:$pid","chat:$pid"]
+      ..token = "";
+    var wsReqByte = wsReq.toByteArray();
+    var socketCmd = WebSocketCommand()
+      ..cmdType = 16 // RegisterGroupReq
+      ..data = wsReqByte;
+    return socketCmd.toByteArray();
+  }
+  // wup
+  List<int> buildLiveInfoData(
+      {required int pid, required String ua, required String device}) {
+    HuyaUserId userId = HuyaUserId()
+      ..lUid = 0
+      ..sGuid = "0a7d4b0826af6c69380199dc9adc6b50"
+      ..sToken = ""
+      ..sCookie = cookie
+      ..sHuYaUA = ua
+      ..sDeviceInfo = device;
+    var req = GetLivingInfoReq()
+      ..lPresenterUid = pid
+      ..tId = userId;
+    var bodyMap = {'tReq': req.toByteArray()};
+    var message = TarsMessage()
+      ..header = RequestPacket(
+        iVersion: 3,
+        iRequestId: 0,
+        sServantName: 'huyaliveui',
+        sFuncName: 'getLivingInfo',
+        sBuffer: RequestPacket.cache_sBuffer,
+        context: RequestPacket.cache_context,
+        status: RequestPacket.cache_status,
+      )..body = bodyMap;
+    var messageByte = message.toByteArray();
+    var socketCmd = WebSocketCommand()
+      ..cmdType = 3
+      ..data = messageByte;
+    return socketCmd.toByteArray();
   }
 
-  List<int> getJoinData(int uid) {
-    try {
-      var oos = TarsOutputStream();
-      oos.write(uid, 0);
-      oos.write(false, 1);
-      oos.write("", 2);
-      oos.write("", 3);
-      oos.write(0, 4);
-      oos.write(0, 5);
-      oos.write(uid, 6);
-      oos.write(3, 7);
+  List<int> buildDoLaunchData({required String ua, required String device}) {
+    HuyaUserId userId = HuyaUserId()
+      ..lUid = 0
+      ..sGuid = "0a7d4b0826af6c69380199dc9adc6b50"
+      ..sToken = ""
+      ..sCookie = cookie
+      ..sHuYaUA = ua
+      ..sDeviceInfo = device;
+    var userBase = LiveUserBase()
+      ..eSource = 3
+      ..eType = 0
+      ..uaEx = LiveAppUAEx();
+    LiveLaunchReq liveLaunchReq = LiveLaunchReq()
+      ..id = userId
+      ..liveUb = userBase
+      ..supportDomain = true;
+    var bodyBytes = liveLaunchReq.toByteArray();
+    var bodyMap = {'tReq': bodyBytes};
+    var message = TarsMessage()
+      ..header = RequestPacket(
+        iVersion: 3,
+        cPacketType: 0,
+        iMessageType: 0,
+        iRequestId: 0,
+        sServantName: "liveui",
+        sFuncName: "doLaunch",
+        sBuffer: RequestPacket.cache_sBuffer,
+        context: RequestPacket.cache_context,
+        status: RequestPacket.cache_status,
+      )
+      ..body = bodyMap;
+    var messageByte = message.toByteArray();
+    var socketCmd = WebSocketCommand()
+      ..cmdType = 3
+      ..data = messageByte;
+    return socketCmd.toByteArray();
+  }
 
-      var wscmd = TarsOutputStream();
-      wscmd.write(1, 0);
-      wscmd.write(oos.toUint8List(), 1);
-      return wscmd.toUint8List();
+  void joinRoom() {
+    try {
+      var pid = danmakuArgs.topSid;
+      var data = buildJoinGroupData(pid: pid);
+      webScoketUtils?.sendMessage(data);
     } catch (e) {
-      CoreLog.error(e);
-      return [];
+      CoreLog.error("join_data_error:$e");
     }
   }
 
@@ -137,7 +212,7 @@ class HuyaDanmaku implements LiveDanmaku {
           HYMessage messageNotice = HYMessage();
           messageNotice
               .readFrom(TarsInputStream(Uint8List.fromList(wSPushMessage.msg)));
-          var uname = messageNotice.userInfo.nickName;
+          var uname = messageNotice.userInfo.sNickName;
           var content = messageNotice.content;
 
           var color = messageNotice.bulletFormat.fontColor;
@@ -165,21 +240,36 @@ class HuyaDanmaku implements LiveDanmaku {
               userName: "",
             ),
           );
-        } else if (wSPushMessage.uri == 2001314) {
-          // socket 2001314 maybe not right
-          var sc = await getHuyaSuperChatMessageList(lPid: danmakuArgs.topSid);
-          if (sc.isNotEmpty) {
-            onMessage?.call(
-              LiveMessage(
-                type: LiveMessageType.superChat,
-                userName: "SUPER_CHAT_MESSAGE",
-                message: "SUPER_CHAT_MESSAGE",
-                color: LiveMessageColor.white,
-                data: sc.first,
-              ),
-            );
+        }
+      } else if (type == 22) {
+        WSPushMessageV2 wsPushMessageV2 = WSPushMessageV2();
+        stream = TarsInputStream(stream.readBytes(1, false));
+        wsPushMessageV2.readFrom(stream);
+        for (var item in wsPushMessageV2.vMsgItem) {
+          // CoreLog.i("huya-danmaku-type22-uri: ${item.iUri}");
+          // match uri
+          // '110003': ai(666,大气，NB etc)
+          // '2001314': sc
+          // '1400': 醒目留言
+          // '8006': sc-countDown
+          if (item.iUri == 2001314) {
+            var sc =
+                await getHuyaSuperChatMessageList(lPid: danmakuArgs.topSid);
+            if (sc.isNotEmpty) {
+              onMessage?.call(
+                LiveMessage(
+                  type: LiveMessageType.superChat,
+                  userName: "SUPER_CHAT_MESSAGE",
+                  message: "SUPER_CHAT_MESSAGE",
+                  color: LiveMessageColor.white,
+                  data: sc.first,
+                ),
+              );
+            }
           }
         }
+      } else {
+        // 或许还有想看别人刷礼物的需求
       }
     } catch (e) {
       CoreLog.error(e);

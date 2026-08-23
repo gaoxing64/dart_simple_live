@@ -4,11 +4,11 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:simple_live_core/src/common/http_client.dart';
-import 'package:simple_live_core/src/model/tars/get_cdn_token_ex_req.dart';
-import 'package:simple_live_core/src/model/tars/get_cdn_token_ex_resp.dart';
-import 'package:simple_live_core/src/model/tars/types.dart';
 import 'package:simple_live_core/src/platforms/huya/huya_request_params.dart';
 import 'package:simple_live_core/src/platforms/huya/huya_utils.dart';
+import 'package:simple_live_core/src/platforms/huya/tars/get_cdn_token_ex_req.dart';
+import 'package:simple_live_core/src/platforms/huya/tars/get_cdn_token_ex_resp.dart';
+import 'package:simple_live_core/src/platforms/huya/tars/types.dart';
 import 'package:tars_dart/tars/net/base_tars_http.dart';
 
 

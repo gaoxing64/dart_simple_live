@@ -1,9 +1,10 @@
 ﻿import 'dart:math';
 
 import 'package:simple_live_core/simple_live_core.dart';
-import 'package:simple_live_core/src/model/tars/get_game_event_message_board_req.dart';
-import 'package:simple_live_core/src/model/tars/get_game_event_message_board_rsp.dart';
-import 'package:simple_live_core/src/model/tars/types.dart';
+import 'package:simple_live_core/src/platforms/huya/tars/get_game_event_message_board_req.dart';
+import 'package:simple_live_core/src/platforms/huya/tars/get_game_event_message_board_rsp.dart';
+import 'package:simple_live_core/src/platforms/huya/tars/types.dart';
+
 import 'package:tars_dart/tars/net/base_tars_http.dart';
 
 import 'huya_request_params.dart';
@@ -82,3 +83,15 @@ Future<List<LiveSuperChatMessage>> getHuyaSuperChatMessageList(
     return [messages.last];
   }
 }
+class RequestIdGenerator {
+  static int _counter = 0;
+
+  static int next() {
+    return _counter++;
+  }
+
+  static void reset([int value = 0]) {
+    _counter = value;
+  }
+}
+
