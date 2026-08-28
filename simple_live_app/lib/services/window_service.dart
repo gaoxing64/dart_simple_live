@@ -1,8 +1,12 @@
+import 'dart:ffi' hide Size;
 import 'dart:io';
-import 'dart:ui';
 
+import 'package:ffi/ffi.dart' show calloc;
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
+import 'package:win32/win32.dart' as win32;
 import 'package:window_manager/window_manager.dart';
 
 class WindowService extends GetxService implements WindowListener {
@@ -12,6 +16,12 @@ class WindowService extends GetxService implements WindowListener {
 
   WindowService() {
     windowManager.addListener(this);
+    if (Platform.isWindows) {
+      WidgetsBinding.instance.addObserver(_BrightnessObserver(this));
+      ever(AppSettingsController.instance.themeMode, (_) {
+        _applyTitleBarTheme();
+      });
+    }
   }
 
   Future<void> init() async {
@@ -32,9 +42,47 @@ class WindowService extends GetxService implements WindowListener {
       if (startMaximized && isMaximized) {
         await windowManager.maximize();
       }
+      if (Platform.isWindows) {
+        _applyTitleBarTheme();
+      }
       await windowManager.show();
       await windowManager.focus();
     });
+  }
+
+  /// Windows 原生标题栏只在窗口创建时读取系统深浅色，
+  /// 运行时不会跟随主题切换，需要手动设置 DWM 属性
+  void _applyTitleBarTheme() {
+    final mode =
+        ThemeMode.values[AppSettingsController.instance.themeMode.value];
+    final platformDark = WidgetsBinding
+            .instance.platformDispatcher.platformBrightness ==
+        Brightness.dark;
+    final isDark = switch (mode) {
+      ThemeMode.dark => true,
+      ThemeMode.light => false,
+      ThemeMode.system => platformDark,
+    };
+    _setImmersiveDarkMode(isDark);
+  }
+
+  void _setImmersiveDarkMode(bool dark) {
+    final hwnd = win32.FindWindow(
+        win32.TEXT('FLUTTER_RUNNER_WIN32_WINDOW'), nullptr);
+    if (hwnd == 0) {
+      return;
+    }
+    final Pointer<Int32> value = calloc.allocate<Int32>(sizeOf<Int32>());
+    value.value = dark ? 1 : 0;
+    try {
+      win32.DwmSetWindowAttribute(
+          hwnd, win32.DWMWA_USE_IMMERSIVE_DARK_MODE, value, sizeOf<Int32>());
+      // 触发非客户区重绘，让标题栏立即刷新
+      win32.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+          win32.SWP_NOMOVE | win32.SWP_NOSIZE | win32.SWP_NOZORDER | win32.SWP_FRAMECHANGED);
+    } finally {
+      calloc.free(value);
+    }
   }
 
   Future<void> resize() async {
@@ -133,5 +181,16 @@ class WindowService extends GetxService implements WindowListener {
         .setValue(LocalStorageService.kWindowWidth, bounds.width);
     LocalStorageService.instance
         .setValue(LocalStorageService.kWindowHeight, bounds.height);
+  }
+}
+
+class _BrightnessObserver with WidgetsBindingObserver {
+  _BrightnessObserver(this.service);
+
+  final WindowService service;
+
+  @override
+  void didChangePlatformBrightness() {
+    service._applyTitleBarTheme();
   }
 }
