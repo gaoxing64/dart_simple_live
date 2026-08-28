@@ -186,8 +186,9 @@ class MyApp extends StatelessWidget {
           darkTheme: AppStyle.darkTheme(
             fontFamily: AppStyleSettingController.instance.curFontName.value,
           ).copyWith(colorScheme: darkColorScheme),
-          themeMode: ThemeMode
-              .values[Get.find<AppSettingsController>().themeMode.value],
+          themeMode: AppSettingsController.resolveThemeMode(
+            Get.find<AppSettingsController>().themeModeIndex,
+          ),
           initialRoute: RoutePath.kIndex,
           getPages: AppPages.routes,
           //国际化
