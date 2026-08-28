@@ -1,16 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
-import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:get/get_rx/src/rx_types/rx_types.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:simple_live_app/app/constant.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/models/font_model.dart';
 import 'package:simple_live_app/requests/http_client.dart';
@@ -20,7 +19,6 @@ class AppStyleSettingController extends GetxController {
   static AppStyleSettingController get instance =>
       Get.find<AppStyleSettingController>();
 
-  var themeMode = 0.obs;
   var isDynamic = false.obs;
   var styleColor = 0xff3498db.obs;
   Rx<String?> curFontName = Rx<String?>(null);
@@ -204,45 +202,10 @@ class AppStyleSettingController extends GetxController {
     LocalStorageService.instance.setValue(LocalStorageService.kIsDynamic, e);
   }
 
-  void changeTheme() {
-    Get.dialog(
-      SimpleDialog(
-        title: const Text("设置主题"),
-        children: [
-          RadioGroup<int>(
-            groupValue: themeMode.value,
-            onChanged: (e) {
-              Get.back();
-              setTheme(e ?? 0);
-            },
-            child: Column(
-              children: [
-                RadioListTile<int>(
-                  title: const Text("跟随系统"),
-                  value: 0,
-                ),
-                RadioListTile<int>(
-                  title: const Text("浅色模式"),
-                  value: 1,
-                ),
-                RadioListTile<int>(
-                  title: const Text("深色模式"),
-                  value: 2,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void setTheme(int i) {
-    themeMode.value = i;
-    var mode = ThemeMode.values[i];
-
-    LocalStorageService.instance.setValue(LocalStorageService.kThemeMode, i);
-    Get.changeThemeMode(mode);
+    // 主题模式只有 AppSettingsController 一份状态：
+    // main.dart 的 GetMaterialApp 与 Windows 标题栏都监听它
+    AppSettingsController.instance.setThemeMode(i);
   }
 
   void setStyleColor(int e) {

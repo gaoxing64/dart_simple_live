@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
@@ -61,7 +62,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
           SettingsCard(
             child: Obx(
               () => RadioGroup<int>(
-                groupValue: controller.themeMode.value,
+                groupValue: AppSettingsController.instance.themeModeIndex,
                 onChanged: (e) {
                   controller.setTheme(e ?? 0);
                 },

@@ -26,7 +26,42 @@ class AppSettingsController extends GetxController {
 
   var aspectHeight = 9.obs;
 
+  /// 显示模式
+  /// * [0] 跟随系统
+  /// * [1] 浅色模式
+  /// * [2] 深色模式
   var themeMode = 0.obs;
+
+  /// 主题索引归一化（越界按「跟随系统」处理）
+  static int normalizeThemeModeIndex(int index) =>
+      (index >= 0 && index < ThemeMode.values.length) ? index : 0;
+
+  /// 主题索引对应的 [ThemeMode]
+  static ThemeMode resolveThemeMode(int index) =>
+      ThemeMode.values[normalizeThemeModeIndex(index)];
+
+  /// 当前主题索引（已归一化，可安全用于索引 [ThemeMode.values]）
+  int get themeModeIndex => normalizeThemeModeIndex(themeMode.value);
+
+  /// 应用当前是否应使用深色主题。
+  /// [platformDark] 为系统深浅色，仅在「跟随系统」时参与判断。
+  /// 主题判定统一放在这里，避免各处重复解析（注意 material_ui 与 flutter
+  /// 各自定义了同名的 ThemeMode 类型，跨库比较会失效）。
+  bool shouldUseDarkTheme({required bool platformDark}) =>
+      switch (resolveThemeMode(themeMode.value)) {
+        ThemeMode.dark => true,
+        ThemeMode.light => false,
+        ThemeMode.system => platformDark,
+      };
+
+  /// 主题模式统一由本控制器持有，其它地方（设置页、Windows 标题栏等）
+  /// 必须通过此方法修改，避免出现多份互不同步的主题状态
+  void setThemeMode(int e) {
+    final index = normalizeThemeModeIndex(e);
+    themeMode.value = index;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kThemeMode, index);
+  }
 
   var firstRun = false;
 
@@ -34,8 +69,11 @@ class AppSettingsController extends GetxController {
 
   @override
   void onInit() {
-    themeMode.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kThemeMode, 0);
+    // 存量数据可能越界，统一走归一化，避免 main.dart 的
+    // ThemeMode.values[...] 在启动时抛 RangeError
+    themeMode.value = normalizeThemeModeIndex(
+      LocalStorageService.instance.getValue(LocalStorageService.kThemeMode, 0),
+    );
     hideTopBar.value = LocalStorageService.instance
         .getValue(LocalStorageService.kHideTopBar, hideTopBar.value);
     hideBottomBar.value = LocalStorageService.instance
