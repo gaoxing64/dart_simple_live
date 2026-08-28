@@ -4,7 +4,7 @@ publish_to: none
 description: "Slive APP"
 environment: 
   sdk: '>=3.0.5 <4.0.0'
-  flutter: 3.47.1
+  flutter: 3.47.2
 
 dependencies: 
   flutter: 
@@ -25,9 +25,9 @@ dependencies:
   hive_ce: ^2.19.3 # 持久化存储
   hive_ce_flutter: ^2.3.4 # 持久化存储
   logger: ^2.7.0 # 日志
-  firebase_analytics: ^12.4.5
-  firebase_crashlytics: ^5.2.6 # firebase
-  firebase_core: ^4.12.1
+  firebase_analytics: ^12.4.6
+  firebase_crashlytics: ^5.2.7 # firebase
+  firebase_core: ^4.13.0
   intl: ^0.20.2 # 国际化
   pinyin: ^3.3.0
   qr_flutter: ^4.1.0 # 二维码生成
