@@ -1,0 +1,493 @@
+diff --git a/example/lib/lang/translation_service.dart b/example/lib/lang/translation_service.dart
+index d27c221bc2fe63a9bcfc8f14dbd629895f4c799d..94c02d8637d46cf77a6549ea4cfe5474d3dc7f49 100644
+--- a/example/lib/lang/translation_service.dart
++++ b/example/lib/lang/translation_service.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:get/get.dart';
+ 
+ import 'en_us.dart';
+diff --git a/example/lib/main.dart b/example/lib/main.dart
+index c593f2697372a9d47a947782ae005a68e9299868..9bea13a77e3421eded0b191ad1c8d8f3af73d358 100644
+--- a/example/lib/main.dart
++++ b/example/lib/main.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:get/get.dart';
+ 
+ // void main() {
+diff --git a/example/lib/pages/home/presentation/controllers/home_controller.dart b/example/lib/pages/home/presentation/controllers/home_controller.dart
+index d2f8f5cdcaceaf604fe2f4d097679848f7943acd..de4216002c0e4c630f4f3629dc4fb411147aa725 100644
+--- a/example/lib/pages/home/presentation/controllers/home_controller.dart
++++ b/example/lib/pages/home/presentation/controllers/home_controller.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:get/get.dart';
+ 
+ import '../../domain/adapters/repository_adapter.dart';
+diff --git a/example/lib/pages/home/presentation/views/country_view.dart b/example/lib/pages/home/presentation/views/country_view.dart
+index 680cbfe7ffc49fc3099a2bc088a94cd166e37b01..7477249ca989fe6da3c3241fd61ff416ba17de76 100644
+--- a/example/lib/pages/home/presentation/views/country_view.dart
++++ b/example/lib/pages/home/presentation/views/country_view.dart
+@@ -1,6 +1,6 @@
+ import 'dart:ui';
+ 
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:get/get.dart';
+ 
+ import '../controllers/home_controller.dart';
+diff --git a/example/lib/pages/home/presentation/views/details_view.dart b/example/lib/pages/home/presentation/views/details_view.dart
+index 9a167dacf75d51f9cb7be0cf3bacf78861491c18..d1be2306a4da7cb391be46549d9c96fc424829f0 100644
+--- a/example/lib/pages/home/presentation/views/details_view.dart
++++ b/example/lib/pages/home/presentation/views/details_view.dart
+@@ -1,6 +1,6 @@
+ import 'dart:ui';
+ 
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:get/get.dart';
+ import '../controllers/home_controller.dart';
+ 
+diff --git a/example/lib/pages/home/presentation/views/home_view.dart b/example/lib/pages/home/presentation/views/home_view.dart
+index f2d86880f4b36b607b1c469eb7a42339c485c6ae..9dbbb09d00fb50da3b13df76147172167610ca96 100644
+--- a/example/lib/pages/home/presentation/views/home_view.dart
++++ b/example/lib/pages/home/presentation/views/home_view.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:get/get.dart';
+ 
+ import '../controllers/home_controller.dart';
+diff --git a/example/pubspec.yaml b/example/pubspec.yaml
+index c2299b00b5171966680759cb826603abbd92cb97..298312a64431eb385be3e04b2a25f090c4292850 100644
+--- a/example/pubspec.yaml
++++ b/example/pubspec.yaml
+@@ -30,6 +30,7 @@ dependencies:
+     path: ../
+   #get_test: ^3.13.3
+ 
++  material_ui: any
+ dev_dependencies:
+   flutter_test:
+     sdk: flutter
+@@ -38,6 +39,7 @@ dev_dependencies:
+ # following page: https://dart.dev/tools/pub/pubspec
+ 
+ # The following section is specific to Flutter.
++  matcher: any
+ flutter:
+   # The following line ensures that the Material Icons font is
+   # included with your application, so that you can use the icons in
+diff --git a/example/test/main_test.dart b/example/test/main_test.dart
+index ca19ed90eb2c8a4ca4357eb249dd3cc1bb9f92c0..db217b9194239aef6f540180b8c133955eb07836 100644
+--- a/example/test/main_test.dart
++++ b/example/test/main_test.dart
+@@ -1,6 +1,6 @@
+ import 'dart:io';
+ import 'dart:math';
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ import 'package:get_demo/pages/home/domain/adapters/repository_adapter.dart';
+diff --git a/lib/get_navigation/src/bottomsheet/bottomsheet.dart b/lib/get_navigation/src/bottomsheet/bottomsheet.dart
+index a6bbc2dd55703df3e63050b8209e14e7f4c70d7d..762b2c80c4430cfac072f601ca4a63e8f9e5530e 100644
+--- a/lib/get_navigation/src/bottomsheet/bottomsheet.dart
++++ b/lib/get_navigation/src/bottomsheet/bottomsheet.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get.dart';
+ import '../router_report.dart';
+diff --git a/lib/get_navigation/src/extension_navigation.dart b/lib/get_navigation/src/extension_navigation.dart
+index 81a439e43100911b88997a8c1ae6a6bd13968714..093d849786e3ecb9813d8af3806e0061b244a664 100644
+--- a/lib/get_navigation/src/extension_navigation.dart
++++ b/lib/get_navigation/src/extension_navigation.dart
+@@ -1,6 +1,6 @@
+ import 'dart:ui';
+ 
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter/scheduler.dart';
+ 
+ import '../../get_core/get_core.dart';
+diff --git a/lib/get_navigation/src/nav2/get_router_delegate.dart b/lib/get_navigation/src/nav2/get_router_delegate.dart
+index 130477cd60112c285d93750736aaf5dc7e5c87a5..ab50af0c4979190b1edc8e42076cdb093eebb66f 100644
+--- a/lib/get_navigation/src/nav2/get_router_delegate.dart
++++ b/lib/get_navigation/src/nav2/get_router_delegate.dart
+@@ -3,7 +3,7 @@
+ import 'dart:async';
+ 
+ import 'package:flutter/foundation.dart';
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get.dart';
+ import '../../../get_state_manager/src/simple/list_notifier.dart';
+diff --git a/lib/get_navigation/src/nav2/router_outlet.dart b/lib/get_navigation/src/nav2/router_outlet.dart
+index 145e970ad7c016777bb2012d10d6934fd54051e5..89a425882110eeca0732b7bdc2109d086f083bd8 100644
+--- a/lib/get_navigation/src/nav2/router_outlet.dart
++++ b/lib/get_navigation/src/nav2/router_outlet.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get.dart';
+ 
+diff --git a/lib/get_navigation/src/root/get_cupertino_app.dart b/lib/get_navigation/src/root/get_cupertino_app.dart
+index aaac867fd288788cf081af8ae6a043b3b76214a5..1f294440d1a02b3d13e3b2d7d21f01d2e31c6b2a 100644
+--- a/lib/get_navigation/src/root/get_cupertino_app.dart
++++ b/lib/get_navigation/src/root/get_cupertino_app.dart
+@@ -1,6 +1,6 @@
+-import 'package:flutter/cupertino.dart';
++import 'package:cupertino_ui/cupertino_ui.dart';
+ import 'package:flutter/foundation.dart';
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get_core/get_core.dart';
+ import '../../../get_instance/get_instance.dart';
+diff --git a/lib/get_navigation/src/root/get_material_app.dart b/lib/get_navigation/src/root/get_material_app.dart
+index b176f810a9cb1f6c187dd77d3cb4d88adea7659c..8349cd5e9950d86c08a313f759f1b7b87bcf7e67 100644
+--- a/lib/get_navigation/src/root/get_material_app.dart
++++ b/lib/get_navigation/src/root/get_material_app.dart
+@@ -1,5 +1,5 @@
+ import 'package:flutter/foundation.dart';
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get_core/get_core.dart';
+ import '../../../get_instance/get_instance.dart';
+diff --git a/lib/get_navigation/src/root/root_controller.dart b/lib/get_navigation/src/root/root_controller.dart
+index 9d770daf774fb95d8f6db64b80d0f11dc2f4ff7d..e84ea64d9e5a16605f49ff4a82ed0fa5903d1b1f 100644
+--- a/lib/get_navigation/src/root/root_controller.dart
++++ b/lib/get_navigation/src/root/root_controller.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get.dart';
+ 
+diff --git a/lib/get_navigation/src/routes/circular_reveal_clipper.dart b/lib/get_navigation/src/routes/circular_reveal_clipper.dart
+index d53be2526d48a343a8a2faa480c85bf9fb1daeaa..ce02f4740ae1e18888eafe01bd3473f77c101bd4 100644
+--- a/lib/get_navigation/src/routes/circular_reveal_clipper.dart
++++ b/lib/get_navigation/src/routes/circular_reveal_clipper.dart
+@@ -1,7 +1,7 @@
+ import 'dart:math' show sqrt, max;
+ import 'dart:ui' show lerpDouble;
+ 
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ class CircularRevealClipper extends CustomClipper<Path> {
+   final double fraction;
+diff --git a/lib/get_navigation/src/routes/default_route.dart b/lib/get_navigation/src/routes/default_route.dart
+index 843e58dda8ce7d08c9f9707f5a627c00def2eb16..7a190d9063cc258ed5430e82f915f9dec9cf7bc7 100644
+--- a/lib/get_navigation/src/routes/default_route.dart
++++ b/lib/get_navigation/src/routes/default_route.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get.dart';
+ import '../router_report.dart';
+diff --git a/lib/get_navigation/src/routes/default_transitions.dart b/lib/get_navigation/src/routes/default_transitions.dart
+index e6cad4a8c786362da8c84ec7ff03aa66eaa7ff07..b75e7d190be7eebc67ceba1a84d777c14e37cbf0 100644
+--- a/lib/get_navigation/src/routes/default_transitions.dart
++++ b/lib/get_navigation/src/routes/default_transitions.dart
+@@ -1,5 +1,5 @@
+-import 'package:flutter/cupertino.dart';
+-import 'package:flutter/material.dart';
++import 'package:cupertino_ui/cupertino_ui.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import 'circular_reveal_clipper.dart';
+ 
+diff --git a/lib/get_navigation/src/routes/get_route.dart b/lib/get_navigation/src/routes/get_route.dart
+index 7360561a72d1579c39f05d80c5ed29e0fc7e684a..8b22ec489c81815913a07d118d174866edd29979 100644
+--- a/lib/get_navigation/src/routes/get_route.dart
++++ b/lib/get_navigation/src/routes/get_route.dart
+@@ -1,6 +1,6 @@
+ // ignore_for_file: overridden_fields
+-import 'package:flutter/cupertino.dart';
+-import 'package:flutter/material.dart';
++import 'package:cupertino_ui/cupertino_ui.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get_core/src/get_main.dart';
+ import '../../../get_instance/get_instance.dart';
+diff --git a/lib/get_navigation/src/routes/get_transition_mixin.dart b/lib/get_navigation/src/routes/get_transition_mixin.dart
+index 93dd4b6c64509e37252b79ce0efd760264b40e0d..750d3898e657890cbbf99cde6c2bf0de95cc2c90 100644
+--- a/lib/get_navigation/src/routes/get_transition_mixin.dart
++++ b/lib/get_navigation/src/routes/get_transition_mixin.dart
+@@ -1,10 +1,10 @@
+ import 'dart:math';
+ import 'dart:ui';
+ 
+-import 'package:flutter/cupertino.dart';
++import 'package:cupertino_ui/cupertino_ui.dart';
+ import 'package:flutter/foundation.dart';
+ import 'package:flutter/gestures.dart';
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get.dart';
+ import 'default_transitions.dart';
+diff --git a/lib/get_navigation/src/routes/route_middleware.dart b/lib/get_navigation/src/routes/route_middleware.dart
+index 406f0ae90b746f8292b7429e4a4e0ef091c9d791..82b3f7620c44861118c18f4145a0c946a2f8ae8d 100644
+--- a/lib/get_navigation/src/routes/route_middleware.dart
++++ b/lib/get_navigation/src/routes/route_middleware.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/cupertino.dart';
++import 'package:cupertino_ui/cupertino_ui.dart';
+ import 'package:flutter/foundation.dart';
+ 
+ import '../../../get.dart';
+diff --git a/lib/get_navigation/src/snackbar/snackbar.dart b/lib/get_navigation/src/snackbar/snackbar.dart
+index 832a504a7158cb5bca814102c36c083ba7ab3af0..e48e6ef88183b3cc89249c672183f8d43534043c 100644
+--- a/lib/get_navigation/src/snackbar/snackbar.dart
++++ b/lib/get_navigation/src/snackbar/snackbar.dart
+@@ -3,7 +3,7 @@
+ import 'dart:async';
+ import 'dart:ui';
+ 
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter/scheduler.dart';
+ 
+ import '../../../get_core/get_core.dart';
+diff --git a/lib/get_navigation/src/snackbar/snackbar_controller.dart b/lib/get_navigation/src/snackbar/snackbar_controller.dart
+index 4275ed40e832e0469b94aeb019eefa36bfe7e91d..e6a9406a01f81c2c43382eee5e1274a83948c5db 100644
+--- a/lib/get_navigation/src/snackbar/snackbar_controller.dart
++++ b/lib/get_navigation/src/snackbar/snackbar_controller.dart
+@@ -2,7 +2,7 @@ import 'dart:async';
+ import 'dart:math';
+ import 'dart:ui';
+ 
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get.dart';
+ 
+diff --git a/lib/get_state_manager/src/rx_flutter/rx_disposable.dart b/lib/get_state_manager/src/rx_flutter/rx_disposable.dart
+index 97af96f145a7e8ed273e9eba10549272179498c8..94bfbb3917ce8ecf965b72e9eeb73eeb8d00cef3 100644
+--- a/lib/get_state_manager/src/rx_flutter/rx_disposable.dart
++++ b/lib/get_state_manager/src/rx_flutter/rx_disposable.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../../get.dart';
+ 
+diff --git a/lib/get_state_manager/src/rx_flutter/rx_notifier.dart b/lib/get_state_manager/src/rx_flutter/rx_notifier.dart
+index a58462db39304d0085bfd6ebf9e170ba11654c7d..cf96cb21946a7631f53cbc3ea5203c513a3471cf 100644
+--- a/lib/get_state_manager/src/rx_flutter/rx_notifier.dart
++++ b/lib/get_state_manager/src/rx_flutter/rx_notifier.dart
+@@ -1,5 +1,5 @@
+ import 'package:flutter/foundation.dart';
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter/scheduler.dart';
+ 
+ import '../../../instance_manager.dart';
+diff --git a/lib/get_state_manager/src/rx_flutter/rx_ticket_provider_mixin.dart b/lib/get_state_manager/src/rx_flutter/rx_ticket_provider_mixin.dart
+index cc3bfed72a41d66877fa93943c78e5a441c433f3..b018c2a0771dca7b1d43aa32bd2afa038abbbb07 100644
+--- a/lib/get_state_manager/src/rx_flutter/rx_ticket_provider_mixin.dart
++++ b/lib/get_state_manager/src/rx_flutter/rx_ticket_provider_mixin.dart
+@@ -1,7 +1,7 @@
+ // ignore_for_file: lines_longer_than_80_chars
+ 
+ import 'package:flutter/foundation.dart';
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter/scheduler.dart';
+ 
+ import '../../get_state_manager.dart';
+diff --git a/lib/get_state_manager/src/simple/get_state.dart b/lib/get_state_manager/src/simple/get_state.dart
+index 6baf34489b30d29622fd4ae107d80a9a88a0da67..7b53d151e1c6c5302f0ca1c04251a8e9cc25a2dd 100644
+--- a/lib/get_state_manager/src/simple/get_state.dart
++++ b/lib/get_state_manager/src/simple/get_state.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import '../../../get_instance/src/get_instance.dart';
+ import '../../../instance_manager.dart';
+ import '../../get_state_manager.dart';
+diff --git a/lib/get_state_manager/src/simple/mixin_state.dart b/lib/get_state_manager/src/simple/mixin_state.dart
+index 5731ff391efb5cc6f554c58baefae1371a1660fc..86cfa8c344edade66f97a246accfd3080935f3ca 100644
+--- a/lib/get_state_manager/src/simple/mixin_state.dart
++++ b/lib/get_state_manager/src/simple/mixin_state.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../../get_state_manager.dart';
+ 
+diff --git a/lib/get_utils/src/extensions/context_extensions.dart b/lib/get_utils/src/extensions/context_extensions.dart
+index 11d447df3034efda0670e7ce1156998838a45bba..b8ee6900ca46b55bc6a24e040529f5d8feadbfa3 100644
+--- a/lib/get_utils/src/extensions/context_extensions.dart
++++ b/lib/get_utils/src/extensions/context_extensions.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ 
+ import '../platform/platform.dart';
+ 
+diff --git a/pubspec.yaml b/pubspec.yaml
+index 034d7edc5ca0d7b3a0a62482411e5e40c7674e80..ed03b24fb304b74eaa1852b4a2131d3a10803999 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -12,6 +12,8 @@ dependencies:
+     sdk: flutter
+   web: ">=0.5.0 <2.0.0"
+ 
++  material_ui: any
++  cupertino_ui: any
+ dev_dependencies:
+   flutter_lints: ^6.0.0
+   flutter_test:
+diff --git a/test/internationalization/internationalization_test.dart b/test/internationalization/internationalization_test.dart
+index 19b1d14f5dd32f8474cd0b32d53a035c05965f31..38e9969c304a4d4169cc52468093390439426984 100644
+--- a/test/internationalization/internationalization_test.dart
++++ b/test/internationalization/internationalization_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/navigation/bottomsheet_test.dart b/test/navigation/bottomsheet_test.dart
+index e20eddfaf85150e9d72b014217f90495806f0225..d4c720c4b5ef6f2a15138bf5217aaa1eb75d2f4b 100644
+--- a/test/navigation/bottomsheet_test.dart
++++ b/test/navigation/bottomsheet_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/navigation/dialog_test.dart b/test/navigation/dialog_test.dart
+index b462c0cdf902f9241110fa372811be4c3121b318..f3b8fb70e847aaeada944c766e134b53b58128e0 100644
+--- a/test/navigation/dialog_test.dart
++++ b/test/navigation/dialog_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/navigation/get_main_test.dart b/test/navigation/get_main_test.dart
+index c0cd0d6c38402d15172363e4f523482bb1ac2848..f6d3f7f60da8395b3cee09213f200a6900a03f1e 100644
+--- a/test/navigation/get_main_test.dart
++++ b/test/navigation/get_main_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/navigation/middleware_test.dart b/test/navigation/middleware_test.dart
+index 90e561e763bbde658f9a1f1129b67b479989cdb2..044b6d235ceab8924fca2bec1d57a587eec35dee 100644
+--- a/test/navigation/middleware_test.dart
++++ b/test/navigation/middleware_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/cupertino.dart';
++import 'package:cupertino_ui/cupertino_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/navigation/parse_route_test.dart b/test/navigation/parse_route_test.dart
+index 830df8bf48d7596244891a7287578ff62d61ad37..7920b13723cab870e954cb3a3cb5f259c61da24b 100644
+--- a/test/navigation/parse_route_test.dart
++++ b/test/navigation/parse_route_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/cupertino.dart';
++import 'package:cupertino_ui/cupertino_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ import 'package:get/get_navigation/src/root/parse_route.dart';
+diff --git a/test/navigation/routes_test.dart b/test/navigation/routes_test.dart
+index 3dd2d333b4ea2b1bf601047eb6ecce0b894b8815..59d55267008eb52cb9c1247a00220e915058be8d 100644
+--- a/test/navigation/routes_test.dart
++++ b/test/navigation/routes_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/cupertino.dart';
++import 'package:cupertino_ui/cupertino_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/navigation/snackbar_test.dart b/test/navigation/snackbar_test.dart
+index 0e14d7c6b8068113f96a93518ee0eb51384483a9..6984d54a668485621fa5fd0eddc7789b31085e41 100644
+--- a/test/navigation/snackbar_test.dart
++++ b/test/navigation/snackbar_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/navigation/utils/wrapper.dart b/test/navigation/utils/wrapper.dart
+index 2e75e7b86229b5e8c8f240c0811f33d2aac5535d..768bd9eeb51bc01b07c7aae48217744a22d750e6 100644
+--- a/test/navigation/utils/wrapper.dart
++++ b/test/navigation/utils/wrapper.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:get/get.dart';
+ 
+ class Wrapper extends StatelessWidget {
+diff --git a/test/state_manager/get_mixin_state_test.dart b/test/state_manager/get_mixin_state_test.dart
+index 0c0883f66dfb354cbde11110d428c580ad46932e..3a849a90306a9dc29775a766054a43067a2d02c1 100644
+--- a/test/state_manager/get_mixin_state_test.dart
++++ b/test/state_manager/get_mixin_state_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/state_manager/get_obx_test.dart b/test/state_manager/get_obx_test.dart
+index 41626a1f22437b43bb490fd29b6355794c414a84..a1eff26dc58c6a7e61e559c0209493d0b8874b4c 100644
+--- a/test/state_manager/get_obx_test.dart
++++ b/test/state_manager/get_obx_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/state_manager/get_rxstate_test.dart b/test/state_manager/get_rxstate_test.dart
+index 6171a11e99aae2f677c5624c3648b69841519938..505a2934838a7ab46ba88cf3cf60ca8b5a4e9b39 100644
+--- a/test/state_manager/get_rxstate_test.dart
++++ b/test/state_manager/get_rxstate_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/state_manager/get_state_test.dart b/test/state_manager/get_state_test.dart
+index 7683dd16745afc2bc022e4cb5c7e0a90a4a7c981..e1ed2ee2dc5743f7941588017327a65cdba9c374 100644
+--- a/test/state_manager/get_state_test.dart
++++ b/test/state_manager/get_state_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+diff --git a/test/utils/extensions/context_extensions_test.dart b/test/utils/extensions/context_extensions_test.dart
+index aae0bd4af4a9500d42a63032f3cd9010508e2000..40c19777cff4de62c903942134684a2f43fdf854 100644
+--- a/test/utils/extensions/context_extensions_test.dart
++++ b/test/utils/extensions/context_extensions_test.dart
+@@ -1,4 +1,4 @@
+-import 'package:flutter/material.dart';
++import 'package:material_ui/material_ui.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 

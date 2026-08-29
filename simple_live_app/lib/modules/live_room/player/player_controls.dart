@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:media_kit_video/media_kit_video.dart';

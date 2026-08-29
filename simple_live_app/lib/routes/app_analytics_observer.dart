@@ -1,5 +1,5 @@
-﻿import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 
 class AppAnalyticsObserver extends NavigatorObserver {

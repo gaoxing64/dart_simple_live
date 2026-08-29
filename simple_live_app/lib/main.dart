@@ -4,9 +4,8 @@ import 'dart:io';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce_flutter/adapters.dart';
@@ -182,11 +181,7 @@ class MyApp extends StatelessWidget {
           getPages: AppPages.routes,
           //国际化
           locale: const Locale("zh", "CN"),
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
           supportedLocales: const [Locale("zh", "CN")],
           logWriterCallback: (text, {bool? isError}) {
             Log.addDebugLog(
