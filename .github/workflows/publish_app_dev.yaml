@@ -63,6 +63,8 @@ jobs:
         run: |
           cd simple_live_app
           flutter pub get
+          dart run patchwork apply
+          dart run patchwork doctor
 
       # 打包 APK
       - name: Build APK
@@ -117,6 +119,8 @@ jobs:
         run: |
           cd simple_live_app
           flutter pub get
+          dart run patchwork apply
+          dart run patchwork doctor
 
       # 安装 appdmg npm install -g appdmg
       - name: Install appdmg
@@ -159,7 +163,7 @@ jobs:
         run: |
           cd simple_live_app
           fastforge package --platform macos --targets dmg,zip --skip-clean
-      
+
       # 上传 MAC 至 Artifacts
       - name: Upload MacOS to Artifacts
         uses: actions/upload-artifact@v4
@@ -221,6 +225,8 @@ jobs:
         run: |
           cd simple_live_app
           flutter pub get
+          dart run patchwork apply
+          dart run patchwork doctor
       # 设置 Fastforge 环境
       - name: Install fast-forge
         run: |
@@ -271,6 +277,9 @@ jobs:
           cd simple_live_app
           flutter clean
           flutter pub get
+          dart run patchwork apply
+          dart run patchwork doctor
+
       # 设置 Fastforge 环境 和 Inno Setup
       - name: Install fast-forge and Inno Setup
         run: |
