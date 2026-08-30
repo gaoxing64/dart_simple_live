@@ -149,6 +149,17 @@ void initCoreLog() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  /// 桌面端返回：优先关闭 SmartDialog 弹窗
+  /// SmartDialog 的 useSystem 弹窗由 Navigator 路由承载，
+  /// 若被 Get.back() 直接弹出，后续 dismiss 会再次 pop 导致 Navigator 状态异常
+  static void appBack() {
+    if (SmartDialog.checkExist()) {
+      SmartDialog.dismiss(status: SmartStatus.smart);
+      return;
+    }
+    Get.back();
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDynamicColor = AppStyleSettingController.instance.isDynamic.value;
@@ -217,6 +228,11 @@ class MyApp extends StatelessWidget {
                           (FourthButtonTapGestureRecognizer instance) {
                             instance.onTapDown =
                                 (TapDownDetails details) async {
+                              //优先关闭 SmartDialog 弹窗
+                              if (SmartDialog.checkExist()) {
+                                MyApp.appBack();
+                                return;
+                              }
                               //如果处于全屏状态，退出全屏
                               if (!Platform.isAndroid && !Platform.isIOS) {
                                 if (await windowManager.isFullScreen()) {
@@ -234,6 +250,11 @@ class MyApp extends StatelessWidget {
                         onKeyEvent: (KeyEvent event) async {
                           if (event is KeyDownEvent &&
                               event.logicalKey == LogicalKeyboardKey.escape) {
+                            //优先关闭 SmartDialog 弹窗
+                            if (SmartDialog.checkExist()) {
+                              MyApp.appBack();
+                              return;
+                            }
                             // ESC退出全屏
                             // 如果处于全屏状态，退出全屏
                             if (!Platform.isAndroid && !Platform.isIOS) {

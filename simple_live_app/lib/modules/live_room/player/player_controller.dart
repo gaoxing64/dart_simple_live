@@ -90,7 +90,8 @@ mixin PlayerMixin {
     //  gpu-shader-cache-dir = "~~/cache/shader"
     //  watch-later-dir = "~~/cache/watch_later"
     // NVIDIA RTX VSR 支持 (Windows 平台)
-    if (Platform.isWindows && AppSettingsController.instance.enableRtxVsr.value) {
+    if (Platform.isWindows &&
+        AppSettingsController.instance.enableRtxVsr.value) {
       await pp.setProperty('hwdec', 'd3d11va');
       await pp.setProperty('vf', 'd3d11vpp=scale=2:scaling-mode=nvidia');
     }
@@ -448,6 +449,10 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         );
         SmartDialog.showToast("已保存截图至相册");
       } else {
+        //全屏下先退出全屏，避免原生文件对话框被全屏窗口遮挡
+        if (fullScreenState.value) {
+          exitFull();
+        }
         //选择保存文件夹
         var path = await FilePicker.platform.saveFile(
           allowedExtensions: ["jpg"],
@@ -792,8 +797,8 @@ class PlayerController extends BaseController
   }
 
   void mediaError(String error) {
-   // 弱网调整：用户自责
-   // WakelockPlus.disable();
+    // 弱网调整：用户自责
+    // WakelockPlus.disable();
   }
 
   Future<void> toggleOSDStats() async {

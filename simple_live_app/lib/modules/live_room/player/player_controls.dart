@@ -647,7 +647,6 @@ void showLinesInfo(LiveRoomController controller) {
   }
   Utils.showRightDialog(
     title: "线路",
-    useSystem: true,
     child: ListView.builder(
       padding: EdgeInsets.zero,
       itemCount: controller.playUrls.length,
@@ -699,7 +698,6 @@ void showQualitesInfo(LiveRoomController controller) {
   }
   Utils.showRightDialog(
     title: "清晰度",
-    useSystem: true,
     child: ListView.builder(
       padding: EdgeInsets.zero,
       itemCount: controller.qualites.length,
@@ -716,8 +714,8 @@ void showQualitesInfo(LiveRoomController controller) {
             icon: const Icon(Icons.copy),
             onPressed: () async {
               try {
-                var playUrl = await controller.site.liveSite
-                    .getPlayUrls(detail: controller.detail.value!, quality: item);
+                var playUrl = await controller.site.liveSite.getPlayUrls(
+                    detail: controller.detail.value!, quality: item);
                 if (playUrl.urls.isNotEmpty) {
                   Utils.copyToClipboard(playUrl.urls.first);
                   SmartDialog.showToast("已复制直链");
@@ -748,7 +746,6 @@ void showDanmakuSettings(LiveRoomController controller) {
   Utils.showRightDialog(
     title: "弹幕设置",
     width: 400,
-    useSystem: true,
     child: ListView(
       padding: AppStyle.edgeInsetsA12,
       children: [
@@ -768,7 +765,6 @@ void showPlayerSettings(LiveRoomController controller) {
   Utils.showRightDialog(
     title: "设置",
     width: 320,
-    useSystem: true,
     child: Obx(
       () => ListView(
         padding: AppStyle.edgeInsetsV12,
@@ -843,7 +839,6 @@ void showFollowUser(LiveRoomController controller) {
   Utils.showRightDialog(
     title: "关注列表",
     width: 400,
-    useSystem: true,
     child: Obx(
       () => Stack(
         children: [
