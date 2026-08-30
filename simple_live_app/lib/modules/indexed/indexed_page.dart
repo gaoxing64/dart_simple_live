@@ -2,12 +2,48 @@ import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/modules/debug/glass_debug/glass_debug_controller.dart';
 import 'package:simple_live_app/widgets/collapse_slot.dart';
+import 'package:simple_live_app/widgets/floating_navigation_bar.dart';
 
 import 'indexed_controller.dart';
 
 class IndexedPage extends GetView<IndexedController> {
   const IndexedPage({super.key});
+
+  /// 悬浮胶囊导航栏（移植自 PiliPlus）
+  ///
+  /// 开启 Liquid Glass 后只替换胶囊背景，布局、指示器与交互
+  /// 仍然全部走悬浮胶囊自身的实现。
+  Widget _buildFloatingNavBar() {
+    return Obx(() {
+      final settings = AppSettingsController.instance;
+      final useGlass = settings.liquidGlassEffect.value;
+      // Debug 构建下接入调试页参数，供浅色模式可读性调优
+      final debug = useGlass && GlassDebugController.enabled
+          ? GlassDebugController.instance
+          : null;
+      return Center(
+        // heightFactor: 1 防止 Center 占满 Scaffold 底栏槽位高度；
+        // Center 同时让胶囊按内容宽度居中，不被槽位的紧约束拉成整屏宽
+        heightFactor: 1,
+        child: FloatingNavigationBar(
+          selectedIndex: controller.index.value,
+          onDestinationSelected: controller.setIndex,
+          liquidGlass: useGlass,
+          liquidGlassSettings: debug?.buildSettings(),
+          destinations: controller.items
+              .map(
+                (item) => FloatingNavigationDestination(
+                  icon: Icon(item.iconData),
+                  label: item.title,
+                ),
+              )
+              .toList(),
+        ),
+      );
+    });
+  }
 
   Widget _buildDefaultNavBar() {
     return Obx(
@@ -63,60 +99,73 @@ class IndexedPage extends GetView<IndexedController> {
 
   @override
   Widget build(BuildContext context) {
-    return OrientationBuilder(
-      builder: (context, orientation) {
-        return Scaffold(
-          body: NotificationListener<ScrollNotification>(
-            onNotification: controller.onScrollNotification,
-            child: Row(
-              children: [
-                Visibility(
-                  visible: orientation == Orientation.landscape,
-                  child: Obx(
-                    () => NavigationRail(
-                      selectedIndex: controller.index.value,
-                      onDestinationSelected: controller.setIndex,
-                      labelType: NavigationRailLabelType.none,
-                      destinations: controller.items
-                          .map(
-                            (item) => NavigationRailDestination(
-                              icon: Icon(item.iconData),
-                              label: Text(item.title),
-                              padding: AppStyle.edgeInsetsV8,
-                            ),
-                          )
-                          .toList(),
+    return Obx(() {
+      final navBarStyle = AppSettingsController.instance.navBarStyle.value;
+      // 悬浮样式：内容延伸到导航栏下方（Scaffold 会把它计入 body 的
+      // MediaQuery.padding.bottom，页面自行留白即可）
+      final useFloatingNavBar = navBarStyle != 0;
+      return OrientationBuilder(
+        builder: (context, orientation) {
+          return Scaffold(
+            extendBody:
+                orientation == Orientation.portrait && useFloatingNavBar,
+            body: NotificationListener<ScrollNotification>(
+              onNotification: controller.onScrollNotification,
+              child: Row(
+                children: [
+                  Visibility(
+                    visible: orientation == Orientation.landscape,
+                    child: Obx(
+                      () => NavigationRail(
+                        selectedIndex: controller.index.value,
+                        onDestinationSelected: controller.setIndex,
+                        labelType: NavigationRailLabelType.none,
+                        destinations: controller.items
+                            .map(
+                              (item) => NavigationRailDestination(
+                                icon: Icon(item.iconData),
+                                label: Text(item.title),
+                                padding: AppStyle.edgeInsetsV8,
+                              ),
+                            )
+                            .toList(),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Obx(
-                    () => Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          left: orientation == Orientation.landscape
-                              ? BorderSide(
-                                  color: Colors.grey.withAlpha(50),
-                                  width: 1,
-                                )
-                              : BorderSide.none,
+                  Expanded(
+                    child: Obx(
+                      () => Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            left: orientation == Orientation.landscape
+                                ? BorderSide(
+                                    color: Colors.grey.withAlpha(50),
+                                    width: 1,
+                                  )
+                                : BorderSide.none,
+                          ),
+                        ),
+                        child: IndexedStack(
+                          index: controller.index.value,
+                          children: controller.pages,
                         ),
                       ),
-                      child: IndexedStack(
-                        index: controller.index.value,
-                        children: controller.pages,
-                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          bottomNavigationBar: orientation == Orientation.portrait
-              ? _buildBottomBar(_buildDefaultNavBar())
-              : null,
-        );
-      },
-    );
+            bottomNavigationBar: orientation == Orientation.portrait
+                ? _buildBottomBar(
+                    switch (navBarStyle) {
+                      1 => _buildFloatingNavBar(),
+                      _ => _buildDefaultNavBar(),
+                    },
+                  )
+                : null,
+          );
+        },
+      );
+    });
   }
 }

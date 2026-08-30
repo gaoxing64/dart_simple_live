@@ -9,6 +9,8 @@ import 'package:simple_live_app/modules/follow_user/follow_info_setting/follow_i
 import 'package:simple_live_app/modules/follow_user/follow_info_setting/follow_info_page.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_page.dart';
+import 'package:simple_live_app/modules/debug/glass_debug/glass_debug_controller.dart';
+import 'package:simple_live_app/modules/debug/glass_debug/glass_debug_page.dart';
 import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_page.dart';
@@ -117,6 +119,14 @@ class AppPages {
     GetPage(
         name: RoutePath.kAppstyleSetting,
         page: () => const AppStyleSettingPage()),
+    //Liquid Glass 调试（仅 Debug 构建入口可见）
+    GetPage(
+      name: RoutePath.kLiquidGlassDebug,
+      page: () => const GlassDebugPage(),
+      binding: BindingsBuilder(
+        () => GlassDebugController.instance,
+      ),
+    ),
     //播放设置
     GetPage(
       name: RoutePath.kSettingsPlay,

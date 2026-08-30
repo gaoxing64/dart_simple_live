@@ -20,7 +20,7 @@ class AppSettingsController extends GetxController {
   /// 缩放模式
   var scaleMode = 0.obs;
 
-  var aspectByUser = (16/9).obs;
+  var aspectByUser = (16 / 9).obs;
 
   var aspectWidth = 16.obs;
 
@@ -73,6 +73,22 @@ class AppSettingsController extends GetxController {
     // ThemeMode.values[...] 在启动时抛 RangeError
     themeMode.value = normalizeThemeModeIndex(
       LocalStorageService.instance.getValue(LocalStorageService.kThemeMode, 0),
+    );
+    // 旧版本只有「悬浮玻璃导航栏」开关，再往后是 0/1/2 的样式枚举。
+    // 整合后悬浮玻璃不再是独立样式，而是悬浮胶囊上的实验性效果，
+    // 因此旧值 2（悬浮玻璃）迁移为样式 1（悬浮胶囊）+ Liquid Glass 开关。
+    final legacyGlassNavBar = LocalStorageService.instance
+        .getValue(LocalStorageService.kFloatingGlassNavBar, false);
+    final storedNavBarStyle = LocalStorageService.instance
+        .getNullValue<int>(LocalStorageService.kNavBarStyle, null);
+    final legacyGlassStyle = storedNavBarStyle == 2;
+    final resolvedNavBarStyle = legacyGlassStyle
+        ? 1
+        : (storedNavBarStyle ?? (legacyGlassNavBar ? 1 : 0));
+    navBarStyle.value = resolvedNavBarStyle >= 1 ? 1 : 0;
+    liquidGlassEffect.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kLiquidGlassEffect,
+      legacyGlassNavBar || legacyGlassStyle,
     );
     hideTopBar.value = LocalStorageService.instance
         .getValue(LocalStorageService.kHideTopBar, hideTopBar.value);
@@ -330,6 +346,26 @@ class AppSettingsController extends GetxController {
 
   void setNoFirstRun() {
     LocalStorageService.instance.setValue(LocalStorageService.kFirstRun, false);
+  }
+
+  /// 底部导航栏样式（见 [LocalStorageService.kNavBarStyle]）
+  /// * [0] 标准
+  /// * [1] 悬浮胶囊
+  var navBarStyle = 0.obs;
+
+  /// 悬浮胶囊的 Liquid Glass 透明折射效果（实验性）
+  var liquidGlassEffect = false.obs;
+
+  void setNavBarStyle(int e) {
+    navBarStyle.value = e >= 1 ? 1 : 0;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kNavBarStyle, navBarStyle.value);
+  }
+
+  void setLiquidGlassEffect(bool e) {
+    liquidGlassEffect.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kLiquidGlassEffect, e);
   }
 
   /// 首页顶栏收起（移动端默认开启）
@@ -734,8 +770,7 @@ class AppSettingsController extends GetxController {
 
   void setEnableRtxVsr(bool e) {
     enableRtxVsr.value = e;
-    LocalStorageService.instance
-        .setValue(LocalStorageService.kEnableRtxVsr, e);
+    LocalStorageService.instance.setValue(LocalStorageService.kEnableRtxVsr, e);
   }
 
   var autoUpdateFollowEnable = false.obs;

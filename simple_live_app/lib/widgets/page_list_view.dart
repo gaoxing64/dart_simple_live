@@ -33,6 +33,20 @@ class PageListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var effectivePadding = padding;
+    if (effectivePadding != null) {
+      // 悬浮底栏（Scaffold.extendBody）会把底栏高度计入 body 的
+      // MediaQuery.padding.bottom；调用方传入显式 padding 会覆盖它，
+      // 这里把这段额外高度补回 padding.bottom，避免最后一项被悬浮底栏遮住。
+      var mediaQuery = MediaQuery.of(context);
+      var floatingBarInset =
+          mediaQuery.padding.bottom - mediaQuery.viewPadding.bottom;
+      if (floatingBarInset > 0) {
+        effectivePadding = effectivePadding.copyWith(
+          bottom: effectivePadding.bottom + floatingBarInset,
+        );
+      }
+    }
     return Obx(
       () => Stack(
         children: [
@@ -49,7 +63,7 @@ class PageListView extends StatelessWidget {
             onLoad: pageController.loadData,
             onRefresh: pageController.refreshData,
             child: ListView.separated(
-              padding: padding,
+              padding: effectivePadding,
               itemCount: pageController.list.length,
               itemBuilder: itemBuilder,
               separatorBuilder:

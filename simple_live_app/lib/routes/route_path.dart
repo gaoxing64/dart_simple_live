@@ -48,6 +48,9 @@ class RoutePath {
   /// 外观设置
   static const kAppstyleSetting = "/settings/appstyle";
 
+  /// Liquid Glass 调试（仅 Debug 构建）
+  static const kLiquidGlassDebug = "/debug/liquid_glass";
+
   /// 账号管理
   static const kSettingsAccount = "/settings/account";
 

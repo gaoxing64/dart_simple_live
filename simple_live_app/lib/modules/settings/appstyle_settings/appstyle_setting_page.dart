@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
+import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
 import 'package:simple_live_app/widgets/settings/settings_menu.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
@@ -25,14 +27,13 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
         AppStyle.hGap4,
         Visibility(
           visible: controller.fontState.value == DownloadState.downloaded,
-          child:
-        Tooltip(
-          message: "删除字体",
-          child: IconButton(
-            onPressed: controller.fontDelete,
-            icon: Icon(Icons.delete_outline_outlined),
+          child: Tooltip(
+            message: "删除字体",
+            child: IconButton(
+              onPressed: controller.fontDelete,
+              icon: Icon(Icons.delete_outline_outlined),
+            ),
           ),
-        ),
         ),
         Visibility(
           visible: controller.fontState.value == DownloadState.downloaded,
@@ -98,6 +99,61 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
               ),
             ),
           ),
+          AppStyle.vGap12,
+          Padding(
+            padding: AppStyle.edgeInsetsA12,
+            child: Text(
+              "底部导航",
+              style: Get.textTheme.titleSmall,
+            ),
+          ),
+          SettingsCard(
+            child: Obx(() {
+              final settings = AppSettingsController.instance;
+              final useFloating = settings.navBarStyle.value == 1;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SettingsMenu<int>(
+                    title: "底部导航栏样式",
+                    subtitle: "悬浮胶囊会把导航栏浮在内容之上（仅竖屏生效）",
+                    value: settings.navBarStyle.value,
+                    valueMap: const {
+                      0: "标准",
+                      1: "悬浮胶囊",
+                    },
+                    onChanged: settings.setNavBarStyle,
+                  ),
+                  if (useFloating)
+                    SettingsSwitch(
+                      title: "Liquid Glass 效果（实验性）",
+                      subtitle: "为悬浮胶囊叠加透明折射玻璃效果，可能与部分设备/主题不兼容",
+                      value: settings.liquidGlassEffect.value,
+                      onChanged: settings.setLiquidGlassEffect,
+                    ),
+                ],
+              );
+            }),
+          ),
+          if (kDebugMode) ...[
+            AppStyle.vGap12,
+            Padding(
+              padding: AppStyle.edgeInsetsA12,
+              child: Text(
+                "开发者选项",
+                style: Get.textTheme.titleSmall,
+              ),
+            ),
+            SettingsCard(
+              child: ListTile(
+                title: const Text("Liquid Glass 调试"),
+                subtitle: const Text("滑动调节玻璃参数，实时预览浅色模式可读性"),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Get.toNamed(RoutePath.kLiquidGlassDebug),
+              ),
+            ),
+          ],
           AppStyle.vGap12,
           Padding(
             padding: AppStyle.edgeInsetsA12,
@@ -217,7 +273,8 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                         widget: Tooltip(
                           message: "应用字体",
                           child: IconButton(
-                            icon: const Icon(Icons.check_circle_outline_outlined),
+                            icon:
+                                const Icon(Icons.check_circle_outline_outlined),
                             onPressed: () => controller.changeFontFamily(),
                           ),
                         ),
