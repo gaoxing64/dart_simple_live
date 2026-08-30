@@ -16,7 +16,7 @@ class AppSettingsController extends GetxController {
   /// 缩放模式
   var scaleMode = 0.obs;
 
-  var aspectByUser = (16/9).obs;
+  var aspectByUser = (16 / 9).obs;
 
   var aspectWidth = 16.obs;
 
@@ -32,6 +32,8 @@ class AppSettingsController extends GetxController {
   void onInit() {
     themeMode.value = LocalStorageService.instance
         .getValue(LocalStorageService.kThemeMode, 0);
+    floatingGlassNavBar.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kFloatingGlassNavBar, false);
     firstRun = LocalStorageService.instance
         .getValue(LocalStorageService.kFirstRun, true);
     danmuSize.value = LocalStorageService.instance
@@ -278,6 +280,15 @@ class AppSettingsController extends GetxController {
 
   void setNoFirstRun() {
     LocalStorageService.instance.setValue(LocalStorageService.kFirstRun, false);
+  }
+
+  /// 悬浮玻璃导航栏（Liquid Glass，竖屏）
+  var floatingGlassNavBar = false.obs;
+
+  void setFloatingGlassNavBar(bool e) {
+    floatingGlassNavBar.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kFloatingGlassNavBar, e);
   }
 
   var hardwareDecode = true.obs;
@@ -643,8 +654,7 @@ class AppSettingsController extends GetxController {
 
   void setEnableRtxVsr(bool e) {
     enableRtxVsr.value = e;
-    LocalStorageService.instance
-        .setValue(LocalStorageService.kEnableRtxVsr, e);
+    LocalStorageService.instance.setValue(LocalStorageService.kEnableRtxVsr, e);
   }
 
   var autoUpdateFollowEnable = false.obs;

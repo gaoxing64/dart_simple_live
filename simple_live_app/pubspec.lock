@@ -611,7 +611,7 @@ packages:
     description:
       path: "."
       ref: master
-      resolved-ref: "f0ddb3514c96dde2816495e3461d1c3b8456de3c"
+      resolved-ref: f0ddb3514c96dde2816495e3461d1c3b8456de3c
       url: "https://github.com/SlotSun/get.git"
     source: git
     version: "4.7.3"
@@ -820,6 +820,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.0"
+  liquid_glass_widgets:
+    dependency: "direct main"
+    description:
+      name: liquid_glass_widgets
+      sha256: ffc33fc38ee3dddd2afe98a630f8805fcbed9191447aa7173c40d632be78ea76
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.1"
   logger:
     dependency: "direct main"
     description:

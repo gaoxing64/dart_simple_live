@@ -26,6 +26,9 @@ class LocalStorageService extends GetxService {
   /// 首页排序
   static const String kHomeSort = "HomeSort";
 
+  /// 悬浮玻璃导航栏（Liquid Glass）
+  static const String kFloatingGlassNavBar = "FloatingGlassNavBar";
+
   /// 显示模式
   /// * [0] 跟随系统
   /// * [1] 浅色模式

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart' as liquid_glass;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -67,6 +68,8 @@ void main() async {
     systemNavigationBarColor: Colors.transparent,
   );
   SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
+  //Liquid Glass 着色器预热
+  await liquid_glass.LiquidGlassWidgets.initialize();
   runApp(const MyApp());
 }
 
@@ -196,75 +199,79 @@ class MyApp extends StatelessWidget {
           builder: FlutterSmartDialog.init(
             loadingBuilder: ((msg) => const AppLoaddingWidget()),
             //字体大小不跟随系统变化
-            builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(context)
-                  .copyWith(textScaler: const TextScaler.linear(1.0)),
-              child: Stack(
-                children: [
-                  //侧键返回
-                  RawGestureDetector(
-                    excludeFromSemantics: true,
-                    gestures: <Type, GestureRecognizerFactory>{
-                      FourthButtonTapGestureRecognizer:
-                          GestureRecognizerFactoryWithHandlers<
-                              FourthButtonTapGestureRecognizer>(
-                        () => FourthButtonTapGestureRecognizer(),
-                        (FourthButtonTapGestureRecognizer instance) {
-                          instance.onTapDown = (TapDownDetails details) async {
-                            //如果处于全屏状态，退出全屏
+            builder: (context, child) => liquid_glass.LiquidGlassWidgets.wrap(
+              brightnessResolver: (context) => Theme.of(context).brightness,
+              child: MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: const TextScaler.linear(1.0)),
+                child: Stack(
+                  children: [
+                    //侧键返回
+                    RawGestureDetector(
+                      excludeFromSemantics: true,
+                      gestures: <Type, GestureRecognizerFactory>{
+                        FourthButtonTapGestureRecognizer:
+                            GestureRecognizerFactoryWithHandlers<
+                                FourthButtonTapGestureRecognizer>(
+                          () => FourthButtonTapGestureRecognizer(),
+                          (FourthButtonTapGestureRecognizer instance) {
+                            instance.onTapDown =
+                                (TapDownDetails details) async {
+                              //如果处于全屏状态，退出全屏
+                              if (!Platform.isAndroid && !Platform.isIOS) {
+                                if (await windowManager.isFullScreen()) {
+                                  await windowManager.setFullScreen(false);
+                                  return;
+                                }
+                              }
+                              Get.back();
+                            };
+                          },
+                        ),
+                      },
+                      child: KeyboardListener(
+                        focusNode: FocusNode(),
+                        onKeyEvent: (KeyEvent event) async {
+                          if (event is KeyDownEvent &&
+                              event.logicalKey == LogicalKeyboardKey.escape) {
+                            // ESC退出全屏
+                            // 如果处于全屏状态，退出全屏
                             if (!Platform.isAndroid && !Platform.isIOS) {
                               if (await windowManager.isFullScreen()) {
                                 await windowManager.setFullScreen(false);
+                                EventBus.instance
+                                    .emit(EventBus.kEscapePressed, 0);
                                 return;
                               }
                             }
-                            Get.back();
-                          };
-                        },
-                      ),
-                    },
-                    child: KeyboardListener(
-                      focusNode: FocusNode(),
-                      onKeyEvent: (KeyEvent event) async {
-                        if (event is KeyDownEvent &&
-                            event.logicalKey == LogicalKeyboardKey.escape) {
-                          // ESC退出全屏
-                          // 如果处于全屏状态，退出全屏
-                          if (!Platform.isAndroid && !Platform.isIOS) {
-                            if (await windowManager.isFullScreen()) {
-                              await windowManager.setFullScreen(false);
-                              EventBus.instance
-                                  .emit(EventBus.kEscapePressed, 0);
-                              return;
-                            }
                           }
-                        }
-                      },
-                      child: child!,
+                        },
+                        child: child!,
+                      ),
                     ),
-                  ),
 
-                  //查看DEBUG日志按钮
-                  //只在Debug、Profile模式显示
-                  Visibility(
-                    visible: !kReleaseMode,
-                    child: Positioned(
-                      right: 12,
-                      bottom: 100 + context.mediaQueryViewPadding.bottom,
-                      child: Opacity(
-                        opacity: 0.4,
-                        child: ElevatedButton(
-                          child: const Text("DEBUG LOG"),
-                          onPressed: () {
-                            Get.bottomSheet(
-                              const DebugLogPage(),
-                            );
-                          },
+                    //查看DEBUG日志按钮
+                    //只在Debug、Profile模式显示
+                    Visibility(
+                      visible: !kReleaseMode,
+                      child: Positioned(
+                        right: 12,
+                        bottom: 100 + context.mediaQueryViewPadding.bottom,
+                        child: Opacity(
+                          opacity: 0.4,
+                          child: ElevatedButton(
+                            child: const Text("DEBUG LOG"),
+                            onPressed: () {
+                              Get.bottomSheet(
+                                const DebugLogPage(),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -27,14 +27,13 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
         AppStyle.hGap4,
         Visibility(
           visible: controller.fontState.value == DownloadState.downloaded,
-          child:
-        Tooltip(
-          message: "删除字体",
-          child: IconButton(
-            onPressed: controller.fontDelete,
-            icon: Icon(Icons.delete_outline_outlined),
+          child: Tooltip(
+            message: "删除字体",
+            child: IconButton(
+              onPressed: controller.fontDelete,
+              icon: Icon(Icons.delete_outline_outlined),
+            ),
           ),
-        ),
         ),
         Visibility(
           visible: controller.fontState.value == DownloadState.downloaded,
@@ -97,6 +96,26 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+          AppStyle.vGap12,
+          Padding(
+            padding: AppStyle.edgeInsetsA12,
+            child: Text(
+              "底部导航",
+              style: Get.textTheme.titleSmall,
+            ),
+          ),
+          SettingsCard(
+            child: Obx(
+              () => SettingsSwitch(
+                title: "悬浮玻璃导航栏",
+                subtitle: "开启后使用 iOS 26 风格的 Liquid Glass 悬浮底部导航栏（竖屏）",
+                value: AppSettingsController.instance.floatingGlassNavBar.value,
+                onChanged: (e) {
+                  AppSettingsController.instance.setFloatingGlassNavBar(e);
+                },
               ),
             ),
           ),
@@ -248,7 +267,8 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                         widget: Tooltip(
                           message: "应用字体",
                           child: IconButton(
-                            icon: const Icon(Icons.check_circle_outline_outlined),
+                            icon:
+                                const Icon(Icons.check_circle_outline_outlined),
                             onPressed: () => controller.changeFontFamily(),
                           ),
                         ),

@@ -24,8 +24,13 @@ class MinePage extends StatelessWidget {
               systemNavigationBarColor: Colors.transparent,
             ),
       child: SafeArea(
+        // bottom: false：悬浮玻璃导航栏模式下内容需延伸到胶囊下方，
+        // 底部避让由 ListView 的 padding 中的 MediaQuery bottom 处理
+        bottom: false,
         child: ListView(
-          padding: AppStyle.edgeInsetsA4,
+          padding: AppStyle.edgeInsetsA4.copyWith(
+            bottom: MediaQuery.paddingOf(context).bottom + 4,
+          ),
           children: [
             AppStyle.vGap12,
             ListTile(
