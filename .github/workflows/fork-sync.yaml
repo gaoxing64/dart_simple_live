@@ -1,0 +1,46 @@
+name: Fork Sync
+
+permissions:
+    contents: write
+
+on:
+    schedule:
+        - cron: "0 0 * * *"  # 每天午夜(UTC)执行
+    workflow_dispatch:  # 允许手动触发
+
+jobs:
+    sync_with_upstream:
+        name: Sync with Upstream
+        runs-on: ubuntu-latest
+        if: ${{ github.event.repository.fork }}
+
+        steps:
+            - name: Checkout target repo
+              uses: actions/checkout@v4
+              with:
+                  ref: dev
+                  fetch-depth: 0  # rebase 需要完整历史
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Sync upstream dev (rebase)
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git remote add upstream https://github.com/SlotSun/dart_simple_live.git
+                  git fetch upstream dev
+                  git rebase upstream/dev
+                  git push --force-with-lease origin dev
+
+            - name: Check for new commits
+              if: success()
+              run: echo "Sync completed successfully"
+
+            - name: Check for Failure
+              if: failure()
+              run: |
+                  echo "[Error] Sync failed. This might be due to:"
+                  echo "1. 本地独有提交与上游改动冲突，需要手动 rebase 解决"
+                  echo "2. 上游强制推送导致历史分叉"
+                  echo "3. 网络问题"
+                  echo "请查看日志并手动执行: git fetch upstream dev && git rebase upstream/dev"
+                  exit 1
