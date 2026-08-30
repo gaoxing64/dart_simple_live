@@ -108,6 +108,11 @@ dependencies:
       path: ./libs/universal/media_kit_libs_video
 
 dependency_overrides:
+  get:
+    git:
+      url: https://github.com/SlotSun/get.git
+      ref: master
+
   media_kit_libs_linux:
     git:
       url: https://github.com/Predidit/media-kit.git
@@ -143,7 +148,6 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  patchwork: ^0.7.0
 
 flutter_launcher_icons:
   android: "ic_launcher"
