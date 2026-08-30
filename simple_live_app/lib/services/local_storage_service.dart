@@ -26,6 +26,20 @@ class LocalStorageService extends GetxService {
   /// 首页排序
   static const String kHomeSort = "HomeSort";
 
+  /// 底部导航栏样式
+  /// * [0] 标准
+  /// * [1] 悬浮胶囊（PiliPlus 移植）
+  /// * [2] 旧版「悬浮玻璃」样式；整合后迁移为 [1] + [kLiquidGlassEffect]
+  static const String kNavBarStyle = "NavBarStyle";
+
+  /// 悬浮胶囊的 Liquid Glass 透明折射效果（实验性）
+  static const String kLiquidGlassEffect = "LiquidGlassEffect";
+
+  /// 悬浮玻璃导航栏（Liquid Glass）
+  /// * 更早版本的开关，已由 [kNavBarStyle] + [kLiquidGlassEffect] 取代，
+  ///   仅用于读取旧值迁移
+  static const String kFloatingGlassNavBar = "FloatingGlassNavBar";
+
   /// 首页顶栏收起
   static const String kHideTopBar = "HideTopBar";
 
