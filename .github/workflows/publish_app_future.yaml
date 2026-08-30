@@ -1,0 +1,366 @@
+name: app-build-action-future
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'future'
+
+# If previous workflow is still running, we push again, we will cancel the previous workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+
+  # packing android on ubuntu, macos slowly
+  build-android:
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      # 签出代码
+      - uses: actions/checkout@v6
+        with:
+          ref: future
+
+      # APK 签名设置
+      - name: Download Android keystore
+        id: android_keystore
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: keystore.jks
+          encodedString: ${{ secrets.KEYSTORE_BASE64 }}
+      - name: Create key.properties
+        run: |
+          echo "${{ secrets.FIREBASE_JSON }}" | base64 --decode > simple_live_app/android/app/google-services.json
+          echo "${{ secrets.FIREBASE_OPTIONS_DART }}" | base64 --decode > simple_live_app/lib/firebase_options.dart
+          echo "storeFile=${{ steps.android_keystore.outputs.filePath }}" > simple_live_app/android/key.properties
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" >> simple_live_app/android/key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> simple_live_app/android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> simple_live_app/android/key.properties
+
+      # 设置 JAVA 环境
+      - uses: actions/setup-java@v5
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
+          cache-dependency-path: |
+            simple_live_app/android/*.gradle*
+            simple_live_app/android/**/gradle-wrapper.properties
+
+      # 设置 Flutter
+      - name: Flutter action
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: simple_live_app/pubspec.yaml
+          cache: true
+
+      # 更新 Flutter 的 packages
+      - name: Restore packages
+        run: |
+          cd simple_live_app
+          flutter pub get
+          dart run patchwork apply
+          dart run patchwork doctor
+
+      # 打包 APK
+      - name: Build APK
+        run: |
+          cd simple_live_app
+          flutter build apk --release --split-per-abi
+
+      # 上传 Artifacts
+      - name: Upload APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: |
+            simple_live_app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            simple_live_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            simple_live_app/build/app/outputs/flutter-apk/app-x86_64-release.apk
+
+
+  # 打包iOS、Mac
+  build-mac-ios:
+    runs-on: macos-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      # 签出代码
+      - uses: actions/checkout@v4
+        with:
+          ref: future
+
+      # 设置 JAVA 环境
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: "21"
+          cache: "gradle"
+
+      # 设置 Flutter
+      - name: Flutter action
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: simple_live_app/pubspec.yaml
+          cache: true
+
+      # 打开 MAC Desktop 支持
+      - name: Enable Flutter Desktop
+        run: flutter config --enable-macos-desktop
+
+      # 更新 Flutter 的 packages
+      - name: Restore packages
+        run: |
+          cd simple_live_app
+          flutter pub get
+          dart run patchwork apply
+          dart run patchwork doctor
+
+      # 安装 appdmg npm install -g appdmg
+      - name: Install appdmg
+        run: npm install -g appdmg
+
+      # 设置 Fastforge 环境
+      - name: Install fast-forge
+        run: |
+          git clone https://github.com/SlotSun/fastforge.git
+          cd fastforge
+          dart pub global activate melos
+          melos run activate
+
+      # 打包 iOS
+      - name: Build IPA
+        run: |
+          cd simple_live_app
+          flutter build ios --release --no-codesign
+
+      # 创建未签名 ipa
+      - name: Create IPA
+        run: |
+          cd simple_live_app
+          mkdir build/ios/iphoneos/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/Runner.app
+          cd build/ios/iphoneos/
+          zip -q -r ios_no_sign.ipa Payload
+          cd ../../..
+
+      # 上传 IPA 至 Artifacts
+      - name: Upload IPA to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: |
+            simple_live_app/build/ios/iphoneos/ios_no_sign.ipa
+
+      # 打包 MAC
+      - name: Build MacOS
+        run: |
+          cd simple_live_app
+          fastforge package --platform macos --targets dmg,zip --skip-clean
+
+      # 上传 MAC 至 Artifacts
+      - name: Upload MacOS to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            simple_live_app/build/dist/*/*.dmg
+            simple_live_app/build/dist/*/*.zip
+      # 完成
+      - run: echo "🍏 This job's status is ${{ job.status }}."
+
+  # 打包 Linux
+  build-linux:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    steps:
+      # 签出代码
+      - uses: actions/checkout@v4
+        with:
+          ref: future
+      # 设置 Flutter 环境
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: simple_live_app/pubspec.yaml
+          channel: master
+      # 安装依赖
+      - name: Update apt-get
+        run: sudo apt-get update
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake libgtk-3-dev unzip libasound2-dev gcc g++ autoconf automake \
+              debhelper glslang-dev ladspa-sdk xutils-dev libasound2-dev libarchive-dev libbluray-dev \
+              libdav1d-dev libdvdnav-dev libegl1-mesa-dev libepoxy-dev libfontconfig-dev libfreetype6-dev \
+              libfribidi-dev libgl1-mesa-dev libgbm-dev libgme-dev libgsm1-dev libharfbuzz-dev libjpeg-dev \
+              libbrotli-dev liblcms2-dev libmodplug-dev libmp3lame-dev libopenal-dev \
+              libopus-dev libopencore-amrnb-dev libopencore-amrwb-dev libpulse-dev librtmp-dev \
+              libsdl2-dev libsixel-dev libssh-dev libsoxr-dev libspeex-dev libtool \
+              libv4l-dev libva-dev libvdpau-dev libvorbis-dev libvo-amrwbenc-dev \
+              libunwind-dev libvpx-dev libwayland-dev libx11-dev libxext-dev libdrm-dev \
+              libxkbcommon-dev libxrandr-dev libxss-dev libxv-dev libxvidcore-dev \
+              linux-libc-dev nasm ninja-build pkg-config python3 python3-docutils wayland-protocols \
+              x11proto-core-dev zlib1g-dev libfdk-aac-dev libtheora-dev libwebp-dev \
+              unixodbc-dev libpq-dev libxxhash-dev libaom-dev libbs2b-dev libcaca-dev libcdio-paranoia-dev
+      # 打开 Linux Desktop 支持
+      - name: Enable Flutter Desktop
+        run: flutter config --enable-linux-desktop
+      # 更新 Flutter 的 packages
+      - name: Restore Packages
+        run: |
+          cd simple_live_app
+          flutter pub get
+          dart run patchwork apply
+          dart run patchwork doctor
+      # 设置 Fastforge 环境
+      - name: Install fast-forge
+        run: |
+          git clone https://github.com/SlotSun/fastforge.git
+          cd fastforge
+          dart pub global activate melos
+          melos run activate
+      # build Linux DEB \ ZIP
+      - name: Build Linux
+        run: |
+          cd simple_live_app
+          fastforge package --platform linux --targets deb,zip --skip-clean
+          cd build/dist/*
+          mv simple_live_app-*-linux.deb Slive-${{ matrix.arch }}-linux.deb
+          mv simple_live_app-*-linux.zip Slive-${{ matrix.arch }}-linux.zip
+      # 上传 Linux 包至 Artifacts
+      - name: Upload Linux APP to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            simple_live_app/build/dist/*/*.deb
+            simple_live_app/build/dist/*/*.zip
+
+      # 完成
+      - run: echo "🍏 Linux job's status is ${{ job.status }}."
+
+  # 打包 Windows
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      # 签出代码
+      - uses: actions/checkout@v4
+        with:
+          ref: future
+      # 设置 Flutter 环境
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: simple_live_app/pubspec.yaml
+          cache: true
+      - name: Enable Flutter Desktop
+        run: flutter config --enable-windows-desktop
+      - name: Restore Packages
+        run: |
+          cd simple_live_app
+          flutter clean
+          flutter pub get
+          dart run patchwork apply
+          dart run patchwork doctor
+
+      # 设置 Fastforge 环境 和 Inno Setup
+      - name: Install fast-forge and Inno Setup
+        run: |
+          git clone https://github.com/SlotSun/fastforge.git
+          cd fastforge
+          dart pub global activate melos
+          melos run activate
+          choco install innosetup
+      # 添加中文安装引导
+      - name: Add Chinese language file for Inno Setup
+        run: |
+          cd simple_live_app
+          Copy-Item "windows/packaging/exe/ChineseSimplified.isl" "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
+        shell: powershell
+      # build Windows ZIP\MSIX\EXE
+      - name: Build Windows
+        run: |
+          cd simple_live_app
+          fastforge package --platform windows --targets msix,zip,exe --skip-clean
+          cd build/dist/*
+          Get-ChildItem "simple_live_app-*" | ForEach-Object {
+              $newName = $_.Name -replace '^simple_live_app', 'Slive'
+              Rename-Item $_ -NewName $newName
+          }
+        shell: pwsh
+      # 上传 Windows 至 Artifacts
+      - name: Upload Windows APP to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            simple_live_app/build/dist/*/*.msix
+            simple_live_app/build/dist/*/*.zip
+            simple_live_app/build/dist/*/*.exe
+      # 完成
+      - run: echo "🍏 Windows job's status is ${{ job.status }}."
+
+  # 打包 Flatpak
+  build-flatpak:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    steps:
+      # 签出代码
+      - uses: actions/checkout@v4
+        with:
+          ref: future
+      # 安装依赖
+      - name: Install dependencies
+        run: |
+          sudo add-apt-repository -y ppa:flatpak/stable
+          sudo apt-get update -q
+          sudo apt-get install -y flatpak flatpak-builder ca-certificates gnupg software-properties-common
+          flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          git config --global protocol.file.allow always
+      # 构建 Flatpak bundle
+      - name: Build flatpak bundle
+        run: |
+          flatpak-builder build-dir flatpak/flatpak-manifest.yaml \
+            --arch=${{ matrix.arch }} \
+            --repo=${{ matrix.arch }} \
+            --force-clean \
+            --user \
+            --install-deps-from=flathub \
+            --ccache \
+            --disable-rofiles-fuse
+          flatpak build-bundle ${{ matrix.arch }} Slive-${{ matrix.arch }}.flatpak io.github.SlotSun.Slive
+
+      # 上传 Flatpak 包至 Artifacts
+      - name: Upload linux flatpak to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-flatpak-${{ matrix.arch }}
+          path: Slive-*.flatpak
+
+      # 完成
+      - run: echo "🍏 Flatpak job's status is ${{ job.status }}."
