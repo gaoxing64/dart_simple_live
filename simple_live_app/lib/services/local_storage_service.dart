@@ -26,6 +26,17 @@ class LocalStorageService extends GetxService {
   /// 首页排序
   static const String kHomeSort = "HomeSort";
 
+  /// 首页顶栏收起
+  static const String kHideTopBar = "HideTopBar";
+
+  /// 首页底栏收起
+  static const String kHideBottomBar = "HideBottomBar";
+
+  /// 顶/底栏收起类型
+  /// * [0] 即时
+  /// * [1] 同步
+  static const String kBarHideType = "BarHideType";
+
   /// 显示模式
   /// * [0] 跟随系统
   /// * [1] 浅色模式
