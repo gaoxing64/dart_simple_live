@@ -13,6 +13,10 @@ class AppSettingsController extends GetxController {
   static AppSettingsController get instance =>
       Get.find<AppSettingsController>();
 
+  /// 桌面端
+  static bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
   /// 缩放模式
   var scaleMode = 0.obs;
 
@@ -34,6 +38,12 @@ class AppSettingsController extends GetxController {
         .getValue(LocalStorageService.kThemeMode, 0);
     floatingGlassNavBar.value = LocalStorageService.instance
         .getValue(LocalStorageService.kFloatingGlassNavBar, false);
+    hideTopBar.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kHideTopBar, hideTopBar.value);
+    hideBottomBar.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kHideBottomBar, hideBottomBar.value);
+    barHideType.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kBarHideType, barHideType.value);
     firstRun = LocalStorageService.instance
         .getValue(LocalStorageService.kFirstRun, true);
     danmuSize.value = LocalStorageService.instance
@@ -289,6 +299,33 @@ class AppSettingsController extends GetxController {
     floatingGlassNavBar.value = e;
     LocalStorageService.instance
         .setValue(LocalStorageService.kFloatingGlassNavBar, e);
+  }
+
+  /// 首页顶栏收起（移动端默认开启）
+  var hideTopBar = (!_isDesktop).obs;
+
+  void setHideTopBar(bool e) {
+    hideTopBar.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kHideTopBar, e);
+  }
+
+  /// 首页底栏收起（移动端默认开启）
+  var hideBottomBar = (!_isDesktop).obs;
+
+  void setHideBottomBar(bool e) {
+    hideBottomBar.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kHideBottomBar, e);
+  }
+
+  /// 顶/底栏收起类型
+  /// * [0] 即时
+  /// * [1] 同步
+  var barHideType = 1.obs;
+
+  void setBarHideType(int e) {
+    barHideType.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kBarHideType, e);
   }
 
   var hardwareDecode = true.obs;
