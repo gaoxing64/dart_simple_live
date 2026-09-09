@@ -12,7 +12,6 @@ import 'package:flutter_image_gallery_saver/flutter_image_gallery_saver.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/services/window_service.dart';
 import 'package:volume_controller/volume_controller.dart';
@@ -24,6 +23,34 @@ import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
+
+/// `initializePlayer()` 里通过 `setProperty` 设置的配置项，用于回读校验。
+///
+/// media_kit 的 `NativePlayer.setProperty()` 直接调用 `mpv_set_property_string()`
+/// 并**丢弃返回值**（见 media_kit `real.dart`），因此属性名写错、值非法或平台不支持时
+/// 既不抛异常也不打日志，只能通过 `getProperty` 回读来确认「设置到底有没有生效」。
+///
+/// 这里只放「设置类」属性。运行时诊断属性（cache-buffering-state、paused-for-cache、
+/// frame-drop-count 等）不在此列：它们只在起播后才有值，播放期间请直接看 OSD 浮层的
+/// Cache / Frame 页。
+const List<String> _kPlayerConfigProps = [
+  // 本项目通过 setProperty 设置的配置项
+  'ao',
+  'vf',
+  'hwdec',
+  'force-seekable',
+  'cache',
+  'cache-secs',
+  'cache-on-disk',
+  'demuxer-max-back-bytes',
+  'demuxer-seekable-cache',
+  'demuxer-donate-buffer',
+  'demuxer-cache-dir',
+  // 不由本项目设置，但决定实际延迟 / 内存上限，一并回读便于对照
+  'demuxer-readahead-secs',
+  'demuxer-max-bytes',
+  'hr-seek',
+];
 
 mixin PlayerMixin {
   GlobalKey<VideoState> globalPlayerKey = GlobalKey<VideoState>();
@@ -56,32 +83,46 @@ mixin PlayerMixin {
       // 通过错误参数强制media_kit不seek, 解决了加载-pause-seek 在直播流上的开屏问题
       await pp.setProperty('force-seekable', 'yes');
     }
-    // 低内存管理
+    // 直播缓存策略
     //
     // 根据：https://mpv.io/manual/stable/#cache
-    // --cache=<yes|no|auto>// --cache-secs=<seconds>
+    // --cache=<yes|no|auto>          流缓存（前向预读）
+    // --cache-secs=<seconds>         预读秒数，直接决定直播延迟
+    // --demuxer-max-back-bytes       回退缓存，直播不 seek → 0 省内存
     // --demuxer-seekable-cache=<yes|no|auto>
-    // --demuxer-max-back-bytes=<bytesize>
     // --demuxer-donate-buffer==<yes|no>
     //
-    // 内存换空间, 同时通过调整参数禁用mpv回放缓存（直播暂时不需要）
+    // 注意：`cache` 控制的是前向预读，不是「回放缓存」。设成 no 省不了多少内存，
+    // 却会让预读退回 --demuxer-readahead-secs（约 1s），且 mpv 不再上报
+    // cache-buffering-state / paused-for-cache，网络抖动时只能硬卡。
+    // 内存上限由 media_kit 的 PlayerConfiguration.bufferSize（默认 32MiB）
+    // 写入 demuxer-max-bytes 来封顶。
     // hls流/令牌流/.. 根据mdk-sdk作者回复, rtsp 在 ffmpeg存在内存泄露, 这意味着我们只能等待修复
     // temporary fix of android platform
     if (!Platform.isAndroid) {
-      await pp.setProperty("cache", "no");
-      await pp.setProperty("cache-secs", "0");
+      await pp.setProperty('cache', 'yes');
+      // 低延迟优先：只留 1s 前向预读来吸收抖动，尽量不放大与弹幕的错位。
+      await pp.setProperty('cache-secs', '1');
+      // media_kit 默认 cache-on-disk=yes，会把流缓存写到磁盘，直播没必要。
+      await pp.setProperty('cache-on-disk', 'no');
+      // 直播不往回看 → 不要回退缓存
+      await pp.setProperty('demuxer-max-back-bytes', '0');
       await pp.setProperty('demuxer-seekable-cache', 'no');
-      await pp.setProperty('demuxer-donate-buffer', 'no');
-      await pp.setProperty("demuxer-max-back-bytes", "0");
     }
-    // 在所有平台上正确启用双重缓存,覆写mpv设置
+    // 双重缓冲：加大前向预读 + 保留回退缓存（抗抖动 + 允许小幅回看）
+    //
+    // 注意 `demuxer-max-back-bytes` 缓存的是**已播放**的数据，作用只是允许往回 seek，
+    // 本身不会让画面更流畅；抗抖动靠的是上面的 `cache-secs`。
     if (AppSettingsController.instance.videoDoubleBuffering.value) {
-      final directory = await getTemporaryDirectory();
-      await pp.setProperty("cache", "yes");
-      await pp.setProperty("cache-secs", "3");
+      await pp.setProperty('cache', 'yes');
+      await pp.setProperty('cache-secs', '3');
+      // 上一段已把回退缓存压到 0，这里必须复位，否则「双重缓冲」名不副实。
+      await pp.setProperty('demuxer-max-back-bytes', '16777216');
       await pp.setProperty('demuxer-seekable-cache', 'yes');
       await pp.setProperty('demuxer-donate-buffer', 'yes');
-      await pp.setProperty("demuxer-cache-dir", directory.path);
+      // 不设 demuxer-cache-dir：mpv 文档明确该选项只对 cache-on-disk 生效，而基础分支
+      // 已把 cache-on-disk 关掉（磁盘缓存文件是 append-only，直播越久占用越大）。
+      // 缓存上限仍由 media_kit 的 bufferSize 写入 demuxer-max-bytes 封顶。
     }
     // bili/douyin流存在时间戳跳变问题
     // 真机建议-空间换内存-暂时不需要
@@ -95,6 +136,38 @@ mixin PlayerMixin {
       await pp.setProperty('hwdec', 'd3d11va');
       await pp.setProperty('vf', 'd3d11vpp=scale=2:scaling-mode=nvidia');
     }
+    if (AppSettingsController.instance.logEnable.value) {
+      await logPlayerProperties();
+    }
+  }
+
+  /// 回读 mpv 属性并写入日志（仅在「日志」开关打开时调用）。
+  ///
+  /// 用途：确认 [initializePlayer] 里的 `setProperty` 是否真的生效——由于
+  /// media_kit 丢弃了 mpv 的返回码，设置失败是静默的。输出的每一行格式为
+  /// `属性名 = 实际值`，`<空>` 表示 mpv 不认识该属性或当前取不到值。
+  ///
+  /// 只在起播前采集一次：此时 mpv 还没打开媒体，运行时统计类属性本来就没有值，
+  /// 那些数字请看 OSD 浮层。
+  Future<void> logPlayerProperties() async {
+    if (player.platform is! NativePlayer) {
+      return;
+    }
+    final pp = player.platform as NativePlayer;
+    final lines = <String>[
+      'mpv 属性回读 platform=${Platform.operatingSystem} '
+          'doubleBuffering=${AppSettingsController.instance.videoDoubleBuffering.value}',
+    ];
+    for (final name in _kPlayerConfigProps) {
+      var value = '';
+      try {
+        value = await pp.getProperty(name);
+      } catch (e) {
+        value = '<读取异常: $e>';
+      }
+      lines.add('  $name = ${value.isEmpty ? '<空>' : value}');
+    }
+    Log.d(lines.join('\n'));
   }
 
   /// 视频控制器
