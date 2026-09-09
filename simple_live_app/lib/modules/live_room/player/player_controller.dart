@@ -811,14 +811,11 @@ class PlayerController extends BaseController
     // WakelockPlus.disable();
   }
 
-  Future<void> toggleOSDStats() async {
+  /// 切换 OSD 统计浮层。
+  /// 原实现调用 mpv 的 script-binding stats/display-page-1-toggle（stats.lua），
+  /// 在未编译 Lua 脚本的 libmpv 构建中会报错（见错误日志），已改为纯 Flutter 自绘浮层。
+  void toggleOSDStats() {
     showOSDStats.value = !showOSDStats.value;
-    if (player.platform is NativePlayer) {
-      await (player.platform as NativePlayer).command([
-        'script-binding',
-        'stats/display-page-1-toggle',
-      ]);
-    }
   }
 
   void showDebugInfo() {

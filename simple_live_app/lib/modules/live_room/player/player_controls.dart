@@ -12,6 +12,7 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
+import 'package:simple_live_app/modules/live_room/player/player_osd_overlay.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 import 'package:simple_live_app/modules/settings/danmu_settings_page.dart';
 import 'package:simple_live_app/services/follow_service.dart';
@@ -377,8 +378,22 @@ Widget buildFullControls(
             ),
           ),
         ),
+        // OSD 统计浮层（Flutter 自绘，开关开启时显示）
+        Positioned.fill(child: buildOsdOverlay(controller)),
       ],
     ),
+  );
+}
+
+/// OSD 统计浮层（Flutter 自绘，开关开启时显示）。
+Widget buildOsdOverlay(LiveRoomController controller) {
+  return Obx(
+    () => controller.showOSDStats.value
+        ? PlayerOsdOverlay(
+            controller: controller,
+            onClose: () => controller.showOSDStats.value = false,
+          )
+        : const SizedBox.shrink(),
   );
 }
 
@@ -601,6 +616,8 @@ Widget buildControls(
           ),
         ),
       ),
+      // OSD 统计浮层（Flutter 自绘，开关开启时显示）
+      Positioned.fill(child: buildOsdOverlay(controller)),
     ],
   );
 }
