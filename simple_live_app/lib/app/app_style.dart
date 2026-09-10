@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/system_ui_inset.dart';
 
 class AppColors {
   static ColorScheme lightColorScheme = ColorScheme.fromSeed(
@@ -181,8 +182,17 @@ class AppStyle {
   static double get statusBarHeight => MediaQuery.of(Get.context!).padding.top;
 
   /// 底部导航条的高度
-  static double get bottomBarHeight =>
-      MediaQuery.of(Get.context!).padding.bottom;
+  ///
+  /// 退出全屏后部分设备不会再上报恢复后的系统栏高度，直接用
+  /// [MediaQueryData.padding] 会让底部按钮压在导航条下，见 [SystemUiBottomInset]。
+  static double get bottomBarHeight {
+    final mediaQuery = MediaQuery.of(Get.context!);
+    return SystemUiBottomInset.resolve(
+      mediaQuery.padding.bottom,
+      systemBar: mediaQuery.viewPadding.bottom,
+      viewSize: mediaQuery.size,
+    );
+  }
 
   static Divider get divider => Divider(
         height: 1,

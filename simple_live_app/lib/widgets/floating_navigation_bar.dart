@@ -19,6 +19,7 @@
 
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart' as glass;
 import 'package:material_ui/material_ui.dart';
+import 'package:simple_live_app/app/system_ui_inset.dart';
 
 const double _kMaxLabelTextScaleFactor = 1.3;
 
@@ -212,7 +213,12 @@ class FloatingNavigationBar extends StatelessWidget {
         padding.left,
         0,
         padding.right,
-        bottomPadding + padding.bottom,
+        // 退出全屏后部分设备不再上报恢复后的系统栏高度，交给 SystemUiBottomInset 兜底
+        bottomPadding +
+            SystemUiBottomInset.resolve(
+              padding.bottom,
+              viewSize: MediaQuery.sizeOf(context),
+            ),
       ),
       child: SizedBox(
         height: kFloatingNavBarHeight,
