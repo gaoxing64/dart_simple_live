@@ -73,7 +73,7 @@ class TwitchSite implements LiveSite {
 
   @override
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
-      {int page = 1}) {
+      {int page = 1, int? pageSize}) {
     //尚不支持
     return Future.value(LiveCategoryResult(hasMore: false, items: []));
   }
@@ -208,7 +208,7 @@ class TwitchSite implements LiveSite {
   }
 
   @override
-  Future<LiveCategoryResult> getRecommendRooms({int page = 1}) {
+  Future<LiveCategoryResult> getRecommendRooms({int page = 1, int? pageSize}) {
     throw UnimplementedError();
   }
 

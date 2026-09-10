@@ -134,7 +134,11 @@ class DouyinSite implements LiveSite {
 
   @override
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
-      {int page = 1}) async {
+      {int page = 1, int? pageSize}) async {
+    // 该接口用 count + offset 翻页，单页固定 15 条：count 若调大而服务端
+    // 仍按 15 返回，"本页条数 < count"会被误判成没有更多，分类页就只剩一页。
+    // 既然无法保证服务端接受自定义条数，这里维持 15，忽略 [pageSize]。
+    const count = 15;
     var ids = category.id.split(',');
     var partitionId = ids[0];
     var partitionType = ids[1];
@@ -153,8 +157,8 @@ class DouyinSite implements LiveSite {
       "browser_name": "Edge",
       "browser_version": "125.0.0.0",
       "browser_online": "true",
-      "count": '15',
-      "offset": ((page - 1) * 15).toString(),
+      "count": count.toString(),
+      "offset": ((page - 1) * count).toString(),
       "partition": partitionId,
       "partition_type": partitionType,
       "req_from": '2'
@@ -168,9 +172,10 @@ class DouyinSite implements LiveSite {
       header: await getRequestHeaders(),
     );
 
-    var hasMore = (result["data"]["data"] as List).length >= 15;
+    var dataList = result["data"]["data"] as List;
+    var hasMore = dataList.length >= count;
     var items = <LiveRoomItem>[];
-    for (var item in result["data"]["data"]) {
+    for (var item in dataList) {
       var roomItem = LiveRoomItem(
         roomId: item["web_rid"],
         title: item["room"]["title"].toString(),
@@ -186,7 +191,16 @@ class DouyinSite implements LiveSite {
   }
 
   @override
-  Future<LiveCategoryResult> getRecommendRooms({int page = 1}) async {
+  Future<LiveCategoryResult> getRecommendRooms({int page = 1, int? pageSize}) async {
+    // 实测结论：
+    // 该接口不提供任何翻页能力——count / offset / cursor / page / max_time /
+    // pull_type 等参数一律被忽略，每次固定返回 20 条；两次调用之间只有部分
+    // 重叠，是热门池本身在变，而非分页生效。
+    //
+    // 所以这里既不伪造 count/offset，也不接受 [pageSize]（服务端不认），
+    // hasMore 恒取"本页非空"，把"是否真的还有更多"交给上层判定：
+    // BasePageController 按 roomId 跨页去重，某页零新增即视为没有更多并停止。
+    // 这样宽窗口下能靠多次拉取逐步填满，同时不会无限堆重复卡片。
     var result = await HttpClient.instance.getJson(
       "https://live.douyin.com/webcast/feed/",
       queryParameters: {
@@ -196,14 +210,15 @@ class DouyinSite implements LiveSite {
         "is_draw": "1",
         "inner_from_drawer": "0",
         "enter_source": "web_homepage_hot_web_live_card",
-        "source_key": "web_homepage_hot_web_live_card"
+        "source_key": "web_homepage_hot_web_live_card",
       },
       header: await getRequestHeaders(),
     );
 
-    var hasMore = (result["data"] as List).length >= 15;
+    var dataList = (result["data"] as List?) ?? [];
+    var hasMore = dataList.isNotEmpty;
     var items = <LiveRoomItem>[];
-    for (var i in result["data"]) {
+    for (var i in dataList) {
       var item = i['data'];
       var roomItem = LiveRoomItem(
         roomId: item["owner"]["web_rid"],

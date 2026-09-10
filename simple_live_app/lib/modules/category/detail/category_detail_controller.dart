@@ -10,9 +10,15 @@ class CategoryDetailController extends BasePageController<LiveRoomItem> {
     required this.subCategory,
   });
 
+  /// 同一房间可能跨页重复出现，按房间号去重。
+  @override
+  String? itemKey(LiveRoomItem item) => item.roomId;
+
   @override
   Future<List<LiveRoomItem>> getData(int page, int pageSize) async {
-    var result = await site.liveSite.getCategoryRooms(subCategory, page: page);
+    var result = await site.liveSite
+        .getCategoryRooms(subCategory, page: page, pageSize: pageSize);
+    serverHasMore = result.hasMore;
     return result.items;
   }
 }

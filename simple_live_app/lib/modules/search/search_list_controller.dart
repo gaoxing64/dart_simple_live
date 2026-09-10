@@ -37,6 +37,12 @@ class SearchListController extends BasePageController {
 
   void clear() {
     pageEmpty.value = false;
+    // 旁路清空 list，分页状态同步复位（与 follow 页同理）。
+    // loadFailed 必须一并清除：它是普通字段（非响应式），只会被
+    // refreshData / autoLoadIfNeeded 复位，而本方法直接把 list 清空，
+    // 若不清门闩，后续触底补页会被静默挡住。
+    loadFailed = false;
+    loadMoreFailed.value = false;
     list.clear();
   }
 }

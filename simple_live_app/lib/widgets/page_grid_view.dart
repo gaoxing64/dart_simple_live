@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
+import 'package:simple_live_app/widgets/load_more_failed_bar.dart';
 import 'package:simple_live_app/widgets/page_auto_load.dart';
 import 'package:simple_live_app/widgets/skeleton.dart';
 import 'package:simple_live_app/widgets/status/app_empty_widget.dart';
@@ -19,7 +18,6 @@ class PageGridView extends StatelessWidget {
   final bool showPageLoadding;
   final double crossAxisSpacing, mainAxisSpacing;
   final int crossAxisCount;
-  final bool showPCRefreshButton;
 
   /// 加载下一页时底部占位的骨架，默认按 [itemExtent] 选择卡片骨架或行骨架
   final IndexedWidgetBuilder? skeletonBuilder;
@@ -42,7 +40,6 @@ class PageGridView extends StatelessWidget {
     this.onLoginSuccess,
     this.crossAxisSpacing = 0.0,
     this.mainAxisSpacing = 0.0,
-    this.showPCRefreshButton = true,
     this.skeletonBuilder,
     this.itemExtent = 168,
     required this.crossAxisCount,
@@ -88,35 +85,33 @@ class PageGridView extends StatelessWidget {
           AutoLoadOnScroll(
             pageController: pageController,
             child: EasyRefresh(
+              // 只保留下拉刷新。不传 footer / onLoad 是有意为之：
+              // easy_refresh 的 Footer 默认 infiniteOffset = 0，触底即自动
+              // 触发 onLoad；而刷新瞬间列表被清空、内容高度为 0，滚动位置
+              // 恒在底部，footer 会在 armed / processing 之间反复切换——
+              // 表现为底部指示器疯狂抽动且页面空白。翻页已由
+              // AutoLoadOnScroll（滚动通知 + 布局后主动补页）独家承担，
+              // 不需要第二条触发路径。onLoad 为 null 时 easy_refresh 会自动
+              // 使用不可见的 NotLoadFooter，上拉不再出现第二个指示器。
+              //
+              // 下拉刷新在桌面端可用鼠标拖拽触发：easy_refresh 的
+              // ERScrollBehavior 把 dragDevices 放开为全部指针设备。
               header: MaterialHeader(
-                processedDuration: const Duration(milliseconds: 400),
-              ),
-              footer: MaterialFooter(
                 processedDuration: const Duration(milliseconds: 400),
               ),
               scrollController: pageController.scrollController,
               controller: pageController.easyRefreshController,
               refreshOnStart: firstRefresh,
-              onLoad: () async {
-                // 没有更多数据时不再请求，并告知 easy_refresh 停止触发
-                if (!pageController.canLoadMore.value) {
-                  return IndicatorResult.noMore;
-                }
-                await pageController.loadData();
-                // 请求失败（或并发下没真正加载）时不要显示"加载成功"
-                if (pageController.loadFailed) {
-                  return IndicatorResult.fail;
-                }
-                return pageController.canLoadMore.value
-                    ? IndicatorResult.success
-                    : IndicatorResult.noMore;
-              },
               onRefresh: pageController.refreshData,
               // 普通网格（按行从左到右）。加载下一页时把骨架按顺序追加为
               // 网格条目：骨架会先补齐真实内容最后一行右侧的空位，再往下续整行，
               // 交界处不会留空。不使用瀑布流：瀑布流按"最矮列"填充，
               // 列高不齐时条目会散落在不同高度、交界处留空。
               child: CustomScrollView(
+                // EasyRefresh 只监听这个 controller、不会注入给 child。
+                // child 若不使用它，controller 就永远 attach 不上
+                // （hasClients 恒为 false），主动补页与 scrollToTop 都会失效。
+                controller: pageController.scrollController,
                 slivers: [
                   SliverPadding(
                     padding: gridPadding,
@@ -142,55 +137,13 @@ class PageGridView extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // 加载失败重试条：作为列表最后一个条目内联展示，
+                  // 不用 Positioned 悬浮层（那会盖住最后一行内容）
+                  if (pageController.showLoadMoreFailedBar)
+                    SliverToBoxAdapter(
+                      child: LoadMoreFailedBar(pageController: pageController),
+                    ),
                 ],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: // 加载更多按钮
-                Visibility(
-              visible: (Platform.isWindows ||
-                      Platform.isLinux ||
-                      Platform.isMacOS) &&
-                  pageController.canLoadMore.value &&
-                  !pageController.pageLoadding.value &&
-                  !pageController.pageEmpty.value &&
-                  // 自动加载中（底部有骨架占位）时隐藏按钮
-                  !pageController.loadingMore.value,
-              child: Center(
-                child: TextButton(
-                  onPressed: pageController.loadData,
-                  child: const Text("加载更多"),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 12,
-            right: 12,
-            child: // 加载更多按钮
-                Visibility(
-              visible: (Platform.isWindows ||
-                      Platform.isLinux ||
-                      Platform.isMacOS) &&
-                  pageController.canLoadMore.value &&
-                  !pageController.pageLoadding.value &&
-                  !pageController.pageEmpty.value &&
-                  showPCRefreshButton,
-              child: Center(
-                child: IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: Get.theme.cardColor.withAlpha(200),
-                    elevation: 4,
-                  ),
-                  onPressed: () {
-                    pageController.refreshData();
-                  },
-                  icon: const Icon(Icons.refresh),
-                ),
               ),
             ),
           ),
