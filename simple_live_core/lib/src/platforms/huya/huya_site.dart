@@ -103,7 +103,9 @@ class HuyaSite implements LiveSite {
 
   @override
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
-      {int page = 1}) async {
+      {int page = 1, int? pageSize}) async {
+    // 虎牙接口按 page 翻页、单页条数由服务端决定，[pageSize] 仅为满足
+    // 统一签名，这里忽略。
     var resultText = await HttpClient.instance.getJson(
       "https://www.huya.com/cache.php",
       queryParameters: {
@@ -195,7 +197,8 @@ class HuyaSite implements LiveSite {
   }
 
   @override
-  Future<LiveCategoryResult> getRecommendRooms({int page = 1}) async {
+  Future<LiveCategoryResult> getRecommendRooms({int page = 1, int? pageSize}) async {
+    // 同 [getCategoryRooms]，单页条数由服务端决定，忽略 [pageSize]。
     var resultText = await HttpClient.instance.getJson(
       "https://www.huya.com/cache.php",
       queryParameters: {

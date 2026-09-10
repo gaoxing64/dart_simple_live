@@ -124,8 +124,12 @@ ScrollPosition gridPosition(WidgetTester tester) {
 }
 
 /// 滑到列表底部（不做任何额外的越界下拉）。
+///
+/// 每补一页内容高度就增加一页，因此循环次数必须留够：一次滑动 300px，
+/// 预算 60 次 ≈ 18000px，足以覆盖 BasePageController.pageSize（30 条 ≈ 2700px）
+/// 连补三页后的总高度。到底即 break，预算宽裕不会拖慢用例。
 Future<void> scrollToBottom(WidgetTester tester) async {
-  for (var i = 0; i < 30; i++) {
+  for (var i = 0; i < 60; i++) {
     final position = gridPosition(tester);
     if (position.maxScrollExtent - position.pixels <= 20) break;
     await swipe(tester, 300);
@@ -251,12 +255,12 @@ void main() {
     await settle(tester);
   });
 
-  testWidgets('内容不足一屏时拖动即自动加载（填满窗口）', (tester) async {
+  testWidgets('内容不足一屏时自动补齐，无需拖动或点击', (tester) async {
     tester.view.physicalSize = const Size(400 * 3, 800 * 3);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
-    // 每页只返回 4 条（约两行），不足以填满窗口
+    // 每页只返回 4 条（两行），单页远不足以填满窗口
     final controller = ShortPageController();
     await tester.pumpWidget(GetMaterialApp(
       home: Scaffold(
@@ -277,20 +281,82 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
-    expect(controller.requestedPages, [1]);
-    expect(controller.list.length, 4);
 
-    // 内容不足一屏时无法滚动，但拖动（越界）也应触发加载
-    await swipe(tester, 200);
+    // 不做任何交互：内容不足一屏时应主动补页，而不是停在第一页
     expect(
       controller.requestedPages.length,
       greaterThanOrEqualTo(2),
-      reason: '内容不足一屏时拖动应继续加载',
+      reason: '单页不足一屏应自动补页，实际 ${controller.requestedPages}',
     );
     expect(
       controller.requestedPages.length,
       lessThanOrEqualTo(5),
-      reason: '内容填满窗口后应停止加载',
+      reason: '内容填满窗口后应停止加载，实际 ${controller.requestedPages}',
+    );
+
+    // 补页的判据是"内容超出一屏"：修复前停在两行，maxScrollExtent 恒为 0，
+    // 列表既不可滚动、也不会再派发通知，加载链就此停滞
+    final position = tester
+        .stateList<ScrollableState>(find.byType(Scrollable))
+        .map((state) => state.position)
+        .firstWhere((p) => p.axis == Axis.vertical);
+    expect(
+      position.maxScrollExtent,
+      greaterThan(0),
+      reason: '补齐后内容应能撑满并超出一屏',
+    );
+
+    // 填满后静置不应继续请求
+    final loaded = controller.requestedPages.length;
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(
+      controller.requestedPages.length,
+      loaded,
+      reason: '填满窗口后应停止自动加载',
+    );
+    await settle(tester);
+  });
+
+  testWidgets('窗口变大后内容不足一屏会自动补齐', (tester) async {
+    tester.view.physicalSize = const Size(400 * 3, 800 * 3);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+
+    final controller = PagedGridController();
+    await tester.pumpWidget(GetMaterialApp(
+      home: Scaffold(
+        body: PageGridView(
+          pageController: controller,
+          firstRefresh: true,
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          itemBuilder: (_, i) => Container(
+            height: 160,
+            color: const Color(0xFF00FF00),
+            child: Text(controller.list[i]),
+          ),
+        ),
+      ),
+    ));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    // 首屏 24 条（12 行）已撑满 800 高的窗口，不应补页
+    expect(controller.requestedPages, [1]);
+
+    // 模拟窗口最大化：视口高度骤增，原内容不再满屏
+    tester.view.physicalSize = const Size(400 * 3, 4000 * 3);
+    await tester.pump();
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(
+      controller.requestedPages.length,
+      greaterThan(1),
+      reason: '视口变大后应继续补页，实际 ${controller.requestedPages}',
     );
     await settle(tester);
   });
@@ -366,7 +432,12 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
-    expect(controller.requestedPages, [1]);
+    // 首屏只有 4 条、不足一屏，会自动补第二页——该页请求失败
+    expect(
+      controller.requestedPages,
+      [1, 2],
+      reason: '首屏不足一屏会自动补页，实际 ${controller.requestedPages}',
+    );
 
     // 触底触发第二页（会失败）。失败后骨架消失 → 内容收缩 → 尺寸变化通知
     // 又会立刻触发一次自动加载，若不设门闩会形成"每帧一个请求 + 一个错误提示"
@@ -378,7 +449,7 @@ void main() {
     expect(
       attempts,
       lessThanOrEqualTo(3),
-      reason: '失败后只允许极少次尝试（自动加载 1 次 + 越界下拉触发 footer 1 次），'
+      reason: '失败后只允许极少次尝试（补页 1 次 + 至多 1 次边界触发），'
           '实际 ${controller.requestedPages}',
     );
 
@@ -426,7 +497,15 @@ void main() {
     }
 
     await scrollToBottom(tester);
-    expect(controller.requestedPages, [1, 2], reason: '触底应尝试加载第二页');
+    // 只断言"触底尝试过第二页"，不断言精确次数：
+    // 失败后列表底部会多出一条重试条（约 45px），内容高度变化会让
+    // 滑动过程中 extentAfter 短暂越过阈值、合法地解除门闩并多试一次
+    expect(
+      controller.requestedPages.take(2),
+      [1, 2],
+      reason: '触底应尝试加载第二页，实际 ${controller.requestedPages}',
+    );
+    expect(controller.errors, isNotEmpty, reason: '第二页应失败一次');
     final afterFail = controller.requestedPages.length;
 
     // 离开底部（extentAfter 远大于阈值）→ 门闩解除
@@ -437,12 +516,77 @@ void main() {
     expect(
       controller.requestedPages.length,
       greaterThan(afterFail),
-      reason: '用户主动离开底部后再次触底应允许重试',
+      reason: '用户主动离开底部后再次触底应允许重试，'
+          '实际 ${controller.requestedPages}',
     );
+    // 上界取 +4：失败后列表末尾会多出/收起重试条（约 45px），内容高度随之
+    // 变化，滑动中 extentAfter 会数次越过阈值、合法地多试几次。
+    // 这里真正要守住的是"不出现请求风暴"——修复前单次滑动会连续请求 14 次。
     expect(
       controller.requestedPages.length,
-      lessThanOrEqualTo(afterFail + 2),
-      reason: '每次触底只重试一次',
+      lessThanOrEqualTo(afterFail + 4),
+      reason: '每次触底只允许少量重试，实际 ${controller.requestedPages}',
+    );
+    await settle(tester);
+  });
+
+  testWidgets('内容不满一屏时补页失败：重试条常驻，点击后恢复加载', (tester) async {
+    tester.view.physicalSize = const Size(400 * 3, 800 * 3);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+
+    // 首屏仅 4 条（不足一屏），之后每页都失败
+    final controller = FailAfterFirstPageController(firstPageCount: 4);
+    await tester.pumpWidget(GetMaterialApp(
+      home: Scaffold(
+        body: PageGridView(
+          pageController: controller,
+          firstRefresh: true,
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          itemExtent: 120,
+          itemBuilder: (_, i) => Container(
+            color: const Color(0xFF00FF00),
+            child: Text(controller.list[i]),
+          ),
+        ),
+      ),
+    ));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(controller.requestedPages, [1, 2], reason: '首屏不足一屏会自动补页');
+
+    // 核心断言：内容不满一屏时 extentAfter 恒为 0，门闩永远不会自行解除，
+    // 因此必须有常驻的重试条，否则用户无路可走（下拉刷新是唯一出口）
+    expect(
+      find.text("加载失败，点击重试"),
+      findsOneWidget,
+      reason: '短列表补页失败后应出现常驻重试条',
+    );
+    expect(controller.showLoadMoreFailedBar, isTrue);
+
+    // 静置不应自行重试（门闩仍在工作）
+    final beforeTap = controller.requestedPages.length;
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(controller.requestedPages.length, beforeTap,
+        reason: '重试条出现不代表会自动重试，实际 ${controller.requestedPages}');
+
+    // 点击重试 → 应重新发起请求（该控制器永久失败，用来验证点击确实生效）
+    await tester.tap(find.text("加载失败，点击重试"));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(
+      controller.requestedPages.length,
+      greaterThan(beforeTap),
+      reason: '点击重试条必须真的重新请求，实际 ${controller.requestedPages}',
+    );
+    expect(
+      find.text("加载失败，点击重试"),
+      findsOneWidget,
+      reason: '再次失败后重试条应重新出现',
     );
     await settle(tester);
   });

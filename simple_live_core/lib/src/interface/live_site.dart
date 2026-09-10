@@ -39,14 +39,20 @@ class LiveSite {
   }
 
   /// 读取类目下房间
+  ///
+  /// [pageSize] 为期望的单页条数，为 null 时各平台使用自身默认值。
+  /// 支持该参数的平台会据此调整单页返回量（例如抖音的 `count`），
+  /// 接口本身不支持分页大小的平台会忽略它。
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
-      {int page = 1}) {
+      {int page = 1, int? pageSize}) {
     return Future.value(
         LiveCategoryResult(hasMore: false, items: <LiveRoomItem>[]));
   }
 
   /// 读取推荐的房间
-  Future<LiveCategoryResult> getRecommendRooms({int page = 1}) {
+  ///
+  /// [pageSize] 语义同 [getCategoryRooms]。
+  Future<LiveCategoryResult> getRecommendRooms({int page = 1, int? pageSize}) {
     return Future.value(
         LiveCategoryResult(hasMore: false, items: <LiveRoomItem>[]));
   }

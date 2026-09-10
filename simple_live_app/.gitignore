@@ -59,3 +59,7 @@ firebase.json
 .widget_preview/
 /pubspec_overrides.yaml
 /.patchwork/
+
+# Flutter 工具本机状态（.flutter_settings 里的 jdk-dir 是本机绝对路径）
+.flutter_settings
+.flutter_tool_state

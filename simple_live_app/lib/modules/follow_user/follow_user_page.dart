@@ -161,7 +161,6 @@ class FollowUserPage extends GetView<FollowUserController> {
                       crossAxisCount: count,
                       pageController: controller,
                       firstRefresh: true,
-                      showPCRefreshButton: false,
                       itemExtent: 96,
                       // 列表样式条目：骨架也要用行高一致的行骨架
                       skeletonBuilder: (_, __) => const ListRowSkeleton(),

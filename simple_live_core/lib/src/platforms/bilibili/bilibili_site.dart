@@ -91,7 +91,9 @@ class BiliBiliSite implements LiveSite {
 
   @override
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
-      {int page = 1}) async {
+      {int page = 1, int? pageSize}) async {
+    // 该接口固定返回 30 条/页，不支持自定义单页条数，[pageSize] 仅为满足
+    // 统一签名，这里忽略。
     const baseUrl =
         "https://api.live.bilibili.com/xlive/web-interface/v1/second/getList";
 
@@ -205,10 +207,11 @@ class BiliBiliSite implements LiveSite {
   }
 
   @override
-  Future<LiveCategoryResult> getRecommendRooms({int page = 1}) async {
+  Future<LiveCategoryResult> getRecommendRooms({int page = 1, int? pageSize}) async {
     const baseUrl =
         "https://api.live.bilibili.com/xlive/web-interface/v1/second/getListByArea";
-    var url = "$baseUrl?platform=web&sort=online&page_size=30&page=$page";
+    var url =
+        "$baseUrl?platform=web&sort=online&page_size=${pageSize ?? 30}&page=$page";
 
     var queryParams = await getWbiSign(url);
 

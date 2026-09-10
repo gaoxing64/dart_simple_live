@@ -51,7 +51,9 @@ class DouyuSite implements LiveSite {
 
   @override
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
-      {int page = 1}) async {
+      {int page = 1, int? pageSize}) async {
+    // 斗鱼该接口的单页条数写死在 URL 路径里，[pageSize] 仅为满足统一签名，
+    // 这里忽略。
     var result = await HttpClient.instance.getJson(
       "https://www.douyu.com/gapi/rkc/directory/mixList/2_${category.id}/$page",
       queryParameters: {},
@@ -153,14 +155,15 @@ class DouyuSite implements LiveSite {
   }
 
   @override
-  Future<LiveCategoryResult> getRecommendRooms({int page = 1}) async {
+  Future<LiveCategoryResult> getRecommendRooms({int page = 1, int? pageSize}) async {
+    // 同 [getCategoryRooms]，单页条数由 URL 路径决定，忽略 [pageSize]。
     var result = await HttpClient.instance.getJson(
       "https://www.douyu.com/japi/weblist/apinc/allpage/6/$page",
       queryParameters: {},
     );
 
     var items = <LiveRoomItem>[];
-    for (var item in result['data']['rl']) {
+    for (var item in (result['data']['rl'] as List? ?? [])) {
       if (item["type"] != 1) {
         continue;
       }
@@ -173,7 +176,23 @@ class DouyuSite implements LiveSite {
       );
       items.add(roomItem);
     }
-    var hasMore = page < result['data']['pgcnt'];
+
+    // ⚠️ 不能用 `page < pgcnt` 判定。2026-09 实测**本接口
+    // （japi/weblist/apinc/allpage）**的 `pgcnt` 键还在但**恒为 0**，
+    // 直接算会得到 hasMore 恒 false：
+    // App 层 canLoadMore 随之为 false，主动补页第一关就 return，表现为
+    // 「内容不满一屏却不再加载 / 刷了也没变化 / 滚轮无效」。
+    //
+    // 该接口实际是一份按热度降序、页间零交集的无限榜单（40 条/页，
+    // 第 60 页热度仍有 300+），因此按「本页非空即还有更多」处理：
+    // 翻到尽头返回空页自然停止；万一服务端循环返回同一批，App 层的
+    // 跨页去重（HomeListController.itemKey = roomId）会把「零新增」
+    // 识别成没有更多，不会无限空转。
+    //
+    // 注意区分：类目流走的是**另一个**接口（gapi/rkc/directory/mixList），
+    // 它的 `pgcnt` **仍然有效**（同月实测 = 2），上面的 getCategoryRooms
+    // 保持 `page < pgcnt` 不动。两条接口的字段健康度不同，不要一起"统一"。
+    var hasMore = items.isNotEmpty;
     return LiveCategoryResult(hasMore: hasMore, items: items);
   }
 

@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
+import 'package:simple_live_app/widgets/load_more_failed_bar.dart';
 import 'package:simple_live_app/widgets/page_auto_load.dart';
 import 'package:simple_live_app/widgets/skeleton.dart';
 import 'package:simple_live_app/widgets/status/app_empty_widget.dart';
@@ -18,7 +17,6 @@ class PageListView extends StatelessWidget {
   final bool firstRefresh;
   final Function()? onLoginSuccess;
   final bool showPageLoadding;
-  final bool showPCRefreshButton;
 
   /// 加载下一页时底部占位的骨架，默认使用列表行骨架
   final IndexedWidgetBuilder? skeletonBuilder;
@@ -28,7 +26,6 @@ class PageListView extends StatelessWidget {
     this.padding,
     this.firstRefresh = false,
     this.showPageLoadding = false,
-    this.showPCRefreshButton = true,
     this.separatorBuilder,
     this.onLoginSuccess,
     this.skeletonBuilder,
@@ -53,43 +50,41 @@ class PageListView extends StatelessWidget {
         );
       }
     }
-    return Obx(
-      () => Stack(
+    return Obx(() {
+      // 在 Obx 内取一次，保证 itemCount 与 itemBuilder 使用同一组索引，
+      // 避免两处各自读 list.length / loadingMore 造成漂移
+      final listLength = pageController.list.length;
+      final skeletonCount = pageController.loadingMore.value ? 3 : 0;
+      final showRetry = pageController.showLoadMoreFailedBar;
+      return Stack(
         children: [
           AutoLoadOnScroll(
             pageController: pageController,
             child: EasyRefresh(
+              // 只保留下拉刷新，不传 footer / onLoad——原因与 [PageGridView]
+              // 一致：footer 默认 infiniteOffset = 0，刷新时列表清空、滚动
+              // 位置恒在底部，会在 armed / processing 间反复切换导致指示器
+              // 抽动。翻页由 AutoLoadOnScroll 承担。
               header: MaterialHeader(
-                processedDuration: const Duration(milliseconds: 400),
-              ),
-              footer: MaterialFooter(
                 processedDuration: const Duration(milliseconds: 400),
               ),
               scrollController: pageController.scrollController,
               controller: pageController.easyRefreshController,
               refreshOnStart: firstRefresh,
-              onLoad: () async {
-                // 没有更多数据时不再请求，并告知 easy_refresh 停止触发
-                if (!pageController.canLoadMore.value) {
-                  return IndicatorResult.noMore;
-                }
-                await pageController.loadData();
-                // 请求失败（或并发下没真正加载）时不要显示"加载成功"
-                if (pageController.loadFailed) {
-                  return IndicatorResult.fail;
-                }
-                return pageController.canLoadMore.value
-                    ? IndicatorResult.success
-                    : IndicatorResult.noMore;
-              },
               onRefresh: pageController.refreshData,
               child: ListView.separated(
+                // 必须与 EasyRefresh 共用同一个 controller，见 PageGridView 说明
+                controller: pageController.scrollController,
                 padding: effectivePadding,
-                itemCount: pageController.list.length +
-                    (pageController.loadingMore.value ? 3 : 0),
+                itemCount: listLength + skeletonCount + (showRetry ? 1 : 0),
                 itemBuilder: (context, index) {
+                  // 重试条固定排在骨架之后（showRetry 与 loadingMore 互斥，
+                  // 不会出现"骨架 + 重试条"同时在的怪状态）
+                  if (showRetry && index == listLength + skeletonCount) {
+                    return LoadMoreFailedBar(pageController: pageController);
+                  }
                   // 加载下一页时在底部补几行骨架，提示用户正在加载
-                  if (index >= pageController.list.length) {
+                  if (index >= listLength) {
                     return skeletonBuilder?.call(context, index) ??
                         const ListRowSkeleton();
                   }
@@ -97,54 +92,6 @@ class PageListView extends StatelessWidget {
                 },
                 separatorBuilder:
                     separatorBuilder ?? (context, i) => const SizedBox(),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: // 加载更多按钮
-                Visibility(
-              visible: (Platform.isWindows ||
-                      Platform.isLinux ||
-                      Platform.isMacOS) &&
-                  pageController.canLoadMore.value &&
-                  !pageController.pageLoadding.value &&
-                  !pageController.pageEmpty.value &&
-                  // 自动加载中（底部有骨架占位）时隐藏按钮
-                  !pageController.loadingMore.value,
-              child: Center(
-                child: TextButton(
-                  onPressed: pageController.loadData,
-                  child: const Text("加载更多"),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 12,
-            right: 12,
-            child: // 加载更多按钮
-                Visibility(
-              visible: (Platform.isWindows ||
-                      Platform.isLinux ||
-                      Platform.isMacOS) &&
-                  pageController.canLoadMore.value &&
-                  !pageController.pageLoadding.value &&
-                  !pageController.pageEmpty.value &&
-                  showPCRefreshButton,
-              child: Center(
-                child: IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: Get.theme.cardColor.withAlpha(200),
-                    elevation: 4,
-                  ),
-                  onPressed: () {
-                    pageController.refreshData();
-                  },
-                  icon: const Icon(Icons.refresh),
-                ),
               ),
             ),
           ),
@@ -166,7 +113,7 @@ class PageListView extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
+      );
+    });
   }
 }
