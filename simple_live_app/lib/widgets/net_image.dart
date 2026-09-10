@@ -37,21 +37,25 @@ class NetImage extends StatelessWidget {
         shape: BoxShape.rectangle,
         borderRadius: BorderRadius.circular(borderRadius),
         loadStateChanged: (e) {
-          if (e.extendedImageLoadState == LoadState.loading) {
-            return const Icon(
-              Icons.image,
+          // 加载中/失败时保持原有尺寸（封面 110 高），
+          // 否则卡片会缩成一个小图标、行高参差、布局错乱
+          final icon = switch (e.extendedImageLoadState) {
+            LoadState.loading => Icons.image,
+            LoadState.failed => Icons.broken_image,
+            _ => null,
+          };
+          if (icon == null) {
+            return null;
+          }
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Icon(
+              icon,
               color: Colors.grey,
               size: 24,
-            );
-          }
-          if (e.extendedImageLoadState == LoadState.failed) {
-            return const Icon(
-              Icons.broken_image,
-              color: Colors.grey,
-              size: 24,
-            );
-          }
-          return null;
+            ),
+          );
         },
       ),
     );

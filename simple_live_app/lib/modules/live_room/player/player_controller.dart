@@ -13,6 +13,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:simple_live_app/app/event_bus.dart';
+import 'package:simple_live_app/app/system_ui_inset.dart';
 import 'package:simple_live_app/services/window_service.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'package:screen_brightness/screen_brightness.dart';
@@ -359,6 +360,10 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   Future resetSystem() async {
     _pipSubscription?.cancel();
     //pip.dispose();
+    // 若此前处于全屏（系统栏被隐藏），恢复显示时同样需要等待平台重新上报
+    if (fullScreenState.value) {
+      SystemUiBottomInset.markRestoring();
+    }
     await SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.edgeToEdge,
       overlays: SystemUiOverlay.values,
@@ -382,6 +387,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     fullScreenState.value = true;
     if (Platform.isAndroid || Platform.isIOS) {
       //全屏
+      SystemUiBottomInset.markHidden();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
       if (!isVertical.value) {
         //横屏
@@ -403,6 +409,8 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   void exitFull() async {
     // todo: 还应该关闭所有的dialog
     if (Platform.isAndroid || Platform.isIOS) {
+      // 系统栏即将恢复：若设备不再上报恢复后的 inset，用进全屏前的高度兜底
+      SystemUiBottomInset.markRestoring();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge,
           overlays: SystemUiOverlay.values);
       setPortraitOrientation();

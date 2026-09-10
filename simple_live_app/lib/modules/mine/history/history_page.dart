@@ -7,6 +7,7 @@ import 'package:simple_live_app/modules/mine/history/history_controller.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
+import 'package:simple_live_app/widgets/skeleton.dart';
 
 class HistoryPage extends GetView<HistoryController> {
   const HistoryPage({super.key});
@@ -31,6 +32,9 @@ class HistoryPage extends GetView<HistoryController> {
         crossAxisCount: rowCount,
         pageController: controller,
         firstRefresh: true,
+        // 列表样式条目（ListTile 约 72 高），行高不能沿用卡片默认值 168
+        itemExtent: 76,
+        skeletonBuilder: (_, __) => const ListRowSkeleton(),
         itemBuilder: (_, i) {
           var item = controller.list[i];
           var site = Sites.allSites[item.siteId]!;

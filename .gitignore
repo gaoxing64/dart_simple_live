@@ -6,6 +6,11 @@ simple_live_tv_app/.vscode/settings.json
 .flatpak-builder/
 .crush/
 CRUSH.md
+.zvec-grep/
+.mimosa/
+.reasonix/
+.ocr_review_report.txt
+.dsh_flutter_version*
 build/
 dev-tool.ps1
 *.py

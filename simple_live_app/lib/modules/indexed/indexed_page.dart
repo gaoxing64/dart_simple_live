@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/app/system_ui_inset.dart';
 import 'package:simple_live_app/modules/debug/glass_debug/glass_debug_controller.dart';
 import 'package:simple_live_app/widgets/collapse_slot.dart';
 import 'package:simple_live_app/widgets/floating_navigation_bar.dart';
@@ -46,9 +49,10 @@ class IndexedPage extends GetView<IndexedController> {
   }
 
   Widget _buildDefaultNavBar() {
-    return Obx(
-      () => NavigationBar(
-        selectedIndex: controller.index.value,
+    return Obx(() {
+      final selectedIndex = controller.index.value;
+      final nav = NavigationBar(
+        selectedIndex: selectedIndex,
         onDestinationSelected: controller.setIndex,
         height: 56,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
@@ -60,8 +64,33 @@ class IndexedPage extends GetView<IndexedController> {
               ),
             )
             .toList(),
-      ),
-    );
+      );
+      // Material NavigationBar 内部用 SafeArea 避让系统栏，退出全屏后部分设备不再
+      // 上报恢复后的底部 inset，这里把解析后的高度补进 MediaQuery 交给它
+      // （见 SystemUiBottomInset）
+      return Builder(
+        builder: (context) {
+          final mediaQuery = MediaQuery.of(context);
+          final bottom = SystemUiBottomInset.resolve(
+            mediaQuery.padding.bottom,
+            systemBar: mediaQuery.viewPadding.bottom,
+            viewSize: mediaQuery.size,
+          );
+          if (bottom <= mediaQuery.padding.bottom) {
+            return nav;
+          }
+          return MediaQuery(
+            data: mediaQuery.copyWith(
+              padding: mediaQuery.padding.copyWith(bottom: bottom),
+              viewPadding: mediaQuery.viewPadding.copyWith(
+                bottom: math.max(mediaQuery.viewPadding.bottom, bottom),
+              ),
+            ),
+            child: nav,
+          );
+        },
+      );
+    });
   }
 
   /// 底栏收起容器（即时=动画，同步=跟随偏移）

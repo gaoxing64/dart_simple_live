@@ -14,6 +14,7 @@ import 'package:simple_live_app/widgets/follow_user_item.dart';
 import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
 import 'package:simple_live_app/widgets/live_room_card.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
+import 'package:simple_live_app/widgets/skeleton.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 
 class FollowUserPage extends GetView<FollowUserController> {
@@ -161,6 +162,9 @@ class FollowUserPage extends GetView<FollowUserController> {
                       pageController: controller,
                       firstRefresh: true,
                       showPCRefreshButton: false,
+                      itemExtent: 96,
+                      // 列表样式条目：骨架也要用行高一致的行骨架
+                      skeletonBuilder: (_, __) => const ListRowSkeleton(),
                       itemBuilder: (_, i) {
                         var item = controller.list[i];
                         var site = Sites.allSites[item.siteId]!;
