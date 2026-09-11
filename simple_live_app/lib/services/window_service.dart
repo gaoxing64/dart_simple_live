@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:ffi/ffi.dart' show calloc, Utf16;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:win32/win32.dart' as win32;
 import 'package:window_manager/window_manager.dart';
@@ -62,6 +64,9 @@ class WindowService extends GetxService implements WindowListener {
 
   Future<void> init() async {
     await resize();
+    if (Platform.isWindows) {
+      await _disableScreenBrightnessAutoReset();
+    }
     WindowOptions windowOptions = WindowOptions(
       minimumSize: Size(280, 280),
       center: false,
@@ -74,6 +79,28 @@ class WindowService extends GetxService implements WindowListener {
       await windowManager.show();
       await windowManager.focus();
     });
+  }
+
+  /// 关掉 screen_brightness 插件的 auto reset。
+  ///
+  /// 该插件默认开启 auto reset，其 Windows 实现会在窗口过程的 `WM_SIZE`
+  /// （`SIZE_RESTORED`/`SIZE_MAXIMIZED`）里调用 `OnApplicationResume()`，
+  /// 同步读回显示器亮度：走的是 DDC/CI
+  /// （`GetNumberOfPhysicalMonitorsFromHMONITOR` + `GetMonitorBrightness`，
+  /// 必要时还会 `SetMonitorBrightness` 写回）。实测单次约 55ms，而且发生在
+  /// **平台线程**上——拖动窗口边框时鼠标每移动一次就来一条 `WM_SIZE`，
+  /// 消息循环于是被反复堵住，表现就是窗口严重滞后于鼠标。
+  ///
+  /// 本应用在 Windows 上并不依赖这个特性：`resetSystem()` 已明确跳过桌面
+  /// 平台的亮度重置，播放器也没有用到 auto reset 的语义。关掉之后插件的窗口
+  /// 过程对 `WM_SIZE` 立即返回，拖动窗口不再触发任何 DDC/CI 调用。
+  Future<void> _disableScreenBrightnessAutoReset() async {
+    try {
+      await ScreenBrightness.instance.setAutoReset(false);
+    } catch (e) {
+      // 关闭失败不影响功能，只是会保留插件的默认行为
+      Log.logPrint(e);
+    }
   }
 
   /// Windows 原生标题栏只在窗口创建时读取系统深浅色，
