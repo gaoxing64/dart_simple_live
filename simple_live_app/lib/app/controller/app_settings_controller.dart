@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/log.dart';
@@ -14,7 +13,7 @@ class AppSettingsController extends GetxController {
       Get.find<AppSettingsController>();
 
   /// 桌面端
-  static bool get _isDesktop =>
+  static bool get isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   /// 缩放模式
@@ -371,7 +370,7 @@ class AppSettingsController extends GetxController {
   }
 
   /// 首页顶栏收起（移动端默认开启）
-  var hideTopBar = (!_isDesktop).obs;
+  var hideTopBar = (!isDesktop).obs;
 
   void setHideTopBar(bool e) {
     hideTopBar.value = e;
@@ -379,7 +378,7 @@ class AppSettingsController extends GetxController {
   }
 
   /// 首页底栏收起（移动端默认开启）
-  var hideBottomBar = (!_isDesktop).obs;
+  var hideBottomBar = (!isDesktop).obs;
 
   void setHideBottomBar(bool e) {
     hideBottomBar.value = e;

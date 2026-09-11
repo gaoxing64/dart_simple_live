@@ -8,6 +8,7 @@ import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
 import 'package:simple_live_app/widgets/skeleton.dart';
+import 'package:simple_live_app/widgets/ui/secondary_tap_region.dart';
 
 class HistoryPage extends GetView<HistoryController> {
   const HistoryPage({super.key});
@@ -38,6 +39,17 @@ class HistoryPage extends GetView<HistoryController> {
         itemBuilder: (_, i) {
           var item = controller.list[i];
           var site = Sites.allSites[item.siteId]!;
+
+          // 删除记录：左滑 / 长按 / 桌面端右键共用同一个入口
+          Future<void> removeRecord() async {
+            var result =
+                await Utils.showAlertDialog("确定要删除此记录吗?", title: "删除记录");
+            if (!result) {
+              return;
+            }
+            controller.removeItem(item);
+          }
+
           return Dismissible(
             key: ValueKey(item.id),
             direction: DismissDirection.endToStart,
@@ -56,51 +68,49 @@ class HistoryPage extends GetView<HistoryController> {
             onDismissed: (_) {
               controller.removeItem(item);
             },
-            child: ListTile(
-              leading: NetImage(
-                item.face,
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-              ),
-              title: Text(item.userName),
-              subtitle: Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Image.asset(
-                          site.logo,
-                          width: 20,
-                        ),
-                        AppStyle.hGap4,
-                        Text(
-                          site.name,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
+            // ListTile 本身不支持次要点击，补一层让桌面端右键也能删除
+            child: SecondaryTapRegion(
+              onSecondaryTap: removeRecord,
+              child: ListTile(
+                leading: NetImage(
+                  item.face,
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                ),
+                title: Text(item.userName),
+                subtitle: Row(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Image.asset(
+                            site.logo,
+                            width: 20,
                           ),
-                        ),
-                      ],
+                          AppStyle.hGap4,
+                          Text(
+                            site.name,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    Utils.parseTime(item.updateTime),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
+                    Text(
+                      Utils.parseTime(item.updateTime),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  AppNavigator.toLiveRoomDetail(
+                      site: site, roomId: item.roomId);
+                },
+                onLongPress: removeRecord,
               ),
-              onTap: () {
-                AppNavigator.toLiveRoomDetail(site: site, roomId: item.roomId);
-              },
-              onLongPress: () async {
-                var result =
-                    await Utils.showAlertDialog("确定要删除此记录吗?", title: "删除记录");
-                if (!result) {
-                  return;
-                }
-                controller.removeItem(item);
-              },
             ),
           );
         },

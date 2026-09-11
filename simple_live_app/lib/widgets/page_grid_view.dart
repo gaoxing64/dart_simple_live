@@ -122,6 +122,8 @@ class PageGridView extends StatelessWidget {
               //
               // 下拉刷新在桌面端可用鼠标拖拽触发：easy_refresh 的
               // ERScrollBehavior 把 dragDevices 放开为全部指针设备。
+              // （应用级 AppScrollBehavior 也做了同样的放开，见 main.dart；
+              // 这里保留是因为 ERScrollBehavior 还负责去掉越界光晕与滚动条。）
               header: MaterialHeader(
                 processedDuration: const Duration(milliseconds: 400),
               ),

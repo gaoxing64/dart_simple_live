@@ -15,6 +15,7 @@ import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/history_service.dart';
+import 'package:simple_live_app/widgets/ui/secondary_tap_region.dart';
 
 class FollowAppSettingsController extends BaseController {
   final appC = Get.find<AppSettingsController>();
@@ -125,13 +126,15 @@ class FollowAppSettingsController extends BaseController {
                     FollowUserTag item = userTagList[index];
                     return ListTile(
                       key: ValueKey(item.id),
-                      title: GestureDetector(
-                        child: Text(item.tag),
-                        onLongPress: () {
-                          {
+                      title: SecondaryTapRegion(
+                        onSecondaryTap: () => editTagDialog("修改标签",
+                            followUserTag: item),
+                        child: GestureDetector(
+                          child: Text(item.tag),
+                          onLongPress: () {
                             editTagDialog("修改标签", followUserTag: item);
-                          }
-                        },
+                          },
+                        ),
                       ),
                       leading: IconButton(
                         icon: const Icon(Icons.delete),
@@ -139,7 +142,10 @@ class FollowAppSettingsController extends BaseController {
                           removeTag(item);
                         },
                       ),
-                      trailing: ReorderableDelayedDragStartListener(
+                      // 用即时拖动而不是 Delayed：拖动目标是右侧这个小手柄，
+                      // 不存在与列表滚动抢手势的问题，按住 500ms 才可拖
+                      // 在桌面端纯属负担（触屏上直接按住手柄拖动也更顺手）。
+                      trailing: ReorderableDragStartListener(
                         index: index,
                         child: const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12.0),
