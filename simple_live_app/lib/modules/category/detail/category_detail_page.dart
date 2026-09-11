@@ -25,6 +25,7 @@ class CategoryDetailPage extends GetView<CategoryDetailController> {
           pageController: controller,
           padding: AppStyle.edgeInsetsA12,
           firstRefresh: true,
+          showEndBar: true,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
           crossAxisCount: c,

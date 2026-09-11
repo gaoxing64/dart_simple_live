@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/widgets/load_more_failed_bar.dart';
 import 'package:simple_live_app/widgets/page_auto_load.dart';
+import 'package:simple_live_app/widgets/page_end_bar.dart';
 import 'package:simple_live_app/widgets/skeleton.dart';
 import 'package:simple_live_app/widgets/status/app_empty_widget.dart';
 import 'package:simple_live_app/widgets/status/app_error_widget.dart';
@@ -16,6 +17,15 @@ class PageGridView extends StatelessWidget {
   final bool firstRefresh;
   final Function()? onLoginSuccess;
   final bool showPageLoadding;
+
+  /// 是否在列表已到底时展示「已到底」提示条。
+  ///
+  /// 只对「会翻到尽头」的流式列表开启（首页 / 搜索 / 分类详情）。关注页、
+  /// 历史记录是一次性全量数据，末尾显示「没有更多了」没有意义。
+  ///
+  /// 判据是 [BasePageController.showEndBar]，即「已经没有下一页」，与平台无关。
+  final bool showEndBar;
+
   final double crossAxisSpacing, mainAxisSpacing;
   final int crossAxisCount;
 
@@ -28,8 +38,9 @@ class PageGridView extends StatelessWidget {
   /// 空位只出现在右侧。瀑布流会按"最矮列"填充，列高不齐时条目会散落在
   /// 不同高度，加载区与已加载区交界处尤其明显。
   ///
-  /// 默认值对应 [LiveRoomCard] 的自然高度；列表样式条目（如 `ListTile`）
-  /// 必须显式传入自己的行高，否则行会被拉高、行间出现过大空隙。
+  /// 默认值 [kDefaultItemExtent] 对应 [LiveRoomCard] 的自然高度；列表样式
+  /// 条目（如 `ListTile`）必须显式传入自己的行高，否则行会被拉高、
+  /// 行间出现过大空隙。
   final double itemExtent;
   const PageGridView({
     required this.itemBuilder,
@@ -37,11 +48,12 @@ class PageGridView extends StatelessWidget {
     this.padding,
     this.firstRefresh = false,
     this.showPageLoadding = false,
+    this.showEndBar = false,
     this.onLoginSuccess,
     this.crossAxisSpacing = 0.0,
     this.mainAxisSpacing = 0.0,
     this.skeletonBuilder,
-    this.itemExtent = 168,
+    this.itemExtent = kDefaultItemExtent,
     required this.crossAxisCount,
     super.key,
   });
@@ -62,6 +74,22 @@ class PageGridView extends StatelessWidget {
         : const ListRowSkeleton();
   }
 
+  /// 默认行高，对应 [LiveRoomCard] 的自然高度。
+  ///
+  /// 公开出来是为了让调用方在按视口推算排版（例如首页决定列数）时
+  /// 不必再抄一份魔数——抄一份的话，这里一改就会静默失配。
+  static const double kDefaultItemExtent = 168;
+
+  /// 悬浮底栏（`Scaffold.extendBody`）给 body 额外带来的底部高度。
+  ///
+  /// 调用方若在 `LayoutBuilder` 里按约束高度推算可用空间（例如首页判断
+  /// 「内容能不能填满视口」来决定列数），必须减掉这一段，否则会高估可用高度、
+  /// 以为已经填满，底部那片被悬浮导航栏盖住的空间就没人管了。
+  static double floatingBarInsetOf(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    return mediaQuery.padding.bottom - mediaQuery.viewPadding.bottom;
+  }
+
   @override
   Widget build(BuildContext context) {
     var effectivePadding = padding;
@@ -69,9 +97,7 @@ class PageGridView extends StatelessWidget {
       // 悬浮底栏（Scaffold.extendBody）会把底栏高度计入 body 的
       // MediaQuery.padding.bottom；调用方传入显式 padding 会覆盖它，
       // 这里把这段额外高度补回 padding.bottom，避免最后一行被悬浮底栏遮住。
-      var mediaQuery = MediaQuery.of(context);
-      var floatingBarInset =
-          mediaQuery.padding.bottom - mediaQuery.viewPadding.bottom;
+      final floatingBarInset = floatingBarInsetOf(context);
       if (floatingBarInset > 0) {
         effectivePadding = effectivePadding.copyWith(
           bottom: effectivePadding.bottom + floatingBarInset,
@@ -137,11 +163,25 @@ class PageGridView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // 加载失败重试条：作为列表最后一个条目内联展示，
-                  // 不用 Positioned 悬浮层（那会盖住最后一行内容）
+                  // 尾部提示条（加载失败重试条 / 已到底条）必须跟着网格一起
+                  // 让开悬浮底栏：上面的 SliverPadding 只把底部内边距加在了
+                  // 网格自己身上，若把这两条直接追加在它之后，滚到底时它们会
+                  // 正好落进悬浮胶囊导航栏（Scaffold.extendBody）覆盖的区域，
+                  // 整条被遮住看不见。
                   if (pageController.showLoadMoreFailedBar)
-                    SliverToBoxAdapter(
-                      child: LoadMoreFailedBar(pageController: pageController),
+                    SliverPadding(
+                      padding: EdgeInsets.only(bottom: gridPadding.bottom),
+                      sliver: SliverToBoxAdapter(
+                        child:
+                            LoadMoreFailedBar(pageController: pageController),
+                      ),
+                    ),
+                  // 已到底提示条。与上面的重试条互斥（一个要 canLoadMore 为
+                  // true、一个要为 false），不会同时出现。
+                  if (showEndBar && pageController.showEndBar)
+                    SliverPadding(
+                      padding: EdgeInsets.only(bottom: gridPadding.bottom),
+                      sliver: const SliverToBoxAdapter(child: PageEndBar()),
                     ),
                 ],
               ),
