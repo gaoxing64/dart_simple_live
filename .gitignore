@@ -10,6 +10,7 @@ CRUSH.md
 .mimosa/
 .reasonix/
 .workbuddy/
+.workbuddy-ai/
 .ocr_review_report.txt
 .dsh_flutter_version*
 build/

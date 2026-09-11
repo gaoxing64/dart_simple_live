@@ -1,8 +1,33 @@
+import 'dart:async';
+
+import 'package:flutter/scheduler.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 
 /// 距底部多远开始自动加载下一页。
 const double kAutoLoadExtent = 200;
+
+/// 把"会改 Rx 状态"的动作挪到帧外执行。
+///
+/// 滚动通知经常在 layout 阶段派发：内容尺寸变化走
+/// [ScrollMetricsNotification]，惯性滚动收尾也会在 `RenderViewport`
+/// 布局时派发 `ScrollStartNotification`。此时若同步执行
+/// `loadData()` / 写 `loadMoreFailed`，会立刻让 [Obx] `markNeedsBuild`，
+/// Flutter 随即抛出 "Build scheduled during frame"。
+///
+/// 这不是偶发——桌面默认窗口 1280×720、6 列、首页 30 条约 5 行，
+/// `extentAfter` 约 180 < [kAutoLoadExtent]，首屏数据一到达就会命中。
+///
+/// 推迟一个微任务即可避开：微任务要等当前帧的同步调用栈跑完才执行，
+/// 那时改状态是合法的；代价只有一次事件循环，而 `loadding` 守卫仍在，
+/// 同一帧内的重复通知依旧只会真正加载一次。
+void outsideFrame(void Function() action) {
+  if (WidgetsBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+    action();
+    return;
+  }
+  scheduleMicrotask(action);
+}
 
 /// 接近底部时自动加载下一页，返回是否发起了加载。
 ///
@@ -35,7 +60,7 @@ bool autoLoadIfNeeded(
     // 一并收起重试条：离开底部等于重新武装自动重试。
     // ⚠️ 内容不满一屏时 extentAfter 恒为 0，走不到这里——
     // 这正是短列表失败后重试条必须常驻的原因。
-    pageController.loadMoreFailed.value = false;
+    outsideFrame(() => pageController.loadMoreFailed.value = false);
     return false;
   }
   if (pageController.list.isEmpty) {
@@ -50,7 +75,7 @@ bool autoLoadIfNeeded(
   if (pageController.loadFailed) {
     return false;
   }
-  pageController.loadData();
+  outsideFrame(pageController.loadData);
   return true;
 }
 

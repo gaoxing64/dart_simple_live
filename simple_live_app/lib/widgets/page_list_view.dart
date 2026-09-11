@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/widgets/load_more_failed_bar.dart';
 import 'package:simple_live_app/widgets/page_auto_load.dart';
+import 'package:simple_live_app/widgets/page_end_bar.dart';
 import 'package:simple_live_app/widgets/skeleton.dart';
 import 'package:simple_live_app/widgets/status/app_empty_widget.dart';
 import 'package:simple_live_app/widgets/status/app_error_widget.dart';
@@ -18,6 +19,9 @@ class PageListView extends StatelessWidget {
   final Function()? onLoginSuccess;
   final bool showPageLoadding;
 
+  /// 是否在列表已到底时展示「已到底」提示条，语义同 [PageGridView.showEndBar]。
+  final bool showEndBar;
+
   /// 加载下一页时底部占位的骨架，默认使用列表行骨架
   final IndexedWidgetBuilder? skeletonBuilder;
   const PageListView({
@@ -26,6 +30,7 @@ class PageListView extends StatelessWidget {
     this.padding,
     this.firstRefresh = false,
     this.showPageLoadding = false,
+    this.showEndBar = false,
     this.separatorBuilder,
     this.onLoginSuccess,
     this.skeletonBuilder,
@@ -56,6 +61,9 @@ class PageListView extends StatelessWidget {
       final listLength = pageController.list.length;
       final skeletonCount = pageController.loadingMore.value ? 3 : 0;
       final showRetry = pageController.showLoadMoreFailedBar;
+      final showEnd = showEndBar && pageController.showEndBar;
+      // 尾部条目（重试条 / 到底条）排在骨架之后，两者互斥不会同时出现
+      final tailCount = (showRetry ? 1 : 0) + (showEnd ? 1 : 0);
       return Stack(
         children: [
           AutoLoadOnScroll(
@@ -76,12 +84,16 @@ class PageListView extends StatelessWidget {
                 // 必须与 EasyRefresh 共用同一个 controller，见 PageGridView 说明
                 controller: pageController.scrollController,
                 padding: effectivePadding,
-                itemCount: listLength + skeletonCount + (showRetry ? 1 : 0),
+                itemCount: listLength + skeletonCount + tailCount,
                 itemBuilder: (context, index) {
                   // 重试条固定排在骨架之后（showRetry 与 loadingMore 互斥，
                   // 不会出现"骨架 + 重试条"同时在的怪状态）
                   if (showRetry && index == listLength + skeletonCount) {
                     return LoadMoreFailedBar(pageController: pageController);
+                  }
+                  if (showEnd &&
+                      index == listLength + skeletonCount + (showRetry ? 1 : 0)) {
+                    return const PageEndBar();
                   }
                   // 加载下一页时在底部补几行骨架，提示用户正在加载
                   if (index >= listLength) {

@@ -30,6 +30,7 @@ class SearchListView extends StatelessWidget {
                 pageController: controller,
                 padding: AppStyle.edgeInsetsA12,
                 firstRefresh: false,
+                showEndBar: true,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 crossAxisCount: roomRowCount,
@@ -44,6 +45,7 @@ class SearchListView extends StatelessWidget {
                 crossAxisCount: userRowCount,
                 pageController: controller,
                 firstRefresh: true,
+                showEndBar: true,
                 itemExtent: 76,
                 // 列表样式条目：骨架也要用行高一致的行骨架
                 skeletonBuilder: (_, __) => const ListRowSkeleton(),

@@ -74,6 +74,14 @@ class BasePageController<T> extends BaseController {
   /// 每次加载前会被重置，避免上一页的结果影响本页。
   bool? serverHasMore;
 
+  /// 是否展示列表底部的「已到底」提示。
+  ///
+  /// 判据不是某个平台的特例，而是「已经没有下一页」这个通用事实：
+  /// 各平台翻到服务端说没有更多都会命中。
+  /// 加载中 / 失败 / 空列表都不展示，避免和骨架、重试条打架。
+  bool get showEndBar =>
+      list.isNotEmpty && !canLoadMore.value && !loadingMore.value && !loadding;
+
   /// 是否正在加载下一页（用于列表底部骨架占位）
   var loadingMore = false.obs;
 
@@ -169,6 +177,11 @@ class BasePageController<T> extends BaseController {
     serverHasMore = null;
     // 提前取出：catch 里判断「是否首页失败」也要用它
     final isFirstPage = currentPage == 1;
+    final requestedPage = currentPage;
+    // 分页耗时观测：用于区分「接口慢」与「图片慢」，见 finally 里的日志
+    final stopwatch = Stopwatch()..start();
+    // 首页时 refreshData 已把 list 清空，因此这里两种情况下都是「追加前长度」
+    final lengthBefore = list.length;
     try {
       pageError.value = false;
       pageEmpty.value = false;
@@ -222,10 +235,21 @@ class BasePageController<T> extends BaseController {
       loadMoreFailed.value = !isFirstPage;
       handleError(e, showPageError: isFirstPage);
     } finally {
+      stopwatch.stop();
       loadding = false;
       loadingMore.value = false;
       pageLoadding.value = false;
       _currentLoad = null;
+      // 观测点：page / 耗时 / 去重后新增 / 列表总数 / 是否还能翻页。
+      // 排查"看起来慢"时先看 added 与 total——若耗时正常但 added 很小，
+      // 说明接口已经拿不出新内容，不是网络问题，再去查图片加载。
+      Log.d(
+        '[paging] $runtimeType page=$requestedPage '
+        'took=${stopwatch.elapsedMilliseconds}ms '
+        'added=${list.length - lengthBefore} '
+        'total=${list.length} '
+        'more=${canLoadMore.value}',
+      );
     }
   }
 
