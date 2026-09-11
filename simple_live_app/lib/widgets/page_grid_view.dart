@@ -5,6 +5,7 @@ import 'package:simple_live_app/widgets/load_more_failed_bar.dart';
 import 'package:simple_live_app/widgets/page_auto_load.dart';
 import 'package:simple_live_app/widgets/page_end_bar.dart';
 import 'package:simple_live_app/widgets/skeleton.dart';
+import 'package:simple_live_app/widgets/ticker_offstage.dart';
 import 'package:simple_live_app/widgets/status/app_empty_widget.dart';
 import 'package:simple_live_app/widgets/status/app_error_widget.dart';
 import 'package:simple_live_app/widgets/status/app_loadding_widget.dart';
@@ -189,17 +190,17 @@ class PageGridView extends StatelessWidget {
               ),
             ),
           ),
-          Offstage(
+          TickerOffstage(
             offstage: !pageController.pageEmpty.value,
             child: AppEmptyWidget(
               onRefresh: () => pageController.refreshData(),
             ),
           ),
-          Offstage(
+          TickerOffstage(
             offstage: !(showPageLoadding && pageController.pageLoadding.value),
             child: const AppLoaddingWidget(),
           ),
-          Offstage(
+          TickerOffstage(
             offstage: !pageController.pageError.value,
             child: AppErrorWidget(
               errorMsg: pageController.errorMsg.value,
