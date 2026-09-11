@@ -35,6 +35,9 @@ class ShadowCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(radius),
           onLongPress: onLongPress,
+          // 桌面端右键 = 移动端长按，复用同一个回调（见 SecondaryTapRegion 的说明）。
+          // InkWell 自带次要点击支持，无需再包一层 GestureDetector。
+          onSecondaryTap: onLongPress,
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(

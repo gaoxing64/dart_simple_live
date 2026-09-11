@@ -12,6 +12,15 @@ import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 class IndexedSettingsPage extends GetView<IndexedSettingsController> {
   const IndexedSettingsPage({super.key});
 
+  /// 排序操作提示。
+  ///
+  /// `ReorderableListView` 的默认拖拽手柄按平台分派：桌面端把右侧
+  /// `Icons.drag_handle` 包进即时拖动监听器，移动端则把整行包进"长按后才
+  /// 可拖"的监听器（见 material/reorderable_list.dart）。提示文案必须跟着分派，
+  /// 否则桌面端会让人以为要长按。
+  static String get _reorderHint =>
+      AppSettingsController.isDesktop ? "拖动右侧图标排序" : "长按拖动排序";
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,7 +81,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
           Padding(
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
-              "主页排序 (长按拖动排序，重启后生效)",
+              "主页排序 ($_reorderHint，重启后生效)",
               style: Get.textTheme.titleSmall,
             ),
           ),
@@ -100,7 +109,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
           Padding(
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
-              "平台排序 (长按拖动排序，重启后生效)",
+              "平台排序 ($_reorderHint，重启后生效)",
               style: Get.textTheme.titleSmall,
             ),
           ),

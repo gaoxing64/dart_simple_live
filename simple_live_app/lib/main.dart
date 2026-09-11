@@ -14,6 +14,7 @@ import 'package:logger/logger.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:simple_live_app/app/app_scroll_behavior.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/event_bus.dart';
@@ -191,6 +192,9 @@ class MyApp extends StatelessWidget {
           ).copyWith(colorScheme: darkColorScheme),
           themeMode: ThemeMode
               .values[Get.find<AppSettingsController>().themeMode.value],
+          // 桌面端放开鼠标拖拽：上下拖列表、左右拖切换平台标签，
+          // 与移动端保持一致（默认行为只认触摸类指针，鼠标拖不动）。
+          scrollBehavior: const AppScrollBehavior(),
           initialRoute: RoutePath.kIndex,
           getPages: AppPages.routes,
           //国际化

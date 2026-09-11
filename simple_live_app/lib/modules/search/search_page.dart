@@ -88,18 +88,16 @@ class SearchPage extends GetView<AppSearchController> {
         ),
       ),
       body: TabBarView(
-        physics: const NeverScrollableScrollPhysics(),
+        // 允许左右滑动切换平台，与首页 / 分类页保持一致。
+        // 这里曾经是 NeverScrollableScrollPhysics：当时抖音搜索用 WebView
+        // （DouyinSearchView），WebView 会吞掉横向拖动、与切页冲突；后来抖音搜索
+        // 改回普通列表（commit e95a792），这个限制就成了遗留，现移除。
+        // 桌面端能否用鼠标左右拖，由全局 AppScrollBehavior 决定（见 main.dart）。
         controller: controller.tabController,
         children: Sites.supportSites
             .map((e) => SearchListView(
-                      e.id,
-                    )
-                // (e) => e.id == Constant.kDouyin
-                //     ? const DouyinSearchView()
-                //     : SearchListView(
-                //         e.id,
-                //       ),
-                )
+                  e.id,
+                ))
             .toList(),
       ),
     );
