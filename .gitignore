@@ -13,6 +13,7 @@ CRUSH.md
 .workbuddy-ai/
 .ocr_review_report.txt
 .dsh_flutter_version*
+.flutter_tool_state
 build/
 dev-tool.ps1
 *.py
