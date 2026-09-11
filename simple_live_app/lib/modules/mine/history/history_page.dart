@@ -13,6 +13,14 @@ import 'package:simple_live_app/widgets/ui/secondary_tap_region.dart';
 class HistoryPage extends GetView<HistoryController> {
   const HistoryPage({super.key});
 
+  /// 删除前的确认弹窗。
+  ///
+  /// 左滑（[Dismissible.confirmDismiss]）、长按、桌面端右键三个入口共用同一份
+  /// 文案与判据；只有「删除动作本身」各自执行一次，避免同一条记录被删两次。
+  Future<bool> confirmRemove() async {
+    return await Utils.showAlertDialog("确定要删除此记录吗?", title: "删除记录");
+  }
+
   @override
   Widget build(BuildContext context) {
     var rowCount = MediaQuery.of(context).size.width ~/ 500;
@@ -42,9 +50,7 @@ class HistoryPage extends GetView<HistoryController> {
 
           // 删除记录：左滑 / 长按 / 桌面端右键共用同一个入口
           Future<void> removeRecord() async {
-            var result =
-                await Utils.showAlertDialog("确定要删除此记录吗?", title: "删除记录");
-            if (!result) {
+            if (!await confirmRemove()) {
               return;
             }
             controller.removeItem(item);
@@ -62,9 +68,7 @@ class HistoryPage extends GetView<HistoryController> {
                 color: Colors.white,
               ),
             ),
-            confirmDismiss: (direction) async {
-              return await Utils.showAlertDialog("确定要删除此记录吗?", title: "删除记录");
-            },
+            confirmDismiss: (direction) => confirmRemove(),
             onDismissed: (_) {
               controller.removeItem(item);
             },

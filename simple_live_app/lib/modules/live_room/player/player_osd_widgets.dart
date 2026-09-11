@@ -435,7 +435,8 @@ class OsdMetrics {
         : OsdPresentment.overlay;
 
     // 表单形态贴着视频区边缘，不需要外边距；浮层形态四周各留 12。
-    final double horizontalMargin = presentment == OsdPresentment.sheet ? 0 : 12;
+    final double horizontalMargin =
+        presentment == OsdPresentment.sheet ? 0 : 12;
     final double verticalMargin = presentment == OsdPresentment.sheet ? 0 : 12;
     final double usableHeight =
         maxH - safePadding.top - safePadding.bottom - verticalMargin * 2;
@@ -590,17 +591,25 @@ class OsdMetrics {
       // 竖屏手机上滚动区只有 ~160dp，2×2 排列光是指标卡就吃掉 100dp，
       // 下面的分组全被挤没；排成一行（每格 ~85dp 宽）只占 ~48dp。
       // 极窄屏（<340）放不下四格，退回两列。
-      tileColumns = maxW >= 340 ? 4 : 2;
+      //
+      // 只对底部表单形态生效：`dense` 只看可用高度，桌面 / 平板在矮窗口里
+      // 同样会 dense，但它们的面板宽度是固定的（420 / 400），四格会把每格
+      // 压到 ~95dp——既不符合这里「竖屏手机」的出发点，也破坏了宽屏的既有观感。
+      if (presentment == OsdPresentment.sheet) {
+        tileColumns = maxW >= 340 ? 4 : 2;
+      }
     }
 
     final bool minimal = usableHeight < 140;
     final double panelMaxHeight = usableHeight.clamp(0.0, 620.0);
 
     final double titleLine = titleSize * 1.35;
-    final double topLine = titleLine > iconButtonSize ? titleLine : iconButtonSize;
+    final double topLine =
+        titleLine > iconButtonSize ? titleLine : iconButtonSize;
     final double headerHeight = headerTopPadding + topLine;
-    final double bodyMaxHeight =
-        minimal ? 0.0 : (panelMaxHeight - headerHeight - contentGap).clamp(0.0, 520.0);
+    final double bodyMaxHeight = minimal
+        ? 0.0
+        : (panelMaxHeight - headerHeight - contentGap).clamp(0.0, 520.0);
 
     return OsdMetrics(
       breakpoint: breakpoint,
@@ -677,8 +686,7 @@ class OsdMetricsScope extends InheritedWidget {
   final OsdMetrics metrics;
 
   static OsdMetrics of(BuildContext context) {
-    final scope =
-        context.dependOnInheritedWidgetOfExactType<OsdMetricsScope>();
+    final scope = context.dependOnInheritedWidgetOfExactType<OsdMetricsScope>();
     return scope?.metrics ?? _fallback;
   }
 
@@ -808,7 +816,10 @@ class OsdIconButton extends StatelessWidget {
       // 不再手写 MouseRegion + AnimatedContainer 模拟悬停。
       style: IconButton.styleFrom(
         foregroundColor: s.colors.textSecondary,
-        overlayColor: s.colors.textPrimary,
+        // M3 的状态层是**低透明度**叠加色（约 8%~12%）。这里原来直接给了
+        // 不透明的 onSurface：悬停 / 按下会在按钮区域盖出一块实心色块，
+        // 既遮图标又丢掉重构前 Colors.white.withAlpha(22) 那种轻量反馈。
+        overlayColor: s.colors.textPrimary.withAlpha(0x1F),
         fixedSize: Size.square(size),
         padding: EdgeInsets.zero,
         visualDensity: VisualDensity.compact,
@@ -997,13 +1008,15 @@ class OsdStatTileGrid extends StatelessWidget {
         final index = i + j;
         cells.add(
           Expanded(
-            child: index < tiles.length ? tiles[index] : const SizedBox.shrink(),
+            child:
+                index < tiles.length ? tiles[index] : const SizedBox.shrink(),
           ),
         );
       }
       rows.add(
         Padding(
-          padding: EdgeInsets.only(bottom: i + columns < tiles.length ? m.tileGap : 0),
+          padding: EdgeInsets.only(
+              bottom: i + columns < tiles.length ? m.tileGap : 0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: cells,

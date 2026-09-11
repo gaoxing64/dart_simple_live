@@ -92,11 +92,10 @@ class DouyinSite implements LiveSite {
       header: await getRequestHeaders(),
     );
 
-    var renderData =
-        RegExp(r'\{\\"pathname\\":\\"\/\\",\\"categoryData.*?\],')
-                .firstMatch(result)
-                ?.group(0) ??
-            "";
+    var renderData = RegExp(r'\{\\"pathname\\":\\"\/\\",\\"categoryData.*?\],')
+            .firstMatch(result)
+            ?.group(0) ??
+        "";
     var renderDataJson = json.decode(renderData
         .trim()
         .replaceAll('\\"', '"')
@@ -172,8 +171,19 @@ class DouyinSite implements LiveSite {
   }) async {
     // count 超过 kPartitionPageSize 时服务端只返回 20 条，
     // `rawCount >= count` 会恒为 false，整条列表被误判成已到底。
-    assert(count > 0 && count <= kPartitionPageSize,
-        'count 不能超过 $kPartitionPageSize：再大服务端也只返回 20 条');
+    //
+    // 这里用真实守卫而不是 assert：assert 在 release 里会被整体剥离，而
+    // 「本页满不满」的判据在调用方手里、方法内 clamp 救不了——一旦将来新增
+    // 调用方传了更大的 count，线上表现是「列表莫名其妙只剩一页」，没有任何
+    // 报错可查。宁可让写错的调用点直接炸出来。
+    if (count <= 0 || count > kPartitionPageSize) {
+      throw ArgumentError.value(
+        count,
+        'count',
+        '必须落在 1..$kPartitionPageSize：再大服务端也只返回 20 条，'
+            '会让 rawCount >= count 恒为 false，列表被误判成已到底',
+      );
+    }
     final ids = partition.split(',');
     final targetUrl = DouyinUtils.buildRequestUrl(
       "https://live.douyin.com/webcast/web/partition/detail/room/v2/",
@@ -283,9 +293,9 @@ class DouyinSite implements LiveSite {
   /// 零重复，每个分区约 120 条深度（offset 100 仍有 20 条、200 已空）。
   /// 它与首屏 feed 的内容几乎不重叠（实测每页只重 0~1 条），衔接自然。
   ///
-  /// 顺序按实测人气中位数排：文化 19348 > 聊天 6491 > 游戏 5700 >
-  /// 音乐 3153 > 运动 3140 > 二次元 2528 > 舞蹈 1084。生活（107,4）因为
-  /// 中位人气为 0（整页都是 0 人直播间）被剔除。
+  /// 顺序按实测人气中位数从高到低排（文化 > 游戏 > 聊天 > 音乐 > 运动 >
+  /// 二次元 > 舞蹈）。生活（107,4）因为中位人气为 0（整页都是 0 人直播间）
+  /// 被剔除。
   ///
   /// 轮转而非固定单分区，是为了让「推荐」保持跨品类的观感：7 个分区各约
   /// 120 条，合起来约 840 条可翻。
@@ -324,6 +334,9 @@ class DouyinSite implements LiveSite {
   /// 并发是把热门池在**一次等待**里尽量收齐，而不是「靠多等几轮让池自己
   /// 转出新东西」，所以墙钟耗时≈单次请求。
   Future<LiveCategoryResult> _fetchRecommendFeed({int? pageSize}) async {
+    // 第 1 页 = 新一轮推荐（首次进入或下拉刷新），续接页的游标归零，
+    // 让第 2 页重新从第 1 个分区的 offset 0 开始。
+    _lastServedSlot = -1;
     // headers 只取一次：下面所有切片共用，避免并发里重复发 HEAD 换 cookie。
     final header = await getRequestHeaders();
     final fanout = _recommendFanout(pageSize);
@@ -378,18 +391,33 @@ class DouyinSite implements LiveSite {
     return LiveCategoryResult(hasMore: items.isNotEmpty, items: items);
   }
 
+  /// 上一次真正命中过的 slot（`-1` 表示本实例刚开始翻）。
+  ///
+  /// 为什么必须记住它：顺延时同一个 slot 会被相邻的两个页号依次命中——
+  /// 第 N 页从 slot N-2 起扫，扫到 slot k 才有内容；第 N+1 页从 slot N-1 起扫，
+  /// 若 N-1 也是空的，就又扫到同一个 slot k，于是同一份内容被连续两页原样返回。
+  /// 而 App 层 `BasePageController` 判「到底」的依据正是**连续 2 页零新增**，
+  /// 于是列表会提前收尾，把后面几个分区在这个 offset 上还取得到的内容整段丢掉
+  /// ——恰好是这次改动想修掉的「列表提前停住」。
+  ///
+  /// 下一页从命中位置之后接着扫，slot 就严格递增，同一个 (分区, offset) 只会被
+  /// 消费一次。刷新（第 1 页）时重置，见 [_fetchRecommendFeed]。
+  int _lastServedSlot = -1;
+
   /// 第 2 页起：官方分区接口真分页。
   ///
   /// 把「页号」映射成一条虚拟的无限序列：第 2 页对应 slot 0、第 3 页对应
   /// slot 1……slot 决定用哪个分区（循环轮转），每转完一圈 offset 前进一页。
-  /// 映射是页号的纯函数，所以重放同一页不会漂移。
+  /// 起点是页号的纯函数，只有上一页顺延过时才会额外向后推进一档
+  /// （见 [_lastServedSlot]），因此同一页重放不会漂移。
   Future<LiveCategoryResult> _fetchRecommendContinuation(int page) async {
     final header = await getRequestHeaders();
     final slots = kRecommendPartitions.length;
-    var slot = page - 2;
+    // 起点取「页号对应的 slot」与「上次实际命中的下一个 slot」中的较大者。
+    // 正常情况下二者相等（上一页命中 slot p-3，下一页从 p-2 起），只有上一页
+    // 顺延过时后者更大——不然相邻页号会重复命中同一个 slot，见 [_lastServedSlot]。
+    var slot = max(page - 2, _lastServedSlot + 1);
     // 某个分区翻到底时顺延到下一个分区，避免一个先耗尽的分区把整条列表卡死。
-    // 代价是顺延掉的那一页会在下一次请求时重放一遍（App 层按 roomId 去重，
-    // 且要连续两页零新增才判到底，所以最多浪费一页）。
     for (var attempt = 0; attempt < slots; attempt++, slot++) {
       final result = await _fetchPartitionPage(
         header,
@@ -397,6 +425,7 @@ class DouyinSite implements LiveSite {
         offset: (slot ~/ slots) * kPartitionPageSize,
       );
       if (result.items.isNotEmpty) {
+        _lastServedSlot = slot;
         // 只要还有分区没翻完就声明"还有更多"；真正的到底由「一圈分区全空」
         // 判定（各分区深度都在 120 条上下，会在同一圈一起耗尽）。
         return LiveCategoryResult(hasMore: true, items: result.items);
@@ -432,7 +461,7 @@ class DouyinSite implements LiveSite {
     Map<String, dynamic> header, {
     required int sliceIndex,
   }) async {
-    var result = await HttpClient.instance.getJson(
+    final result = await HttpClient.instance.getJson(
       "https://live.douyin.com/webcast/feed/",
       queryParameters: {
         "aid": "6383",
@@ -447,22 +476,46 @@ class DouyinSite implements LiveSite {
       header: header,
     );
 
-    var dataList = (result["data"] as List?) ?? [];
-    var items = <LiveRoomItem>[];
-    for (var i in dataList) {
-      var item = i['data'];
-      var roomItem = LiveRoomItem(
-        roomId: item["owner"]["web_rid"],
-        title: item["title"].toString(),
-        cover: item["cover"]["url_list"][0].toString(),
-        userName: item["owner"]["nickname"].toString(),
-        online:
-            int.tryParse(item["room_view_stats"]["display_value"].toString()) ??
-                0,
-      );
-      items.add(roomItem);
+    // 与分区接口同一套降级口径：形状不对就当空切片，交给上层按「一路失败」
+    // 处理，而不是在这里抛 TypeError 把整路丢掉。
+    final dataList = result is Map ? result['data'] : null;
+    if (dataList is! List) {
+      return const <LiveRoomItem>[];
     }
-    return items;
+    return dataList.map(_feedRoomItemOf).whereType<LiveRoomItem>().toList();
+  }
+
+  /// 把 feed 切片里的一条数据转成 [LiveRoomItem]；数据畸形时返回 null。
+  ///
+  /// 与 [_roomItemOf] 是同一种「逐字段判空、脏条目跳过」的口径，只是字段布局
+  /// 不同（feed 的房间挂在 `item['data']`，分区接口挂在 `item['room']`）。
+  /// 这条路径是首屏必走的：一条脏数据只该让这一路切片少一条，不该让整路失败；
+  /// 若形状变化是系统性的，几路一起失败就会走到 `throw CoreError`，
+  /// 用户看到的是整页错误而不是「跳过脏条目」后的可用列表。
+  LiveRoomItem? _feedRoomItemOf(dynamic item) {
+    final data = item is Map ? item['data'] : null;
+    if (data is! Map) {
+      return null;
+    }
+    final owner = data['owner'];
+    // 没有房间号就没法去重也没法进房，直接跳过。
+    final webRid = owner is Map ? owner['web_rid'] : null;
+    if (webRid == null) {
+      return null;
+    }
+    final cover = data['cover'];
+    final coverList = cover is Map ? cover['url_list'] : null;
+    final stats = data['room_view_stats'];
+    return LiveRoomItem(
+      roomId: webRid.toString(),
+      title: data['title']?.toString() ?? '',
+      cover: (coverList is List && coverList.isNotEmpty)
+          ? coverList.first.toString()
+          : '',
+      userName: owner is Map ? (owner['nickname']?.toString() ?? '') : '',
+      online:
+          int.tryParse(stats is Map ? '${stats['display_value']}' : '') ?? 0,
+    );
   }
 
   @override
@@ -487,8 +540,7 @@ class DouyinSite implements LiveSite {
       "$baseUrl$roomId",
     );
     final reg = RegExp(
-        r'mysteryMan\\":1,\\\"webRid\\\":\\\"([^\\"]+)\\\",\\\"desensitizedNickname'
-    );
+        r'mysteryMan\\":1,\\\"webRid\\\":\\\"([^\\"]+)\\\",\\\"desensitizedNickname');
     var webRid = reg.firstMatch(response)?.group(1) ?? "";
     return webRid.isEmpty ? roomId : webRid;
   }
@@ -805,9 +857,9 @@ class DouyinSite implements LiveSite {
         var hlsUrl =
             qualityData[quality["sdk_key"]]?["main"]?["hls"]?.toString();
         if (hlsUrl != null && hlsUrl.isNotEmpty) {
-          if(hlsFirst){
+          if (hlsFirst) {
             urls.insert(0, hlsUrl);
-          }else{
+          } else {
             urls.add(hlsUrl);
           }
         }

@@ -30,7 +30,12 @@ List<dynamic> _infoOf({
   meta[15] = {
     'extra': emots == null ? '' : json.encode({'emots': emots}),
   };
-  return <dynamic>[meta, message, <dynamic>[0, 'tester'], 0];
+  return <dynamic>[
+    meta,
+    message,
+    <dynamic>[0, 'tester'],
+    0
+  ];
 }
 
 Map<String, dynamic> _emot(String url, {int w = 20, int h = 20}) => {
@@ -74,7 +79,7 @@ void main() {
       expect(result.first.name, '[7号表情]');
     });
 
-    test('同一条弹幕可混排多个表情，顺序与文本一致', () {
+    test('同一条弹幕可混排多个表情，顺序按 emots 下发顺序', () {
       final info = _infoOf(
         message: '[大笑]中间[大哭]',
         emots: {
@@ -86,6 +91,60 @@ void main() {
       final result = parseBilibiliEmoticons(info, info[1] as String);
 
       expect(result!.map((e) => e.name).toList(), ['[大笑]', '[大哭]']);
+    });
+
+    test('下发顺序与正文顺序相反时跟着 map 走（正文位置由渲染层重建）', () {
+      // 本层只回答「哪些占位符有图」，占位符在正文里的位置由渲染层的
+      // splitDanmakuSegments 重建，所以这里锁的是「按 map 顺序返回」这个契约。
+      final info = _infoOf(
+        message: '[大笑]中间[大哭]',
+        emots: {
+          '[大哭]': _emot('https://i0.hdslb.com/bfs/live/cry.png'),
+          '[大笑]': _emot('https://i0.hdslb.com/bfs/live/laugh.png'),
+        },
+      );
+
+      final result = parseBilibiliEmoticons(info, info[1] as String);
+
+      expect(result!.map((e) => e.name).toList(), ['[大哭]', '[大笑]']);
+    });
+
+    test('info[0][13] 与 extra.emots 同时下发同一张图时不重复', () {
+      // 两种下发方式同时出现，且 message 不是单个占位符 → 单表情的 name 为 null，
+      // 去重集合用不上；渲染层对 name == null 的表情是无条件追加到末尾的，
+      // 于是同一条弹幕会多贴一张重复的图。
+      final info = _infoOf(
+        message: '[大笑]哈哈哈',
+        emots: {
+          '[大笑]': _emot('https://i0.hdslb.com/bfs/live/laugh.png'),
+        },
+        single: _emot('https://i0.hdslb.com/bfs/live/laugh.png'),
+      );
+
+      final result = parseBilibiliEmoticons(info, info[1] as String);
+
+      expect(result!.length, 1, reason: '同一张图只该有一条');
+      expect(result.first.name, '[大笑]');
+    });
+
+    test('超过上限时在入口就挡下，不会「解析出来又被截断丢掉」', () {
+      final info = _infoOf(
+        message: List.generate(9, (i) => '[$i号表情]').join(),
+        emots: {
+          for (var i = 0; i < 9; i++)
+            '[$i号表情]': _emot('https://i0.hdslb.com/bfs/live/$i.png'),
+        },
+        single: _emot('https://i0.hdslb.com/bfs/live/single.png'),
+      );
+
+      final result = parseBilibiliEmoticons(info, info[1] as String);
+
+      expect(result!.length, 8, reason: '单条上限 8 个');
+      expect(
+        result.any((e) => e.url.endsWith('single.png')),
+        isFalse,
+        reason: 'extra 已凑满上限时，单表情在入口返回，而不是 add 后再被截掉',
+      );
     });
 
     test('info[0][13] 单表情：message 是占位符时用它作为 name', () {
@@ -181,7 +240,12 @@ void main() {
       meta[1] = '[a]';
       meta[2] = <dynamic>[0, 'tester'];
       meta[15] = {'extra': '{不是 json'};
-      final info = <dynamic>[meta, '[a]', <dynamic>[0, 'tester'], 0];
+      final info = <dynamic>[
+        meta,
+        '[a]',
+        <dynamic>[0, 'tester'],
+        0
+      ];
 
       expect(parseBilibiliEmoticons(info, info[1] as String), isNull);
     });
@@ -192,7 +256,12 @@ void main() {
       expect(parseBilibiliEmoticons([0, 'x'], ''), isNull);
       expect(parseBilibiliEmoticons([<dynamic>[], 'x'], ''), isNull);
       // info[0] 长度不足，取不到 13 / 15
-      expect(parseBilibiliEmoticons([<dynamic>[0, 'x'], 'x'], 'x'), isNull);
+      expect(
+          parseBilibiliEmoticons([
+            <dynamic>[0, 'x'],
+            'x'
+          ], 'x'),
+          isNull);
     });
 
     test('单条弹幕的表情数量有上限，防止异常载荷放大内存', () {

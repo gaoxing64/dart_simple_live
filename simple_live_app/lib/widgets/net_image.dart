@@ -66,10 +66,24 @@ class _NetImageState extends State<NetImage> {
     }
     _logged = true;
     stopwatch.stop();
-    Log.d(
-      '[image] ${stopwatch.elapsedMilliseconds}ms '
-      '${widget.width?.toInt()}x${widget.height?.toInt()} $url',
-    );
+    // 尺寸只能原样可读化，不能 toInt()：封面用的就是 `width: double.infinity`
+    // （见 LiveRoomCard），而 Dart 的 `num.toInt()` 对无穷大直接抛
+    // UnsupportedError——一打开采样就会在 build 里炸掉，采样反而不可用。
+    final message = '[image] ${stopwatch.elapsedMilliseconds}ms '
+        '${_sizeLabel(widget.width)}x${_sizeLabel(widget.height)} $url';
+    // 不能在这里直接写日志：loadStateChanged 是 ExtendedImage 在 **build 阶段**
+    // 同步回调的，而 Log.d → addDebugLog 会往 RxList 插入一条日志，Log 页在树上
+    // 时会立刻 markNeedsBuild，抛 "setState() or markNeedsBuild() called during
+    // build"。挪到帧外，顺带也让采样本身不干扰被观测的那一帧。
+    WidgetsBinding.instance.addPostFrameCallback((_) => Log.d(message));
+  }
+
+  /// 尺寸的可读化：无穷大（占满可用宽度）打印成 `∞`，不参与取整。
+  static String _sizeLabel(double? value) {
+    if (value == null) {
+      return '?';
+    }
+    return value.isFinite ? value.toInt().toString() : '∞';
   }
 
   @override

@@ -38,10 +38,16 @@ List<LiveMessageEmoticon>? parseBilibiliEmoticons(
   if (result.isEmpty) {
     return null;
   }
-  return result.length > _maxEmoticons
-      ? result.sublist(0, _maxEmoticons)
-      : result;
+  return result;
 }
+
+/// 是否已达到单条弹幕的表情数量上限。
+///
+/// 两个解析入口共用同一个判据，因此 [result] 的最终长度就是上限本身，
+/// 出口不需要再 `sublist` 截断一次——截断会掩盖「已经解析出来又被丢掉」
+/// 这类看不见的行为（单表情恰好是整条弹幕唯一的表情时尤其致命）。
+bool _isFull(List<LiveMessageEmoticon> result) =>
+    result.length >= _maxEmoticons;
 
 /// 情况 2：`info[0][15]["extra"]["emots"]` 的占位符映射
 void _parseExtraEmots(
@@ -66,7 +72,7 @@ void _parseExtraEmots(
 
   for (final entry in emotMap.entries) {
     // 到量就停：后面即使还有命中项也不再解析，省掉无谓的 contains 计算
-    if (result.length >= _maxEmoticons) {
+    if (_isFull(result)) {
       break;
     }
     final name = entry.key;
@@ -106,6 +112,18 @@ void _parseSingleEmoticon(
   }
   final url = _normalizeUrl(_asString(single['url']));
   if (url == null) {
+    return;
+  }
+  // 上限在入口把关（见 [_isFull]）：不这样做的话「extra 已经凑满 8 个」时
+  // 这条单独下发的表情会先被 add、再被出口截断掉，行为完全不可见。
+  if (_isFull(result)) {
+    return;
+  }
+  // extra.emots 可能已经解析过同一张图（同一条弹幕的两种下发方式同时出现）。
+  // message 不是单个占位符时 name 为 null，去重集合用不上，而渲染层对
+  // name == null 的表情是**无条件追加到消息末尾**的，于是同一条弹幕会多贴
+  // 一张重复的图。
+  if (result.any((e) => e.url == url)) {
     return;
   }
 

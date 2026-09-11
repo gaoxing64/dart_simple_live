@@ -25,6 +25,7 @@ class _CategoryAdapter implements HttpClientAdapter {
   _CategoryAdapter({
     this.returnedCount,
     this.malformed = false,
+    this.dataIsList = false,
     this.brokenItemIndexes = const {},
   });
 
@@ -33,6 +34,12 @@ class _CategoryAdapter implements HttpClientAdapter {
 
   /// 为 true 时返回结构异常的响应（`data` 为 null），用于验证不崩溃。
   final bool malformed;
+
+  /// 为 true 时返回 `data` 本身是 List 的响应（错误响应形态 `{"data": []}`）。
+  ///
+  /// 旧代码在这里直接取 `result["data"]["data"]`，会抛 TypeError 把整页带崩；
+  /// 这是与 [malformed] 不同的另一种异常形状，必须单独覆盖。
+  final bool dataIsList;
 
   /// 这些下标的条目会被替换成畸形结构（缺 `room` / 缺 `web_rid`）。
   final Set<int> brokenItemIndexes;
@@ -63,6 +70,11 @@ class _CategoryAdapter implements HttpClientAdapter {
 
     if (malformed) {
       return _ok({'data': null});
+    }
+
+    if (dataIsList) {
+      // 错误响应形态：data 本身是 List，再往里取 ["data"] 就是 TypeError
+      return _ok({'data': <dynamic>[]});
     }
 
     final count = int.tryParse(q['count'] ?? '') ?? kCategoryPageSize;
@@ -194,6 +206,17 @@ void main() {
 
   test('响应结构异常时按空页处理，而不是崩溃', () async {
     final adapter = _CategoryAdapter(malformed: true);
+    restore = _install(adapter);
+
+    final result = await _site().getCategoryRooms(_category(), page: 1);
+
+    expect(result.items, isEmpty);
+    expect(result.hasMore, isFalse);
+  });
+
+  test('data 本身是 List 时同样降级成空页（而不是抛 TypeError）', () async {
+    // 错误响应 `{"data": []}`：旧代码取 result["data"]["data"] 会直接抛
+    final adapter = _CategoryAdapter(dataIsList: true);
     restore = _install(adapter);
 
     final result = await _site().getCategoryRooms(_category(), page: 1);

@@ -89,7 +89,9 @@ class _DouyinAdapter implements HttpClientAdapter {
       final count = q['count'] ?? '';
       partitionRequests.add((partition, offset, count));
       if (emptyPartitions.contains(partition)) {
-        return _ok({'data': {'data': <dynamic>[]}});
+        return _ok({
+          'data': {'data': <dynamic>[]}
+        });
       }
       // 每个分区各自的房间号前缀，便于断言内容来源。
       return _ok({
@@ -435,6 +437,79 @@ void main() {
       await _site().getRecommendRooms(page: 4);
 
       expect(adapter.feedRequests, 0);
+    });
+
+    test('顺延过的下一页不会把上一页的内容再返回一遍', () async {
+      // 第 1 个分区翻空 → 第 2 页顺延到第 2 个分区。此时第 3 页必须继续往下走，
+      // 而不是从第 2 个分区再读一遍：App 层以「连续两页零新增」判到底，
+      // 重复一页就会让它提前收尾，把后面几个分区还取得到的内容整段丢掉。
+      final adapter = _DouyinAdapter(
+        emptyPartitions: {DouyinSite.kRecommendPartitions.first},
+      );
+      restore = _install(adapter);
+
+      final site = _site();
+      final page2 = await site.getRecommendRooms(page: 2);
+      final page3 = await site.getRecommendRooms(page: 3);
+
+      expect(page2.items, isNotEmpty);
+      expect(page3.items, isNotEmpty);
+      expect(
+        page3.items
+            .map((e) => e.roomId)
+            .toSet()
+            .intersection(page2.items.map((e) => e.roomId).toSet()),
+        isEmpty,
+        reason: '同一个 (分区, offset) 只该被消费一次',
+      );
+    });
+
+    test('连续多个分区翻空时，后续每一页仍拿到没消费过的内容', () async {
+      // 尾部各分区深度接近，很容易出现「同一 offset 上连着几个分区都空了」。
+      // 顺延若只看页号、不记住命中位置，第 2~4 页会连着返回同一份内容。
+      final adapter = _DouyinAdapter(
+        emptyPartitions: {
+          DouyinSite.kRecommendPartitions[0],
+          DouyinSite.kRecommendPartitions[1],
+          DouyinSite.kRecommendPartitions[2],
+        },
+      );
+      restore = _install(adapter);
+
+      final site = _site();
+      final seen = <String>{};
+      for (final page in <int>[2, 3, 4]) {
+        final result = await site.getRecommendRooms(page: page);
+
+        expect(result.items, isNotEmpty, reason: '还有分区没翻完就不该判到底');
+        final ids = result.items.map((e) => e.roomId).toSet();
+        expect(ids.intersection(seen), isEmpty, reason: '第 $page 页重复了已消费的内容');
+        seen.addAll(ids);
+      }
+    });
+
+    test('第 1 页（新一轮推荐）把续接游标重置，第 2 页重新从第 1 个分区开始', () async {
+      final adapter = _DouyinAdapter(
+        emptyPartitions: {DouyinSite.kRecommendPartitions.first},
+      );
+      restore = _install(adapter);
+
+      final site = _site();
+      // 先翻两页把游标推到 slot 2 之后
+      await site.getRecommendRooms(page: 2);
+      await site.getRecommendRooms(page: 3);
+      adapter.partitionRequests.clear();
+
+      // 下拉刷新：第 1 页重新走 feed，续接游标归零
+      await site.getRecommendRooms(page: 1, pageSize: 30);
+      await site.getRecommendRooms(page: 2);
+
+      expect(
+        adapter.partitionRequests.first.$1,
+        DouyinSite.kRecommendPartitions.first,
+        reason: '刷新后第 2 页要从第 1 个分区重新开始',
+      );
+      expect(adapter.partitionRequests.first.$2, '0');
     });
   });
 }
