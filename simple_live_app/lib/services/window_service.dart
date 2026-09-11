@@ -63,10 +63,13 @@ class WindowService extends GetxService implements WindowListener {
   }
 
   Future<void> init() async {
-    await resize();
+    // 必须排在 resize() 之前：setBounds / show / focus 都会触发 WM_SIZE
+    // 或 WM_ACTIVATEAPP，而插件那时仍处于 auto reset 开启状态，每次都会
+    // 白白做一轮 ~55ms 的 DDC/CI 亮度读写（启动期共约 3 次）。
     if (Platform.isWindows) {
       await _disableScreenBrightnessAutoReset();
     }
+    await resize();
     WindowOptions windowOptions = WindowOptions(
       minimumSize: Size(280, 280),
       center: false,
