@@ -8,8 +8,12 @@ import 'package:material_ui/material_ui.dart';
 /// - 鼠标：右键即可唤出，长按仍然可用。
 ///
 /// 只注册次要点击，**不碰**主点击与长按：子树自己的 `InkWell` / `ListTile`
-/// 继续按原样处理点按与长按，因此不会和它们抢手势（[GestureDetector] 默认
-/// 用 `deferToChild`，子树没命中时本组件也不参与）。
+/// 继续按原样处理点按与长按，因此不会和它们抢手势。
+///
+/// 命中测试用 `translucent` 而不是 `deferToChild`：后者只在子树自身命中时才
+/// 参与，包着带空隙的 `Row` / `Column` / 只有一小段文字的 `GestureDetector` 时，
+/// 空隙处的右键会漏下去，右键热区小于视觉范围。`translucent` 让本层在子树
+/// 未命中时仍能收到事件，同时不会像 `opaque` 那样挡住 Stack 里的兄弟节点。
 ///
 /// [onSecondaryTap] 为 null 时直接返回 [child]，不产生多余节点。
 class SecondaryTapRegion extends StatelessWidget {
@@ -29,7 +33,7 @@ class SecondaryTapRegion extends StatelessWidget {
       return child;
     }
     return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
+      behavior: HitTestBehavior.translucent,
       onSecondaryTap: callback,
       child: child,
     );

@@ -66,7 +66,13 @@ int resolveHomeColumns({
     return byWidth;
   }
 
-  final usableHeight = maxHeight - kVerticalPadding - bottomInset;
+  // bottomInset 语义上非负（被悬浮底栏盖住的高度），但
+  // PageGridView.floatingBarInsetOf 只是 `padding.bottom - viewPadding.bottom`：
+  // 未 extendBody 时 padding.bottom 会被置 0，而 viewPadding.bottom 仍是系统 inset，
+  // 二者之差为负（PageGridView / PageListView 里同一表达式都带 `> 0` 守卫）。
+  // 负值会让可用高度不减反增，减列判断比预期更激进，与 doc 的语义相反。
+  final usableHeight =
+      maxHeight - kVerticalPadding - math.max(0, bottomInset);
   if (usableHeight <= 0) {
     return byWidth;
   }

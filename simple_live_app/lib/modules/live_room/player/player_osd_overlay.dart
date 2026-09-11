@@ -439,6 +439,13 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
               ),
               OsdRow(label: 'Channels', value: _dash(ap.channels)),
               OsdRow(
+                // 采样格式（fltp / s16 …）：重构前 Tracks 与 Audio 两页各有
+                // 一项，收进单页时漏了，这里按次要行补回，不再丢失诊断信息。
+                label: 'Format',
+                value: _dash(ap.format),
+                secondary: true,
+              ),
+              OsdRow(
                 label: 'Layout',
                 value: _dash(ap.hrChannels),
                 secondary: true,
@@ -542,9 +549,7 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
               ),
               OsdDetailRow(
                 label: 'Aspect Ratio',
-                value: vp.aspect != null
-                    ? vp.aspect!.toStringAsFixed(3)
-                    : '—',
+                value: vp.aspect != null ? vp.aspect!.toStringAsFixed(3) : '—',
               ),
               OsdDetailRow(
                 label: 'Rotation',
@@ -594,9 +599,8 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
         return Align(
           // 窄屏（安卓竖屏）走底部表单：通栏贴底，宽度与高度都吃满视频区，
           // 且落在拇指可达范围；宽屏仍是左上角浮层，不挡画面中心。
-          alignment: metrics.isSheet
-              ? Alignment.bottomCenter
-              : Alignment.topLeft,
+          alignment:
+              metrics.isSheet ? Alignment.bottomCenter : Alignment.topLeft,
           child: Padding(
             padding: EdgeInsets.only(
               left: safePadding.left + metrics.horizontalMargin,

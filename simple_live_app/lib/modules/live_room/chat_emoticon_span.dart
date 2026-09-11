@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 
 import 'player/danmaku_emoticon.dart';
@@ -13,8 +13,10 @@ import 'player/danmaku_emoticon.dart';
 /// `ResizeImage(NetworkImage(url), height: h)`，而弹幕渲染器用的是
 /// `ResizeImage(NetworkImage(url), width: 256, height: 256, policy: fit)`；
 /// `ImageCache` 以「provider + 尺寸参数」为键，两者**不是**同一条缓存条目，
-/// 同一张表情在弹幕区与聊天区会各解码一次（网络层仍有 HTTP 缓存兜底，
-/// 不会真的下载两遍）。
+/// 同一张表情在弹幕区与聊天区会各自解码一次，IO 平台上的 `NetworkImage` 也
+/// 没有第二层 HTTP 响应缓存（只有内存里的 `ImageCache`），因此两处会各发一次
+/// 请求。之所以不强行共用：弹幕区要的是「一次解码给同屏多条弹幕复用」，
+/// 聊天区要的是「按显示高度解码」，统一成 256 反而让聊天区多占几十倍内存。
 ///
 /// * [allowEmoticons] 为 false 或消息没有表情时，原样返回纯文本 Span；
 /// * 图片加载失败时回退显示占位符文本（如 `[doge]`），不丢字。

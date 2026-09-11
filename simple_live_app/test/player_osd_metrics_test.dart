@@ -180,9 +180,11 @@ void main() {
             (m.titleSize * 1.35 > m.iconButtonSize
                 ? m.titleSize * 1.35
                 : m.iconButtonSize);
-        expect(m.bodyMaxHeight, lessThanOrEqualTo(
-          m.panelMaxHeight - header - m.contentGap,
-        ));
+        expect(
+            m.bodyMaxHeight,
+            lessThanOrEqualTo(
+              m.panelMaxHeight - header - m.contentGap,
+            ));
       }
     });
   });
@@ -258,8 +260,7 @@ void main() {
     }
 
     Widget wrap(Widget child, {Brightness brightness = Brightness.dark}) {
-      return wrapWith(resolve(1920, 1080), 420, child,
-          brightness: brightness);
+      return wrapWith(resolve(1920, 1080), 420, child, brightness: brightness);
     }
 
     Widget sample() => Column(
@@ -285,7 +286,8 @@ void main() {
               child: OsdRowList(
                 rows: const [
                   OsdRow(label: 'Display Resolution', value: '1920 × 1080'),
-                  OsdRow(label: 'Decoder', value: 'D3D11', tone: OsdChipTone.ok),
+                  OsdRow(
+                      label: 'Decoder', value: 'D3D11', tone: OsdChipTone.ok),
                 ],
               ),
             ),
@@ -410,7 +412,7 @@ void main() {
             child: SizedBox(
               width: width,
               height: height,
-                child: OsdMetricsScope(
+              child: OsdMetricsScope(
                 metrics: metrics,
                 child: OsdPanel(
                   maxWidth: width,

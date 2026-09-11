@@ -106,16 +106,21 @@ Future<void> pumpSearch(WidgetTester tester) async {
   }
 }
 
-/// 以鼠标左键在 [finder] 中心横向拖动 [dx]（负值向左），
-/// 并等待 PageView 吸附动画结束（TabController.index 在 ScrollEnd 时才更新）。
-Future<void> mouseDrag(WidgetTester tester, Finder finder, double dx) async {
+/// 以鼠标左键在 [finder] 中心拖动 [dx] / [dy]（负值向左 / 向上），
+/// 并等待吸附动画结束（TabController.index 在 ScrollEnd 时才更新）。
+Future<void> mouseDrag(
+  WidgetTester tester,
+  Finder finder,
+  double dx, {
+  double dy = 0,
+}) async {
   final gesture = await tester.startGesture(
     tester.getCenter(finder),
     kind: PointerDeviceKind.mouse,
   );
   const steps = 10;
   for (var i = 0; i < steps; i++) {
-    await gesture.moveBy(Offset(dx / steps, 0));
+    await gesture.moveBy(Offset(dx / steps, dy / steps));
     await tester.pump(const Duration(milliseconds: 16));
   }
   await gesture.up();
@@ -124,6 +129,35 @@ Future<void> mouseDrag(WidgetTester tester, Finder finder, double dx) async {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
+
+/// 一个**不经过 EasyRefresh** 的纵向列表。
+///
+/// 为什么要专门造一个：`EasyRefresh` 会把子树再包一层 `ERScrollBehavior`，
+/// 而它的 `dragDevices` 本来也就是全部指针设备——被它包住的
+/// [PageGridView] / [PageListView] 在引入 AppScrollBehavior 之前就已经拖得动，
+/// 用它当基线测不出任何东西。应用级 scrollBehavior 真正影响的是这类列表
+/// （例如直播间的聊天列表）以及 TabBarView / PageView。
+Widget verticalListHost(ScrollBehavior? behavior, {ScrollPhysics? physics}) {
+  return MaterialApp(
+    scrollBehavior: behavior,
+    home: Scaffold(
+      body: ListView.builder(
+        physics: physics,
+        itemExtent: 40,
+        itemCount: 60,
+        itemBuilder: (_, i) => Text('row $i'),
+      ),
+    ),
+  );
+}
+
+ScrollPosition verticalPosition(WidgetTester tester) {
+  return tester
+      .stateList<ScrollableState>(find.byType(Scrollable))
+      .map((state) => state.position)
+      .firstWhere((position) => position.axis == Axis.vertical);
+}
+
 void main() {
   setUp(() {
     Get.testMode = true;
@@ -176,6 +210,42 @@ void main() {
       search.tabController.index,
       1,
       reason: '搜索页的平台标签应与首页一样可以左右拖动切换',
+    );
+  });
+
+  testWidgets('默认滚动行为下鼠标纵向拖动不会滚动列表', (tester) async {
+    await tester.pumpWidget(verticalListHost(null));
+    await mouseDrag(tester, find.byType(ListView), 0, dy: -200);
+
+    expect(
+      verticalPosition(tester).pixels,
+      0,
+      reason: '默认 dragDevices 不含鼠标，这是桌面端拖不动列表的根因',
+    );
+  });
+
+  testWidgets('AppScrollBehavior 下鼠标纵向拖动可滚动列表', (tester) async {
+    await tester.pumpWidget(verticalListHost(const AppScrollBehavior()));
+    await mouseDrag(tester, find.byType(ListView), 0, dy: -200);
+
+    expect(
+      verticalPosition(tester).pixels,
+      greaterThan(0),
+      reason: '放开鼠标后，上下拖动应能滚动列表（与移动端一致）',
+    );
+  });
+
+  testWidgets('声明了 NeverScrollableScrollPhysics 的列表仍不可拖动', (tester) async {
+    await tester.pumpWidget(verticalListHost(
+      const AppScrollBehavior(),
+      physics: const NeverScrollableScrollPhysics(),
+    ));
+    await mouseDrag(tester, find.byType(ListView), 0, dy: -200);
+
+    expect(
+      verticalPosition(tester).pixels,
+      0,
+      reason: '放开范围仅限可滚动列表自身，显式禁滚的列表不该被放开',
     );
   });
 }

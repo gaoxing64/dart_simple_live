@@ -123,7 +123,8 @@ void main() {
   group('DanmakuEmoticonRenderer.canRender', () {
     test('只认非空的表情列表', () {
       expect(DanmakuEmoticonRenderer.canRender(null), isFalse);
-      expect(DanmakuEmoticonRenderer.canRender(<LiveMessageEmoticon>[]), isFalse);
+      expect(
+          DanmakuEmoticonRenderer.canRender(<LiveMessageEmoticon>[]), isFalse);
       expect(DanmakuEmoticonRenderer.canRender('普通载荷'), isFalse);
       expect(
         DanmakuEmoticonRenderer.canRender([_emot('[doge]', 'https://x/y.png')]),
@@ -230,6 +231,159 @@ void main() {
       second!.image.dispose();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // apply：把已经加进弹幕库的那条弹幕就地换成表情位图
+  //
+  // 这段代码有两个只有出错时才暴露的分支：找不到 item（弹幕已被清空 / 已过期）
+  // 时必须把位图释放，否则永久泄漏；命中时必须先释放库生成的文本位图再换新的。
+  // 另外整条链路是 fire-and-forget 调用的（调用方 unawaited），异常冒出去会被
+  // PlatformDispatcher.onError 记成 fatal，所以「不向外抛」也要锁住。
+  // ---------------------------------------------------------------------------
+  group('DanmakuEmoticonRenderer.apply', () {
+    late Uint8List png;
+
+    const emoticon = LiveMessageEmoticon(
+      name: '[doge]',
+      url: 'https://i0.hdslb.com/bfs/live/doge.png',
+      width: 20,
+      height: 20,
+    );
+
+    setUpAll(() async {
+      png = await _makePng();
+    });
+
+    setUp(() {
+      DanmakuEmoticonRenderer.debugImageProviderFactory =
+          (_) => MemoryImage(png);
+    });
+
+    tearDown(() {
+      DanmakuEmoticonRenderer.debugImageProviderFactory = null;
+      DanmakuEmoticonRenderer.clearCache();
+    });
+
+    test('命中时释放库生成的文本位图，并换上表情位图', () async {
+      final content = DanmakuContentItem<dynamic>('哈哈哈[doge]笑死');
+      final textImage = _makeImage();
+      final item = DanmakuItem<dynamic>(
+        content: content,
+        width: 80,
+        height: 18,
+        image: textImage,
+      );
+
+      await DanmakuEmoticonRenderer.apply(
+        controller: _controllerWith([item]),
+        content: content,
+        emoticons: const [emoticon],
+      );
+
+      expect(textImage.debugDisposed, isTrue, reason: '旧位图不释放就是泄漏');
+      expect(item.image, isNotNull);
+      expect(identical(item.image, textImage), isFalse);
+      expect(item.image!.debugDisposed, isFalse);
+      expect(item.width, greaterThan(0));
+      expect(item.height, greaterThan(0));
+
+      item.image!.dispose();
+    });
+
+    test('找不到对应的弹幕项时静默返回，不抛异常', () async {
+      // 弹幕已被 clear() / 已过期：库的列表里找不到，位图只能就地释放
+      await expectLater(
+        DanmakuEmoticonRenderer.apply(
+          controller: _controllerWith(const []),
+          content: DanmakuContentItem<dynamic>('[doge]'),
+          emoticons: const [emoticon],
+        ),
+        completes,
+      );
+    });
+
+    test('渲染链路抛异常时自己吞掉，不让异常外溢成 fatal', () async {
+      _ThrowingImageStream.addListenerCalls = 0;
+      DanmakuEmoticonRenderer.debugImageProviderFactory =
+          (_) => _ThrowingImageProvider();
+
+      await expectLater(
+        DanmakuEmoticonRenderer.apply(
+          controller: _controllerWith(const []),
+          content: DanmakuContentItem<dynamic>('[doge]'),
+          emoticons: const [emoticon],
+        ),
+        completes,
+      );
+
+      expect(
+        _ThrowingImageStream.addListenerCalls,
+        greaterThan(0),
+        reason: '必须真的走到取图链路里抛异常的那一步，否则这条用例是假通过',
+      );
+    });
+  });
+}
+
+/// 造一张最小的 ui.Image，用来模拟弹幕库为纯文本弹幕生成的占位符位图。
+ui.Image _makeImage() {
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawRect(
+    const ui.Rect.fromLTWH(0, 0, 4, 4),
+    ui.Paint()..color = const ui.Color(0xFF0000FF),
+  );
+  final picture = recorder.endRecording();
+  final image = picture.toImageSync(4, 4);
+  picture.dispose();
+  return image;
+}
+
+/// 一个「什么都不做」的 [DanmakuController]：本组用例只走 render + _findItem，
+/// 不需要真的驱动弹幕库的画布。
+DanmakuController<dynamic> _controllerWith(List<DanmakuItem<dynamic>> items) {
+  return DanmakuController<dynamic>(
+    addDanmaku: (_) {},
+    updateOption: (_) {},
+    pause: () {},
+    resume: () {},
+    clear: () {},
+    getOption: () => const DanmakuOption(),
+    isRunning: () => true,
+    findDanmaku: (_) => const <DanmakuItem<dynamic>>[],
+    findSingleDanmaku: (_) => null,
+    getViewWidth: () => 360,
+    getViewHeight: () => 200,
+    scrollDanmaku: items,
+    staticDanmaku: <DanmakuItem<dynamic>>[],
+    specialDanmaku: <DanmakuItem<dynamic>>[],
+  );
+}
+
+/// 加监听就抛异常的图源，用来验证 [DanmakuEmoticonRenderer.apply] 的兜底分支：
+/// render 抛出的异常必须被它自己吞掉，不能外溢成 fatal。
+///
+/// 不能直接覆写 `ImageProvider.resolve`——它是 `@nonVirtual`（analyzer 会报
+/// invalid_override_of_non_virtual_member）。改成覆写 `@protected` 的
+/// [ImageProvider.createStream]，让 resolve 链路拿到一个会抛的流。
+class _ThrowingImageProvider extends ImageProvider<Object> {
+  @override
+  Future<Object> obtainKey(ImageConfiguration configuration) async => this;
+
+  @override
+  ImageStream createStream(ImageConfiguration configuration) =>
+      _ThrowingImageStream();
+}
+
+class _ThrowingImageStream extends ImageStream {
+  /// 被调用次数：用例靠它确认异常确实来自取图链路的这一步，
+  /// 而不是 resolve 在更早的地方就失败了（那样用例会假通过）。
+  static int addListenerCalls = 0;
+
+  @override
+  void addListener(ImageStreamListener listener) {
+    addListenerCalls++;
+    throw StateError('模拟取图失败');
+  }
 }
 
 /// 生成一张 4×4 的 PNG，作为不依赖网络的测试图源。
