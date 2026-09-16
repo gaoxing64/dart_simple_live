@@ -19,6 +19,7 @@ class FollowInfoPage extends GetView<FollowInfoController> {
           Obx(
             () => controller.pageLoadding.value
                 ? const IconButton(
+                    tooltip: "刷新中",
                     onPressed: null,
                     icon: SizedBox(
                       width: 16,
@@ -29,6 +30,7 @@ class FollowInfoPage extends GetView<FollowInfoController> {
                     ),
                   )
                 : IconButton(
+                    tooltip: "刷新",
                     onPressed: () {
                       controller.refreshData();
                     },

@@ -23,6 +23,7 @@ import 'package:simple_live_app/app/custom_throttle.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
+import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
@@ -350,9 +351,6 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
   void _applyDanmakuEmoticon(DanmakuContentItem item) {
     final extra = item.extra;
     if (!DanmakuEmoticonRenderer.canRender(extra)) {
-      return;
-    }
-    if (!AppSettingsController.instance.danmuEmoticonEnable.value) {
       return;
     }
     final controller = danmakuController;
@@ -934,8 +932,8 @@ class PlayerController extends BaseController
       title: "播放信息",
       child: ListView(
         children: [
-          Obx(() => SwitchListTile(
-              title: const Text("OSD 显示"),
+          Obx(() => SettingsSwitch(
+              title: "OSD 显示",
               value: showOSDStats.value,
               onChanged: (value) => toggleOSDStats())),
           ListTile(

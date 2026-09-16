@@ -1,5 +1,4 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/widgets/shadow_card.dart';
 
@@ -9,8 +8,13 @@ const double _kPulseMin = 0.06;
 const double _kPulseMax = 0.14;
 
 /// 骨架基色（不透明度由 [_SkeletonPulse] 统一控制）
+///
+/// 必须走本地的 `Theme.of(context)`：`Get.isDarkMode` 只读当前主题、不建立
+/// InheritedWidget 依赖，主题切换后骨架屏不会重建，会一直停在旧配色上。
 Color _skeletonBaseColor(BuildContext context) {
-  return Get.isDarkMode ? Colors.white : Colors.black;
+  return Theme.of(context).brightness == Brightness.dark
+      ? Colors.white
+      : Colors.black;
 }
 
 /// 骨架块

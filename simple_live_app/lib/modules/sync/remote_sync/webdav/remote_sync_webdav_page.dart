@@ -77,6 +77,7 @@ class RemoteSyncWebDAVPage extends GetView<RemoteSyncWebDAVController> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
+                                  tooltip: "WebDAV 设置",
                                   icon: const Icon(Icons.settings),
                                   onPressed: showSetting,
                                 ),

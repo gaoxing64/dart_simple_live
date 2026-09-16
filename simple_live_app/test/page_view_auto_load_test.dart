@@ -375,7 +375,11 @@ void main() {
       final position = gridPosition(tester);
       if (position.maxScrollExtent - position.pixels <= 0) break;
       await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
-      await tester.pump(const Duration(milliseconds: 32));
+      // 每格都要等滚动动画走完：滚轮由 SmoothWheelScrollController 驱动
+      // （见 app_scroll_behavior.dart），是 180ms 的动画而不是瞬时跳转。
+      // 必须用 pumpAndSettle —— 重启动画后的第一帧 elapsed 恒为 0，
+      // pump(时长) 只出一帧，位置永远不动。
+      await tester.pumpAndSettle();
       notches++;
     }
     expect(

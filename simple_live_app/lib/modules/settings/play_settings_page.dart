@@ -25,7 +25,7 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
               "播放器",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -135,7 +135,7 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "直播间",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -171,7 +171,7 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "清晰度",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -213,7 +213,7 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "聊天区",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(

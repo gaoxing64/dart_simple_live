@@ -78,8 +78,11 @@ class FollowUser implements Mappable {
   /// 0=未知(加载中) 1=未开播 2=直播中
   Rx<int> liveStatus = 0.obs;
 
-  /// 直播封面
+  /// 直播封面（只在直播中有值，未开播会被清空）
   Rx<String> cover = "".obs;
+
+  // 这里原来还有 `Rx<String> lastCover`（「上次直播画面」）。
+  // 2026-09-15 删除，理由见 `FollowSnapshotItem` 里的注释。
 
   /// 直播标题
   Rx<String> title = "".obs;
@@ -137,6 +140,8 @@ class FollowUser implements Mappable {
     liveStatus.value = snapshot.liveStatus;
     cover.value = snapshot.cover;
     title.value = snapshot.title;
-    online.value = snapshot.online;
+    // 和 FollowService.updateLiveInformation 保持同一个不变量：未开播的房间
+    // online 一律为 0。老快照里可能存着上一次直播的人气值，这里再兜一道。
+    online.value = snapshot.liveStatus == 2 ? snapshot.online : 0;
   }
 }

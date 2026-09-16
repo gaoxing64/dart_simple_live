@@ -137,7 +137,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           child: buildMediaPlayer(),
         ),
         buildUserProfile(context),
-        buildMessageArea(),
+        buildMessageArea(context),
         buildBottomActions(context),
       ],
     );
@@ -157,7 +157,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                 child: Column(
                   children: [
                     buildUserProfile(context),
-                    buildMessageArea(),
+                    buildMessageArea(context),
                   ],
                 ),
               ),
@@ -254,7 +254,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     } else if (AppSettingsController.instance.scaleMode.value == 4) {
       boxFit = BoxFit.contain;
       aspectRatio = 4 / 3;
-    }else if (AppSettingsController.instance.scaleMode.value == 5) {
+    } else if (AppSettingsController.instance.scaleMode.value == 5) {
       boxFit = BoxFit.contain;
       double aspectByUser = AppSettingsController.instance.aspectByUser.value;
       aspectRatio = aspectByUser;
@@ -437,7 +437,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
-  Widget buildMessageArea() {
+  Widget buildMessageArea(BuildContext context) {
     return Expanded(
       child: DefaultTabController(
         length: 4,
@@ -511,7 +511,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                   ),
                   buildSuperChats(),
                   buildFollowList(),
-                  buildSettings(),
+                  buildSettings(context),
                 ],
               ),
             ),
@@ -565,14 +565,16 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                           context,
                           message,
                           TextStyle(
-                            color: Get.isDarkMode
-                                ? Colors.white
-                                : AppColors.black333,
+                            // 必须用本地的 Theme.of(context)：Get.isDarkMode 不建立
+                            // InheritedWidget 依赖，主题切换后这里不会重建，气泡文字
+                            // 会一直停在旧配色上（浅色底 + 白字）。
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : AppColors.black333,
                             fontSize: AppSettingsController
                                 .instance.chatTextSize.value,
                           ),
-                          allowEmoticons: AppSettingsController
-                              .instance.danmuEmoticonEnable.value,
                         ),
                       ),
                     ),
@@ -591,12 +593,11 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                   context,
                   message,
                   TextStyle(
-                    color: Get.isDarkMode ? Colors.white : AppColors.black333,
-                    fontSize:
-                        AppSettingsController.instance.chatTextSize.value,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : AppColors.black333,
+                    fontSize: AppSettingsController.instance.chatTextSize.value,
                   ),
-                  allowEmoticons: AppSettingsController
-                      .instance.danmuEmoticonEnable.value,
                 ),
               ),
             ),
@@ -621,7 +622,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
-  Widget buildSettings() {
+  Widget buildSettings(BuildContext context) {
     return ListView(
       padding: AppStyle.edgeInsetsA12,
       children: [
@@ -639,7 +640,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           padding: AppStyle.edgeInsetsA12,
           child: Text(
             "聊天区",
-            style: Get.textTheme.titleSmall,
+            style: context.textTheme.titleSmall,
           ),
         ),
         SettingsCard(
@@ -689,7 +690,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           padding: AppStyle.edgeInsetsA12,
           child: Text(
             "更多设置",
-            style: Get.textTheme.titleSmall,
+            style: context.textTheme.titleSmall,
           ),
         ),
         SettingsCard(
@@ -772,6 +773,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   List<Widget> buildAppbarActions(BuildContext context) {
     return [
       IconButton(
+        tooltip: "更多",
         onPressed: () {
           showMore();
         },

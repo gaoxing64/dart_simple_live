@@ -13,6 +13,7 @@ import 'package:simple_live_app/app/utils/duration_2_str_utils.dart';
 import 'package:simple_live_app/app/utils/dynamic_filter.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
+import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/history_service.dart';
 import 'package:simple_live_app/widgets/ui/secondary_tap_region.dart';
@@ -58,6 +59,11 @@ class FollowAppSettingsController extends BaseController {
   }
 
   void addTag(String tag) async {
+    // 内置标签名是保留字：占用了会让 isBuiltinTag 误判，点这个标签没反应
+    if (FollowUserController.isReservedTagName(tag)) {
+      SmartDialog.showToast("「$tag」是内置标签名，不能占用");
+      return;
+    }
     await FollowService.instance.addFollowUserTag(tag);
     updateTagList();
   }
@@ -69,6 +75,11 @@ class FollowAppSettingsController extends BaseController {
   void updateTagName(FollowUserTag followUserTag, String newTagName) {
     // 未操作
     if (followUserTag.tag == newTagName) {
+      return;
+    }
+    // 内置标签名是保留字
+    if (FollowUserController.isReservedTagName(newTagName)) {
+      SmartDialog.showToast("「$newTagName」是内置标签名，不能占用");
       return;
     }
     // 避免重名
@@ -137,6 +148,7 @@ class FollowAppSettingsController extends BaseController {
                         ),
                       ),
                       leading: IconButton(
+                        tooltip: "删除标签",
                         icon: const Icon(Icons.delete),
                         onPressed: () {
                           removeTag(item);

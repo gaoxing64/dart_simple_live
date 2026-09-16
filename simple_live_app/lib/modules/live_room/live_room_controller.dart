@@ -28,6 +28,7 @@ import 'package:simple_live_app/services/history_service.dart';
 import 'package:simple_live_app/src/rust/api/danmaku_mask.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
+import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -755,16 +756,14 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
             var item = qualites[i];
             return ListTile(
               leading: Radio<int>(
+                // 选中值/回调由外层 `RadioGroup` 统一提供（新 API）。
+                // 这里再写一遍 `groupValue` / `onChanged` 会触发
+                // `deprecated_member_use`（v3.32 之后废弃），而且两处回调会打架。
                 value: i,
-                groupValue: currentQuality,
-                onChanged: (e) async {
-                  Get.back();
-                  currentQuality = e ?? 0;
-                  await getPlayUrl();
-                },
               ),
               title: Text(item.quality),
               trailing: IconButton(
+                tooltip: "复制直链",
                 icon: const Icon(Icons.copy),
                 onPressed: () async {
                   try {
@@ -1071,11 +1070,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
       child: ListView(
         children: [
           Obx(
-            () => SwitchListTile(
-              title: Text(
-                "启用定时关闭",
-                style: Get.textTheme.titleMedium,
-              ),
+            () => SettingsSwitch(
+              title: "启用定时关闭",
+              titleStyle: Get.textTheme.titleMedium,
               value: autoExitEnable.value,
               onChanged: (e) {
                 autoExitEnable.value = e;

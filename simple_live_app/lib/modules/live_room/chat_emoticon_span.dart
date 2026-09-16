@@ -18,18 +18,15 @@ import 'player/danmaku_emoticon.dart';
 /// 请求。之所以不强行共用：弹幕区要的是「一次解码给同屏多条弹幕复用」，
 /// 聊天区要的是「按显示高度解码」，统一成 256 反而让聊天区多占几十倍内存。
 ///
-/// * [allowEmoticons] 为 false 或消息没有表情时，原样返回纯文本 Span；
+/// * 消息没有表情时原样返回纯文本 Span；
 /// * 图片加载失败时回退显示占位符文本（如 `[doge]`），不丢字。
 List<InlineSpan> buildChatMessageSpans(
   BuildContext context,
   LiveMessage message,
-  TextStyle style, {
-  required bool allowEmoticons,
-}) {
+  TextStyle style,
+) {
   final emoticons = message.emoticons;
-  if (!allowEmoticons ||
-      emoticons == null ||
-      emoticons.isEmpty) {
+  if (emoticons == null || emoticons.isEmpty) {
     return [TextSpan(text: message.message, style: style)];
   }
 

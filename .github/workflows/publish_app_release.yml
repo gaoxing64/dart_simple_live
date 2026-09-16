@@ -14,6 +14,9 @@ jobs:
     steps:
       # 签出代码
       - uses: actions/checkout@v6
+        with:
+          # 生成更新日志需要完整历史与标签
+          fetch-depth: 0
 
       # APK 签名设置
       - name: Download Android keystore
@@ -82,11 +85,45 @@ jobs:
       - name: Echo version content
         run: echo "${{ fromJson(steps.version.outputs.content).version_desc }}"
 
+      # 生成更新日志：手写摘要（version_desc）+ 自动 What's Changed / Full Changelog
+      # 版本与 tag 由 assets/app_version.json 推导，不依赖 github.ref_name
+      # （workflow_dispatch 触发时 ref_name 是分支名，只有 tag push 才是 tag）。
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        env:
+          # 不可信输入走环境变量，不直接拼进 run 脚本
+          REPO: ${{ github.repository }}
+          VERSION_DESC_FILE: assets/app_version.json
+          TAG_PREFIX: v
+        run: |
+          PY=$(command -v python || command -v python3)
+          if ! "$PY" tools/gen_changelog.py \
+            --previous-tag auto \
+            --repo "$REPO" \
+            --version-desc-file "$VERSION_DESC_FILE" \
+            --tag-prefix "$TAG_PREFIX" \
+            --output release-notes.md
+          then
+            # 不用 continue-on-error：那样失败会被完全吞掉，连日志里都看不到。
+            # 这里打一条能在 Actions 运行列表里看到的 error，但不让发版整体失败。
+            echo "::error::生成更新日志失败，Release 正文回退为 version_desc"
+          fi
+          # 只有文件存在且非空才交给 Release：body_path 指向不存在的文件
+          # 会让 Upload Release 报 ENOENT 而失败。
+          if [ -s release-notes.md ]; then
+            echo "file=release-notes.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "file=" >> "$GITHUB_OUTPUT"
+          fi
+
       # 上传至 Release
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         with:
           name: "${{ fromJson(steps.version.outputs.content).version }}"
+          # 生成成功（文件非空）时用生成内容；否则只用下面的 version_desc
+          body_path: ${{ steps.notes.outputs.file }}
           body: "${{ fromJson(steps.version.outputs.content).version_desc }}"
           prerelease: ${{ fromJson(steps.version.outputs.content).prerelease }}
           token: ${{ secrets.TOKEN }}
@@ -112,6 +149,9 @@ jobs:
     steps:
       # 签出代码
       - uses: actions/checkout@v4
+        with:
+          # 生成更新日志需要完整历史与标签
+          fetch-depth: 0
       # 设置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -180,11 +220,45 @@ jobs:
       - name: Echo version content
         run: echo "${{ fromJson(steps.version.outputs.content).version_desc }}"
 
+      # 生成更新日志：手写摘要（version_desc）+ 自动 What's Changed / Full Changelog
+      # 版本与 tag 由 assets/app_version.json 推导，不依赖 github.ref_name
+      # （workflow_dispatch 触发时 ref_name 是分支名，只有 tag push 才是 tag）。
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        env:
+          # 不可信输入走环境变量，不直接拼进 run 脚本
+          REPO: ${{ github.repository }}
+          VERSION_DESC_FILE: assets/app_version.json
+          TAG_PREFIX: v
+        run: |
+          PY=$(command -v python || command -v python3)
+          if ! "$PY" tools/gen_changelog.py \
+            --previous-tag auto \
+            --repo "$REPO" \
+            --version-desc-file "$VERSION_DESC_FILE" \
+            --tag-prefix "$TAG_PREFIX" \
+            --output release-notes.md
+          then
+            # 不用 continue-on-error：那样失败会被完全吞掉，连日志里都看不到。
+            # 这里打一条能在 Actions 运行列表里看到的 error，但不让发版整体失败。
+            echo "::error::生成更新日志失败，Release 正文回退为 version_desc"
+          fi
+          # 只有文件存在且非空才交给 Release：body_path 指向不存在的文件
+          # 会让 Upload Release 报 ENOENT 而失败。
+          if [ -s release-notes.md ]; then
+            echo "file=release-notes.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "file=" >> "$GITHUB_OUTPUT"
+          fi
+
       # 上传至Release
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         with:
           name: "${{ fromJson(steps.version.outputs.content).version }}"
+          # 生成成功（文件非空）时用生成内容；否则只用下面的 version_desc
+          body_path: ${{ steps.notes.outputs.file }}
           body: "${{ fromJson(steps.version.outputs.content).version_desc }}"
           prerelease: ${{ fromJson(steps.version.outputs.content).prerelease }}
           token: ${{ secrets.TOKEN }}
@@ -202,6 +276,9 @@ jobs:
     steps:
       # 签出代码
       - uses: actions/checkout@v4
+        with:
+          # 生成更新日志需要完整历史与标签
+          fetch-depth: 0
       # 设置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -261,11 +338,45 @@ jobs:
       - name: Echo version content
         run: echo "${{ fromJson(steps.version.outputs.content).version_desc }}"
 
+      # 生成更新日志：手写摘要（version_desc）+ 自动 What's Changed / Full Changelog
+      # 版本与 tag 由 assets/app_version.json 推导，不依赖 github.ref_name
+      # （workflow_dispatch 触发时 ref_name 是分支名，只有 tag push 才是 tag）。
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        env:
+          # 不可信输入走环境变量，不直接拼进 run 脚本
+          REPO: ${{ github.repository }}
+          VERSION_DESC_FILE: assets/app_version.json
+          TAG_PREFIX: v
+        run: |
+          PY=$(command -v python || command -v python3)
+          if ! "$PY" tools/gen_changelog.py \
+            --previous-tag auto \
+            --repo "$REPO" \
+            --version-desc-file "$VERSION_DESC_FILE" \
+            --tag-prefix "$TAG_PREFIX" \
+            --output release-notes.md
+          then
+            # 不用 continue-on-error：那样失败会被完全吞掉，连日志里都看不到。
+            # 这里打一条能在 Actions 运行列表里看到的 error，但不让发版整体失败。
+            echo "::error::生成更新日志失败，Release 正文回退为 version_desc"
+          fi
+          # 只有文件存在且非空才交给 Release：body_path 指向不存在的文件
+          # 会让 Upload Release 报 ENOENT 而失败。
+          if [ -s release-notes.md ]; then
+            echo "file=release-notes.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "file=" >> "$GITHUB_OUTPUT"
+          fi
+
       # 上传至 Release
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         with:
           name: "${{ fromJson(steps.version.outputs.content).version }}"
+          # 生成成功（文件非空）时用生成内容；否则只用下面的 version_desc
+          body_path: ${{ steps.notes.outputs.file }}
           body: "${{ fromJson(steps.version.outputs.content).version_desc }}"
           prerelease: ${{ fromJson(steps.version.outputs.content).prerelease }}
           token: ${{ secrets.TOKEN }}
@@ -292,6 +403,9 @@ jobs:
     steps:
       # 签出代码
       - uses: actions/checkout@v4
+        with:
+          # 生成更新日志需要完整历史与标签
+          fetch-depth: 0
       # 安装依赖
       - name: Install dependencies
         run: |
@@ -331,11 +445,45 @@ jobs:
       - name: Echo version content
         run: echo "${{ fromJson(steps.version.outputs.content).version_desc }}"
 
+      # 生成更新日志：手写摘要（version_desc）+ 自动 What's Changed / Full Changelog
+      # 版本与 tag 由 assets/app_version.json 推导，不依赖 github.ref_name
+      # （workflow_dispatch 触发时 ref_name 是分支名，只有 tag push 才是 tag）。
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        env:
+          # 不可信输入走环境变量，不直接拼进 run 脚本
+          REPO: ${{ github.repository }}
+          VERSION_DESC_FILE: assets/app_version.json
+          TAG_PREFIX: v
+        run: |
+          PY=$(command -v python || command -v python3)
+          if ! "$PY" tools/gen_changelog.py \
+            --previous-tag auto \
+            --repo "$REPO" \
+            --version-desc-file "$VERSION_DESC_FILE" \
+            --tag-prefix "$TAG_PREFIX" \
+            --output release-notes.md
+          then
+            # 不用 continue-on-error：那样失败会被完全吞掉，连日志里都看不到。
+            # 这里打一条能在 Actions 运行列表里看到的 error，但不让发版整体失败。
+            echo "::error::生成更新日志失败，Release 正文回退为 version_desc"
+          fi
+          # 只有文件存在且非空才交给 Release：body_path 指向不存在的文件
+          # 会让 Upload Release 报 ENOENT 而失败。
+          if [ -s release-notes.md ]; then
+            echo "file=release-notes.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "file=" >> "$GITHUB_OUTPUT"
+          fi
+
       # 上传至 Release
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         with:
           name: "${{ fromJson(steps.version.outputs.content).version }}"
+          # 生成成功（文件非空）时用生成内容；否则只用下面的 version_desc
+          body_path: ${{ steps.notes.outputs.file }}
           body: "${{ fromJson(steps.version.outputs.content).version_desc }}"
           prerelease: ${{ fromJson(steps.version.outputs.content).prerelease }}
           token: ${{ secrets.TOKEN }}

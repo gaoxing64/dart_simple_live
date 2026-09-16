@@ -34,13 +34,13 @@ class DanmuShieldPage extends GetView<DanmuShieldController> {
           AppStyle.vGap4,
           Text(
             '以"/"开头和结尾将视作正则表达式, 如"/\\d+/"表示屏蔽所有数字',
-            style: Get.textTheme.bodySmall,
+            style: context.textTheme.bodySmall,
           ),
           AppStyle.vGap12,
           Obx(
             () => Text(
               "已添加${controller.settingsController.shieldList.length}个关键词（点击移除）",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           AppStyle.vGap12,
@@ -66,7 +66,7 @@ class DanmuShieldPage extends GetView<DanmuShieldController> {
                         ),
                         child: Text(
                           item,
-                          style: Get.textTheme.bodyMedium,
+                          style: context.textTheme.bodyMedium,
                         ),
                       ),
                     ),

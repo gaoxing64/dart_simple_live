@@ -17,6 +17,7 @@ class DebugLogPage extends StatelessWidget {
         title: const Text("Log"),
         actions: [
           IconButton(
+            tooltip: "导出日志",
             onPressed: () async {
               var msg = Log.debugLogs
                   .map((x) => "${x.datetime}\r\n${x.content}")
@@ -31,6 +32,7 @@ class DebugLogPage extends StatelessWidget {
             icon: const Icon(Icons.save),
           ),
           IconButton(
+            tooltip: "清空日志",
             onPressed: () {
               Log.debugLogs.clear();
             },

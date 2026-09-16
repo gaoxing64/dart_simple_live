@@ -527,7 +527,9 @@ class FollowService extends GetxService {
       item.liveStatus.value = detail.status ? 2 : 1;
       item.cover.value = detail.status ? detail.cover : "";
       item.title.value = detail.title;
-      item.online.value = detail.online;
+      // 未开播时接口仍会回上一次直播的人气值，直接展示就是「未开播卡片顶着 160.9万」
+      // 那种假数据，这里和 cover 一样按状态清掉。
+      item.online.value = detail.status ? detail.online : 0;
     } catch (e) {
       Log.logPrint(e);
     } finally {

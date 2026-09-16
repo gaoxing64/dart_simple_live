@@ -48,7 +48,7 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
           padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
           child: Text(
             "弹幕筛选",
-            style: Get.textTheme.titleSmall,
+            style: context.textTheme.titleSmall,
           ),
         ),
         SettingsCard(
@@ -77,7 +77,7 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
           padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
           child: Text(
             "弹幕设置",
-            style: Get.textTheme.titleSmall,
+            style: context.textTheme.titleSmall,
           ),
         ),
         SettingsCard(
@@ -90,17 +90,6 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
                   value: controller.danmuEnable.value,
                   onChanged: (e) {
                     controller.setDanmuEnable(e);
-                  },
-                ),
-              ),
-              AppStyle.divider,
-              Obx(
-                () => SettingsSwitch(
-                  title: "表情包",
-                  subtitle: "把 B 站弹幕/聊天区的表情渲染成图片",
-                  value: controller.danmuEmoticonEnable.value,
-                  onChanged: (e) {
-                    controller.setDanmuEmoticonEnable(e);
                   },
                 ),
               ),
@@ -250,7 +239,7 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
           padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
           child: Text(
             "弹幕去重参数设置",
-            style: Get.textTheme.titleSmall,
+            style: context.textTheme.titleSmall,
           ),
         ),
         SettingsCard(

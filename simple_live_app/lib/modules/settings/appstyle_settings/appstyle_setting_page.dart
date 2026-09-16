@@ -57,7 +57,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
               "显示主题",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -104,7 +104,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
             padding: AppStyle.edgeInsetsA12,
             child: Text(
               "底部导航",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -115,23 +115,25 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SettingsMenu<int>(
-                    title: "底部导航栏样式",
-                    subtitle: "悬浮胶囊会把导航栏浮在内容之上（仅竖屏生效）",
-                    value: settings.navBarStyle.value,
-                    valueMap: const {
-                      0: "标准",
-                      1: "悬浮胶囊",
-                    },
-                    onChanged: settings.setNavBarStyle,
+                  SettingsSwitch(
+                    title: "悬浮胶囊导航栏",
+                    subtitle: "开启后导航栏浮在内容之上（仅竖屏生效）",
+                    value: useFloating,
+                    onChanged: (e) => settings.setNavBarStyle(e ? 1 : 0),
                   ),
-                  if (useFloating)
-                    SettingsSwitch(
-                      title: "Liquid Glass 效果（实验性）",
-                      subtitle: "为悬浮胶囊叠加透明折射玻璃效果，可能与部分设备/主题不兼容",
-                      value: settings.liquidGlassEffect.value,
-                      onChanged: settings.setLiquidGlassEffect,
-                    ),
+                  AppStyle.divider,
+                  SettingsSwitch(
+                    title: "Liquid Glass 效果（实验性）",
+                    subtitle: useFloating
+                        ? "为悬浮胶囊叠加透明折射玻璃效果，可能与部分设备/主题不兼容"
+                        : "该效果依附于悬浮胶囊，开启上方开关后可用",
+                    value: settings.liquidGlassEffect.value,
+                    // 与悬浮胶囊强绑定：样式为「标准」时锁定，避免出现
+                    // 「开了玻璃却看不到任何变化」的困惑
+                    locked: !useFloating,
+                    lockedHint: "Liquid Glass 只能叠加在悬浮胶囊上，请先开启「悬浮胶囊导航栏」",
+                    onChanged: settings.setLiquidGlassEffect,
+                  ),
                 ],
               );
             }),
@@ -142,7 +144,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
               padding: AppStyle.edgeInsetsA12,
               child: Text(
                 "开发者选项",
-                style: Get.textTheme.titleSmall,
+                style: context.textTheme.titleSmall,
               ),
             ),
             SettingsCard(
@@ -159,7 +161,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
             padding: AppStyle.edgeInsetsA12,
             child: Text(
               "主题颜色",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -193,30 +195,33 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                           const Color(0xffFF9800),
                         ]
                             .map(
-                              (e) => GestureDetector(
-                                onTap: () {
-                                  controller.setStyleColor(e.v);
-                                  Get.forceAppUpdate();
-                                },
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: e,
-                                    borderRadius: AppStyle.radius4,
-                                    border: Border.all(
-                                      color: Colors.grey.withAlpha(50),
-                                      width: 1,
+                              (e) => Tooltip(
+                                message: "使用此主题色",
+                                child: GestureDetector(
+                                  onTap: () {
+                                    controller.setStyleColor(e.v);
+                                    Get.forceAppUpdate();
+                                  },
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: e,
+                                      borderRadius: AppStyle.radius4,
+                                      border: Border.all(
+                                        color: Colors.grey.withAlpha(50),
+                                        width: 1,
+                                      ),
                                     ),
-                                  ),
-                                  child: Obx(
-                                    () => Center(
-                                      child: Icon(
-                                        Icons.check,
-                                        color:
-                                            controller.styleColor.value == e.v
-                                                ? Colors.white
-                                                : Colors.transparent,
+                                    child: Obx(
+                                      () => Center(
+                                        child: Icon(
+                                          Icons.check,
+                                          color: controller.styleColor.value ==
+                                                  e.v
+                                              ? Colors.white
+                                              : Colors.transparent,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -235,7 +240,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
             padding: AppStyle.edgeInsetsA12,
             child: Text(
               "字体设置",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(

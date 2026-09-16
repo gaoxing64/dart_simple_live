@@ -58,15 +58,12 @@ class SettingsMenuCheck<T> extends StatelessWidget {
         title,
         style: Theme.of(context).textTheme.bodyLarge,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: AppStyle.radius8,
-      ),
       contentPadding: AppStyle.edgeInsetsL16.copyWith(right: 8),
       subtitle: subtitle == null
           ? null
           : Text(
               subtitle!,
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: context.textTheme.bodySmall!.copyWith(color: Colors.grey),
             ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -148,6 +145,9 @@ class SettingsMenuCheck<T> extends StatelessWidget {
                   modalTitle?.tr ?? title.tr,
                 ),
                 trailing: IconButton(
+                  // 这是「确认」按钮，不是删除：tooltip 跟着 confirmText 走，
+                  // 免得调用方换成「加入分组」之类时 tooltip 还在撒谎。
+                  tooltip: confirmText ?? "确定",
                   onPressed: () {
                     Get.back();
                     onConfirm?.call(controller.selectedItems.toList());
@@ -165,7 +165,7 @@ class SettingsMenuCheck<T> extends StatelessWidget {
                             controlAffinity: ListTileControlAffinity.leading,
                             title: Text(
                               itemToString(item),
-                              style: Get.textTheme.bodyMedium,
+                              style: context.textTheme.bodyMedium,
                             ),
                             onChanged: (bool? selected) {
                               controller.toggle(item);

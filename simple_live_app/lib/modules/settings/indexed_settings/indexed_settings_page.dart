@@ -34,7 +34,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
               "顶/底栏收起",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -82,7 +82,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "主页排序 ($_reorderHint，重启后生效)",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -110,7 +110,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "平台排序 ($_reorderHint，重启后生效)",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(

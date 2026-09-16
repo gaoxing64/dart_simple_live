@@ -110,6 +110,7 @@ class HomePage extends GetView<HomeController> {
       ),
       actions: [
         IconButton(
+          tooltip: "搜索",
           onPressed: controller.toSearch,
           icon: const Icon(Icons.search),
         )

@@ -33,6 +33,7 @@ class DesktopRefreshButton extends StatelessWidget {
               ),
             )
           : IconButton(
+              tooltip: "刷新",
               onPressed: onPressed,
               icon: const Icon(Icons.refresh),
             ),

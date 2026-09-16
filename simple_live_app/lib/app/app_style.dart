@@ -24,9 +24,42 @@ class AppStyle {
       useMaterial3: true,
       fontFamily: fontFamily,
       visualDensity: VisualDensity.standard,
+      // ⚠️ **全局统一列表项的圆角**。
+      //
+      // 以前只有 `SettingsMenu` 自己设了 `shape`、`mine_page` 里只有被
+      // `_buildCard` 罩住的行才有，于是同一个页面里「一部分圆角、一部分直角」，
+      // 用户报过。`ListTile` 会把 `shape` 传给 `InkWell.customBorder`
+      // （见 `material/list_tile.dart:982`），所以设在这里
+      // **hover / 按压高亮的圆角也跟着一起统一**。
+      //
+      // 注意：只对 `ListTile` 生效。自己拼的 `InkWell`（例如关注页下段的
+      // `_OfflineRow`）仍要显式给 `borderRadius`。
+      listTileTheme: ListTileThemeData(
+        shape: RoundedRectangleBorder(borderRadius: AppStyle.radius8),
+      ),
       appBarTheme: AppBarTheme(
         //elevation: 0,
         centerTitle: true,
+        // ⚠️ 钉住 AppBar 的外观。
+        //
+        // M3 默认会在「内容滚到 AppBar 下方」时（`WidgetState.scrolledUnder`）
+        // 把背景从 `colorScheme.surface` 换成 `colorScheme.surfaceContainer`，
+        // 还会叠一层 `surfaceTint` 高度着色。实测：滚动前 `(249,249,255)`、
+        // 滚动后 `(224,226,236)` —— 而搜索框的 `filled` 填充色是 `(226,226,233)`，
+        // 两者几乎一模一样 ⇒ 一滚动 AppBar 就和搜索框撞色，很丑（用户报过，深浅色都有）。
+        //
+        // 显式给出 `backgroundColor` 之后，`scrolledUnder` 前后会解析到**同一个值**
+        // （见 `app_bar.dart` 里 `_resolveColor(states, …, surfaceContainer)` 那段：
+        // 只要主题里设了 backgroundColor，滚动态用的也是同一个值），
+        // 再关掉高度着色与滚动态高度，外观就完全稳定了。
+        //
+        // ⚠️ 这里的值只对**默认主题色**准确：`main.dart` 会用
+        // `.copyWith(colorScheme: …)` 换成用户自选主题色 / 动态取色的调色板，
+        // 所以 main.dart 还会同步覆盖这里的 backgroundColor，否则改主题色后
+        // AppBar 会和页面底色出现色差。
+        backgroundColor: AppColors.lightColorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         titleTextStyle: TextStyle(
           fontFamily: fontFamily,
           fontSize: 16,
@@ -44,6 +77,11 @@ class AppStyle {
     return ThemeData.dark().copyWith(
       colorScheme: AppColors.darkColorScheme,
       visualDensity: VisualDensity.standard,
+      // 同浅色主题：全局统一列表项圆角，顺带统一 hover 高亮的圆角。
+      // 详见 `light()` 里的说明。
+      listTileTheme: ListTileThemeData(
+        shape: RoundedRectangleBorder(borderRadius: AppStyle.radius8),
+      ),
       textTheme: ThemeData.dark().textTheme.apply(
             fontFamily: fontFamily,
           ),
@@ -54,6 +92,12 @@ class AppStyle {
         //elevation: 0,
 
         centerTitle: true,
+        // 同浅色主题：钉住外观，避免滚到内容下方时背景从 surface 变成
+        // surfaceContainer、和搜索框填充色撞在一起。详见 `light()` 里的说明
+        // （同样会被 main.dart 按实际生效的 colorScheme 覆盖）。
+        backgroundColor: AppColors.darkColorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         titleTextStyle: TextStyle(
           fontFamily: fontFamily,
           fontSize: 16,
@@ -201,4 +245,22 @@ class AppStyle {
         endIndent: 16,
         color: Colors.grey.withAlpha(25),
       );
+
+  /// 未开播内容的压暗蒙版：R/G/B 各乘 0.55，等价于叠一层 45% 的黑色蒙版。
+  ///
+  /// 用来把「未开播」和「直播中」拉开区分度。**是保留色相地压暗，不是去饱和**——
+  /// 头像整张转灰度会看着像遗像，用户明确否过（2026-09-13）。
+  ///
+  /// 写成矩阵而不是真盖一层半透明黑：乘法只作用在颜色通道上，第四行仍是
+  /// `0,0,0,1,0`，alpha 原样透传，圆形头像的抗锯齿边缘不会渗出一圈黑边，
+  /// 也就不需要额外套 `ClipOval` 去裁蒙版。
+  ///
+  /// 网格样式（`LiveRoomCard`）和紧凑样式（`FollowUserItem`）**共用这一个常量**，
+  /// 别在各自文件里再写一份——两边走偏正是之前「两种样式不一致」的来源。
+  static const ColorFilter offlineDim = ColorFilter.matrix(<double>[
+    0.55, 0, 0, 0, 0, //
+    0, 0.55, 0, 0, 0, //
+    0, 0, 0.55, 0, 0, //
+    0, 0, 0, 1, 0, //
+  ]);
 }
