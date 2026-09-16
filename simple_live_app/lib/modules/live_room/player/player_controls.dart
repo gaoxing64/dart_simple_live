@@ -138,6 +138,9 @@ Widget buildFullControls(
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: controller.smallWindowState.value
+                        ? "退出小窗"
+                        : "退出全屏",
                     onPressed: () {
                       if (controller.smallWindowState.value) {
                         controller.exitSmallWindow();
@@ -162,6 +165,7 @@ Widget buildFullControls(
                   ),
                   AppStyle.hGap12,
                   IconButton(
+                    tooltip: "截图",
                     onPressed: () {
                       controller.saveScreenshot();
                     },
@@ -172,6 +176,7 @@ Widget buildFullControls(
                     ),
                   ),
                   IconButton(
+                    tooltip: "关注列表",
                     onPressed: () {
                       showFollowUser(controller);
                     },
@@ -184,6 +189,7 @@ Widget buildFullControls(
                   Visibility(
                     visible: Platform.isAndroid,
                     child: IconButton(
+                      tooltip: "小窗播放",
                       onPressed: () {
                         controller.enablePIP();
                       },
@@ -195,6 +201,7 @@ Widget buildFullControls(
                     ),
                   ),
                   IconButton(
+                    tooltip: "更多设置",
                     onPressed: () {
                       showPlayerSettings(controller);
                     },
@@ -238,6 +245,7 @@ Widget buildFullControls(
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: "刷新",
                     onPressed: () {
                       controller.refreshRoom();
                     },
@@ -249,6 +257,7 @@ Widget buildFullControls(
                   Offstage(
                     offstage: controller.showDanmakuState.value,
                     child: IconButton(
+                      tooltip: "开启弹幕",
                       onPressed: () => controller.showDanmakuState.value =
                           !controller.showDanmakuState.value,
                       icon: const ImageIcon(
@@ -261,6 +270,7 @@ Widget buildFullControls(
                   Offstage(
                     offstage: !controller.showDanmakuState.value,
                     child: IconButton(
+                      tooltip: "关闭弹幕",
                       onPressed: () => controller.showDanmakuState.value =
                           !controller.showDanmakuState.value,
                       icon: const ImageIcon(
@@ -271,6 +281,7 @@ Widget buildFullControls(
                     ),
                   ),
                   IconButton(
+                    tooltip: "弹幕设置",
                     onPressed: () {
                       showDanmakuSettings(controller);
                     },
@@ -285,6 +296,7 @@ Widget buildFullControls(
                     visible: !Platform.isAndroid && !Platform.isIOS,
                     child: IconButton(
                       key: volumeButtonkey,
+                      tooltip: "音量",
                       onPressed: () {
                         controller
                             .showVolumeSlider(volumeButtonkey.currentContext!);
@@ -296,28 +308,43 @@ Widget buildFullControls(
                       ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      showQualitesInfo(controller);
-                    },
-                    child: Obx(
-                      () => Text(
-                        controller.currentQualityInfo.value,
+                  Tooltip(
+                    message: "切换清晰度",
+                    child: TextButton(
+                      onPressed: () {
+                        showQualitesInfo(controller);
+                      },
+                      child: Obx(
+                        () => Text(
+                          controller.currentQualityInfo.value,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Tooltip(
+                    message: "切换线路",
+                    child: TextButton(
+                      onPressed: () {
+                        showLinesInfo(controller);
+                      },
+                      child: Text(
+                        controller.currentLineInfo.value,
                         style:
                             const TextStyle(color: Colors.white, fontSize: 15),
                       ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      showLinesInfo(controller);
-                    },
-                    child: Text(
-                      controller.currentLineInfo.value,
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
-                    ),
-                  ),
                   IconButton(
+                    // 和顶部返回按钮同一个动作，提示文案也要一致：
+                    // 小窗态下两处都该说「退出小窗」，不然同一屏两个同义按钮
+                    // 给出不同提示。
+                    tooltip: controller.smallWindowState.value
+                        ? "退出小窗"
+                        : "退出全屏",
                     onPressed: () {
                       if (controller.smallWindowState.value) {
                         controller.exitSmallWindow();
@@ -397,26 +424,33 @@ Widget buildOsdOverlay(LiveRoomController controller) {
   );
 }
 
+/// 左右两侧的锁定按钮。
+///
+/// 提示语按**动作**描述（锁定 / 解锁），与图标表示的**状态**相反，
+/// 和系统「返回」按钮那类 tooltip 的习惯一致。
 Widget buildLockButton(LiveRoomController controller) {
   return Center(
-    child: InkWell(
-      onTap: () {
-        controller.setLockState();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black45,
-          borderRadius: AppStyle.radius8,
-        ),
-        width: 40,
-        height: 40,
-        child: Center(
-          child: Icon(
-            controller.lockControlsState.value
-                ? Icons.lock_outline_rounded
-                : Icons.lock_open_outlined,
-            color: Colors.white,
-            size: 20,
+    child: Tooltip(
+      message: controller.lockControlsState.value ? "解锁" : "锁定",
+      child: InkWell(
+        onTap: () {
+          controller.setLockState();
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black45,
+            borderRadius: AppStyle.radius8,
+          ),
+          width: 40,
+          height: 40,
+          child: Center(
+            child: Icon(
+              controller.lockControlsState.value
+                  ? Icons.lock_outline_rounded
+                  : Icons.lock_open_outlined,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -485,6 +519,7 @@ Widget buildControls(
             child: Row(
               children: [
                 IconButton(
+                  tooltip: "刷新",
                   onPressed: () {
                     controller.refreshRoom();
                   },
@@ -496,6 +531,7 @@ Widget buildControls(
                 Offstage(
                   offstage: controller.showDanmakuState.value,
                   child: IconButton(
+                    tooltip: "开启弹幕",
                     onPressed: () => controller.showDanmakuState.value =
                         !controller.showDanmakuState.value,
                     icon: const ImageIcon(
@@ -508,6 +544,7 @@ Widget buildControls(
                 Offstage(
                   offstage: !controller.showDanmakuState.value,
                   child: IconButton(
+                    tooltip: "关闭弹幕",
                     onPressed: () => controller.showDanmakuState.value =
                         !controller.showDanmakuState.value,
                     icon: const ImageIcon(
@@ -518,6 +555,7 @@ Widget buildControls(
                   ),
                 ),
                 IconButton(
+                  tooltip: "弹幕设置",
                   onPressed: () {
                     controller.showDanmuSettingsSheet();
                   },
@@ -532,6 +570,7 @@ Widget buildControls(
                   visible: !Platform.isAndroid && !Platform.isIOS,
                   child: IconButton(
                     key: volumeButtonkey,
+                    tooltip: "音量",
                     onPressed: () {
                       controller.showVolumeSlider(
                         volumeButtonkey.currentContext!,
@@ -546,34 +585,44 @@ Widget buildControls(
                 ),
                 Offstage(
                   offstage: isPortrait,
-                  child: TextButton(
-                    onPressed: () {
-                      controller.showQualitySheet();
-                    },
-                    child: Obx(
-                      () => Text(
-                        controller.currentQualityInfo.value,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 15),
+                  child: Tooltip(
+                    message: "切换清晰度",
+                    child: TextButton(
+                      onPressed: () {
+                        controller.showQualitySheet();
+                      },
+                      child: Obx(
+                        () => Text(
+                          controller.currentQualityInfo.value,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
                 Offstage(
                   offstage: isPortrait,
-                  child: TextButton(
-                    onPressed: () {
-                      controller.showPlayUrlsSheet();
-                    },
-                    child: Text(
-                      controller.currentLineInfo.value,
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                  child: Tooltip(
+                    message: "切换线路",
+                    child: TextButton(
+                      onPressed: () {
+                        controller.showPlayUrlsSheet();
+                      },
+                      child: Text(
+                        controller.currentLineInfo.value,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 15),
+                      ),
                     ),
                   ),
                 ),
                 Visibility(
                   visible: !Platform.isAndroid && !Platform.isIOS,
                   child: IconButton(
+                    tooltip: "小窗播放",
                     onPressed: () {
                       controller.enterSmallWindow();
                     },
@@ -585,6 +634,7 @@ Widget buildControls(
                   ),
                 ),
                 IconButton(
+                  tooltip: "全屏播放",
                   onPressed: () {
                     controller.enterFullScreen();
                   },
@@ -728,6 +778,7 @@ void showQualitesInfo(LiveRoomController controller) {
           ),
           minLeadingWidth: 16,
           trailing: IconButton(
+            tooltip: "复制直链",
             icon: const Icon(Icons.copy),
             onPressed: () async {
               try {

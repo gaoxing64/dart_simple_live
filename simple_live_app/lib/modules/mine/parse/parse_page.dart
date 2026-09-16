@@ -119,7 +119,7 @@ https://webcast.amemv.com/douyin/webcast/reflow/xxxxx
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: AppStyle.radius8,
-        boxShadow: Get.isDarkMode
+        boxShadow: Theme.of(context).brightness == Brightness.dark
             ? []
             : [
                 BoxShadow(

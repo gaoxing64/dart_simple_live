@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/widgets.dart';
+import 'package:simple_live_app/app/app_scroll_behavior.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -49,7 +50,12 @@ class BaseController extends GetxController {
 }
 
 class BasePageController<T> extends BaseController {
-  final ScrollController scrollController = ScrollController();
+  /// 列表的滚动控制器。
+  ///
+  /// 用 [SmoothWheelScrollController] 而不是裸的 `ScrollController`：滚轮在 Flutter
+  /// 默认实现里是**瞬时跳转**（一帧到位），而左键拖动是平滑的，同一个列表两种手感。
+  /// 详见 `app_scroll_behavior.dart` 里的说明。
+  final ScrollController scrollController = SmoothWheelScrollController();
   final EasyRefreshController easyRefreshController = EasyRefreshController();
   int currentPage = 1;
   int count = 0;
@@ -287,6 +293,13 @@ class BasePageController<T> extends BaseController {
   }
 
   void scrollToTopOrRefresh() {
+    // 页面还没被构建时 scrollController 没有任何 clients，读 `.offset`
+    // 会直接抛异常（release 下 asserts 被剥掉，`position` 取空列表的 first），
+    // 于是下面的 callRefresh() 永远执行不到 —— 表现为「首次切到这一页不刷新」。
+    // 首次加载交给列表自己的 `EasyRefresh(refreshOnStart: true)` 负责。
+    if (!scrollController.hasClients) {
+      return;
+    }
     if (scrollController.offset > 0) {
       scrollController.animateTo(
         0,

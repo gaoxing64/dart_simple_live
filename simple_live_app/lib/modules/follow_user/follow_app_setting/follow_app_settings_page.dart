@@ -31,7 +31,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
                 child: Text(
                   "标签管理",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -49,7 +49,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "关注清理功能",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -82,7 +82,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "其他设置",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -143,7 +143,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "自动更新设置",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -198,7 +198,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "关注导入导出",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               fileImportAndExportBuild(),
@@ -206,7 +206,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "数据校准",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(

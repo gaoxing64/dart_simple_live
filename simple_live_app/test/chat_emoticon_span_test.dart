@@ -8,7 +8,7 @@
 // 因此这里锁三件事：
 //   1. 切分结果确实是「文本 / 表情 / 文本」，且表情在 `SelectableText.rich` 里
 //      真的以 `Image` 形式出现，宽高按服务端下发比例预留（解码完成前不跳版）；
-//   2. `allowEmoticons = false` 时原样返回纯文本（设置里的开关生效）；
+//   2. 没有表情的消息原样返回纯文本；
 //   3. 取图失败时回退显示占位符文本，不丢字。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -35,7 +35,7 @@ const _doge = LiveMessageEmoticon(
 );
 
 /// 与生产一致：spans 挂在 `SelectableText.rich` 上（见 live_room_page.dart）。
-Widget _host(LiveMessage message, {required bool allowEmoticons}) {
+Widget _host(LiveMessage message) {
   return MaterialApp(
     home: Scaffold(
       body: Builder(
@@ -46,7 +46,6 @@ Widget _host(LiveMessage message, {required bool allowEmoticons}) {
               context,
               message,
               const TextStyle(fontSize: _fontSize),
-              allowEmoticons: allowEmoticons,
             ),
           ),
         ),
@@ -67,7 +66,6 @@ void main() {
                 context,
                 _message('哈哈哈[doge]笑死', const [_doge]),
                 const TextStyle(fontSize: _fontSize),
-                allowEmoticons: true,
               );
               return const SizedBox();
             },
@@ -82,9 +80,7 @@ void main() {
     });
 
     testWidgets('SelectableText.rich 里真的渲染出图片，且按服务端比例预留宽高', (tester) async {
-      await tester.pumpWidget(
-        _host(_message('哈哈哈[doge]笑死', const [_doge]), allowEmoticons: true),
-      );
+      await tester.pumpWidget(_host(_message('哈哈哈[doge]笑死', const [_doge])));
 
       // 这一条是本次测试的核心：行内 widget 在 SelectableText 里必须真的生效
       final image = tester.widget<Image>(find.byType(Image));
@@ -97,19 +93,8 @@ void main() {
       );
     });
 
-    testWidgets('关掉表情开关时返回纯文本，正文一字不少', (tester) async {
-      await tester.pumpWidget(
-        _host(_message('哈哈哈[doge]笑死', const [_doge]), allowEmoticons: false),
-      );
-
-      expect(find.byType(Image), findsNothing);
-      expect(find.textContaining('哈哈哈[doge]笑死'), findsOneWidget);
-    });
-
     testWidgets('没有表情的消息返回纯文本', (tester) async {
-      await tester.pumpWidget(
-        _host(_message('哈哈哈笑死', null), allowEmoticons: true),
-      );
+      await tester.pumpWidget(_host(_message('哈哈哈笑死', null)));
 
       expect(find.byType(Image), findsNothing);
       expect(find.textContaining('哈哈哈笑死'), findsOneWidget);
@@ -117,9 +102,7 @@ void main() {
 
     testWidgets('取图失败时退回占位符文本，不丢字', (tester) async {
       // widget test 里没有真实网络，Image.network 必然失败 → 走 errorBuilder
-      await tester.pumpWidget(
-        _host(_message('哈哈哈[doge]笑死', const [_doge]), allowEmoticons: true),
-      );
+      await tester.pumpWidget(_host(_message('哈哈哈[doge]笑死', const [_doge])));
       await tester.pumpAndSettle();
 
       expect(find.byType(Image), findsOneWidget);

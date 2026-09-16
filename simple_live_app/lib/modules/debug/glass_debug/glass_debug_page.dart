@@ -14,6 +14,7 @@ class GlassDebugPage extends GetView<GlassDebugController> {
   const GlassDebugPage({super.key});
 
   Widget _slider(
+    BuildContext context,
     String title,
     Rx<double> value, {
     required double min,
@@ -29,10 +30,10 @@ class GlassDebugPage extends GetView<GlassDebugController> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: Get.textTheme.bodyMedium),
+                Text(title, style: context.textTheme.bodyMedium),
                 Text(
                   value.value.toStringAsFixed(precision ?? 2),
-                  style: Get.textTheme.bodySmall!.copyWith(
+                  style: context.textTheme.bodySmall!.copyWith(
                     color: Colors.grey,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
@@ -53,13 +54,13 @@ class GlassDebugPage extends GetView<GlassDebugController> {
     );
   }
 
-  Widget _section(String title, List<Widget> children) {
+  Widget _section(BuildContext context, String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: AppStyle.edgeInsetsA12.copyWith(bottom: 0),
-          child: Text(title, style: Get.textTheme.titleSmall),
+          child: Text(title, style: context.textTheme.titleSmall),
         ),
         SettingsCard(
           child: Column(
@@ -96,7 +97,7 @@ class GlassDebugPage extends GetView<GlassDebugController> {
             Center(
               child: Text(
                 "浅色可读性预览区",
-                style: Get.textTheme.titleMedium,
+                style: context.textTheme.titleMedium,
               ),
             ),
             SafeArea(
@@ -163,34 +164,38 @@ class GlassDebugPage extends GetView<GlassDebugController> {
             padding: AppStyle.edgeInsetsH24,
             child: Text(
               "参数实时作用于底部悬浮胶囊背景，可切到首页对照真实内容背景调节浅色模式可读性。",
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: context.textTheme.bodySmall!.copyWith(color: Colors.grey),
             ),
           ),
           _preview(context),
-          _section("玻璃材质", [
-            _slider("glassColor 白色不透明度", controller.glassColorAlpha,
+          _section(context, "玻璃材质", [
+            _slider(context, "glassColor 白色不透明度", controller.glassColorAlpha,
                 min: 0, max: 255, precision: 0),
-            _slider("blur 模糊", controller.blur, min: 0, max: 30),
-            _slider("thickness 厚度", controller.thickness, min: 0, max: 60),
-            _slider("visibility 可见度", controller.visibility, min: 0, max: 1),
-            _slider("saturation 饱和度", controller.saturation, min: 0, max: 3),
-            _slider("whitenStrength 白化强度", controller.whitenStrength,
+            _slider(context, "blur 模糊", controller.blur, min: 0, max: 30),
+            _slider(context, "thickness 厚度", controller.thickness,
+                min: 0, max: 60),
+            _slider(context, "visibility 可见度", controller.visibility,
                 min: 0, max: 1),
-            _slider("standardOpacityMultiplier 透明度倍率",
+            _slider(context, "saturation 饱和度", controller.saturation,
+                min: 0, max: 3),
+            _slider(context, "whitenStrength 白化强度", controller.whitenStrength,
+                min: 0, max: 1),
+            _slider(context, "standardOpacityMultiplier 透明度倍率",
                 controller.standardOpacityMultiplier,
                 min: 0, max: 2),
           ]),
-          _section("光照与折射", [
-            _slider("lightIntensity 光照强度", controller.lightIntensity,
+          _section(context, "光照与折射", [
+            _slider(context, "lightIntensity 光照强度", controller.lightIntensity,
                 min: 0, max: 1),
-            _slider("ambientStrength 环境光", controller.ambientStrength,
+            _slider(context, "ambientStrength 环境光", controller.ambientStrength,
                 min: 0, max: 1),
-            _slider("ambientRim 边缘环境光", controller.ambientRim, min: 0, max: 1),
-            _slider("fresnelStrength 菲涅尔", controller.fresnelStrength,
+            _slider(context, "ambientRim 边缘环境光", controller.ambientRim,
+                min: 0, max: 1),
+            _slider(context, "fresnelStrength 菲涅尔", controller.fresnelStrength,
                 min: 0, max: 2),
-            _slider("refractiveIndex 折射率", controller.refractiveIndex,
+            _slider(context, "refractiveIndex 折射率", controller.refractiveIndex,
                 min: 1, max: 2),
-            _slider("glowIntensity 辉光强度", controller.glowIntensity,
+            _slider(context, "glowIntensity 辉光强度", controller.glowIntensity,
                 min: 0, max: 1),
           ]),
         ],

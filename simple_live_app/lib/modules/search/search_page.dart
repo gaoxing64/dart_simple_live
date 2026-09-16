@@ -26,6 +26,7 @@ class SearchPage extends GetView<AppSearchController> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
+                  tooltip: "返回",
                   onPressed: Get.back,
                   icon: const Icon(Icons.arrow_back),
                 ),
@@ -53,6 +54,7 @@ class SearchPage extends GetView<AppSearchController> {
               ],
             ),
             suffixIcon: IconButton(
+              tooltip: "搜索",
               onPressed: controller.doSearch,
               icon: const Icon(Icons.search),
             ),

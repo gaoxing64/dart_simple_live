@@ -12,9 +12,15 @@ CRUSH.md
 .workbuddy/
 .workbuddy-ai/
 .ocr_review_report.txt
+.ocr-findings.txt
+.ocr-review-future.json
+ocr-review-future.md
 .dsh_flutter_version*
 .flutter_tool_state
 build/
 dev-tool.ps1
 *.py
+# 例外：发布说明生成脚本是工作流（publish_*_release）直接调用的，
+# 跟着 `*.py` 一起被忽略会导致 CI 里 `python tools/gen_changelog.py` 文件不存在。
+!tools/gen_changelog.py
 simple_live_app/iconfont.yaml

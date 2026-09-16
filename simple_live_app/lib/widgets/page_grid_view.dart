@@ -11,9 +11,38 @@ import 'package:simple_live_app/widgets/status/app_error_widget.dart';
 import 'package:simple_live_app/widgets/status/app_loadding_widget.dart';
 import 'package:get/get.dart';
 
+/// 网格里的一段：自带列数、行高、条目数、构建器和可选段头。
+///
+/// 存在的理由是关注页要把「正在直播的卡片网格」和「未开播的紧凑行」
+/// 拼在同一屏里 —— 两段的列数与行高都不同，`PageGridView` 原本那个
+/// 单 `SliverGrid` 表达不了（`crossAxisCount` / `mainAxisExtent` 都是单值）。
+///
+/// 段头会跨整行渲染在这一段上方；为空则不渲染。
+class GridSection {
+  final Widget? header;
+  final int crossAxisCount;
+  final double itemExtent;
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
+  final double mainAxisSpacing;
+  final double crossAxisSpacing;
+  const GridSection({
+    required this.crossAxisCount,
+    required this.itemExtent,
+    required this.itemCount,
+    required this.itemBuilder,
+    this.header,
+    this.mainAxisSpacing = 0,
+    this.crossAxisSpacing = 0,
+  });
+}
+
 class PageGridView extends StatelessWidget {
   final BasePageController pageController;
-  final IndexedWidgetBuilder itemBuilder;
+
+  /// 单段模式的条目构建器。**传了 [sections] 时可以不传**（那时由各段自己的
+  /// itemBuilder 负责）。
+  final IndexedWidgetBuilder? itemBuilder;
   final EdgeInsets? padding;
   final bool firstRefresh;
   final Function()? onLoginSuccess;
@@ -27,8 +56,26 @@ class PageGridView extends StatelessWidget {
   /// 判据是 [BasePageController.showEndBar]，即「已经没有下一页」，与平台无关。
   final bool showEndBar;
 
-  final double crossAxisSpacing, mainAxisSpacing;
+  /// 水平间距。
+  final double crossAxisSpacing;
+
+  /// 竖直间距。
+  ///
+  /// ⚠️ 单段模式（[sections] 为空）下它是**网格行距**；分段模式下它被复用为
+  /// **段与段之间的间距**，段内行距取 [GridSection.mainAxisSpacing]。
+  /// 两者同名不同义，分段场景按「行距」的语义传值会静默变成段间距。
+  final double mainAxisSpacing;
+
+  /// 单段模式的列数。**传了 [sections] 时这个值不参与渲染**（各段自带列数）。
   final int crossAxisCount;
+
+  /// 分段渲染（可选）。
+  ///
+  /// 给了它就按 [GridSection] 逐段渲染，**忽略 [itemExtent] / [crossAxisCount]
+  /// 以及「按 pageController.list 长度补骨架」那套逻辑** —— 分段场景（关注页）
+  /// 的两段条目数由调用方自己算，且它是一次性全量数据、没有下一页。
+  /// 为空则沿用原来的单 `SliverGrid` 行为，首页 / 搜索 / 分类详情不受影响。
+  final List<GridSection>? sections;
 
   /// 加载下一页时底部占位的骨架，默认按 [itemExtent] 选择卡片骨架或行骨架
   final IndexedWidgetBuilder? skeletonBuilder;
@@ -44,7 +91,7 @@ class PageGridView extends StatelessWidget {
   /// 行间出现过大空隙。
   final double itemExtent;
   const PageGridView({
-    required this.itemBuilder,
+    this.itemBuilder,
     required this.pageController,
     this.padding,
     this.firstRefresh = false,
@@ -55,9 +102,13 @@ class PageGridView extends StatelessWidget {
     this.mainAxisSpacing = 0.0,
     this.skeletonBuilder,
     this.itemExtent = kDefaultItemExtent,
-    required this.crossAxisCount,
+    this.crossAxisCount = 1,
+    this.sections,
     super.key,
-  });
+  }) : assert(
+          itemBuilder != null || sections != null,
+          'PageGridView 需要 itemBuilder（单段模式）或 sections（分段模式）之一',
+        );
 
   /// 行高小于该值时默认改用 [ListRowSkeleton]。
   ///
@@ -89,6 +140,67 @@ class PageGridView extends StatelessWidget {
   static double floatingBarInsetOf(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     return mediaQuery.padding.bottom - mediaQuery.viewPadding.bottom;
+  }
+
+  /// 分段模式的 sliver 列表。
+  ///
+  /// 横向内边距每段各自吃一份（单段模式是一个 `SliverPadding` 罩住整块网格）；
+  /// 段与段之间留 [mainAxisSpacing] 的竖直间距，最外面补上 `gridPadding` 的上下边距
+  /// —— 最后那段也必须吃到 `gridPadding.bottom`，否则滚到底会被悬浮胶囊导航栏盖住。
+  ///
+  /// 条目数为 0 的段**整段跳过（含段头）**：过滤或「隐藏离线关注」之后留一个
+  /// 光秃秃的段头比不显示更奇怪。
+  List<Widget> _buildSectionSlivers(EdgeInsets gridPadding) {
+    final list = <Widget>[];
+    final horizontal = EdgeInsets.only(
+      left: gridPadding.left,
+      right: gridPadding.right,
+    );
+    final visible = sections!.where((s) => s.itemCount > 0).toList();
+    for (var i = 0; i < visible.length; i++) {
+      final section = visible[i];
+      final isFirst = i == 0;
+      final isLast = i == visible.length - 1;
+      if (section.header != null) {
+        list.add(
+          SliverPadding(
+            padding: horizontal.copyWith(
+              top: isFirst ? gridPadding.top : mainAxisSpacing,
+            ),
+            sliver: SliverToBoxAdapter(child: section.header),
+          ),
+        );
+      } else if (!isFirst) {
+        list.add(
+          SliverToBoxAdapter(child: SizedBox(height: mainAxisSpacing)),
+        );
+      }
+      list.add(
+        SliverPadding(
+          padding: horizontal.copyWith(
+            top: isFirst && section.header == null ? gridPadding.top : 0,
+          ),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: section.crossAxisCount,
+              mainAxisSpacing: section.mainAxisSpacing,
+              crossAxisSpacing: section.crossAxisSpacing,
+              mainAxisExtent: section.itemExtent,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              section.itemBuilder,
+              childCount: section.itemCount,
+            ),
+          ),
+        ),
+      );
+      if (isLast && gridPadding.bottom > 0) {
+        list.add(
+          SliverToBoxAdapter(child: SizedBox(height: gridPadding.bottom)),
+        );
+      }
+    }
+    return list;
   }
 
   @override
@@ -142,30 +254,33 @@ class PageGridView extends StatelessWidget {
                 // （hasClients 恒为 false），主动补页与 scrollToTop 都会失效。
                 controller: pageController.scrollController,
                 slivers: [
-                  SliverPadding(
-                    padding: gridPadding,
-                    sliver: SliverGrid(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        mainAxisSpacing: mainAxisSpacing,
-                        crossAxisSpacing: crossAxisSpacing,
-                        mainAxisExtent: itemExtent,
+                  if (sections == null)
+                    SliverPadding(
+                      padding: gridPadding,
+                      sliver: SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          mainAxisSpacing: mainAxisSpacing,
+                          crossAxisSpacing: crossAxisSpacing,
+                          mainAxisExtent: itemExtent,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            // 加载下一页时在底部补骨架（两行），提示用户正在加载
+                            if (index >= pageController.list.length) {
+                              return _buildSkeleton(context, index);
+                            }
+                            return itemBuilder!(context, index);
+                          },
+                          childCount: pageController.list.length +
+                              (pageController.loadingMore.value
+                                  ? crossAxisCount * 2
+                                  : 0),
+                        ),
                       ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          // 加载下一页时在底部补骨架（两行），提示用户正在加载
-                          if (index >= pageController.list.length) {
-                            return _buildSkeleton(context, index);
-                          }
-                          return itemBuilder(context, index);
-                        },
-                        childCount: pageController.list.length +
-                            (pageController.loadingMore.value
-                                ? crossAxisCount * 2
-                                : 0),
-                      ),
-                    ),
-                  ),
+                    )
+                  else
+                    ..._buildSectionSlivers(gridPadding),
                   // 尾部提示条（加载失败重试条 / 已到底条）必须跟着网格一起
                   // 让开悬浮底栏：上面的 SliverPadding 只把底部内边距加在了
                   // 网格自己身上，若把这两条直接追加在它之后，滚到底时它们会

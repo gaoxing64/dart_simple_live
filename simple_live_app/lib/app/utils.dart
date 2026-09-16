@@ -133,7 +133,9 @@ class Utils {
       maskColor: Colors.transparent,
       animationTime: const Duration(milliseconds: 200),
       builder: (context) => Material(
-        color: Get.theme.cardColor,
+        // 用本地 context 取主题：Get.theme 不建立 InheritedWidget 依赖，
+        // 面板在主题切换后不会重建，会一直用旧底色。
+        color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(4),
           bottomLeft: Radius.circular(4),
@@ -156,8 +158,10 @@ class Utils {
                       visualDensity: VisualDensity.compact,
                       contentPadding: EdgeInsets.zero,
                       leading: IconButton(
+                        tooltip: "返回",
                         onPressed: () {
-                          SmartDialog.dismiss(status: SmartStatus.allCustom).then(
+                          SmartDialog.dismiss(status: SmartStatus.allCustom)
+                              .then(
                             (value) => onDismiss?.call(),
                           );
                         },
@@ -165,7 +169,7 @@ class Utils {
                       ),
                       title: Text(
                         title,
-                        style: Get.textTheme.titleMedium,
+                        style: context.textTheme.titleMedium,
                       ),
                     ),
                     Divider(
@@ -213,6 +217,7 @@ class Utils {
             ),
             title: Text(title),
             trailing: IconButton(
+              tooltip: "关闭",
               onPressed: Get.back,
               icon: const Icon(Remix.close_line),
             ),

@@ -41,7 +41,7 @@ class SyncPage extends StatelessWidget {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
               "远程同步",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -63,7 +63,7 @@ class SyncPage extends StatelessWidget {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "局域网同步",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(

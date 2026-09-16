@@ -20,6 +20,7 @@ class LoadMoreFailedBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      borderRadius: AppStyle.radius8,
       onTap: pageController.retryLoadMore,
       child: Container(
         alignment: Alignment.center,

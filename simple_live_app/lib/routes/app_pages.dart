@@ -85,7 +85,15 @@ class AppPages {
       name: RoutePath.kSearch,
       page: () => const SearchPage(),
       bindings: [
-        BindingsBuilder.put(() => AppSearchController()),
+        BindingsBuilder.put(() {
+          // 首页点搜索时会把当前平台 id 带过来（见 HomeController.toSearch），
+          // 搜索页据此默认选中同一个平台；直接访问 /search（无参数）时为 null，
+          // 由 AppSearchController 回落到第一个。
+          final arguments = Get.arguments;
+          return AppSearchController(
+            initialSiteId: arguments is String ? arguments : null,
+          );
+        }),
       ],
     ),
     //分类详情

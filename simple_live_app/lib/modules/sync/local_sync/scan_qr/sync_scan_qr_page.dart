@@ -13,6 +13,7 @@ class SyncScanQRPage extends GetView<SyncScanQRControlelr> {
         title: const Text('扫描二维码'),
         actions: [
           IconButton(
+            tooltip: "闪光灯",
             onPressed: () {
               controller.qrController?.toggleFlash();
             },
@@ -20,6 +21,7 @@ class SyncScanQRPage extends GetView<SyncScanQRControlelr> {
           ),
           // 反转摄像头
           IconButton(
+            tooltip: "切换摄像头",
             onPressed: () {
               controller.qrController?.flipCamera();
             },

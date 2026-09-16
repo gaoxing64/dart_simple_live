@@ -14,6 +14,9 @@ import 'indexed_controller.dart';
 class IndexedPage extends GetView<IndexedController> {
   const IndexedPage({super.key});
 
+  /// 切换时的视差幅度（占页面宽/高的比例）
+  static const double _parallaxFraction = 0.08;
+
   /// 悬浮胶囊导航栏（移植自 PiliPlus）
   ///
   /// 开启 Liquid Glass 后只替换胶囊背景，布局、指示器与交互
@@ -126,6 +129,40 @@ class IndexedPage extends GetView<IndexedController> {
     });
   }
 
+  /// 给单个页面套上 [SlideTransition]。
+  ///
+  /// [PageView] 负责整页平移（Material 的 slide 过渡本身就是它），这里再让
+  /// 内容相对页面容器反向位移一小段：新页滑入时内容略微滞后、旧页滑出时略微
+  /// 领先，形成 parallax 层次感。位移量跟随 `PageController.page`，切页结束
+  /// 自然归零；静止时 [AnimatedBuilder] 收不到通知，不产生额外重建。
+  ///
+  /// [pageIndex] 是该页在 [PageView] 里的位置，和 `controller.index`（当前选中的
+  /// 导航项）不是一回事，别混用。
+  Widget _buildTransitionPage(Axis axis, int pageIndex, Widget child) {
+    return AnimatedBuilder(
+      animation: controller.pageController,
+      builder: (context, inner) {
+        var delta = 0.0;
+        final pageController = controller.pageController;
+        if (pageController.hasClients &&
+            pageController.position.haveDimensions) {
+          final page = pageController.page;
+          if (page != null) {
+            delta = (page - pageIndex).clamp(-1.0, 1.0);
+          }
+        }
+        final shift = -delta * _parallaxFraction;
+        return SlideTransition(
+          position: AlwaysStoppedAnimation<Offset>(
+            axis == Axis.vertical ? Offset(0, shift) : Offset(shift, 0),
+          ),
+          child: inner,
+        );
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -135,6 +172,10 @@ class IndexedPage extends GetView<IndexedController> {
       final useFloatingNavBar = navBarStyle != 0;
       return OrientationBuilder(
         builder: (context, orientation) {
+          final isLandscape = orientation == Orientation.landscape;
+          // 导航入口在左边（横屏的 NavigationRail）就上下切换，在下面（竖屏的
+          // 底部导航栏）就左右切换——滑动方向始终与导航栏所在位置一致。
+          final axis = isLandscape ? Axis.vertical : Axis.horizontal;
           return Scaffold(
             extendBody:
                 orientation == Orientation.portrait && useFloatingNavBar,
@@ -174,9 +215,27 @@ class IndexedPage extends GetView<IndexedController> {
                                 : BorderSide.none,
                           ),
                         ),
-                        child: IndexedStack(
-                          index: controller.index.value,
-                          children: controller.pages,
+                        // PageView 是惰性视口：默认 allowImplicitScrolling=false，
+                        // 缓存范围为 0 个视口，只 inflate / 布局当前页。
+                        // IndexedStack 只省绘制不省布局（RenderIndexedStack 的
+                        // performLayout 继承 RenderStack，仍会布局全部子节点），
+                        // 切过几个 Tab 后每次改窗口尺寸都要布局所有页面。
+                        // children 每次都是新列表快照：PageView 内部用
+                        // SliverChildListDelegate，其 shouldRebuild 是引用比较，
+                        // 且 PageView 文档要求传入的 children 之后不得再被改动；
+                        // 生成过程会读 pages.length / pages[i]，让这个 Obx 依赖
+                        // pages，setIndex 里惰性填充 pages[i] 后能重建。
+                        child: PageView(
+                          controller: controller.pageController,
+                          // 方向跟着导航栏位置走：侧边栏在左 → 垂直滑动；
+                          // 底栏在下 → 水平滑动。换轴不会丢页码，见
+                          // IndexedController.pageController 的文档注释
+                          scrollDirection: axis,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            for (var i = 0; i < controller.pages.length; i++)
+                              _buildTransitionPage(axis, i, controller.pages[i]),
+                          ],
                         ),
                       ),
                     ),

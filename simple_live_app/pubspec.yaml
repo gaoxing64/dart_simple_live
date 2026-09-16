@@ -56,6 +56,7 @@ dependencies:
   lottie: ^3.3.2 # Lottie 动画
   canvas_danmaku: ^0.3.1 # 弹幕库
   liquid_glass_widgets: ^1.2.1 # iOS 26 风格 Liquid Glass 组件（悬浮胶囊的实验性玻璃效果）
+  material_new_shapes: ^1.0.0 # M3 Expressive 形状（RoundedPolygon / Morph），供 loading 变形动画使用
 
   # 系统交互
   package_info_plus: ^8.3.1 # 包信息

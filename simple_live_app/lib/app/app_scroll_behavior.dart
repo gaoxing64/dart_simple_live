@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// 应用级滚动行为：让桌面端也能用鼠标左键直接拖动滚动内容。
@@ -41,4 +43,98 @@ class AppScrollBehavior extends MaterialScrollBehavior {
 
   @override
   Set<PointerDeviceKind> get dragDevices => _allDragDevices;
+}
+
+/// 让**滚轮**滚动也带过渡动画的 [ScrollController]。
+///
+/// Flutter 默认的滚轮是**瞬时跳转**：`ScrollPositionWithSingleContext.pointerScroll`
+/// 直接 `forcePixels` 到目标位置，一帧到位，观感是「一格一格地跳」；
+/// 而按住鼠标左键拖动走的是真实手势 + 惯性，是平滑的 —— 同一个列表两种手感。
+///
+/// 官方给的钩子就在这里：`Scrollable` 的 position 由
+/// `ScrollController.createScrollPosition` 创建（见 `ScrollableState._updatePosition`
+/// 的注释），所以换掉 position 就能换掉滚轮行为。**不要去 `Listener.onPointerSignal`
+/// 里抢事件** —— 滚轮走 `GestureBinding.pointerSignalResolver`，只认最先注册的那个，
+/// 而事件派发是「从叶子往根」，外层的 Listener 抢不过 Scrollable 内部的。
+///
+/// 作用范围：凡是把 `BasePageController.scrollController` 交给列表的页面
+/// （`PageGridView` / `PageListView`：首页 / 分类 / 搜索 / 关注）都会生效。
+class SmoothWheelScrollController extends ScrollController {
+  SmoothWheelScrollController({
+    super.initialScrollOffset,
+    super.keepScrollOffset,
+    super.debugLabel,
+  });
+
+  @override
+  ScrollPosition createScrollPosition(
+    ScrollPhysics physics,
+    ScrollContext context,
+    ScrollPosition? oldPosition,
+  ) {
+    return _SmoothWheelScrollPosition(
+      physics: physics,
+      context: context,
+      oldPosition: oldPosition,
+      // 父类的实现会把这两个参数透传给 position，这里之前漏掉了，
+      // 导致 initialScrollOffset 被静默忽略、keepScrollOffset=false 也不生效。
+      initialPixels: initialScrollOffset,
+      keepScrollOffset: keepScrollOffset,
+    );
+  }
+}
+
+/// 把滚轮的「瞬时跳」改成「动画滚」。
+class _SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
+  _SmoothWheelScrollPosition({
+    required super.physics,
+    required super.context,
+    super.initialPixels,
+    super.keepScrollOffset,
+    super.oldPosition,
+  });
+
+  /// 连续滚动时累加的目标位置。
+  ///
+  /// 不能每一格都从 `pixels` 起算：动画还在跑时又来一格，起点已经变了，
+  /// 逐格相加会「吃掉」上一格的距离，快速滚动会越滚越慢。这里记住一个目标值，
+  /// 每格都往它上面加。
+  double? _wheelTarget;
+
+  /// 一格滚轮的过渡时长。太短看着还是跳，太长会有「拖泥带水」的滞后感。
+  static const Duration _duration = Duration(milliseconds: 180);
+
+  @override
+  void pointerScroll(double delta) {
+    // delta == 0 是「取消滚动惯性」的信号（PointerScrollInertiaCancelEvent），
+    // 必须原样交给父类去 goBallistic 停住。
+    if (delta == 0) {
+      _wheelTarget = null;
+      super.pointerScroll(delta);
+      return;
+    }
+
+    final double base = _wheelTarget ?? pixels;
+    final double target = clampDouble(
+      base + delta,
+      minScrollExtent,
+      maxScrollExtent,
+    );
+    if (target == pixels) {
+      return;
+    }
+    _wheelTarget = target;
+    // 和默认实现保持一致：先更新滚动方向，靠它判断方向的监听者（EasyRefresh 等）
+    // 才拿得到正确值。
+    updateUserScrollDirection(
+      -delta > 0.0 ? ScrollDirection.forward : ScrollDirection.reverse,
+    );
+    animateTo(target, duration: _duration, curve: Curves.easeOutCubic)
+        .whenComplete(() {
+      // 动画结束且期间没有新目标就清掉，免得下次从一个过期的目标起算。
+      if (_wheelTarget == target) {
+        _wheelTarget = null;
+      }
+    });
+  }
 }

@@ -109,8 +109,6 @@ class AppSettingsController extends GetxController {
         .getValue(LocalStorageService.kDanmuEnable, true);
     danmakuMaskEnable.value = LocalStorageService.instance
         .getValue(LocalStorageService.kDanmakuMaskEnable, false);
-    danmuEmoticonEnable.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuEmoticonEnable, true);
     danmuStrokeWidth.value = LocalStorageService.instance
         .getValue(LocalStorageService.kDanmuStrokeWidth, 2.0);
     danmuTopMargin.value = LocalStorageService.instance
@@ -467,16 +465,6 @@ class AppSettingsController extends GetxController {
     danmakuMaskEnable.value = e;
     LocalStorageService.instance
         .setValue(LocalStorageService.kDanmakuMaskEnable, e);
-  }
-
-  /// 弹幕表情包：把 B 站下发的 [占位符] 渲染成表情图片。
-  /// 关闭后仍然是原来的占位符文本，只是不再下载与合成图片。
-  var danmuEmoticonEnable = true.obs;
-
-  void setDanmuEmoticonEnable(bool e) {
-    danmuEmoticonEnable.value = e;
-    LocalStorageService.instance
-        .setValue(LocalStorageService.kDanmuEmoticonEnable, e);
   }
 
   var danmuStrokeWidth = 2.0.obs;
@@ -849,6 +837,12 @@ class AppSettingsController extends GetxController {
   }
 
   // 关注样式是否卡片化
+  //
+  // ⚠️ **当前没有读取方**：关注页改成「上段卡片 + 下段紧凑行」的整合布局之后，
+  // 原来那个「紧凑模式 / 卡片模式」二选一就不存在了，AppBar 里的「模式切换」
+  // 菜单项也已移除（2026-09-15）。这里**刻意保留**字段、setter 与存储键
+  // （`kFollowStyleNotGrid`）：一来老用户的取值不会被清掉，二来以后若要恢复
+  // 「让用户选上段用卡片还是紧凑行」，改回来很便宜。
   var followStyleNotGrid = true.obs;
 
   void setFollowStyleNotGrid(bool e) {

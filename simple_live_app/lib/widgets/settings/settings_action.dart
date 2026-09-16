@@ -27,15 +27,12 @@ class SettingsAction extends StatelessWidget {
         title,
         style: Theme.of(context).textTheme.bodyLarge,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: AppStyle.radius8,
-      ),
       contentPadding: AppStyle.edgeInsetsL16.copyWith(right: 8),
       subtitle: subtitle == null
           ? null
           : Text(
               subtitle!,
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: context.textTheme.bodySmall!.copyWith(color: Colors.grey),
             ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

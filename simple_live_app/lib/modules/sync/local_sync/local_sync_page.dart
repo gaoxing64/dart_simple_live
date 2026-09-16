@@ -70,12 +70,13 @@ class LocalSyncPage extends GetView<LocalSyncController> {
             title: Obx(
               () => Text(
                 "已发现设备(${SyncService.instance.scanClients.length})",
-                style: Get.textTheme.titleSmall,
+                style: context.textTheme.titleSmall,
               ),
             ),
             visualDensity: VisualDensity.compact,
             contentPadding: AppStyle.edgeInsetsH12,
             trailing: IconButton(
+              tooltip: "刷新设备列表",
               visualDensity: VisualDensity.compact,
               onPressed: () {
                 SyncService.instance.refreshClients();

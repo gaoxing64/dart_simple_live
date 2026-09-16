@@ -58,7 +58,7 @@ class OtherSettingsPage extends GetView<OtherSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "播放器高级设置",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           Padding(
@@ -182,7 +182,7 @@ class OtherSettingsPage extends GetView<OtherSettingsController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "日志记录",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -215,7 +215,7 @@ class OtherSettingsPage extends GetView<OtherSettingsController> {
             visualDensity: VisualDensity.compact,
             title: Text(
               "日志列表",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
             trailing: TextButton.icon(
               onPressed: () {
@@ -244,12 +244,14 @@ class OtherSettingsPage extends GetView<OtherSettingsController> {
                         children: [
                           if (!Platform.isLinux)
                             IconButton(
+                              tooltip: "分享日志文件",
                               onPressed: () {
                                 controller.shareLogFile(item);
                               },
                               icon: const Icon(Icons.share),
                             ),
                           IconButton(
+                            tooltip: "保存日志文件",
                             onPressed: () {
                               controller.saveLogFile(item);
                             },

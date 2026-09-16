@@ -168,8 +168,11 @@ class MyApp extends StatelessWidget {
         Color(AppStyleSettingController.instance.styleColor.value);
     return DynamicColorBuilder(
         builder: ((ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-      ColorScheme? lightColorScheme;
-      ColorScheme? darkColorScheme;
+      // 两个分支都赋非空值（动态取色拿不到或用户没开时回落到 styleColor
+      // 生成的调色板），所以声明成**非空**局部变量：下面 appBarTheme 要取
+      // `.surface`，声明成可空这里就编译不过。
+      ColorScheme lightColorScheme;
+      ColorScheme darkColorScheme;
       if (lightDynamic != null && darkDynamic != null && isDynamicColor) {
         lightColorScheme = lightDynamic;
         darkColorScheme = darkDynamic;
@@ -186,10 +189,23 @@ class MyApp extends StatelessWidget {
           title: "Slive",
           theme: AppStyle.light(
             fontFamily: AppStyleSettingController.instance.curFontName.value,
-          ).copyWith(colorScheme: lightColorScheme),
+          ).copyWith(
+            colorScheme: lightColorScheme,
+            // AppBar 的背景钉在 AppStyle 的固定调色板上，这里换成实际生效的
+            // colorScheme，否则用户改主题色 / 开动态取色后 AppBar 会和页面
+            // 底色不一致（详见 app_style.dart 里 appBarTheme 的注释）。
+            appBarTheme: AppStyle.light().appBarTheme.copyWith(
+                  backgroundColor: lightColorScheme.surface,
+                ),
+          ),
           darkTheme: AppStyle.darkTheme(
             fontFamily: AppStyleSettingController.instance.curFontName.value,
-          ).copyWith(colorScheme: darkColorScheme),
+          ).copyWith(
+            colorScheme: darkColorScheme,
+            appBarTheme: AppStyle.darkTheme().appBarTheme.copyWith(
+                  backgroundColor: darkColorScheme.surface,
+                ),
+          ),
           themeMode: ThemeMode
               .values[Get.find<AppSettingsController>().themeMode.value],
           // 桌面端放开鼠标拖拽：上下拖列表、左右拖切换平台标签，

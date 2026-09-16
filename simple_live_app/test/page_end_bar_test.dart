@@ -72,6 +72,12 @@ ScrollPosition gridPosition(WidgetTester tester) {
 }
 
 /// 滚轮滚到底（桌面端真实交互路径）。
+///
+/// 每滚一格都要等这一格的滚动动画走完：列表用的是 `SmoothWheelScrollController`
+/// （见 `app_scroll_behavior.dart`），滚轮不再是瞬时跳转，而是 180ms 的动画。
+/// 这里必须用 `pumpAndSettle` 而不是 `pump(时长)`——重启动画后的**第一帧 elapsed
+/// 恒为 0**，只泵一帧位置根本不动，循环会空转到上限，列表没滚到底，尾部的结束条
+/// 也就不会被构建出来。
 Future<void> wheelToBottom(WidgetTester tester) async {
   final pointer = TestPointer(1, PointerDeviceKind.mouse);
   await tester.sendEventToBinding(
@@ -81,7 +87,7 @@ Future<void> wheelToBottom(WidgetTester tester) async {
     final position = gridPosition(tester);
     if (position.maxScrollExtent - position.pixels <= 0) break;
     await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
-    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pumpAndSettle();
   }
   await tester.pump(const Duration(milliseconds: 500));
 }

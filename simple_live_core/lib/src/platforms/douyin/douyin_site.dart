@@ -526,23 +526,53 @@ class DouyinSite implements LiveSite {
     // webRid是固定的，用户每次开播都是同一个webRid
     // webRid一般长度为11-12位，例如：416144012050
     // 这里简单进行判断，如果roomId长度小于15，则认为是webRid
-    var webRid = roomId;
-    if (roomId.length > 16) {
-      webRid = await _getWebRid(roomId);
+    if (roomId.length <= 16) {
+      return await getRoomDetailByWebRid(roomId);
     }
+
+    // 19 位 roomId（分享链接解出来的就是这种）要先按 roomId 查 reflow/info。
+    //
+    // 不能先转成 webRid 再走 web/enter：对连麦、多人连线一类的房间，web/enter
+    // 会返回「降级房间」——只剩 22 个字段的骨架，status 不是 2、也没有
+    // stream_url，于是 detail.data 变成空 Map，后面取画质时直接抛
+    // NoSuchMethodError: The method '[]' was called on null，直播间根本进不去。
+    // 同一个房间用 reflow/info 查则能正常拿到 stream_url 与画质列表。
+    //
+    // getRoomDetailByRoomId 内部保留了「status == 4 时回退 webRid」的逻辑，
+    // 所以一次性 roomId 失效（主播重开播换了房间）时行为不变。
+    try {
+      return await getRoomDetailByRoomId(roomId);
+    } catch (e) {
+      // 只把「网络抖动 / 反爬拦截」这类意外兜底到 webRid 链路。
+      // CoreError 是内部刻意抛出的（房间数据异常 / 未返回房间数据），
+      // 直接往上抛给用户看，不要再多打 2~3 次重复请求——
+      // _getWebRid 失败时会返回原 19 位 roomId，拿它当 webRid 去请求
+      // web/enter 也必然无效。
+      if (e is CoreError) {
+        rethrow;
+      }
+      CoreLog.error(e);
+    }
+
+    var webRid = await _getWebRid(roomId);
     return await getRoomDetailByWebRid(webRid);
   }
 
   /// 非webRid转webRid
   Future<String> _getWebRid(String roomId) async {
     var baseUrl = "https://webcast.amemv.com/douyin/webcast/reflow/";
-    var response = await HttpClient.instance.getText(
-      "$baseUrl$roomId",
-    );
-    final reg = RegExp(
-        r'mysteryMan\\":1,\\\"webRid\\\":\\\"([^\\"]+)\\\",\\\"desensitizedNickname');
-    var webRid = reg.firstMatch(response)?.group(1) ?? "";
-    return webRid.isEmpty ? roomId : webRid;
+    try {
+      var response = await HttpClient.instance.getText(
+        "$baseUrl$roomId",
+      );
+      final reg = RegExp(
+          r'mysteryMan\\":1,\\\"webRid\\\":\\\"([^\\"]+)\\\",\\\"desensitizedNickname');
+      var webRid = reg.firstMatch(response)?.group(1) ?? "";
+      return webRid.isEmpty ? roomId : webRid;
+    } catch (e) {
+      CoreLog.error(e);
+      return roomId;
+    }
   }
 
   /// 通过roomId获取直播间信息
@@ -552,22 +582,24 @@ class DouyinSite implements LiveSite {
     // 读取房间信息
     var roomData = await _getRoomDataByRoomId(roomId);
 
+    // reflow/info 在房间已下播时只给骨架，任何一层都可能缺，逐层判空
+    var room = _asMap(_asMap(roomData)?["data"])?["room"];
+    if (room is! Map || room.isEmpty) {
+      throw CoreError("抖音直播间数据异常，未能获取房间信息");
+    }
+
     // 通过房间信息获取WebRid
-    var webRid = roomData["data"]["room"]["owner"]["web_rid"].toString();
-
-    // 读取用户唯一ID，用于弹幕连接
-    // 似乎这个参数不是必须的，先随机生成一个
-    //var userUniqueId = await _getUserUniqueId(webRid);
-    var userUniqueId = generateRandomNumber(12).toString();
-
-    var room = roomData["data"]["room"];
-    var owner = room["owner"];
+    var owner = _asMap(room["owner"]) ?? const {};
+    var webRid = owner["web_rid"]?.toString() ?? "";
 
     var status = asT<int?>(room["status"]) ?? 0;
 
     // roomId是一次性的，用户每次重新开播都会生成一个新的roomId
     // 所以如果roomId对应的直播间状态不是直播中，就通过webRid获取直播间信息
     if (status == 4) {
+      if (webRid.isEmpty) {
+        throw CoreError("抖音直播间数据异常，未能获取主播 webRid");
+      }
       var result = await getRoomDetailByWebRid(webRid);
       return result;
     }
@@ -576,26 +608,49 @@ class DouyinSite implements LiveSite {
     // 主要是为了获取cookie,用于弹幕websocket连接
     var headers = await getRequestHeaders();
 
+    return _buildDetailFromReflowRoom(
+      room: room,
+      roomId: roomId,
+      headers: headers,
+    );
+  }
+
+  /// 用 reflow/info 的 room 数据组装 [LiveRoomDetail]。
+  ///
+  /// [getRoomDetailByRoomId]（19 位 roomId 直连）与 [_getDetailByWebRidApi]
+  /// 里的降级补救共用这一段，保证两条链路出来的字段口径一致。
+  LiveRoomDetail _buildDetailFromReflowRoom({
+    required Map room,
+    required String roomId,
+    required Map<String, dynamic> headers,
+  }) {
+    var owner = _asMap(room["owner"]) ?? const {};
+    var webRid = owner["web_rid"]?.toString() ?? "";
+    var roomStatus = (asT<int?>(room["status"]) ?? 0) == 2;
+
     return LiveRoomDetail(
-      roomId: webRid,
-      title: room["title"].toString(),
-      cover: roomStatus ? room["cover"]["url_list"][0].toString() : "",
-      userName: owner["nickname"].toString(),
-      userAvatar: owner["avatar_thumb"]["url_list"][0].toString(),
+      roomId: webRid.isEmpty ? roomId : webRid,
+      title: room["title"]?.toString() ?? "",
+      cover: roomStatus ? _firstUrl(room["cover"]) : "",
+      userName: owner["nickname"]?.toString() ?? "",
+      userAvatar: _firstUrl(owner["avatar_thumb"]),
       online: roomStatus
-          ? asT<int?>(room["room_view_stats"]["display_value"]) ?? 0
+          ? asT<int?>(_asMap(room["room_view_stats"])?["display_value"]) ?? 0
           : 0,
       status: roomStatus,
       url: "https://live.douyin.com/$webRid",
-      introduction: owner["signature"].toString(),
+      introduction: owner["signature"]?.toString() ?? "",
       notice: "",
       danmakuData: DouyinDanmakuArgs(
         webRid: webRid,
         roomId: roomId,
-        userId: userUniqueId,
-        cookie: headers["cookie"],
+        userId: generateRandomNumber(12).toString(),
+        // getRequestHeaders 拿不到 ttwid 时 cookie 键不存在，
+        // 这里给空串兜底：DouyinDanmakuArgs.cookie 是非空 String，
+        // 传 null 会抛 type 'Null' is not a subtype of type 'String'
+        cookie: headers["cookie"] ?? "",
       ),
-      data: room["stream_url"],
+      data: roomStatus ? (_asMap(room["stream_url"]) ?? const {}) : const {},
     );
   }
 
@@ -618,46 +673,99 @@ class DouyinSite implements LiveSite {
   Future<LiveRoomDetail> _getRoomDetailByWebRidApi(String webRid) async {
     // 读取房间信息
     var data = await _getRoomDataByApi(webRid);
-    var roomData = data["data"][0];
-    var userData = data["user"];
-    var roomId = roomData["id_str"].toString();
+
+    // 被风控拦下时整个 data 会缺字段，直接交给网页版兜底，
+    // 不能让它带着 null 往下走（否则报 NoSuchMethodError，用户看不懂）
+    var roomList = _asMap(data)?["data"];
+    if (roomList is! List || roomList.isEmpty || roomList.first is! Map) {
+      throw CoreError("抖音进房接口未返回房间数据");
+    }
+    var roomData = roomList.first as Map;
+    var userData = _asMap(_asMap(data)?["user"]) ?? const {};
+    var roomId = roomData["id_str"]?.toString() ?? "";
 
     // 读取用户唯一ID，用于弹幕连接
     // 似乎这个参数不是必须的，先随机生成一个
     //var userUniqueId = await _getUserUniqueId(webRid) ;
     var userUniqueId = generateRandomNumber(12).toString();
 
-    var owner = roomData["owner"];
+    var owner = _asMap(roomData["owner"]) ?? const {};
 
     var roomStatus = (asT<int?>(roomData["status"]) ?? 0) == 2;
+
+    var streamData = _asMap(roomData["stream_url"]) ?? const {};
+
+    // web/enter 对连麦 / 多人连线房间会返回「降级骨架」：room 数据在，
+    // 但 status 不是 2、也没有 stream_url。首页 / 推荐 / 关注列表下发的
+    // roomId 都是 webRid，全都走这条链路，所以这里必须补救，否则这些入口
+    // 进连麦房间会被判成「未开播」（本次修复的目标就落空了）。
+    //
+    // 用 enter 返回的 roomId 再查一次 reflow/info 并**整体采信**它的结果
+    // （那里能拿到 status / stream_url / 画质列表）。不能图省事调
+    // getRoomDetailByRoomId：它在 status==4 时会回调 getRoomDetailByWebRid，
+    // 这里又在 getRoomDetailByWebRid 里，会形成无限递归。
+    if (streamData.isEmpty && roomId.isNotEmpty) {
+      final reflowRoom = await _getReflowRoom(roomId);
+      final reflowStream = _asMap(reflowRoom?["stream_url"]) ?? const {};
+      if (reflowRoom != null && reflowStream.isNotEmpty) {
+        // 主要是为了获取cookie,用于弹幕websocket连接
+        var headers = await getRequestHeaders();
+        return _buildDetailFromReflowRoom(
+          room: reflowRoom,
+          roomId: roomId,
+          headers: headers,
+        );
+      }
+    }
 
     // 主要是为了获取cookie,用于弹幕websocket连接
     var headers = await getRequestHeaders();
     return LiveRoomDetail(
       roomId: webRid,
-      title: roomData["title"].toString(),
-      cover: roomStatus ? roomData["cover"]["url_list"][0].toString() : "",
+      title: roomData["title"]?.toString() ?? "",
+      cover: roomStatus ? _firstUrl(roomData["cover"]) : "",
       userName: roomStatus
-          ? owner["nickname"].toString()
-          : userData["nickname"].toString(),
+          ? owner["nickname"]?.toString() ?? ""
+          : userData["nickname"]?.toString() ?? "",
       userAvatar: roomStatus
-          ? owner["avatar_thumb"]["url_list"][0].toString()
-          : userData["avatar_thumb"]["url_list"][0].toString(),
+          ? _firstUrl(owner["avatar_thumb"])
+          : _firstUrl(userData["avatar_thumb"]),
       online: roomStatus
-          ? asT<int?>(roomData["room_view_stats"]["display_value"]) ?? 0
+          ? asT<int?>(_asMap(roomData["room_view_stats"])?["display_value"]) ?? 0
           : 0,
       status: roomStatus,
       url: "https://live.douyin.com/$webRid",
-      introduction: owner?["signature"]?.toString() ?? "",
+      introduction: owner["signature"]?.toString() ?? "",
       notice: "",
       danmakuData: DouyinDanmakuArgs(
         webRid: webRid,
         roomId: roomId,
         userId: userUniqueId,
-        cookie: headers["cookie"],
+        // getRequestHeaders 拿不到 ttwid 时 cookie 键不存在，
+        // 这里给空串兜底：DouyinDanmakuArgs.cookie 是非空 String，
+        // 传 null 会抛 type 'Null' is not a subtype of type 'String'
+        cookie: headers["cookie"] ?? "",
       ),
-      data: roomStatus ? roomData["stream_url"] : {},
+      data: roomStatus ? streamData : const {},
     );
+  }
+
+  /// 按 roomId 从 reflow/info 取房间数据，取不到（下播骨架 / 风控）返回 null。
+  ///
+  /// web/enter 对连麦 / 多人连线房间会返回降级骨架，同一个房间用
+  /// reflow/info 则能拿到完整数据（status / stream_url / 画质列表）。
+  Future<Map?> _getReflowRoom(String roomId) async {
+    try {
+      var roomData = await _getRoomDataByRoomId(roomId);
+      var room = _asMap(_asMap(roomData)?["data"])?["room"];
+      if (room is! Map || room.isEmpty) {
+        return null;
+      }
+      return room;
+    } catch (e) {
+      CoreLog.error(e);
+      return null;
+    }
   }
 
   /// 通过WebRid访问直播间网页，从网页HTML中获取直播间信息
@@ -665,13 +773,24 @@ class DouyinSite implements LiveSite {
   /// - 返回直播间信息
   Future<LiveRoomDetail> _getRoomDetailByWebRidHtml(String webRid) async {
     var roomData = await _getRoomDataByHtml(webRid);
-    var roomId = roomData["roomStore"]["roomInfo"]["room"]["id_str"].toString();
-    var userUniqueId =
-        roomData["userStore"]["odin"]["user_unique_id"].toString();
 
-    var room = roomData["roomStore"]["roomInfo"]["room"];
-    var owner = room["owner"];
-    var anchor = roomData["roomStore"]["roomInfo"]["anchor"];
+    // 房间已下播/不存在时网页版只有骨架，roomInfo.room 是空的，
+    // 以前这里会抛 NoSuchMethodError，现在给一句能看懂的提示
+    var roomInfo = _asMap(_asMap(roomData["roomStore"])?["roomInfo"]) ?? const {};
+    var room = _asMap(roomInfo["room"]);
+    if (room == null || room.isEmpty) {
+      throw CoreError("抖音直播间数据异常，未能获取房间信息"
+          "${_errorPrompt(roomData).isEmpty ? "" : "（${_errorPrompt(roomData)}）"}");
+    }
+
+    var roomId = room["id_str"]?.toString() ?? "";
+    var userUniqueId = _asMap(_asMap(roomData["userStore"])?["odin"])
+            ?["user_unique_id"]
+            ?.toString() ??
+        generateRandomNumber(12).toString();
+
+    var owner = _asMap(room["owner"]) ?? const {};
+    var anchor = _asMap(roomInfo["anchor"]) ?? const {};
     var roomStatus = (asT<int?>(room["status"]) ?? 0) == 2;
 
     // 主要是为了获取cookie,用于弹幕websocket连接
@@ -679,29 +798,76 @@ class DouyinSite implements LiveSite {
 
     return LiveRoomDetail(
       roomId: webRid,
-      title: room["title"].toString(),
-      cover: roomStatus ? room["cover"]["url_list"][0].toString() : "",
+      title: room["title"]?.toString() ?? "",
+      cover: roomStatus ? _firstUrl(room["cover"]) : "",
       userName: roomStatus
-          ? owner["nickname"].toString()
-          : anchor["nickname"].toString(),
+          ? owner["nickname"]?.toString() ?? ""
+          : anchor["nickname"]?.toString() ?? "",
       userAvatar: roomStatus
-          ? owner["avatar_thumb"]["url_list"][0].toString()
-          : anchor["avatar_thumb"]["url_list"][0].toString(),
+          ? _firstUrl(owner["avatar_thumb"])
+          : _firstUrl(anchor["avatar_thumb"]),
       online: roomStatus
-          ? asT<int?>(room["room_view_stats"]["display_value"]) ?? 0
+          ? asT<int?>(_asMap(room["room_view_stats"])?["display_value"]) ?? 0
           : 0,
       status: roomStatus,
       url: "https://live.douyin.com/$webRid",
-      introduction: owner?["signature"]?.toString() ?? "",
+      introduction: owner["signature"]?.toString() ?? "",
       notice: "",
       danmakuData: DouyinDanmakuArgs(
         webRid: webRid,
         roomId: roomId,
         userId: userUniqueId,
-        cookie: headers["cookie"],
+        // getRequestHeaders 拿不到 ttwid 时 cookie 键不存在，
+        // 这里给空串兜底：DouyinDanmakuArgs.cookie 是非空 String，
+        // 传 null 会抛 type 'Null' is not a subtype of type 'String'
+        cookie: headers["cookie"] ?? "",
       ),
-      data: roomStatus ? room["stream_url"] : {},
+      data: roomStatus ? (_asMap(room["stream_url"]) ?? const {}) : const {},
     );
+  }
+
+  /// 安全地把动态值当成 Map 用，不是 Map 一律返回 null
+  Map? _asMap(dynamic value) => value is Map ? value : null;
+
+  /// 解析 JSON 字符串，解析失败返回 null（不抛 [FormatException]）。
+  ///
+  /// 抖音的 `stream_data` 等字段可能被风控截断成半截 JSON，一旦在这里抛
+  /// FormatException 就会逃出 `getPlayQualites`，直播间被判成「加载失败」。
+  dynamic _safeJsonDecode(String? source) {
+    if (source == null || source.isEmpty) {
+      return null;
+    }
+    try {
+      return json.decode(source);
+    } catch (e) {
+      CoreLog.error(e);
+      return null;
+    }
+  }
+
+  /// 取网页版错误信息（`detailExtra.errorPrompts`），取不到返回空串。
+  ///
+  /// 该字段常见形态是**字符串数组**而不是 Map，以前用 `_asMap(...).toString()`
+  /// 取值恒为 null，那段「（提示）」拼接是死代码。
+  String _errorPrompt(dynamic roomData) {
+    final extra = _asMap(_asMap(roomData)?["detailExtra"]);
+    final raw = extra?["errorPrompts"];
+    if (raw is String && raw.isNotEmpty) {
+      return raw;
+    }
+    if (raw is List && raw.isNotEmpty) {
+      return raw.first?.toString() ?? "";
+    }
+    return "";
+  }
+
+  /// 取 `{"url_list": ["..."]}` 结构里的第一个地址，取不到返回空串
+  String _firstUrl(dynamic value) {
+    final list = _asMap(value)?["url_list"];
+    if (list is List && list.isNotEmpty) {
+      return list.first?.toString() ?? "";
+    }
+    return "";
   }
 
   /// 读取用户的唯一ID
@@ -811,21 +977,68 @@ class DouyinSite implements LiveSite {
       {required LiveRoomDetail detail}) async {
     List<LivePlayQuality> qualities = [];
 
-    var qulityList =
-        detail.data["live_core_sdk_data"]["pull_data"]["options"]["qualities"];
-    var streamData = detail.data["live_core_sdk_data"]["pull_data"]
-            ["stream_data"]
-        .toString();
+    // 房间已下播、或进房接口被降级时 detail.data 是空 Map / 缺字段，
+    // 这里必须能安全返回空列表。以前直接下标取 live_core_sdk_data，
+    // 连麦等房间会抛 NoSuchMethodError: The method '[]' was called on null，
+    // 整个直播间直接判成「加载失败」。
+    final data = _asMap(detail.data);
+    if (data == null || data.isEmpty) {
+      return qualities;
+    }
+
+    final pullData = _asMap(_asMap(data["live_core_sdk_data"])?["pull_data"]);
+    final qulityList = _asMap(pullData?["options"])?["qualities"];
+    var streamData = pullData?["stream_data"]?.toString() ?? "";
+
+    if (qulityList is! List || qulityList.isEmpty) {
+      // 连画质列表都没有（只有 flv/hls 地址表）：直接用地址表拼，
+      // 键名当画质名，顺序即档位高低
+      final flvMap = _asMap(data["flv_pull_url"]) ?? const {};
+      final hlsMap = _asMap(data["hls_pull_url_map"]) ?? const {};
+      final keys = <dynamic>[
+        ...flvMap.keys,
+        ...hlsMap.keys.where((k) => !flvMap.containsKey(k)),
+      ];
+      var level = keys.length;
+      for (final key in keys) {
+        final flv = flvMap[key]?.toString() ?? "";
+        final hls = hlsMap[key]?.toString() ?? "";
+        List<String> urls = [];
+        if (hlsFirst) {
+          if (hls.isNotEmpty) urls.add(hls);
+          if (flv.isNotEmpty) urls.add(flv);
+        } else {
+          if (flv.isNotEmpty) urls.add(flv);
+          if (hls.isNotEmpty) urls.add(hls);
+        }
+        if (urls.isNotEmpty) {
+          qualities.add(LivePlayQuality(
+            quality: key.toString(),
+            sort: level,
+            data: urls,
+          ));
+        }
+        level--;
+      }
+      qualities.sort((a, b) => b.sort.compareTo(a.sort));
+      return qualities;
+    }
 
     if (!streamData.startsWith('{')) {
-      var flvList =
-          (detail.data["flv_pull_url"] as Map).values.cast<String>().toList();
-      var hlsList = (detail.data["hls_pull_url_map"] as Map)
-          .values
-          .cast<String>()
+      var flvList = (_asMap(data["flv_pull_url"])?.values ?? const Iterable.empty())
+          .map((e) => e?.toString() ?? "")
+          .where((e) => e.isNotEmpty)
           .toList();
+      var hlsList =
+          (_asMap(data["hls_pull_url_map"])?.values ?? const Iterable.empty())
+              .map((e) => e?.toString() ?? "")
+              .where((e) => e.isNotEmpty)
+              .toList();
       for (var quality in qulityList) {
-        int level = quality["level"];
+        if (quality is! Map) {
+          continue;
+        }
+        int level = asT<int?>(quality["level"]) ?? 0;
         List<String> urls = [];
         var flvIndex = flvList.length - level;
         if (flvIndex >= 0 && flvIndex < flvList.length) {
@@ -836,7 +1049,7 @@ class DouyinSite implements LiveSite {
           urls.add(hlsList[hlsIndex]);
         }
         var qualityItem = LivePlayQuality(
-          quality: quality["name"],
+          quality: quality["name"]?.toString() ?? "",
           sort: level,
           data: urls,
         );
@@ -845,17 +1058,20 @@ class DouyinSite implements LiveSite {
         }
       }
     } else {
-      var qualityData = json.decode(streamData)["data"] as Map;
+      var qualityData = _asMap(_asMap(_safeJsonDecode(streamData))?["data"]);
       for (var quality in qulityList) {
+        if (quality is! Map) {
+          continue;
+        }
         List<String> urls = [];
-        var flvUrl =
-            qualityData[quality["sdk_key"]]?["main"]?["flv"]?.toString();
+        final qualityItemData = _asMap(qualityData?[quality["sdk_key"]]);
+        final mainData = _asMap(qualityItemData?["main"]);
+        var flvUrl = mainData?["flv"]?.toString();
 
         if (flvUrl != null && flvUrl.isNotEmpty) {
           urls.add(flvUrl);
         }
-        var hlsUrl =
-            qualityData[quality["sdk_key"]]?["main"]?["hls"]?.toString();
+        var hlsUrl = mainData?["hls"]?.toString();
         if (hlsUrl != null && hlsUrl.isNotEmpty) {
           if (hlsFirst) {
             urls.insert(0, hlsUrl);
@@ -864,8 +1080,8 @@ class DouyinSite implements LiveSite {
           }
         }
         var qualityItem = LivePlayQuality(
-          quality: quality["name"],
-          sort: quality["level"],
+          quality: quality["name"]?.toString() ?? "",
+          sort: asT<int?>(quality["level"]) ?? 0,
           data: urls,
         );
         if (urls.isNotEmpty) {
