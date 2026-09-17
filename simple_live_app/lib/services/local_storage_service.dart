@@ -99,6 +99,14 @@ class LocalStorageService extends GetxService {
   /// 弹幕字重
   static const String kDanmuFontWeight = "DanmuFontWeight";
 
+  /// 弹幕随屏幕缩放
+  static const String kDanmakuFontClamped = "DanmakuFontClamped";
+
+  /// 弹幕随屏蔽缩放速度比率：upSens_放大/downSens_缩小
+  static const String kDanmakuFontClampUpSens = "DanmakuFontClampUpSens";
+
+  static const String kDanmakuFontClampDownSens = "DanmakuFontClampDownSens";
+
   /// 弹幕去重参数--文本归一化
   static const String kDanmuTextNormalization = "DanmuTextNormalization";
 
@@ -235,7 +243,11 @@ class LocalStorageService extends GetxService {
   /// WebDAV_最后一次备份时间
   static const String kWebDAVLastRecoverTime = "kWebDAVLastRecoverTime";
 
-  /// windows窗口size
+  /// windows 开屏最大化
+  static const String kWindowMaxAuto = "WindowMaxAuto";
+  static const String kWindowMaxState = "WindowMaxState";
+
+  /// window窗口size
   static const String kWindowX = "WindowX";
 
   static const String kWindowY = "WindowY";
@@ -243,6 +255,15 @@ class LocalStorageService extends GetxService {
   static const String kWindowWidth = "WindowWidth";
 
   static const String kWindowHeight = "WindowHeight";
+
+  /// window小窗size
+  static const String kWindowPipX = "WindowPipX";
+
+  static const String kWindowPipY = "WindowPipY";
+
+  static const String kWindowPipWidth = "WindowPipWidth";
+
+  static const String kWindowPipHeight = "WindowPipHeight";
 
   /// 关注列表排序方法
   static const String kFollowSortMethod = "FollowSortMethod";

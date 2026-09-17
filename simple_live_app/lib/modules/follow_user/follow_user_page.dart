@@ -5,7 +5,7 @@ import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
-import 'package:simple_live_app/app/utils/duration_2_str_utils.dart';
+import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
