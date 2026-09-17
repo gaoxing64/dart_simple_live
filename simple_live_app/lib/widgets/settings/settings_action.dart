@@ -40,10 +40,7 @@ class SettingsAction extends StatelessWidget {
           if (value != null)
             Text(
               value!,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium!
-                  .copyWith(color: Colors.grey),
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.grey),
             ),
           AppStyle.hGap4,
           const Icon(

@@ -6,7 +6,7 @@
 //   - 三档阈值各取整数部分，不存在「累计观看 1.5 分钟」这种文案；
 //   - 上限不溢出（int 秒数再大也只取整小时）。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:simple_live_app/app/utils/duration_2_str_utils.dart';
+import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
 
 void main() {
   group('无观看记录', () {

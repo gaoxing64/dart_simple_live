@@ -52,7 +52,7 @@ Widget buildFullControls(
   LiveRoomController controller,
 ) {
   var padding = MediaQuery.of(videoState.context).padding;
-  GlobalKey volumeButtonkey = GlobalKey();
+  GlobalKey volumeButtonKey = GlobalKey();
   return buildDragToMoveArea(
     child: Stack(
       children: [
@@ -113,10 +113,7 @@ Widget buildFullControls(
           () => AnimatedPositioned(
             left: 0,
             right: 0,
-            top: (controller.showControlsState.value &&
-                    !controller.lockControlsState.value)
-                ? 0
-                : -(48 + padding.top),
+            top: (controller.showControlsState.value && !controller.lockControlsState.value) ? 0 : -(48 + padding.top),
             duration: const Duration(milliseconds: 200),
             child: Container(
               height: 48 + padding.top,
@@ -221,8 +218,7 @@ Widget buildFullControls(
           () => AnimatedPositioned(
             left: 0,
             right: 0,
-            bottom: (controller.showControlsState.value &&
-                    !controller.lockControlsState.value)
+            bottom: (controller.showControlsState.value && !controller.lockControlsState.value)
                 ? 0
                 : -(80 + padding.bottom),
             duration: const Duration(milliseconds: 200),
@@ -295,11 +291,9 @@ Widget buildFullControls(
                   Visibility(
                     visible: !Platform.isAndroid && !Platform.isIOS,
                     child: IconButton(
-                      key: volumeButtonkey,
-                      tooltip: "音量",
+                      key: volumeButtonKey,
                       onPressed: () {
-                        controller
-                            .showVolumeSlider(volumeButtonkey.currentContext!);
+                        controller.showVolumeSlider(volumeButtonKey.currentContext!);
                       },
                       icon: const Icon(
                         Icons.volume_down,
@@ -368,9 +362,7 @@ Widget buildFullControls(
           () => AnimatedPositioned(
             top: 0,
             bottom: 0,
-            right: controller.showControlsState.value
-                ? padding.right + 12
-                : -(64 + padding.right),
+            right: controller.showControlsState.value ? padding.right + 12 : -(64 + padding.right),
             duration: const Duration(milliseconds: 200),
             child: buildLockButton(controller),
           ),
@@ -380,9 +372,7 @@ Widget buildFullControls(
           () => AnimatedPositioned(
             top: 0,
             bottom: 0,
-            left: controller.showControlsState.value
-                ? padding.left + 12
-                : -(64 + padding.right),
+            left: controller.showControlsState.value ? padding.left + 12 : -(64 + padding.right),
             duration: const Duration(milliseconds: 200),
             child: buildLockButton(controller),
           ),
@@ -463,7 +453,7 @@ Widget buildControls(
   VideoState videoState,
   LiveRoomController controller,
 ) {
-  GlobalKey volumeButtonkey = GlobalKey();
+  GlobalKey volumeButtonKey = GlobalKey();
   return Stack(
     children: [
       Container(),
@@ -569,11 +559,10 @@ Widget buildControls(
                 Visibility(
                   visible: !Platform.isAndroid && !Platform.isIOS,
                   child: IconButton(
-                    key: volumeButtonkey,
-                    tooltip: "音量",
+                    key: volumeButtonKey,
                     onPressed: () {
                       controller.showVolumeSlider(
-                        volumeButtonkey.currentContext!,
+                        volumeButtonKey.currentContext!,
                       );
                     },
                     icon: const Icon(
@@ -674,10 +663,15 @@ Widget buildControls(
 
 Widget buildDanmuView(VideoState videoState, LiveRoomController controller) {
   var padding = MediaQuery.of(videoState.context).padding;
+  // completed: resizeDanmakuFontSize if clamped is true
+  // danmakuFontResize is temp
+  var reSize = AppSettingsController.instance.danmakuFontClamped.value
+      ? AppSettingsController.instance.danmakuFontResize
+      : AppSettingsController.instance.danmuSize.value;
   controller.danmakuView ??= DanmakuScreen(
     createdController: controller.initDanmakuController,
     option: DanmakuOption(
-      fontSize: AppSettingsController.instance.danmuSize.value,
+      fontSize: reSize,
       area: AppSettingsController.instance.danmuArea.value,
       duration: AppSettingsController.instance.danmuSpeed.value,
       opacity: AppSettingsController.instance.danmuOpacity.value,
@@ -696,8 +690,7 @@ Widget buildDanmuView(VideoState videoState, LiveRoomController controller) {
           padding: controller.fullScreenState.value
               ? EdgeInsets.only(
                   top: AppSettingsController.instance.danmuTopMargin.value,
-                  bottom:
-                      AppSettingsController.instance.danmuBottomMargin.value,
+                  bottom: AppSettingsController.instance.danmuBottomMargin.value,
                 )
               : EdgeInsets.zero,
           child: controller.danmakuView!,
@@ -919,8 +912,7 @@ void showFollowUser(LiveRoomController controller) {
                 return Obx(
                   () => FollowUserItem(
                     item: item,
-                    playing: controller.rxSite.value.id == item.siteId &&
-                        controller.rxRoomId.value == item.roomId,
+                    playing: controller.rxSite.value.id == item.siteId && controller.rxRoomId.value == item.roomId,
                     onTap: () {
                       Utils.hideRightDialog();
                       controller.resetRoom(
