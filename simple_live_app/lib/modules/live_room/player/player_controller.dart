@@ -450,10 +450,14 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       setPortraitOrientation();
     } else {
       // 退回原来的大小
-      if(windowMaxState.value) await windowManager.maximize();
-      if(_lastWindowSize != null) await windowManager.setSize(_lastWindowSize!);
-      if(_lastWindowPosition != null) await windowManager.setPosition(_lastWindowPosition!);
-      Log.d('last_window_size:${_lastWindowSize!.width}__${_lastWindowSize!.height}');
+      if (windowMaxState.value) await windowManager.maximize();
+      if (_lastWindowSize != null) {
+        await windowManager.setSize(_lastWindowSize!);
+      }
+      if (_lastWindowPosition != null) {
+        await windowManager.setPosition(_lastWindowPosition!);
+      }
+      Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
       Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
       windowManager.setFullScreen(false);
       windowManager.setTitleBarStyle(TitleBarStyle.normal);
@@ -476,7 +480,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       // 读取窗口大小
       _lastWindowSize = await windowManager.getSize();
       _lastWindowPosition = await windowManager.getPosition();
-      Log.d('last_window_size:${_lastWindowSize!.width}__${_lastWindowSize!.height}');
+      Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
       Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
       windowManager.setTitleBarStyle(TitleBarStyle.hidden);
       // 获取视频窗口大小
