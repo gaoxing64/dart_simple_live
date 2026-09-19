@@ -6,7 +6,7 @@ import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/system_ui_inset.dart';
 import 'package:simple_live_app/modules/debug/glass_debug/glass_debug_controller.dart';
-import 'package:simple_live_app/widgets/collapse_slot.dart';
+import 'package:simple_live_app/widgets/bar_collapse.dart';
 import 'package:simple_live_app/widgets/floating_navigation_bar.dart';
 
 import 'indexed_controller.dart';
@@ -96,7 +96,13 @@ class IndexedPage extends GetView<IndexedController> {
     });
   }
 
-  /// 底栏收起容器（即时=动画，同步=跟随偏移）
+  /// 底栏收起容器（即时=动画，同步=跟随偏移）。
+  ///
+  /// 收起必须**纯绘制**（[BarCollapse] 只做平移+裁剪，盒子尺寸恒定）：
+  /// 底栏处在 `Scaffold.bottomNavigationBar` 槽位里，一旦它的高度发生变化，
+  /// Scaffold 就会重新布局 body —— 而 body 是整个页面（含滚动列表）。
+  /// 同步模式下这个高度每帧都在变，等于每帧把最重的子树多排一次，安卓上直接掉帧。
+  /// 现在槽位高度恒定，Scaffold 只在真正需要时布局一次。
   Widget _buildBottomBar(Widget nav) {
     var settings = AppSettingsController.instance;
     return Obx(() {
@@ -110,21 +116,22 @@ class IndexedPage extends GetView<IndexedController> {
           tween: Tween(end: show ? 1.0 : 0.0),
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOutCubicEmphasized,
-          builder: (_, factor, child) => CollapseSlot(
+          builder: (_, factor, child) => BarCollapse(
             factor: factor,
-            alignment: Alignment.topCenter,
+            fromTop: false,
             child: child!,
           ),
           child: nav,
         );
       }
       // 同步
-      var factor =
-          1 - controller.barOffset.value / IndexedController.maxBarOffset;
-      return CollapseSlot(
-        factor: factor,
-        alignment: Alignment.topCenter,
-        child: nav,
+      return Obx(
+        () => BarCollapse(
+          factor:
+              1 - controller.barOffset.value / IndexedController.maxBarOffset,
+          fromTop: false,
+          child: nav,
+        ),
       );
     });
   }
@@ -167,9 +174,6 @@ class IndexedPage extends GetView<IndexedController> {
   Widget build(BuildContext context) {
     return Obx(() {
       final navBarStyle = AppSettingsController.instance.navBarStyle.value;
-      // 悬浮样式：内容延伸到导航栏下方（Scaffold 会把它计入 body 的
-      // MediaQuery.padding.bottom，页面自行留白即可）
-      final useFloatingNavBar = navBarStyle != 0;
       return OrientationBuilder(
         builder: (context, orientation) {
           final isLandscape = orientation == Orientation.landscape;
@@ -177,8 +181,14 @@ class IndexedPage extends GetView<IndexedController> {
           // 底部导航栏）就左右切换——滑动方向始终与导航栏所在位置一致。
           final axis = isLandscape ? Axis.vertical : Axis.horizontal;
           return Scaffold(
-            extendBody:
-                orientation == Orientation.portrait && useFloatingNavBar,
+            // 竖屏下 body 一律延伸到导航栏下方（两种导航栏样式都是）：
+            // * 底栏收起是纯绘制的平移，槽位高度恒定（见 [_buildBottomBar]），
+            //   而 `extendBody` 让 body 的约束不再依赖底栏高度 —— 两者合起来
+            //   保证同步模式下底栏每帧变化**不会**触发 body 重排；
+            // * 底栏滑出后，让出的那条空间由内容（列表）自己补上，而不是露出底色。
+            // 底栏高度会通过 MediaQuery.padding.bottom 传给页面，列表自己留白
+            // （`PageGridView.floatingBarInsetOf` / 各页显式 padding）。
+            extendBody: orientation == Orientation.portrait,
             body: NotificationListener<ScrollNotification>(
               onNotification: controller.onScrollNotification,
               child: Row(

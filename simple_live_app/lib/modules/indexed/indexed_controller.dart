@@ -139,6 +139,11 @@ class IndexedController extends GetxController {
     var value = barOffset.value + delta;
     if (value < 0) value = 0;
     if (value > maxBarOffset) value = maxBarOffset;
+    // 走到头之后手指还在动：值不变就别写 Rx —— 写入会唤醒两个 Obx，
+    // 白白多做一轮重建（夹紧后这种情况在快速滑到底时很常见）。
+    if (value == barOffset.value) {
+      return;
+    }
     barOffset.value = value;
   }
 
