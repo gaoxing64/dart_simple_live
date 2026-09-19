@@ -297,8 +297,13 @@ class AppStyle {
   ///
   /// 退出全屏后部分设备不会再上报恢复后的系统栏高度，直接用
   /// [MediaQueryData.padding] 会让底部按钮压在导航条下，见 [SystemUiBottomInset]。
-  static double get bottomBarHeight {
-    final mediaQuery = MediaQuery.of(Get.context!);
+  ///
+  /// **必须传调用方自己的 [context]**：这样该 widget 才会对
+  /// `MediaQuery` 建立依赖，平台补报 insets 时能自动重建、自己恢复
+  /// （早前用 `Get.context` 时依赖注册在根 element 上，页面不会重建，
+  /// 底部避让会一直停在错误值上，只能靠触摸/侧滑等外部事件把页面叫醒）。
+  static double bottomBarHeightOf(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
     return SystemUiBottomInset.resolve(
       mediaQuery.padding.bottom,
       systemBar: mediaQuery.viewPadding.bottom,

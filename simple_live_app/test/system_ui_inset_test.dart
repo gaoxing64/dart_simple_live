@@ -72,11 +72,47 @@ void main() {
         24);
     expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
         24);
-    // 平台恢复上报：立刻回到平台值，记忆值不再生效
+    // 平台恢复上报：立刻回到平台值
     expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
         24);
+    // 刚变回 0 时先去抖，仍用记忆值兜底
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
+        24);
+    // 平台持续不上报（超过去抖窗口）才清空记忆值
+    SystemUiBottomInset.clearDelay = Duration.zero;
     expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
         0);
+    expect(SystemUiBottomInset.remembered, 0);
+  });
+
+  test('退出全屏过渡期的 0 不会清空记忆值（MIX 3 实测时序）', () {
+    // 竖屏进全屏前平台上报 24（手势小白条）
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
+        24);
+    SystemUiBottomInset.markHidden();
+    // 全屏中旋转到横屏，系统栏隐藏
+    SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _landscape);
+
+    SystemUiBottomInset.markRestoring();
+    // 退出瞬间仍报 0：必须走记忆值
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
+        24);
+    // 过渡期：旋转过程中平台短暂上报了一次 24，会把 awaiting 标志清掉
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
+        24);
+    // ⚠️ 紧接着又回落到 0（系统栏实际还没恢复）。
+    // 修复前这里会命中「正常状态下没有底部系统栏」分支，把 _portrait 清成 0，
+    // 底部按钮随即被导航条压住，且页面不会重建、无法自愈。
+    expect(
+      SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
+      24,
+      reason: '过渡期的 0 不得立刻清空记忆值',
+    );
+    expect(SystemUiBottomInset.remembered, 24);
+
+    // 平台补报真实高度后回到平台值
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
+        24);
   });
 
   test('键盘遮挡（系统栏仍在上报）时不兜底，也不多留白', () {
