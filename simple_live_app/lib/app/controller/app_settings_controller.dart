@@ -274,7 +274,10 @@ class AppSettingsController extends GetxController {
 
     hideOfflineFollow.value = LocalStorageService.instance.getValue(LocalStorageService.kHideOfflineFollow, false);
 
-    hideRemoveFollowButton.value = LocalStorageService.instance.getValue(LocalStorageService.kHideRemoveFollow, true);
+    // 默认**显示**快速取关按钮（`false`）。
+    // 上游默认是 `true`（隐藏），但关注页上下两段同屏时，隐藏状态下取关只能靠长按
+    // 弹底部菜单，取关路径太长（用户实测反馈）。保留开关本身，想要清爽列表的仍可自行打开。
+    hideRemoveFollowButton.value = LocalStorageService.instance.getValue(LocalStorageService.kHideRemoveFollow, false);
 
     followSnapshot = LocalStorageService.instance.getNullValue(LocalStorageService.kFollowSnapshot, null);
 
@@ -863,8 +866,8 @@ class AppSettingsController extends GetxController {
     LocalStorageService.instance.setValue(LocalStorageService.kHideOfflineFollow, e);
   }
 
-  // 隐藏隐藏快速取关按钮
-  var hideRemoveFollowButton = true.obs;
+  // 隐藏快速取关按钮。初值与 [initData] 里的读取默认值必须一致（都是 false = 显示）。
+  var hideRemoveFollowButton = false.obs;
 
   void setHideRemoveFollowButton(bool e) {
     hideRemoveFollowButton.value = e;

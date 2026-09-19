@@ -60,6 +60,24 @@ class IndexedController extends GetxController {
   static const Duration pageTransitionDuration = Duration(milliseconds: 300);
   static const Curve pageTransitionCurve = Curves.easeInOutCubicEmphasized;
 
+  /// 跳切过渡：跨多个 Tab 的切换（如「首页 → 分类」）。
+  ///
+  /// 顺序切换靠 [PageView] 整页平移；跳切不能照搬：[PageController.animateToPage]
+  /// 是逐页平移，中间那些还没实例化的位置是 `SizedBox` 占位，平移过程就是一片
+  /// 空白闪过（间隔越大空白越多）。所以跳切改用 [PageController.jumpToPage]
+  /// 瞬时定位，再由界面侧补一次短距离的「滑入 + 淡入」（`IndexedPage` 的
+  /// `_JumpTransition`），位移量与顺序切换的视差同量级，动感保持一致。
+  ///
+  /// 控制器这边只负责发信号，不碰动画：每次跳切把 [jumpTick] 加一，
+  /// 方向写进 [jumpDirection]。
+  final jumpTick = 0.obs;
+
+  /// 跳切方向：+1 = 目标在当前页之后（内容自右/下方滑入），-1 = 反向。
+  final jumpDirection = 1.obs;
+
+  /// 跳切过渡时长。位移只有顺序切换的十几分之一，用同样的 300ms 会显得拖沓。
+  static const Duration jumpTransitionDuration = Duration(milliseconds: 220);
+
   /// 顶/底栏收起：同步模式的累计偏移（0=展开，[maxBarOffset]=收起）
   final barOffset = 0.0.obs;
 
@@ -176,10 +194,14 @@ class IndexedController extends GetxController {
     // 部的 TabBarView、列表滚动抢同一根轴。
     if (pageController.hasClients) {
       // 跨多个 Tab 时直接跳：animateToPage 会逐页平移，中间那些还没实例化
-      // 的占位页（SizedBox）会以空白形式闪过。
+      // 的占位页（SizedBox）会以空白形式闪过。动静由界面侧的跳切过渡补上，
+      // 见 [jumpTick] 的说明。
       final current = pageController.page?.round() ?? i;
       if ((current - i).abs() > 1) {
+        // 先写方向再发 tick：监听方读到的方向一定是本次跳切的
+        jumpDirection.value = i > current ? 1 : -1;
         pageController.jumpToPage(i);
+        jumpTick.value++;
       } else {
         pageController.animateToPage(
           i,

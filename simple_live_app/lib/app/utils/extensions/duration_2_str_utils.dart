@@ -34,8 +34,8 @@ extension DurationExtensions on Duration {
 /// 不足一小时退到分钟、不足一分钟退到秒 —— 直接取整小时会出现
 /// 「累计观看 0 小时」这种没有意义的文案。
 ///
-/// 直播卡片（`LiveRoomCard`）和关注页下段的紧凑行（`FollowUserPage` 的
-/// `_OfflineRow`）**共用这一个函数**，别在两处各写一份。
+/// 关注页下段的紧凑行（`FollowUserPage` 的 `_OfflineRow`）用它。
+/// ⚠️ 上段 `LiveRoomCard` **不再**显示累计观看时长（用户要求），别再加回去。
 /// 「无观看记录」的规则也收敛在这里：返回空串由调用方决定是否显示，
 /// 不要再各写一份 `> 0` 守卫（关注一个新主播就是 0，很容易命中）。
 String watchDurationText(int seconds) {

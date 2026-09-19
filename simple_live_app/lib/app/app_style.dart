@@ -37,6 +37,20 @@ class AppStyle {
       listTileTheme: ListTileThemeData(
         shape: RoundedRectangleBorder(borderRadius: AppStyle.radius8),
       ),
+      // 弹出菜单（`PopupMenuButton`）换成 M3 Expressive 的大圆角容器。
+      //
+      // MD3 baseline 是 **4dp**（`_PopupMenuDefaultsM3.shape`，等于形状刻度里的
+      // extraSmall）；M3 Expressive 把菜单容器改成了圆角。这里取形状刻度里的
+      // **large = 16dp**（刻度：none 0 / extraSmall 4 / small 8 / medium 12 /
+      // large 16 / extraLarge 28 / full 50%）。
+      //
+      // 放在主题里统一给 ⇒ 全 App 的弹出菜单一起变，避免又出现「一处圆一处方」。
+      // 注意这里只改**容器**圆角；菜单项的 hover 高亮形状 `PopupMenuItem` 里
+      // 不可配（内部是裸 `InkWell`），已用 `AppPopupMenuItem` 自己实现
+      // 「内缩 8dp + 同刻度大圆角」——写新菜单时请一律用它，别用官方那个。
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(borderRadius: AppStyle.radius16),
+      ),
       appBarTheme: AppBarTheme(
         //elevation: 0,
         centerTitle: true,
@@ -81,6 +95,11 @@ class AppStyle {
       // 详见 `light()` 里的说明。
       listTileTheme: ListTileThemeData(
         shape: RoundedRectangleBorder(borderRadius: AppStyle.radius8),
+      ),
+      // 同浅色主题：弹出菜单统一用 M3 Expressive 的大圆角容器（16dp）。
+      // 不这么写深浅两套就会不一致 —— 详见 `light()` 里的说明。
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(borderRadius: AppStyle.radius16),
       ),
       textTheme: ThemeData.dark().textTheme.apply(
             fontFamily: fontFamily,
@@ -129,6 +148,54 @@ class AppStyle {
       // ),
     );
   }
+
+  /// 圆形图标按钮的统一直径。
+  ///
+  /// 指的是**高亮 / 水波纹圆的尺寸**，不是点击热区 —— 热区仍由
+  /// `MaterialTapTargetSize.padded` 撑到 48dp（视觉 40、热区 48，和 M3 一致）。
+  /// 要整体调大调小只改这一个数。
+  static const double kIconButtonSize = 40;
+
+  /// 圆形图标按钮的统一规格：形状、尺寸、hover / 按压 / 聚焦反馈完全一致。
+  ///
+  /// **为什么必须显式传给按钮、不能只靠 `ThemeData.iconButtonTheme`**：
+  /// `AppBar` 在 M3 下会**重建** leading / actions 的 `IconButtonTheme`
+  /// （`material/app_bar.dart:1019-1046`、`:1119-1138`）。本项目设了
+  /// `appBarTheme.foregroundColor` 与 `titleTextStyle.color`，于是
+  /// `overallIconTheme != defaults.iconTheme` 恒成立 ⇒ 它走 else 分支，用
+  /// `IconButton.styleFrom(foregroundColor: …)` **把 overlayColor 覆盖掉**。
+  /// 所以只改主题里的 overlay 对顶栏按钮无效，必须显式给按钮传 `style:`。
+  /// （`PopupMenuButton` 内部会把 `style` 透传给它的 `IconButton`，同样吃得进去。）
+  ///
+  /// ⚠️ **第二个坑**：别再给单个按钮叠
+  /// `visualDensity: VisualDensity.compact` + `padding: EdgeInsets.zero`
+  /// + `constraints: BoxConstraints()` 这套压缩组合 —— 它会把高亮压到
+  /// **16dp**（`compact` 在 24dp 图标上又减 8），关注页下段行尾的取关按钮
+  /// 曾经就是这样，几乎看不见。要更紧凑请改 [kIconButtonSize]。
+  static ButtonStyle iconButtonStyle(ColorScheme scheme) => ButtonStyle(
+        shape: const WidgetStatePropertyAll(CircleBorder()),
+        minimumSize: const WidgetStatePropertyAll(
+          Size.square(kIconButtonSize),
+        ),
+        // padding 归零：尺寸完全由 minimumSize 决定，图标在 40dp 里居中
+        // （24dp 图标四周各 8dp）。保留默认的 `all(8)` 会让「40 = 24+8+8」
+        // 与 minimumSize 两套算法互相打架，改图标尺寸时行为就漂了。
+        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+        // 显式钉住密度，免得某个祖先的 compact density 把尺寸又缩回去。
+        visualDensity: VisualDensity.standard,
+        // 与 M3 标准 IconButton 严格一致（`_IconButtonDefaultsM3.overlayColor`）：
+        // hover 8%、pressed / focused 10%，颜色取 `onSurfaceVariant`。
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.focused)) {
+            return scheme.onSurfaceVariant.withValues(alpha: 0.1);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return scheme.onSurfaceVariant.withValues(alpha: 0.08);
+          }
+          return null;
+        }),
+      );
 
   static const vGap4 = SizedBox(
     height: 4,
@@ -218,6 +285,7 @@ class AppStyle {
   static BorderRadius radius4 = BorderRadius.circular(4);
   static BorderRadius radius8 = BorderRadius.circular(8);
   static BorderRadius radius12 = BorderRadius.circular(12);
+  static BorderRadius radius16 = BorderRadius.circular(16);
   static BorderRadius radius24 = BorderRadius.circular(24);
   static BorderRadius radius32 = BorderRadius.circular(32);
   static BorderRadius radius48 = BorderRadius.circular(48);

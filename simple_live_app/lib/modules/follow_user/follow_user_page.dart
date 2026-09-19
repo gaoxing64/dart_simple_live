@@ -11,11 +11,13 @@ import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/services/follow_service.dart';
+import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
 import 'package:simple_live_app/widgets/filter_button.dart';
 import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
 import 'package:simple_live_app/widgets/live_room_card.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
+import 'package:simple_live_app/widgets/collapsible_top_bar_scaffold.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 
 class FollowUserPage extends GetView<FollowUserController> {
@@ -35,215 +37,240 @@ class FollowUserPage extends GetView<FollowUserController> {
     if (c < 2) {
       c = 2;
     }
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("关注用户"),
-        actions: [
-          PopupMenuButton(
-            itemBuilder: (context) {
-              return const [
-                PopupMenuItem(
-                  value: 0,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Remix.trophy_line),
-                      AppStyle.hGap12,
-                      Text("赛事订阅"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 2,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Remix.sort_asc),
-                      AppStyle.hGap12,
-                      Text("按序排列"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 4,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Remix.heart_line),
-                      AppStyle.hGap12,
-                      Text("关注设置"),
-                    ],
-                  ),
-                ),
-              ];
-            },
-            onSelected: (value) {
-              if (value == 4) {
-                Get.toNamed(RoutePath.kSettingsFollow);
-              } else if (value == 0) {
-                SmartDialog.showToast("此功能暂未开放！敬请期待！");
-              } else if (value == 2) {
-                controller.showSortDialog();
-              }
-            },
-          ),
-        ],
-        leading: Obx(
-          () => FollowService.instance.updating.value
-              ? const IconButton(
-                  tooltip: "刷新中",
-                  onPressed: null,
-                  icon: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  ),
-                )
-              : IconButton(
-                  tooltip: "刷新",
-                  onPressed: () {
-                    controller.refreshData();
-                  },
-                  icon: const Icon(Icons.refresh),
-                ),
-        ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 搜索框。**放在 Obx 外面** —— 它自己不订阅数据，放进 Obx 会在列表
-          // 刷新时被重建，正在输入的内容和焦点都会丢。
-          Padding(
-            padding: AppStyle.edgeInsetsA12.copyWith(top: 4, bottom: 0),
-            child: TextField(
-              controller: controller.searchController,
-              onChanged: (v) => controller.searchQuery.value = v,
-              decoration: InputDecoration(
-                hintText: "搜索关注的主播",
-                prefixIcon: const Icon(Icons.search),
-                // 清空按钮：有内容时才出现。
-                // **只把这一小块包进 Obx** —— 整个 TextField 是刻意放在外层 Obx
-                // 之外的（见上面的注释），整个塞进去会在列表刷新时重建、丢焦点。
-                suffixIcon: Obx(
-                  () => controller.searchQuery.value.isEmpty
-                      ? const SizedBox.shrink()
-                      : IconButton(
-                          tooltip: "清空",
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            controller.searchController.clear();
-                            controller.searchQuery.value = "";
-                          },
-                        ),
-                ),
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: AppStyle.radius24,
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-              ),
-            ),
-          ),
-          // 3 个内置标签（滚动锚点）+ 自定义标签（筛选）。要计数，所以在 Obx 里。
-          Obx(() {
-            final live = controller.liveSection.length;
-            final offline = controller.offlineSection.length;
-            return _AnchorTabBar(
-              controller: controller,
-              liveCount: live,
-              counts: [live + offline, live, offline],
-              // 直接复用 build 顶部算好的 c：_sectionTop(2) 的几何反推依赖
-              // 这里的列数**必须等于**下段实际渲染的 GridSection.crossAxisCount，
-              // 两份各写一份公式迟早会改漏一处。
-              cardColumns: c,
-            );
-          }),
-          Obx(
-            () {
-              final hide =
-                  AppSettingsController.instance.hideRemoveFollowButton.value;
-              final live = controller.liveSection;
-              final offline = controller.offlineSection;
-              return Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
+    // 关注页上所有圆形图标按钮（顶栏刷新 / 顶栏更多菜单 / 搜索框清空 /
+    // 下段行尾取关）共用这一份规格，hover 与按压反馈因此完全一致。
+    // 为什么不放进主题统一给：见 `AppStyle.iconButtonStyle` 的注释。
+    final iconButtonStyle = AppStyle.iconButtonStyle(
+      Theme.of(context).colorScheme,
+    );
+    return CollapsibleTopBarScaffold(
+      appBar: _buildAppBar(iconButtonStyle),
+      body: _buildBody(iconButtonStyle, count, c),
+    );
+  }
+
+  /// 顶栏：标题 + 刷新按钮 + 更多菜单。
+  ///
+  /// 之前直接 `Scaffold(appBar: AppBar(...))`，顶栏固定不可收起；现在改用
+  /// [CollapsibleTopBarScaffold]，顶栏在「滑动收起」开启后跟随滑动收起/展开。
+  PreferredSizeWidget _buildAppBar(ButtonStyle iconButtonStyle) {
+    return AppBar(
+      title: const Text("关注用户"),
+      actions: [
+        PopupMenuButton(
+          style: iconButtonStyle,
+          itemBuilder: (context) {
+            // 用自己的 item：官方 `PopupMenuItem` 的 hover 高亮是满宽矩形，
+            // 与菜单容器的大圆角对不上。详见 `AppPopupMenuItem`。
+            return const [
+              AppPopupMenuItem(
+                value: 0,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    KeepAliveWrapper(
-                      child: PageGridView(
-                        pageController: controller,
-                        padding: AppStyle.edgeInsetsA12,
-                        firstRefresh: true,
-                        // 段与段之间的竖直间距；段内的行距由各段自己的
-                        // mainAxisSpacing 管。
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        sections: [
-                          // 上段：正在直播，走卡片网格。
-                          GridSection(
-                            header:
-                                _SectionHeader(live: true, count: live.length),
-                            crossAxisCount: c,
-                            itemExtent: PageGridView.kDefaultItemExtent,
-                            itemCount: live.length,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            itemBuilder: (_, i) => _buildLiveCard(live[i], hide),
-                          ),
-                          // 下段：未开播（含读取中），走紧凑行。列数沿用紧凑模式
-                          // 原来的 width ~/ 500，行因此比上面的卡片宽。
-                          GridSection(
-                            header: _SectionHeader(
-                              live: false,
-                              count: offline.length,
-                              // 段头这句排序说明**必须反映真实的排序方式** ——
-                              // 设计稿写的是「按最近开播时间排序」，但 `SortMethod`
-                              // 里根本没有这一项，照抄就是在骗用户。
-                              sortLabel:
-                                  controller.sortMap[controller.sortMethod.value],
-                            ),
-                            crossAxisCount: count,
-                            itemExtent: _kCompactRowExtent,
-                            itemCount: offline.length,
-                            mainAxisSpacing: 4,
-                            crossAxisSpacing: 12,
-                            itemBuilder: (_, i) =>
-                                _buildOfflineRow(offline[i], hide),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // 搜索没匹配到任何关注时的提示。
-                    //
-                    // ⚠️ **必须叠在列表之上，不能取代它** —— 取代它会让
-                    // `PageGridView` 不被构建，而它内部的
-                    // `EasyRefresh(refreshOnStart: true)` 正是首次进入时
-                    // 唯一拉数据的入口。一旦被跳过，`refreshOnStart` 永不触发，
-                    // 页面首次进入就永远停在空态、只能靠手动点刷新
-                    // （2026-09-15 实测踩过，见 memory）。
-                    //
-                    // 只在「有搜索词」时提示：列表真的空是「还没加载完」，
-                    // 那种情况由 `PageGridView` 自己的空态/加载浮层负责。
-                    //
-                    // ⚠️ 必须同时排除「正在加载」：首次进入的 refreshOnStart
-                    // 与下拉刷新都会先清空 list 再拉，只判空会在刷新过程中
-                    // 闪现这条提示（还可能和加载浮层叠在一起）。
-                    // 列表本身为空时也不提示（空态交给 PageGridView）。
-                    if (live.isEmpty &&
-                        offline.isEmpty &&
-                        !controller.pageLoadding.value &&
-                        controller.list.isNotEmpty &&
-                        controller.searchQuery.value.trim().isNotEmpty)
-                      const Center(child: Text("没有匹配的关注")),
+                    Icon(Remix.trophy_line),
+                    AppStyle.hGap12,
+                    Text("赛事订阅"),
                   ],
                 ),
-              );
-            },
-          ),
-        ],
+              ),
+              AppPopupMenuItem(
+                value: 2,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Remix.sort_asc),
+                    AppStyle.hGap12,
+                    Text("按序排列"),
+                  ],
+                ),
+              ),
+              AppPopupMenuItem(
+                value: 4,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Remix.heart_line),
+                    AppStyle.hGap12,
+                    Text("关注设置"),
+                  ],
+                ),
+              ),
+            ];
+          },
+          onSelected: (value) {
+            if (value == 4) {
+              Get.toNamed(RoutePath.kSettingsFollow);
+            } else if (value == 0) {
+              SmartDialog.showToast("此功能暂未开放！敬请期待！");
+            } else if (value == 2) {
+              controller.showSortDialog();
+            }
+          },
+        ),
+      ],
+      leading: Obx(
+        () => FollowService.instance.updating.value
+            ? IconButton(
+                style: iconButtonStyle,
+                tooltip: "刷新中",
+                onPressed: null,
+                icon: const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                ),
+              )
+            : IconButton(
+                style: iconButtonStyle,
+                tooltip: "刷新",
+                onPressed: () {
+                  controller.refreshData();
+                },
+                icon: const Icon(Icons.refresh),
+              ),
       ),
+    );
+  }
+
+  Widget _buildBody(
+      ButtonStyle iconButtonStyle, int count, int c) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 搜索框。**放在 Obx 外面** —— 它自己不订阅数据，放进 Obx 会在列表
+        // 刷新时被重建，正在输入的内容和焦点都会丢。
+        Padding(
+          padding: AppStyle.edgeInsetsA12.copyWith(top: 4, bottom: 0),
+          child: TextField(
+            controller: controller.searchController,
+            onChanged: (v) => controller.searchQuery.value = v,
+            decoration: InputDecoration(
+              hintText: "搜索关注的主播",
+              prefixIcon: const Icon(Icons.search),
+              // 清空按钮：有内容时才出现。
+              // **只把这一小块包进 Obx** —— 整个 TextField 是刻意放在外层 Obx
+              // 之外的（见上面的注释），整个塞进去会在列表刷新时重建、丢焦点。
+              suffixIcon: Obx(
+                () => controller.searchQuery.value.isEmpty
+                    ? const SizedBox.shrink()
+                    : IconButton(
+                        style: iconButtonStyle,
+                        tooltip: "清空",
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          controller.searchController.clear();
+                          controller.searchQuery.value = "";
+                        },
+                      ),
+              ),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: AppStyle.radius24,
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+            ),
+          ),
+        ),
+        // 3 个内置标签（滚动锚点）+ 自定义标签（筛选）。要计数，所以在 Obx 里。
+        Obx(() {
+          final live = controller.liveSection.length;
+          final offline = controller.offlineSection.length;
+          return _AnchorTabBar(
+            controller: controller,
+            liveCount: live,
+            counts: [live + offline, live, offline],
+            // 直接复用 build 顶部算好的 c：_sectionTop(2) 的几何反推依赖
+            // 这里的列数**必须等于**下段实际渲染的 GridSection.crossAxisCount，
+            // 两份各写一份公式迟早会改漏一处。
+            cardColumns: c,
+          );
+        }),
+        Obx(
+          () {
+            final hide =
+                AppSettingsController.instance.hideRemoveFollowButton.value;
+            final live = controller.liveSection;
+            final offline = controller.offlineSection;
+            return Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  KeepAliveWrapper(
+                    child: PageGridView(
+                      pageController: controller,
+                      padding: AppStyle.edgeInsetsA12,
+                      firstRefresh: true,
+                      // 段与段之间的竖直间距；段内的行距由各段自己的
+                      // mainAxisSpacing 管。
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      sections: [
+                        // 上段：正在直播，走卡片网格。
+                        GridSection(
+                          header:
+                              _SectionHeader(live: true, count: live.length),
+                          crossAxisCount: c,
+                          itemExtent: PageGridView.kDefaultItemExtent,
+                          itemCount: live.length,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          itemBuilder: (_, i) => _buildLiveCard(live[i]),
+                        ),
+                        // 下段：未开播（含读取中），走紧凑行。列数沿用紧凑模式
+                        // 原来的 width ~/ 500，行因此比上面的卡片宽。
+                        GridSection(
+                          header: _SectionHeader(
+                            live: false,
+                            count: offline.length,
+                            // 段头这句排序说明**必须反映真实的排序方式** ——
+                            // 设计稿写的是「按最近开播时间排序」，但 `SortMethod`
+                            // 里根本没有这一项，照抄就是在骗用户。
+                            sortLabel:
+                                controller.sortMap[controller.sortMethod.value],
+                          ),
+                          crossAxisCount: count,
+                          itemExtent: _kCompactRowExtent,
+                          itemCount: offline.length,
+                          mainAxisSpacing: 4,
+                          crossAxisSpacing: 12,
+                          itemBuilder: (_, i) =>
+                              _buildOfflineRow(offline[i], hide),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 搜索没匹配到任何关注时的提示。
+                  //
+                  // ⚠️ **必须叠在列表之上，不能取代它** —— 取代它会让
+                  // `PageGridView` 不被构建，而它内部的
+                  // `EasyRefresh(refreshOnStart: true)` 正是首次进入时
+                  // 唯一拉数据的入口。一旦被跳过，`refreshOnStart` 永不触发，
+                  // 页面首次进入就永远停在空态、只能靠手动点刷新
+                  // （2026-09-15 实测踩过，见 memory）。
+                  //
+                  // 只在「有搜索词」时提示：列表真的空是「还没加载完」，
+                  // 那种情况由 `PageGridView` 自己的空态/加载浮层负责。
+                  //
+                  // ⚠️ 必须同时排除「正在加载」：首次进入的 refreshOnStart
+                  // 与下拉刷新都会先清空 list 再拉，只判空会在刷新过程中
+                  // 闪现这条提示（还可能和加载浮层叠在一起）。
+                  // 列表本身为空时也不提示（空态交给 PageGridView）。
+                  if (live.isEmpty &&
+                      offline.isEmpty &&
+                      !controller.pageLoadding.value &&
+                      controller.list.isNotEmpty &&
+                      controller.searchQuery.value.trim().isNotEmpty)
+                    const Center(child: Text("没有匹配的关注")),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -254,7 +281,13 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 紧凑段的行高。`_OfflineRow` 是 48 头像 + 两行文字，上下各留 16 ⇒ 80 正好。
   static const double _kCompactRowExtent = 80;
 
-  Widget _buildLiveCard(FollowUser item, bool hideRemove) {
+  /// 「正在直播」那一段的卡面。
+  ///
+  /// **不挂取关按钮、也不带累计观看时长**（用户要求）：卡面只负责吸引点击进直播间，
+  /// 「时长统计」与「取关」两件事统一收在下段的紧凑行里。所以这里既不传
+  /// `watchDurationSec`，也不传 `onFollowRemove` —— 直播中的主播要取关，
+  /// 走「点卡片 → 直播间 → 取消关注」。
+  Widget _buildLiveCard(FollowUser item) {
     final site = Sites.allSites[item.siteId]!;
     return LiveRoomCard(
       site,
@@ -265,8 +298,6 @@ class FollowUserPage extends GetView<FollowUserController> {
         userName: item.userName,
         online: item.online.value,
       ),
-      watchDurationSec: item.watchDurationSec,
-      onFollowRemove: hideRemove ? null : () => controller.removeFollow(item),
       onLongPress: () => controller.showBottomMenu(item),
     );
   }
@@ -274,7 +305,8 @@ class FollowUserPage extends GetView<FollowUserController> {
   Widget _buildOfflineRow(FollowUser item, bool hideRemove) {
     return _OfflineRow(
       item: item,
-      // 和上段卡片同一个开关：两段同屏显示时，取关按钮不能一段显一段隐。
+      // 取关按钮**只在这段紧凑行里出现**（上段卡面已经不带按钮了），
+      // 由「隐藏快速取关按钮」开关控制显隐。
       onRemove: hideRemove ? null : () => controller.removeFollow(item),
       onTap: () => AppNavigator.toLiveRoomDetail(
         site: Sites.allSites[item.siteId]!,
@@ -452,11 +484,14 @@ class _OfflineRow extends StatelessWidget {
                 ),
                 if (onRemove != null)
                   IconButton(
+                    // 统一规格：40dp 圆形高亮。**不要**在这里再叠
+                    // `visualDensity: compact` / `padding: zero` /
+                    // `constraints: BoxConstraints()` —— 那套组合会把它压到
+                    // 16dp，几乎看不见（用户报过）。要更小改
+                    // `AppStyle.kIconButtonSize`。
+                    style: AppStyle.iconButtonStyle(scheme),
                     tooltip: "取消关注",
                     onPressed: onRemove,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
                     icon: const Icon(Remix.dislike_line),
                   ),
               ],
