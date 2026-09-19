@@ -173,7 +173,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             ),
           ),
           padding: AppStyle.edgeInsetsV4.copyWith(
-            bottom: AppStyle.bottomBarHeight + 4,
+            // 传页面自己的 context：平台补报底部 inset 时这一层能自动重建
+            bottom: AppStyle.bottomBarHeightOf(context) + 4,
           ),
           child: Row(
             children: [
@@ -385,7 +386,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           ),
         ),
       ),
-      padding: EdgeInsets.only(bottom: AppStyle.bottomBarHeight),
+      padding: EdgeInsets.only(bottom: AppStyle.bottomBarHeightOf(context)),
       child: Row(
         children: [
           Expanded(
@@ -792,9 +793,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
         maxWidth: 600,
       ),
       isScrollControlled: true,
-      builder: (_) => Container(
+      builder: (sheetContext) => Container(
         padding: EdgeInsets.only(
-          bottom: AppStyle.bottomBarHeight,
+          bottom: AppStyle.bottomBarHeightOf(sheetContext),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
