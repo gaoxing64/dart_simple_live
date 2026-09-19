@@ -225,17 +225,25 @@ class IndexedPage extends GetView<IndexedController> {
                         // 且 PageView 文档要求传入的 children 之后不得再被改动；
                         // 生成过程会读 pages.length / pages[i]，让这个 Obx 依赖
                         // pages，setIndex 里惰性填充 pages[i] 后能重建。
-                        child: PageView(
-                          controller: controller.pageController,
-                          // 方向跟着导航栏位置走：侧边栏在左 → 垂直滑动；
-                          // 底栏在下 → 水平滑动。换轴不会丢页码，见
-                          // IndexedController.pageController 的文档注释
-                          scrollDirection: axis,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            for (var i = 0; i < controller.pages.length; i++)
-                              _buildTransitionPage(axis, i, controller.pages[i]),
-                          ],
+                        child: _JumpTransition(
+                          controller: controller,
+                          axis: axis,
+                          child: PageView(
+                            controller: controller.pageController,
+                            // 方向跟着导航栏位置走：侧边栏在左 → 垂直滑动；
+                            // 底栏在下 → 水平滑动。换轴不会丢页码，见
+                            // IndexedController.pageController 的文档注释
+                            scrollDirection: axis,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: [
+                              for (var i = 0; i < controller.pages.length; i++)
+                                _buildTransitionPage(
+                                  axis,
+                                  i,
+                                  controller.pages[i],
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -255,5 +263,104 @@ class IndexedPage extends GetView<IndexedController> {
         },
       );
     });
+  }
+}
+
+/// 跨多个 Tab 跳切（如「首页 → 分类」）时的视口过渡：滑入 + 淡入。
+///
+/// 跳切走的是 [PageController.jumpToPage] 瞬时定位（为什么不用 animateToPage
+/// 见 `IndexedController.jumpTick`），动静全靠这里补：按
+/// [IndexedController.jumpDirection] 从来向滑入一小段，位移量与顺序切换的视差
+/// [IndexedPage._parallaxFraction] 同量级，同时淡入，避免「点一下整屏瞬移」。
+///
+/// 过渡只作用在 [PageView] 这个视口容器上，且包装层必须常驻（见 [build] 里的
+/// 说明）：外层 Element 一旦被换掉，PageView 会卸载重挂，而 [PageController]
+/// 在拿不到旧 position 时按 `initialPage` 起算 —— 页码会被打回第一页。
+class _JumpTransition extends StatefulWidget {
+  const _JumpTransition({
+    required this.controller,
+    required this.axis,
+    required this.child,
+  });
+
+  final IndexedController controller;
+  final Axis axis;
+  final Widget child;
+
+  @override
+  State<_JumpTransition> createState() => _JumpTransitionState();
+}
+
+class _JumpTransitionState extends State<_JumpTransition> with SingleTickerProviderStateMixin {
+  /// 起始不透明度。不取 0：整页全透明的那一帧会露出 Scaffold 底色，闪一下。
+  static const double _minOpacity = 0.6;
+
+  late final AnimationController _animation = AnimationController(
+    vsync: this,
+    duration: IndexedController.jumpTransitionDuration,
+    // 静止在终态：没有跳切时这一层不出力
+    value: 1,
+  );
+
+  late final Animation<double> _progress = CurvedAnimation(
+    parent: _animation,
+    curve: IndexedController.pageTransitionCurve,
+  );
+
+  Worker? _jumpWorker;
+
+  /// 本次跳切的位移起点（单位尺寸的比例），静止态无意义。
+  ///
+  /// 在跳切那一刻从控制器取方向，不能挪进 [build] 现算：承载 [PageView] 的那个
+  /// Obx 只依赖 `pages`，切到已经实例化过的 Tab 时（`pages` 没变）不会重建，
+  /// 现算就会沿上一次的方向滑，方向是反的。
+  Offset _travel = Offset.zero;
+
+  void _onJump(int _) {
+    final sign = widget.controller.jumpDirection.value;
+    final magnitude = IndexedPage._parallaxFraction;
+    _travel = widget.axis == Axis.vertical
+        ? Offset(0, sign * magnitude)
+        : Offset(sign * magnitude, 0);
+    // forward 会同步把进度打回 0 并通知，下面那层随即用新起点重建
+    _animation.forward(from: 0);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _jumpWorker = ever<int>(widget.controller.jumpTick, _onJump);
+  }
+
+  @override
+  void dispose() {
+    _jumpWorker?.dispose();
+    _animation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _progress,
+      builder: (context, child) {
+        final progress = _progress.value;
+        // ⚠️ 这两层必须**常驻**，不能按 `progress >= 1` 省略：子树结构一变，
+        // 同位置的 Element 就对不上，PageView 会被卸载重挂 —— 重挂时新
+        // Scrollable 先 attach、旧的后 detach，中途 `PageController` 挂着两个
+        // position，页内 `_buildTransitionPage` 读 `position` 会撞上断言；而且
+        // 重挂后 PageController 拿不到旧 position，会退回 initialPage。
+        // 静止态下 opacity=1、位移=0，两层都不产生实际效果。
+        return Opacity(
+          opacity: _minOpacity + (1 - _minOpacity) * progress,
+          child: FractionalTranslation(
+            // 与 `_buildTransitionPage` 同口径：位移是单位尺寸的比例，不是像素
+            translation: _travel * (1 - progress),
+            child: child!,
+          ),
+        );
+      },
+      child: widget.child,
+    );
   }
 }

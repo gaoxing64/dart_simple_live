@@ -1,9 +1,7 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
-import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/shadow_card.dart';
@@ -42,26 +40,21 @@ Color _chipBackground(ColorScheme scheme) =>
 /// （`FollowUserItem`）。所以这里**不再需要**状态胶囊（段头已经在说明
 /// 这一段是什么）、圆形头像占位、未开播压暗、上次直播画面这些东西，
 /// 相应参数也就一并去掉了，卡片重新变回「只认 site + LiveRoomItem」。
+///
+/// 同理它**不带取关按钮、也不显示累计观看时长**（用户明确要求）：卡面只负责
+/// 吸引点击进直播间，「统计」与「取关」这两件事统一收在下段的紧凑行
+/// （`_OfflineRow`）。直播中的主播要取关，走「点卡片 → 直播间 → 取消关注」。
 class LiveRoomCard extends StatelessWidget {
   final Site site;
   final LiveRoomItem item;
   final Function()? onLongPress;
-  final Function()? onFollowRemove;
-
-  /// 累计观看时长（秒），显示在封面下方那行的右侧。<=0 时不显示。
-  final int watchDurationSec;
 
   const LiveRoomCard(
     this.site,
     this.item, {
     super.key,
     this.onLongPress,
-    this.onFollowRemove,
-    this.watchDurationSec = 0,
   });
-
-  /// 「累计观看 N 小时」。格式化见 [watchDurationText]（和关注页下段的紧凑行共用）。
-  String get _watchDurationLabel => watchDurationText(watchDurationSec);
 
   @override
   Widget build(BuildContext context) {
@@ -99,66 +92,28 @@ class LiveRoomCard extends StatelessWidget {
               ),
             ],
           ),
+          // 封面下方只有标题 + 主播名两行，右侧不再挂任何东西（没有时长、没有按钮）。
           Padding(
             padding: AppStyle.edgeInsetsH8.copyWith(
               top: 8,
               bottom: 8,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.userName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: _kMetaTextStyle,
-                            ),
-                          ),
-                          if (watchDurationSec > 0) ...[
-                            AppStyle.hGap4,
-                            // 时长是 Row 的非 flex 子项，卡片窄 / 系统字体放大
-                            // 时会挤占用户名甚至溢出。用 flex: 0 的 Flexible
-                            // 让它按固有宽度摆放、放不下时收缩并省略。
-                            Flexible(
-                              flex: 0,
-                              child: Text(
-                                _watchDurationLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: _kMetaTextStyle,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                if (onFollowRemove != null) ...[
-                  const SizedBox(width: 4),
-                  IconButton(
-                    tooltip: "取消关注",
-                    onPressed: onFollowRemove,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(Remix.dislike_line),
-                  )
-                ]
+                const SizedBox(height: 2),
+                Text(
+                  item.userName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _kMetaTextStyle,
+                ),
               ],
             ),
           )

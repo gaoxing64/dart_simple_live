@@ -24,3 +24,8 @@ dev-tool.ps1
 # 跟着 `*.py` 一起被忽略会导致 CI 里 `python tools/gen_changelog.py` 文件不存在。
 !tools/gen_changelog.py
 simple_live_app/iconfont.yaml
+# 本地跑 analyze / test 留下的临时产物（不由 git 管理）
+analyze.out
+analyze.rc
+test_run.out
+test_run.rc
