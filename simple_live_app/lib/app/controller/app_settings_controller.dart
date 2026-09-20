@@ -184,6 +184,7 @@ class AppSettingsController extends GetxController {
       100.0,
     );
     pipHideDanmu.value = LocalStorageService.instance.getValue(LocalStorageService.kPIPHideDanmu, true);
+    pipLockAspect.value = LocalStorageService.instance.getValue(LocalStorageService.kPipLockAspect, true);
 
     windowMaxAuto.value = LocalStorageService.instance.getValue(LocalStorageService.kWindowMaxAuto, false);
     windowMaxState.value = LocalStorageService.instance.getValue(LocalStorageService.kWindowMaxState, false);
@@ -638,6 +639,17 @@ class AppSettingsController extends GetxController {
   void setPIPHideDanmu(bool e) {
     pipHideDanmu.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kPIPHideDanmu, e);
+  }
+
+  /// 小窗锁定画面纵横比（默认开启）
+  var pipLockAspect = true.obs;
+
+  void setPipLockAspect(bool e) {
+    pipLockAspect.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kPipLockAspect,
+      e,
+    );
   }
   /// window Setting
   // 开屏自动最大化

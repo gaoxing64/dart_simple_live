@@ -164,6 +164,19 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                     ),
                   ),
                 ),
+                AppStyle.divider,
+                Obx(
+                  () => Visibility(
+                    visible: !(Platform.isAndroid || Platform.isIOS),
+                    child: SettingsSwitch(
+                      title: "小窗锁定画面比例",
+                      value: controller.pipLockAspect.value,
+                      onChanged: (e) {
+                        controller.setPipLockAspect(e);
+                      },
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
