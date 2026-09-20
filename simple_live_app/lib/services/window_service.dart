@@ -102,7 +102,15 @@ class WindowService extends GetxService implements WindowListener {
     await windowManager.setPosition(Offset(x, y));
     WindowOptions windowOptions = WindowOptions(
       size: Size(width, height),
-      minimumSize: Size(320, 280), // 防止无脑小窗导致界面报错
+      // 最小尺寸单位 = Flutter 逻辑像素（window_manager 在 Windows 上
+      // 换算成物理像素写入 MINMAXINFO.ptMinTrackSize）。
+      //
+      // 宽度 436 逻辑像素 = 「保证至少 2 列完整卡面」的下限：
+      //   左 padding 12 + 卡1 200 + 列距 12 + 卡2 200 + 右 padding 12 = 436
+      //（卡宽 kMinCardWidth=200、列距 kCardSpacing=12、padding edgeInsetsA12=12，
+      // 均为逻辑像素）。在 DPR=2.0（200% 缩放）下 = 872 物理像素；DPR=1.0
+      //（100% 缩放）下 = 436 物理像素——跨缩放下「至少 2 列」语义一致。
+      minimumSize: const Size(436, 280), // 防止无脑小窗导致界面报错
       center: false,
       title: "Slive",
     );
