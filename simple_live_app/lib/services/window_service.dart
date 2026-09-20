@@ -13,6 +13,7 @@ import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:win32/win32.dart' as win32;
 import 'package:window_manager/window_manager.dart';
+import 'package:simple_live_app/modules/live_room/player/pip_aspect.dart';
 
 class WindowService extends GetxService implements WindowListener {
   static WindowService get instance => Get.find<WindowService>();
@@ -20,6 +21,21 @@ class WindowService extends GetxService implements WindowListener {
   bool isPIP = false;
   bool isMaxAuto = false;
   bool isMaxState = false;
+
+  // —— 小窗锁定纵横比（纯 Dart 方案，三平台统一入口）——
+  double? _pipActiveAspect; // null=未锁定；非空=当前锁定比例（守卫第一判据）
+  FrameInsets _pipInsets = FrameInsets.zero;
+  Size? _pipPendingOuter; // 我们自己 setSize 的目标尺寸（回声匹配用）
+  int _pipStallCount = 0; // 连续「有偏差但仍未收敛」的纠正次数（熔断用）
+  static const double _pipEpsPx = 1.0; // 合规容差（逻辑像素）
+  static const int _pipMaxStall = 5; // 熔断阈值
+  static const Size _normalMinimumSize =
+      Size(320, 280); // 与 init() 中 WindowOptions 一致
+  bool get pipAspectLocked => _pipActiveAspect != null;
+
+  /// 是否应当施加锁定（设置项开启）。
+  bool get pipAspectWanted =>
+      AppSettingsController.instance.pipLockAspect.value;
 
   /// Flutter Windows runner 的窗口类名，用于定位窗口句柄
   /// （窗口标题可能被修改，按类名查找更可靠）
@@ -270,10 +286,59 @@ class WindowService extends GetxService implements WindowListener {
   }
 
   @override
-  Future<void> onWindowResize() async {}
+  Future<void> onWindowResize() async {
+    if (!pipAspectLocked) return;
+    // Linux 由 GDK 原生提示保比，无需 Dart 侧逐帧纠正
+    if (!Platform.isWindows && !Platform.isMacOS) return;
+    if (Platform.isWindows) {
+      // 拖动中每步按当前外框宽重算外框比例 R（setAspectRatio 只写值、不触发回声）
+      await retuneAspectDuringResize(_pipActiveAspect!);
+    } else if (Platform.isMacOS) {
+      // §5.1 macOS 方案 B：纯 Dart 拉回比例，带死循环守卫
+      if (_pipActiveAspect == null) return; // 第一判据：未锁定直接忽略
+      final cur = await windowManager.getSize();
+      // 回声匹配：若观察到的尺寸恰是我们自己 setSize 的目标，视为回声，清标记返回
+      if (_pipPendingOuter != null &&
+          (cur.width - _pipPendingOuter!.width).abs() <= _pipEpsPx &&
+          (cur.height - _pipPendingOuter!.height).abs() <= _pipEpsPx) {
+        _pipPendingOuter = null;
+        _pipStallCount = 0;
+        return;
+      }
+      if (PipAspectCalculator.matchesAspect(
+        outer: cur,
+        aspect: _pipActiveAspect!,
+        insets: _pipInsets,
+        epsPx: _pipEpsPx,
+      )) {
+        // 已合规：可能是用户拖到位，也可能是自己 setSize 的回声
+        _pipPendingOuter = null; // 回声落地，清标记
+        _pipStallCount = 0; // 有进展 → 复位熔断
+        return;
+      }
+      if (_pipStallCount >= _pipMaxStall) return; // 熔断：放弃本次手势，防死循环
+      final target = PipAspectCalculator.outerSizeForOuterWidth(
+        outerWidth: cur.width,
+        aspect: _pipActiveAspect!,
+        insets: _pipInsets,
+      );
+      _pipPendingOuter = target;
+      _pipStallCount++;
+      try {
+        await windowManager.setSize(target);
+      } catch (e) {
+        Log.logPrint(e);
+        _pipActiveAspect = null;
+      }
+    }
+  }
 
   @override
   Future<void> onWindowResized() async {
+    // 先精确对齐（Windows/macOS），再落盘已纠正后的尺寸
+    if (pipAspectLocked && (Platform.isWindows || Platform.isMacOS)) {
+      await snapToAspect(_pipActiveAspect!);
+    }
     await windowStateChanged();
   }
 
@@ -312,6 +377,260 @@ class WindowService extends GetxService implements WindowListener {
     AppSettingsController.instance.setWindowPipY(position.dy);
     AppSettingsController.instance.setWindowPipWidth(s.width);
     AppSettingsController.instance.setWindowPipHeight(s.height);
+  }
+
+  // —— 小窗锁定纵横比：薄平台层（内部按 Platform 分支）——
+  // 所有方法均先判 pipAspectLocked / 设置项，未锁定则完全空转，不触碰任何新 API。
+
+  /// 同步测量 Windows「外框 − 客户区」内边距（逻辑像素）。
+  ///
+  /// 改用 win32 读平台实时状态（GetWindowRect−GetClientRect）/ GetDpiForWindow，
+  /// 与 Dart 视图 metrics 解耦，消除「隐藏标题栏样式变更后视图 metrics 滞后」的竞态。
+  /// macOS 隐藏态 content≈frame、Linux 不使用 insets → 固定 FrameInsets.zero。
+  ///
+  /// 兜底链：非 Windows → zero；hwnd=0 / 读数返回 0 / h,v 非有限·负·不合理
+  ///   → expectedHiddenInsets(dpr)；再失败 → zero（退化为不补偿、直接传 A）。
+  FrameInsets measureFrameInsets() {
+    // macOS 隐藏态 content==frame；Linux 不使用 insets → 固定 zero。
+    if (!Platform.isWindows) return FrameInsets.zero;
+    try {
+      final hwnd = _findWindowHandle();
+      if (hwnd == 0) return FrameInsets.zero;
+      final outerPtr = calloc<win32.RECT>();
+      final clientPtr = calloc<win32.RECT>();
+      try {
+        final okOuter = win32.GetWindowRect(hwnd, outerPtr);
+        final okClient = win32.GetClientRect(hwnd, clientPtr);
+        final dpr = win32.GetDpiForWindow(hwnd) / 96.0;
+        final effectiveDpr = (!dpr.isFinite || dpr <= 0) ? 1.0 : dpr;
+        // 任一读数失败 → 走理论值兜底
+        if (okOuter == 0 || okClient == 0) {
+          return PipAspectCalculator.expectedHiddenInsets(effectiveDpr);
+        }
+        final outer = outerPtr.ref;
+        final client = clientPtr.ref;
+        final outerW = (outer.right - outer.left).toDouble();
+        final outerH = (outer.bottom - outer.top).toDouble();
+        final clientW = (client.right - client.left).toDouble();
+        final clientH = (client.bottom - client.top).toDouble();
+        final h = (outerW - clientW) / effectiveDpr;
+        final v = (outerH - clientH) / effectiveDpr;
+        final insets = FrameInsets(
+          horizontal: h < 0 ? 0 : h,
+          vertical: v < 0 ? 0 : v,
+        );
+        // 不合理（如仍采到正常态标题栏）→ 理论值兜底
+        if (!PipAspectCalculator.isPlausibleHiddenInsets(insets, dpr: effectiveDpr)) {
+          return PipAspectCalculator.expectedHiddenInsets(effectiveDpr);
+        }
+        return insets;
+      } finally {
+        calloc.free(outerPtr);
+        calloc.free(clientPtr);
+      }
+    } catch (e) {
+      Log.logPrint(e);
+      return FrameInsets.zero;
+    }
+  }
+
+  /// 进入小窗：施加约束 + 归一化初始尺寸。aspect 非法或设置关闭则直接返回（不施加）。
+  ///
+  /// 顺序铁律：**先施加约束、后设尺寸**。
+  Future<void> applyPipAspect(double aspect) async {
+    // 未开启锁定则不施加，完全走旧逻辑
+    if (!AppSettingsController.instance.pipLockAspect.value) return;
+    if (!PipAspectCalculator.isUsableAspect(aspect)) return;
+    if (!Platform.isWindows && !Platform.isMacOS && !Platform.isLinux) return;
+
+    _pipActiveAspect = aspect;
+    _pipInsets = measureFrameInsets();
+    _pipPendingOuter = null;
+    _pipStallCount = 0;
+
+    // 小窗态最小尺寸（按比例推导，长边客户区 ≥320）
+    await setPipMinimumSize(aspect);
+
+    // 记忆值是「外框」口径（getSize/GetWindowRect 走 GetWindowRect → 外框），
+    // 先换算成客户区长边，避免「外框进、客户区长边用、再 +insets 出」导致的
+    // 反复进小窗累积放大（F1 回归：每次 +insets.horizontal，窗口单调无界放大）。
+    final w = AppSettingsController.instance.windowPipWidth.value;
+    final h = AppSettingsController.instance.windowPipHeight.value;
+    final rawLong = PipAspectCalculator.clientLongSideFromOuter(
+      outer: Size(w, h),
+      insets: _pipInsets,
+    );
+    final longSide = rawLong > 0 ? rawLong : 400.0; // 兜底：非法/过小时回退默认长边
+    final client = PipAspectCalculator.normalizeClientSize(
+      memoryLongSide: longSide,
+      aspect: aspect,
+    );
+    final outer = PipAspectCalculator.outerSizeForClient(
+      client: client,
+      insets: _pipInsets,
+    );
+
+    // 先施加约束（Windows/Linux 原生；macOS 不调），后设尺寸
+    await _applyAspectRatioConstraint(aspect, outerWidth: outer.width);
+    await windowManager.setSize(outer);
+  }
+
+  /// 视频比例变化（换线路/清晰度）：锁定中且比例实质变化时，
+  /// 保持当前外框宽、按新比例重算外框高并重设 R（内部自比对，未变则空转）。
+  Future<void> reapplyPipAspect(double aspect) async {
+    if (!pipAspectLocked) return;
+    if (!PipAspectCalculator.isUsableAspect(aspect)) return;
+    if ((_pipActiveAspect != null) &&
+        ((_pipActiveAspect! - aspect).abs() < 1e-9)) {
+      // 比例未实质变化：保持当前外框宽，避免换清晰度时窗口尺寸突跳
+      return;
+    }
+    _pipActiveAspect = aspect;
+    _pipInsets = measureFrameInsets();
+    _pipPendingOuter = null;
+    _pipStallCount = 0;
+
+    if (Platform.isWindows) {
+      final w = (await windowManager.getSize()).width;
+      final r = PipAspectCalculator.outerAspectRatioForOuterWidth(
+        outerWidth: w,
+        aspect: aspect,
+        insets: _pipInsets,
+      );
+      try {
+        await windowManager.setAspectRatio(r);
+      } catch (e) {
+        Log.logPrint(e);
+        _pipActiveAspect = null;
+        return;
+      }
+    } else if (Platform.isLinux) {
+      // Linux GDK 提示作用于客户区，直接传画面比例 A。
+      // 注意：Wayland 下该提示为 no-op（自然降级，不劣于现状）。
+      try {
+        await windowManager.setAspectRatio(aspect);
+      } catch (e) {
+        Log.logPrint(e);
+        _pipActiveAspect = null;
+        return;
+      }
+    }
+    // 精确对齐外框高（Windows/macOS）；Linux 由 GDK 提示保比，不需 setSize
+    if (Platform.isWindows || Platform.isMacOS) {
+      await snapToAspect(aspect);
+    }
+  }
+
+  /// 拖动中（仅 Windows）：按当前外框宽重算 R 并 setAspectRatio（不触发回声）。
+  Future<void> retuneAspectDuringResize(double aspect) async {
+    if (!pipAspectLocked) return;
+    if (!Platform.isWindows) return;
+    try {
+      final w = (await windowManager.getSize()).width;
+      final r = PipAspectCalculator.outerAspectRatioForOuterWidth(
+        outerWidth: w,
+        aspect: aspect,
+        insets: _pipInsets,
+      );
+      await windowManager.setAspectRatio(r);
+    } catch (e) {
+      Log.logPrint(e);
+      _pipActiveAspect = null;
+    }
+  }
+
+  /// 拖动结束（Windows/macOS）：保持外框宽、精确对齐外框高。
+  /// 开头先重采样 insets（自愈）：即使进入小窗时偶发采错，松开鼠标后也会
+  /// 以当前实际 insets 重新计算，消除残留竞态。
+  Future<void> snapToAspect(double aspect) async {
+    if (!pipAspectLocked) return;
+    if (!Platform.isWindows && !Platform.isMacOS) return; // Linux 无拖动结束事件
+    try {
+      // 自愈：重采样 insets，若与缓存实质不同则更新
+      final fresh = measureFrameInsets();
+      if (fresh != _pipInsets) _pipInsets = fresh;
+      final cur = await windowManager.getSize();
+      final target = PipAspectCalculator.outerSizeForOuterWidth(
+        outerWidth: cur.width,
+        aspect: aspect,
+        insets: _pipInsets,
+      );
+      await windowManager.setSize(target);
+    } catch (e) {
+      Log.logPrint(e);
+      _pipActiveAspect = null;
+    }
+  }
+
+  /// 释放约束（必须在恢复尺寸之前调用）。
+  /// Windows→setAspectRatio(0)；Linux→setAspectRatio(-1)（负数！传 0 会把比例设成 0）；
+  /// macOS→空实现（未施加原生约束）。
+  Future<void> releasePipAspect() async {
+    try {
+      if (Platform.isWindows) {
+        await windowManager.setAspectRatio(0);
+      } else if (Platform.isLinux) {
+        // Linux 必须传负数才释放约束（判据 aspect_ratio >= 0）
+        await windowManager.setAspectRatio(-1);
+      }
+      // macOS：未施加原生约束，无需释放
+    } catch (e) {
+      Log.logPrint(e);
+    }
+    _pipActiveAspect = null;
+    _pipPendingOuter = null;
+    _pipStallCount = 0;
+  }
+
+  /// 小窗态最小尺寸（按比例推导的外框最小值，长边客户区 ≥320）。
+  Future<void> setPipMinimumSize(double aspect) async {
+    final client = PipAspectCalculator.normalizeClientSize(
+      memoryLongSide: 320,
+      aspect: aspect,
+      minLongSide: 320,
+    );
+    final outer = PipAspectCalculator.outerSizeForClient(
+      client: client,
+      insets: _pipInsets,
+    );
+    try {
+      await windowManager.setMinimumSize(outer);
+    } catch (e) {
+      Log.logPrint(e);
+    }
+  }
+
+  /// 恢复普通态最小尺寸 _normalMinimumSize。
+  Future<void> restoreNormalMinimumSize() async {
+    try {
+      await windowManager.setMinimumSize(_normalMinimumSize);
+    } catch (e) {
+      Log.logPrint(e);
+    }
+  }
+
+  /// 施加原生纵横比约束（Windows 外框比例 R / Linux 客户区比例 A）。
+  /// macOS 方案 B 不调原生，故此处空实现。
+  Future<void> _applyAspectRatioConstraint(double aspect,
+      {double outerWidth = 0}) async {
+    try {
+      if (Platform.isWindows) {
+        final r = PipAspectCalculator.outerAspectRatioForOuterWidth(
+          outerWidth: outerWidth,
+          aspect: aspect,
+          insets: _pipInsets,
+        );
+        await windowManager.setAspectRatio(r);
+      } else if (Platform.isLinux) {
+        // Linux GDK 提示作用于客户区，直接传画面比例 A。
+        // 注意：Wayland 下该提示为 no-op（自然降级）。
+        await windowManager.setAspectRatio(aspect);
+      }
+      // macOS：方案 B，不调原生约束
+    } catch (e) {
+      Log.logPrint(e);
+      _pipActiveAspect = null;
+    }
   }
 
   // 启用后，当 Resized/Maximize/full -> re 后调整

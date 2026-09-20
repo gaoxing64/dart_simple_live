@@ -15,6 +15,7 @@ import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/system_ui_inset.dart';
 import 'package:simple_live_app/services/window_service.dart';
+import 'package:simple_live_app/modules/live_room/player/pip_aspect.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
@@ -430,6 +431,12 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       // 读取窗口大小
       smallWindowState.value = false; // no pip
       WindowService.instance.isPIP = smallWindowState.value;
+      // 小窗→全屏：先释放纵横比约束，后全屏（次序铁律）
+      if (WindowService.instance.pipAspectLocked) {
+        await WindowService.instance.releasePipAspect();
+      }
+      await WindowService.instance.restoreNormalMinimumSize();
+      _unbindPipAspectListener();
       await windowManager.setFullScreen(true); // in full
       await windowManager.setTitleBarStyle(TitleBarStyle.hidden); // no title
       await WindowService.instance.danmakuFontClamped();
@@ -470,6 +477,43 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   Size? _lastWindowSize;
   Offset? _lastWindowPosition;
 
+  /// 当前应锁定的「widget 实际显示比例」（与 buildMediaPlayer 的 scaleMode 语义一致）。
+  double _currentDisplayAspect() => PipAspectCalculator.resolveDisplayAspect(
+        scaleMode: AppSettingsController.instance.scaleMode.value,
+        aspectByUser: AppSettingsController.instance.aspectByUser.value,
+        videoWidth: player.state.width?.toDouble(),
+        videoHeight: player.state.height?.toDouble(),
+      );
+
+  /// 视频尺寸监听（换线路/清晰度导致比例变化）
+  StreamSubscription<int?>? _pipWidthSub;
+  StreamSubscription<int?>? _pipHeightSub;
+  Timer? _pipDebounce;
+
+  void _bindPipAspectListener() {
+    _unbindPipAspectListener();
+    _pipWidthSub = player.stream.width.listen((_) => _onVideoSizeChanged());
+    _pipHeightSub = player.stream.height.listen((_) => _onVideoSizeChanged());
+  }
+
+  void _unbindPipAspectListener() {
+    _pipWidthSub?.cancel();
+    _pipHeightSub?.cancel();
+    _pipWidthSub = null;
+    _pipHeightSub = null;
+    _pipDebounce?.cancel();
+    _pipDebounce = null;
+  }
+
+  /// 视频比例变化：300ms 去抖后重新施加锁定（保持当前外框宽，按新比例重算外框高）。
+  void _onVideoSizeChanged() {
+    if (!WindowService.instance.pipAspectLocked) return;
+    _pipDebounce?.cancel();
+    _pipDebounce = Timer(const Duration(milliseconds: 300), () {
+      WindowService.instance.reapplyPipAspect(_currentDisplayAspect());
+    });
+  }
+
   ///小窗模式()
   void enterSmallWindow() async {
     if (!(Platform.isAndroid || Platform.isIOS)) {
@@ -482,20 +526,30 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       _lastWindowPosition = await windowManager.getPosition();
       Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
       Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
-      windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-      // 获取视频窗口大小
-      var width = player.state.width ?? 16;
-      var height = player.state.height ?? 9;
+      // 翻转 Q5：必须先 await 让平台侧「隐藏标题栏」样式就绪，随后 measureFrameInsets
+      // 才能采到隐藏态的真实客户区（win32 读平台实时状态，与视图 metrics 解耦）。
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
       var px = AppSettingsController.instance.windowPipX.value;
       var py = AppSettingsController.instance.windowPipY.value;
-      var pWidth = AppSettingsController.instance.windowPipWidth.value;
-      var pHeight = AppSettingsController.instance.windowPipHeight.value;
-      // 横屏还是竖屏
-      if (height < width) {
-        windowManager.setSize(Size(pWidth, pHeight));
+
+      if (WindowService.instance.pipAspectWanted) {
+        // 小窗锁定画面比例：先施加约束（含归一化尺寸），后设位置。
+        // 次序铁律：先约束、后设尺寸（applyPipAspect 内部完成）。
+        await WindowService.instance.applyPipAspect(_currentDisplayAspect());
         windowManager.setPosition(Offset(px, py));
+        _bindPipAspectListener();
       } else {
-        windowManager.setSize(Size(pHeight, pWidth));
+        // 旧逻辑：按记忆小窗尺寸（保持横/竖屏对调）
+        var width = player.state.width ?? 16;
+        var height = player.state.height ?? 9;
+        var pWidth = AppSettingsController.instance.windowPipWidth.value;
+        var pHeight = AppSettingsController.instance.windowPipHeight.value;
+        // 横屏还是竖屏
+        if (height < width) {
+          windowManager.setSize(Size(pWidth, pHeight));
+        } else {
+          windowManager.setSize(Size(pHeight, pWidth));
+        }
         windowManager.setPosition(Offset(px, py));
       }
 
@@ -504,14 +558,24 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   }
 
   ///退出小窗模式()
-  void exitSmallWindow() {
+  Future<void> exitSmallWindow() async {
     if (!(Platform.isAndroid || Platform.isIOS)) {
       fullScreenState.value = false;
       smallWindowState.value = false;
       WindowService.instance.isPIP = smallWindowState.value;
+      // 先释放约束，后恢复尺寸/位置（次序铁律）
+      if (WindowService.instance.pipAspectLocked) {
+        await WindowService.instance.releasePipAspect();
+      }
+      await WindowService.instance.restoreNormalMinimumSize();
+      _unbindPipAspectListener();
       windowManager.setTitleBarStyle(TitleBarStyle.normal);
-      windowManager.setSize(_lastWindowSize!);
-      windowManager.setPosition(_lastWindowPosition!);
+      if (_lastWindowSize != null) {
+        windowManager.setSize(_lastWindowSize!);
+      }
+      if (_lastWindowPosition != null) {
+        windowManager.setPosition(_lastWindowPosition!);
+      }
       windowManager.setAlwaysOnTop(false);
       //windowManager.setAlignment(Alignment.center);
     }
@@ -1036,8 +1100,9 @@ class PlayerController extends BaseController
   void onClose() async {
     Log.w("播放器关闭");
     if (smallWindowState.value) {
-      exitSmallWindow();
+      await exitSmallWindow();
     }
+    _unbindPipAspectListener();
     disposeStream();
     disposeDanmakuController();
     await resetSystem();

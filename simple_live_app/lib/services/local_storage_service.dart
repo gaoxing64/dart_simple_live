@@ -174,6 +174,9 @@ class LocalStorageService extends GetxService {
   /// 小窗隐藏弹幕
   static const String kPIPHideDanmu = "PIPHideDanmu";
 
+  /// 小窗锁定画面纵横比（默认开启）
+  static const String kPipLockAspect = "PipLockAspect";
+
   /// 哔哩哔哩cookie
   static const String kBilibiliCookie = "BilibiliCookie";
 
