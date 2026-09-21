@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart' as liquid_glass;
+import 'package:liquid_glass_easy/liquid_glass_easy.dart' as liquid_glass;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -84,8 +84,14 @@ void main(List<String> arguments) async {
     systemNavigationBarColor: Colors.transparent,
   );
   SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
-  //Liquid Glass 着色器预热
-  await liquid_glass.LiquidGlassWidgets.initialize();
+  //Liquid Glass 着色器预热：预编译好片段着色器，避免第一帧玻璃渲染不出来。
+  //预热失败不拦启动 —— 它只是优化，玻璃本身在 Skia/Web 上就会退化成磨砂，
+  //而这里抛出去会直接中断 main()，App 连退化渲染的机会都没有。
+  try {
+    await liquid_glass.LiquidGlassShaders.ensureLoaded();
+  } catch (e) {
+    debugPrint("Liquid Glass 着色器预热失败：$e");
+  }
   runApp(const MyApp());
 }
 
@@ -247,89 +253,86 @@ class MyApp extends StatelessWidget {
           builder: FlutterSmartDialog.init(
             loadingBuilder: ((msg) => const AppLoaddingWidget()),
             //字体大小不跟随系统变化
-            builder: (context, child) => liquid_glass.LiquidGlassWidgets.wrap(
-              brightnessResolver: (context) => Theme.of(context).brightness,
-              child: MediaQuery(
-                data: MediaQuery.of(context)
-                    .copyWith(textScaler: const TextScaler.linear(1.0)),
-                child: Stack(
-                  children: [
-                    //侧键返回
-                    RawGestureDetector(
-                      excludeFromSemantics: true,
-                      gestures: <Type, GestureRecognizerFactory>{
-                        FourthButtonTapGestureRecognizer:
-                            GestureRecognizerFactoryWithHandlers<
-                                FourthButtonTapGestureRecognizer>(
-                          () => FourthButtonTapGestureRecognizer(),
-                          (FourthButtonTapGestureRecognizer instance) {
-                            instance.onTapDown =
-                                (TapDownDetails details) async {
-                              //优先关闭 SmartDialog 弹窗
-                              if (SmartDialog.checkExist()) {
-                                MyApp.appBack();
-                                return;
-                              }
-                              //如果处于全屏状态，退出全屏
-                              if (!Platform.isAndroid && !Platform.isIOS) {
-                                if (await windowManager.isFullScreen()) {
-                                  await windowManager.setFullScreen(false);
-                                  return;
-                                }
-                              }
-                              Get.back();
-                            };
-                          },
-                        ),
-                      },
-                      child: KeyboardListener(
-                        focusNode: FocusNode(),
-                        onKeyEvent: (KeyEvent event) async {
-                          if (event is KeyDownEvent &&
-                              event.logicalKey == LogicalKeyboardKey.escape) {
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(1.0)),
+              child: Stack(
+                children: [
+                  //侧键返回
+                  RawGestureDetector(
+                    excludeFromSemantics: true,
+                    gestures: <Type, GestureRecognizerFactory>{
+                      FourthButtonTapGestureRecognizer:
+                          GestureRecognizerFactoryWithHandlers<
+                              FourthButtonTapGestureRecognizer>(
+                        () => FourthButtonTapGestureRecognizer(),
+                        (FourthButtonTapGestureRecognizer instance) {
+                          instance.onTapDown =
+                              (TapDownDetails details) async {
                             //优先关闭 SmartDialog 弹窗
                             if (SmartDialog.checkExist()) {
                               MyApp.appBack();
                               return;
                             }
-                            // ESC退出全屏
-                            // 如果处于全屏状态，退出全屏
+                            //如果处于全屏状态，退出全屏
                             if (!Platform.isAndroid && !Platform.isIOS) {
                               if (await windowManager.isFullScreen()) {
                                 await windowManager.setFullScreen(false);
-                                EventBus.instance
-                                    .emit(EventBus.kEscapePressed, 0);
                                 return;
                               }
                             }
-                          }
+                            Get.back();
+                          };
                         },
-                        child: child!,
                       ),
+                    },
+                    child: KeyboardListener(
+                      focusNode: FocusNode(),
+                      onKeyEvent: (KeyEvent event) async {
+                        if (event is KeyDownEvent &&
+                            event.logicalKey == LogicalKeyboardKey.escape) {
+                          //优先关闭 SmartDialog 弹窗
+                          if (SmartDialog.checkExist()) {
+                            MyApp.appBack();
+                            return;
+                          }
+                          // ESC退出全屏
+                          // 如果处于全屏状态，退出全屏
+                          if (!Platform.isAndroid && !Platform.isIOS) {
+                            if (await windowManager.isFullScreen()) {
+                              await windowManager.setFullScreen(false);
+                              EventBus.instance
+                                  .emit(EventBus.kEscapePressed, 0);
+                              return;
+                            }
+                          }
+                        }
+                      },
+                      child: child!,
                     ),
+                  ),
 
-                    //查看DEBUG日志按钮
-                    //只在Debug、Profile模式显示
-                    Visibility(
-                      visible: !kReleaseMode,
-                      child: Positioned(
-                        right: 12,
-                        bottom: 100 + context.mediaQueryViewPadding.bottom,
-                        child: Opacity(
-                          opacity: 0.4,
-                          child: ElevatedButton(
-                            child: const Text("DEBUG LOG"),
-                            onPressed: () {
-                              Get.bottomSheet(
-                                const DebugLogPage(),
-                              );
-                            },
-                          ),
+                  //查看DEBUG日志按钮
+                  //只在Debug、Profile模式显示
+                  Visibility(
+                    visible: !kReleaseMode,
+                    child: Positioned(
+                      right: 12,
+                      bottom: 100 + context.mediaQueryViewPadding.bottom,
+                      child: Opacity(
+                        opacity: 0.4,
+                        child: ElevatedButton(
+                          child: const Text("DEBUG LOG"),
+                          onPressed: () {
+                            Get.bottomSheet(
+                              const DebugLogPage(),
+                            );
+                          },
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
