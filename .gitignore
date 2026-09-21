@@ -29,3 +29,5 @@ analyze.out
 analyze.rc
 test_run.out
 test_run.rc
+# 本地交付物/验证产物（性能录屏、截图、分析脚本等），不入库
+deliverables/
