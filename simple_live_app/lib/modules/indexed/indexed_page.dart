@@ -19,9 +19,10 @@ class IndexedPage extends GetView<IndexedController> {
 
   /// 悬浮胶囊导航栏（移植自 PiliPlus）
   ///
-  /// 开启 Liquid Glass 后只替换胶囊背景，布局、指示器与交互
-  /// 仍然全部走悬浮胶囊自身的实现。
-  Widget _buildFloatingNavBar() {
+  /// 开启 Liquid Glass 后整条底栏（胶囊 + 图标文字 + 选中药丸）改由
+  /// liquid_glass_easy 绘制（见 [FloatingNavigationBar.liquidGlass]）。
+  Widget _buildFloatingNavBar(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Obx(() {
       final settings = AppSettingsController.instance;
       final useGlass = settings.liquidGlassEffect.value;
@@ -37,7 +38,14 @@ class IndexedPage extends GetView<IndexedController> {
           selectedIndex: controller.index.value,
           onDestinationSelected: controller.setIndex,
           liquidGlass: useGlass,
-          liquidGlassSettings: debug?.buildSettings(),
+          liquidGlassItemPadding: debug?.itemPadding.value ??
+              kFloatingNavBarLiquidGlassItemPadding,
+          liquidGlassStyle: debug?.buildBarStyle(),
+          liquidGlassItemStyle: debug?.buildItemStyle(
+            selectedColor: colors.primary,
+            unselectedColor: colors.onSurfaceVariant,
+          ),
+          liquidGlassPillStyle: debug?.buildPillStyle(colors.brightness),
           destinations: controller.items
               .map(
                 (item) => FloatingNavigationDestination(
@@ -264,7 +272,7 @@ class IndexedPage extends GetView<IndexedController> {
             bottomNavigationBar: orientation == Orientation.portrait
                 ? _buildBottomBar(
                     switch (navBarStyle) {
-                      1 => _buildFloatingNavBar(),
+                      1 => _buildFloatingNavBar(context),
                       _ => _buildDefaultNavBar(),
                     },
                   )
