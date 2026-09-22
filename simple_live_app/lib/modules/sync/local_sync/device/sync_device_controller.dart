@@ -38,7 +38,7 @@ class SyncDeviceController extends BaseController {
       await request.syncFollow(client, data, overlay: overlay);
       // 标签和关注必须同时同步
       await request.syncTag(client, dataT, overlay: overlay);
-      SmartDialog.showToast("已同步关注列表和标签");
+      SmartDialog.showToast("已同步关注列表和分组");
     } catch (e) {
       SmartDialog.showToast("同步失败:$e");
       Log.logPrint(e);

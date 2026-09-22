@@ -11,15 +11,18 @@ import 'package:simple_live_app/widgets/status/app_error_widget.dart';
 import 'package:simple_live_app/widgets/status/app_loadding_widget.dart';
 import 'package:get/get.dart';
 
+/// 分段模式的段基类：段头跨整行渲染在这一段上方；为空则不渲染。
+abstract class PageGridSection {
+  final Widget? header;
+  const PageGridSection({this.header});
+}
+
 /// 网格里的一段：自带列数、行高、条目数、构建器和可选段头。
 ///
 /// 存在的理由是关注页要把「正在直播的卡片网格」和「未开播的紧凑行」
 /// 拼在同一屏里 —— 两段的列数与行高都不同，`PageGridView` 原本那个
 /// 单 `SliverGrid` 表达不了（`crossAxisCount` / `mainAxisExtent` 都是单值）。
-///
-/// 段头会跨整行渲染在这一段上方；为空则不渲染。
-class GridSection {
-  final Widget? header;
+class GridSection extends PageGridSection {
   final int crossAxisCount;
   final double itemExtent;
   final int itemCount;
@@ -31,10 +34,23 @@ class GridSection {
     required this.itemExtent,
     required this.itemCount,
     required this.itemBuilder,
-    this.header,
+    super.header,
     this.mainAxisSpacing = 0,
     this.crossAxisSpacing = 0,
   });
+}
+
+/// 整段只有一个任意 widget（跨整行，`SliverToBoxAdapter`）。
+///
+/// 给关注页的分组折叠卡片用：卡片高度随折叠状态变化，塞不进固定
+/// `itemExtent` 的 `SliverGrid`。
+///
+/// ⚠️ **不受「`itemCount == 0` 整段跳过」规则约束**（它没有 itemCount）：
+/// 空的分组卡片也要渲染出来，它是拖拽归组的落点、也要让用户看得见组存在。
+/// 要不要显示由调用方决定（比如搜索时不产出这一段）。
+class BoxSection extends PageGridSection {
+  final Widget child;
+  const BoxSection({required this.child, super.header});
 }
 
 class PageGridView extends StatelessWidget {
@@ -71,11 +87,11 @@ class PageGridView extends StatelessWidget {
 
   /// 分段渲染（可选）。
   ///
-  /// 给了它就按 [GridSection] 逐段渲染，**忽略 [itemExtent] / [crossAxisCount]
+  /// 给了它就按 [PageGridSection] 逐段渲染，**忽略 [itemExtent] / [crossAxisCount]
   /// 以及「按 pageController.list 长度补骨架」那套逻辑** —— 分段场景（关注页）
   /// 的两段条目数由调用方自己算，且它是一次性全量数据、没有下一页。
   /// 为空则沿用原来的单 `SliverGrid` 行为，首页 / 搜索 / 分类详情不受影响。
-  final List<GridSection>? sections;
+  final List<PageGridSection>? sections;
 
   /// 加载下一页时底部占位的骨架，默认按 [itemExtent] 选择卡片骨架或行骨架
   final IndexedWidgetBuilder? skeletonBuilder;
@@ -90,6 +106,16 @@ class PageGridView extends StatelessWidget {
   /// 条目（如 `ListTile`）必须显式传入自己的行高，否则行会被拉高、
   /// 行间出现过大空隙。
   final double itemExtent;
+
+  /// 覆盖滚动/刷新控制器（关注页 TabBarView 用）。
+  ///
+  /// 关注页把「全部 / 直播中 / 未开播」拆成 [TabBarView] 的三页，三页共享同一份
+  /// 数据与 [pageController]，但每页必须有**自己**的 `ScrollController` 与
+  /// `EasyRefreshController`（`EasyRefreshController` 内部持有刷新状态，一个实例
+  /// 不能同时挂多个 `EasyRefresh`；`ScrollController` 多客户端会直接抛）。
+  /// 不传就沿用 [pageController] 自带的那一对，首页 / 搜索 / 分类等单列表页不受影响。
+  final ScrollController? scrollOverride;
+  final EasyRefreshController? refreshOverride;
   const PageGridView({
     this.itemBuilder,
     required this.pageController,
@@ -104,6 +130,8 @@ class PageGridView extends StatelessWidget {
     this.itemExtent = kDefaultItemExtent,
     this.crossAxisCount = 1,
     this.sections,
+    this.scrollOverride,
+    this.refreshOverride,
     super.key,
   }) : assert(
           itemBuilder != null || sections != null,
@@ -148,15 +176,18 @@ class PageGridView extends StatelessWidget {
   /// 段与段之间留 [mainAxisSpacing] 的竖直间距，最外面补上 `gridPadding` 的上下边距
   /// —— 最后那段也必须吃到 `gridPadding.bottom`，否则滚到底会被悬浮胶囊导航栏盖住。
   ///
-  /// 条目数为 0 的段**整段跳过（含段头）**：过滤或「隐藏离线关注」之后留一个
-  /// 光秃秃的段头比不显示更奇怪。
+  /// 条目数为 0 的 [GridSection] **整段跳过（含段头）**：过滤或「隐藏离线关注」
+  /// 之后留一个光秃秃的段头比不显示更奇怪。[BoxSection] 不受此规则约束
+  /// （见其类注释），要不要显示由调用方决定。
   List<Widget> _buildSectionSlivers(EdgeInsets gridPadding) {
     final list = <Widget>[];
     final horizontal = EdgeInsets.only(
       left: gridPadding.left,
       right: gridPadding.right,
     );
-    final visible = sections!.where((s) => s.itemCount > 0).toList();
+    final visible = sections!
+        .where((s) => s is! GridSection || s.itemCount > 0)
+        .toList();
     for (var i = 0; i < visible.length; i++) {
       final section = visible[i];
       final isFirst = i == 0;
@@ -175,25 +206,36 @@ class PageGridView extends StatelessWidget {
           SliverToBoxAdapter(child: SizedBox(height: mainAxisSpacing)),
         );
       }
-      list.add(
-        SliverPadding(
-          padding: horizontal.copyWith(
-            top: isFirst && section.header == null ? gridPadding.top : 0,
-          ),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: section.crossAxisCount,
-              mainAxisSpacing: section.mainAxisSpacing,
-              crossAxisSpacing: section.crossAxisSpacing,
-              mainAxisExtent: section.itemExtent,
+      if (section case final BoxSection box) {
+        list.add(
+          SliverPadding(
+            padding: horizontal.copyWith(
+              top: isFirst && section.header == null ? gridPadding.top : 0,
             ),
-            delegate: SliverChildBuilderDelegate(
-              section.itemBuilder,
-              childCount: section.itemCount,
+            sliver: SliverToBoxAdapter(child: box.child),
+          ),
+        );
+      } else if (section case final GridSection grid) {
+        list.add(
+          SliverPadding(
+            padding: horizontal.copyWith(
+              top: isFirst && section.header == null ? gridPadding.top : 0,
+            ),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: grid.crossAxisCount,
+                mainAxisSpacing: grid.mainAxisSpacing,
+                crossAxisSpacing: grid.crossAxisSpacing,
+                mainAxisExtent: grid.itemExtent,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                grid.itemBuilder,
+                childCount: grid.itemCount,
+              ),
             ),
           ),
-        ),
-      );
+        );
+      }
       if (isLast && gridPadding.bottom > 0) {
         list.add(
           SliverToBoxAdapter(child: SizedBox(height: gridPadding.bottom)),
@@ -240,8 +282,8 @@ class PageGridView extends StatelessWidget {
               header: MaterialHeader(
                 processedDuration: const Duration(milliseconds: 400),
               ),
-              scrollController: pageController.scrollController,
-              controller: pageController.easyRefreshController,
+              scrollController: scrollOverride ?? pageController.scrollController,
+              controller: refreshOverride ?? pageController.easyRefreshController,
               refreshOnStart: firstRefresh,
               onRefresh: pageController.refreshData,
               // 普通网格（按行从左到右）。加载下一页时把骨架按顺序追加为
@@ -252,7 +294,7 @@ class PageGridView extends StatelessWidget {
                 // EasyRefresh 只监听这个 controller、不会注入给 child。
                 // child 若不使用它，controller 就永远 attach 不上
                 // （hasClients 恒为 false），主动补页与 scrollToTop 都会失效。
-                controller: pageController.scrollController,
+                controller: scrollOverride ?? pageController.scrollController,
                 slivers: [
                   if (sections == null)
                     SliverPadding(

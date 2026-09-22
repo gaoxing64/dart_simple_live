@@ -283,7 +283,7 @@ class SyncService extends GetxService {
         await DBService.instance.tagBox.put(tag.id, tag);
       }
 
-      SmartDialog.showToast('已同步标签列表');
+      SmartDialog.showToast('已同步分组列表');
       EventBus.instance.emit(Constant.kUpdateFollow, 0);
       return toJsonResponse({
         'status': true,

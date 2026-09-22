@@ -1,13 +1,14 @@
-// 关注页列表的纯逻辑测试：搜索过滤、liveStatus 二分段、hideOffline 语义。
+// 关注页列表的纯逻辑测试：搜索过滤、liveStatus 二分段、hideOffline 语义、
+// 「全部」视图的分组模型（groupedView）。
 //
 // 这些 getter 不依赖 widget，构造 FollowUser 列表即可断言（#25）。
-// 页面层 `_AnchorTabBar` 的锚点几何依赖 `liveSection`/`offlineSection` 的
-// 切分口径，切错一段，点「未开播」就会滚到错误位置。
+// 页面视图切换（全部/直播中/未开播）与分组卡片都按这里的切分口径渲染。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
+import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 
@@ -46,6 +47,7 @@ FollowUser _user(
   int liveStatus = 0,
   String remark = '',
   String title = '',
+  String tag = '全部',
 }) {
   return FollowUser(
     id: 'douyu_$name',
@@ -54,6 +56,7 @@ FollowUser _user(
     userName: name,
     face: '',
     addTime: DateTime(2024),
+    tag: tag,
   )..liveStatus.value = liveStatus
       ..title.value = title
       ..remark = remark;
@@ -113,7 +116,7 @@ void main() {
   test('hideOfflineFollow=true 时 filterData 只留下播那段', () {
     AppSettingsController.instance.hideOfflineFollow.value = true;
 
-    // 数据源由 FollowService 提供，filterData 内置标签分支会取它
+    // 数据源由 FollowService 提供，filterData 一律取完整列表再按开关裁剪
     FollowService.instance.followList.assignAll([
       _user('在线主播', liveStatus: 2),
       _user('下播主播', liveStatus: 4),
@@ -126,5 +129,65 @@ void main() {
 
     expect(c.list.map((u) => u.userName), ['在线主播']);
     expect(c.offlineSection, isEmpty);
+  });
+
+  group('groupedView（「全部」分组视图）', () {
+    void seedTags() {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: []),
+        FollowUserTag(id: 'a1', tag: 'LOL解说', userId: []),
+      ]);
+    }
+
+    test('按标签名分桶；「全部」与孤儿名字落未分组', () {
+      seedTags();
+      final c = _SectionProbe();
+      c.updateTagList();
+      c.list.assignAll([
+        _user('a', tag: 'CS解说', liveStatus: 2),
+        _user('b', tag: 'CS解说'),
+        _user('c', tag: 'LOL解说'),
+        _user('d'), // 「全部」
+        _user('e', tag: '已删标签'), // 标签被删/旧备份遗留的孤儿名
+      ]);
+
+      final v = c.groupedView;
+      expect(v.groups.map((g) => g.tag.tag), ['CS解说', 'LOL解说']);
+      expect(v.groups[0].members.map((u) => u.userName), ['a', 'b']);
+      // liveCount 只数 liveStatus==2；0（读取中）计入总数不计入直播数
+      expect(v.groups[0].liveCount, 1);
+      expect(v.groups[0].totalCount, 2);
+      expect(v.groups[1].liveCount, 0);
+      expect(v.ungrouped.map((u) => u.userName), ['d', 'e']);
+    });
+
+    test('空组不搜索时保留（拖拽落点），搜索时隐藏', () {
+      seedTags();
+      final c = _SectionProbe();
+      c.updateTagList();
+      c.list.assignAll([
+        _user('a', tag: 'CS解说'),
+        _user('d'),
+      ]);
+
+      expect(c.groupedView.groups.map((g) => g.tag.tag), ['CS解说', 'LOL解说']);
+
+      c.searchQuery.value = 'a';
+      // 「LOL解说」组没有命中成员，搜索时不产出；「CS解说」命中保留
+      expect(c.groupedView.groups.map((g) => g.tag.tag), ['CS解说']);
+      expect(c.groupedView.ungrouped, isEmpty);
+    });
+
+    test('组顺序 = tagList.skip(3) 顺序（fractional id 序）', () {
+      seedTags();
+      final c = _SectionProbe();
+      c.updateTagList();
+      expect(c.customTags.map((t) => t.id), ['a0', 'a1']);
+      c.list.assignAll([
+        _user('c', tag: 'LOL解说'),
+        _user('a', tag: 'CS解说'),
+      ]);
+      expect(c.groupedView.groups.map((g) => g.tag.tag), ['CS解说', 'LOL解说']);
+    });
   });
 }

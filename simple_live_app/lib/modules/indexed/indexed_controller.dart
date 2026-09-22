@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/constant.dart';
+import 'package:simple_live_app/app/app_scroll_behavior.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/utils.dart';
@@ -117,9 +118,13 @@ class IndexedController extends GetxController {
       }
       return false;
     }
-    // 同步：跟随手指拖动距离，惯性滚动不驱动
+    // 同步：跟随手指拖动距离，惯性滚动不驱动。
+    // 例外：桌面端鼠标滚轮走的是 animateTo，通知里同样没有 dragDetails，
+    // 但它是指令式滚动而不是惯性 —— 不驱动的话顶栏永远不收起，
+    // 列表底部一个 toolbar 高度会被内容槽位的溢出裁掉（滚到底少一行）。
     if (notification is ScrollUpdateNotification) {
-      if (notification.dragDetails == null) {
+      if (notification.dragDetails == null &&
+          !SmoothWheelScrollPosition.isWheelAnimating) {
         return false;
       }
       var pixels = notification.metrics.pixels;

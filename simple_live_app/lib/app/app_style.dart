@@ -32,8 +32,8 @@ class AppStyle {
       // （见 `material/list_tile.dart:982`），所以设在这里
       // **hover / 按压高亮的圆角也跟着一起统一**。
       //
-      // 注意：只对 `ListTile` 生效。自己拼的 `InkWell`（例如关注页下段的
-      // `_OfflineRow`）仍要显式给 `borderRadius`。
+      // 注意：只对 `ListTile` 生效。自己拼的 `InkWell`（例如关注页的
+      // 紧凑成员行 `FollowMemberRow`）仍要显式给 `borderRadius`。
       listTileTheme: ListTileThemeData(
         shape: RoundedRectangleBorder(borderRadius: AppStyle.radius8),
       ),

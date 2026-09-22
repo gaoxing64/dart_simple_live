@@ -9,159 +9,15 @@
 //    旧实现用 `Align(heightFactor:)` 真实压缩顶栏高度，每帧都会触发父级重排
 //    （列表视口尺寸变化 + 栏内 Material 重算），同步模式在安卓上就是掉帧的来源。
 //    一旦有人把收起改回「改布局」，这里会立刻失败。
+//
+// 假设置 / 假数据源 / 页面泵取在 `follow_test_harness.dart`，与分组视图测试共用。
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:simple_live_app/app/constant.dart';
-import 'package:simple_live_app/app/controller/app_settings_controller.dart';
-import 'package:simple_live_app/app/sites.dart';
-import 'package:simple_live_app/app/utils.dart';
-import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
-import 'package:simple_live_app/modules/home/home_list_controller.dart';
 import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
-import 'package:simple_live_app/modules/indexed/indexed_page.dart';
-import 'package:simple_live_app/services/follow_service.dart';
-import 'package:simple_live_app/widgets/bar_collapse.dart';
-import 'package:simple_live_app/widgets/page_grid_view.dart';
-import 'package:simple_live_core/simple_live_core.dart';
-
-/// 假设置：顶/底栏收起全开，导航栏样式可选。
-class FakeSettings extends AppSettingsController {
-  FakeSettings({this.hideType = 1, this.navStyle = 0}) {
-    siteSort.value = Sites.allSites.keys.toList();
-    homeSort.value = Constant.allHomePages.keys.toList();
-    hideTopBar.value = true;
-    hideBottomBar.value = true;
-    barHideType.value = hideType;
-    navBarStyle.value = navStyle;
-    firstRun = false;
-  }
-
-  final int hideType;
-  final int navStyle;
-
-  @override
-  // 不读取本地存储（Hive 在 widget test 的 fake-async 环境下不可用）
-  // ignore: must_call_super
-  void onInit() {}
-}
-
-/// 假数据源：只给第一页数据，不触发翻页。
-class FakeHomeListController extends HomeListController {
-  FakeHomeListController(super.site);
-
-  @override
-  Future<List<LiveRoomItem>> getData(int page, int pageSize) async {
-    if (page > 1) return [];
-    return List.generate(
-      pageSize,
-      (i) => LiveRoomItem(
-        roomId: 'r$page-$i',
-        title: 'room $page-$i',
-        cover: '',
-        userName: 'user $page-$i',
-      ),
-    );
-  }
-}
-
-/// 关注服务：预置一批未开播（status 0）的关注，让关注页列表足够长、可以滚动。
-class FakeFollowService extends FollowService {
-  FakeFollowService() {
-    final now = DateTime.now();
-    followList.addAll(
-      List.generate(
-        30,
-        (i) => FollowUser(
-          id: 'huya_r$i',
-          roomId: 'r$i',
-          siteId: 'huya',
-          userName: 'anchor $i',
-          face: '',
-          addTime: now,
-        ),
-      ),
-    );
-  }
-
-  @override
-  // ignore: must_call_super
-  Future<void> onInit() async {}
-
-  @override
-  Future<void> loadData({bool updateStatus = true, int? cycle}) async {}
-}
-
-Future<IndexedController> pumpIndexed(
-  WidgetTester tester, {
-  int hideType = 1,
-  int navStyle = 0,
-}) async {
-  tester.view.physicalSize = const Size(400 * 3, 800 * 3);
-  tester.view.devicePixelRatio = 3.0;
-  addTearDown(tester.view.reset);
-
-  // 我的页顶部读版本号，不打桩会在 build 里抛 LateInitializationError
-  Utils.packageInfo = PackageInfo(
-    appName: 'Slive',
-    packageName: 'com.gx.slive',
-    version: '1.0.0',
-    buildNumber: '1',
-  );
-
-  Get.reset();
-  Get.put<AppSettingsController>(
-    FakeSettings(hideType: hideType, navStyle: navStyle),
-  );
-  Get.put<FollowService>(FakeFollowService());
-  for (final site in Sites.supportSites) {
-    Get.put<HomeListController>(FakeHomeListController(site), tag: site.id);
-  }
-  Get.put(IndexedController());
-
-  await tester.pumpWidget(GetMaterialApp(home: const IndexedPage()));
-  for (var i = 0; i < 8; i++) {
-    await tester.pump(const Duration(milliseconds: 300));
-  }
-  return Get.find<IndexedController>();
-}
-
-/// 切到关注页并等数据就位。
-Future<void> gotoFollowPage(
-    WidgetTester tester, IndexedController indexed) async {
-  indexed.setIndex(1);
-  // 首次实例化关注页：refreshOnStart 拉数据 + easy_refresh 收起动画
-  for (var i = 0; i < 10; i++) {
-    await tester.pump(const Duration(milliseconds: 100));
-  }
-}
-
-/// 关注页里那个 PageGridView（限定在含「关注用户」的子树内，
-/// 避免命中保活中的首页同名组件）。
-Finder followGrid(WidgetTester tester) {
-  final scaffold = find.ancestor(
-    of: find.text('关注用户'),
-    matching: find.byType(Scaffold, skipOffstage: false),
-  );
-  return find.descendant(
-    of: scaffold.first,
-    matching: find.byType(PageGridView),
-  );
-}
-
-/// 关注页顶栏的收起容器（定高槽位，尺寸应始终等于 toolbar 高度）。
-///
-/// ⚠️ 注意：这个盒子的**位置恒定不变**（收起就是靠它内部平移实现的），
-/// 要判断栏"收起了多少"必须读它内部子节点的绘制位置，见 [followBarTitleTop]。
-Finder followBar(WidgetTester tester) => find
-    .ancestor(of: find.text('关注用户'), matching: find.byType(BarCollapse))
-    .first;
-
-/// 顶栏标题的绘制位置（含 [BarCollapse] 的平移），用它衡量顶栏收起程度。
-double followBarTitleTop(WidgetTester tester) =>
-    tester.getTopLeft(find.text('关注用户')).dy;
+import 'follow_test_harness.dart';
 
 void main() {
   setUp(() {
@@ -294,6 +150,47 @@ void main() {
     expect(indexed.barOffset.value, greaterThan(0));
     expect(tester.getSize(grid), gridSize,
         reason: '底栏收起不得改变 body 约束（否则每帧重排整页）');
+
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('同步模式：滚轮滚动同样驱动顶/底栏收起（桌面端与拖动一致）',
+      (tester) async {
+    final indexed = await pumpIndexed(tester);
+    await gotoFollowPage(tester, indexed);
+    // 排空 refreshOnStart 的收起动画，否则它会 hold 住列表、吃掉第一次 animateTo
+    await settle(tester);
+
+    final c = Get.find<FollowUserController>();
+    final barTop = followBarTitleTop(tester);
+
+    Future<void> wheel(double dy) async {
+      // 固定悬停在视口中部的列表内容上（滚动前后都命中外层列表）
+      final pointer = TestPointer(99, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(pointer.hover(const Offset(200, 450)));
+      await tester.pump();
+      await tester.sendEventToBinding(pointer.scroll(Offset(0, dy)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+    }
+
+    await wheel(40);
+    expect(c.scrollController.position.pixels, greaterThan(0),
+        reason: '前置条件：滚轮确实滚动了外层列表');
+    expect(indexed.barOffset.value, greaterThan(0),
+        reason: '滚轮向下必须驱动同步模式收起：滚轮走 animateTo，'
+            '通知的 dragDetails 为 null，曾被「惯性不驱动」的过滤一并挡掉');
+
+    await wheel(300);
+    expect(indexed.barOffset.value, IndexedController.maxBarOffset,
+        reason: '连续滚动后应能完全收起');
+    expect(barTop - followBarTitleTop(tester),
+        moreOrLessEquals(IndexedController.maxBarOffset, epsilon: 0.01),
+        reason: '顶栏应实际让出一个 toolbar 高度（底部内容不再被裁半行）');
+
+    // 反向滚：顶栏回来
+    await wheel(-500);
+    expect(indexed.barOffset.value, 0);
 
     await tester.pump(const Duration(milliseconds: 400));
   });

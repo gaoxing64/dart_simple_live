@@ -72,7 +72,7 @@ class SmoothWheelScrollController extends ScrollController {
     ScrollContext context,
     ScrollPosition? oldPosition,
   ) {
-    return _SmoothWheelScrollPosition(
+    return SmoothWheelScrollPosition(
       physics: physics,
       context: context,
       oldPosition: oldPosition,
@@ -85,8 +85,15 @@ class SmoothWheelScrollController extends ScrollController {
 }
 
 /// 把滚轮的「瞬时跳」改成「动画滚」。
-class _SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
-  _SmoothWheelScrollPosition({
+///
+/// 公开给 [IndexedController]：同步模式的顶/底栏收起靠
+/// `ScrollUpdateNotification.dragDetails != null` 区分「手指拖动」与
+/// 「惯性滚动」，但滚轮走 `animateTo`，通知的 dragDetails 同样是 null，
+/// 会被一并过滤掉（桌面端滚轮滚到底顶栏也不收起，底部一行永远被裁掉
+/// 一个 toolbar 高度）。滚轮驱动的动画期间 [isWheelAnimating] 为真，
+/// 用它把滚轮从「惯性」里豁免出来。
+class SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
+  SmoothWheelScrollPosition({
     required super.physics,
     required super.context,
     super.initialPixels,
@@ -100,6 +107,18 @@ class _SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
   /// 逐格相加会「吃掉」上一格的距离，快速滚动会越滚越慢。这里记住一个目标值，
   /// 每格都往它上面加。
   double? _wheelTarget;
+
+  /// 全局「正在被鼠标滚轮驱动」的滚动区数量（>0 即有滚轮动画在跑）。
+  ///
+  /// 同步模式的顶/底栏收起靠 `ScrollUpdateNotification.dragDetails != null`
+  /// 区分「手指拖动」与「惯性滚动」，但滚轮走 `animateTo`，通知里同样没有
+  /// dragDetails，会被一并过滤掉 —— 桌面端滚轮滚到底顶栏也不收起，底部一行
+  /// 永远被裁掉一个 toolbar 高度。滚轮无法从通知里认出来（`notification.context`
+  /// 指向的是内部 RawGestureDetector，`notification.metrics` 又是 position 的
+  /// 快照拷贝），所以在这里记一个全局计数：只有滚轮会走 [pointerScroll]，
+  /// 移动端触摸惯性不会，用它把滚轮从「惯性」里豁免出来正合适。
+  static int _wheelAnimatingCount = 0;
+  static bool get isWheelAnimating => _wheelAnimatingCount > 0;
 
   /// 一格滚轮的过渡时长。太短看着还是跳，太长会有「拖泥带水」的滞后感。
   static const Duration _duration = Duration(milliseconds: 180);
@@ -129,8 +148,10 @@ class _SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
     updateUserScrollDirection(
       -delta > 0.0 ? ScrollDirection.forward : ScrollDirection.reverse,
     );
+    _wheelAnimatingCount++;
     animateTo(target, duration: _duration, curve: Curves.easeOutCubic)
         .whenComplete(() {
+      _wheelAnimatingCount--;
       // 动画结束且期间没有新目标就清掉，免得下次从一个过期的目标起算。
       if (_wheelTarget == target) {
         _wheelTarget = null;
