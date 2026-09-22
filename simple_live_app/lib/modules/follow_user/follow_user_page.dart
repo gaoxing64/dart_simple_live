@@ -5,17 +5,17 @@ import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
-import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
-import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
+import 'package:simple_live_app/modules/follow_user/follow_tag_manager.dart';
+import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
+import 'package:simple_live_app/modules/follow_user/widgets/follow_group_card.dart';
+import 'package:simple_live_app/modules/follow_user/widgets/follow_member_row.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
-import 'package:simple_live_app/widgets/filter_button.dart';
 import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
 import 'package:simple_live_app/widgets/live_room_card.dart';
-import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
 import 'package:simple_live_app/widgets/collapsible_top_bar_scaffold.dart';
 import 'package:simple_live_core/simple_live_core.dart';
@@ -37,32 +37,69 @@ class FollowUserPage extends GetView<FollowUserController> {
     if (c < 2) {
       c = 2;
     }
-    // 关注页上所有圆形图标按钮（顶栏刷新 / 顶栏更多菜单 / 搜索框清空 /
-    // 下段行尾取关）共用这一份规格，hover 与按压反馈因此完全一致。
+    // 关注页上所有圆形图标按钮（顶栏刷新 / 顶栏分组管理 / 顶栏排序 / 顶栏更多菜单 /
+    // 搜索框清空 / 行尾取关）共用这一份规格，hover 与按压反馈因此完全一致。
     // 为什么不放进主题统一给：见 `AppStyle.iconButtonStyle` 的注释。
     final iconButtonStyle = AppStyle.iconButtonStyle(
       Theme.of(context).colorScheme,
     );
     return CollapsibleTopBarScaffold(
       appBar: _buildAppBar(iconButtonStyle),
-      body: _buildBody(iconButtonStyle, count, c),
+      body: _buildBody(context, iconButtonStyle, count, c),
     );
   }
 
-  /// 顶栏：标题 + 刷新按钮 + 更多菜单。
+  /// 顶栏：标题 + 刷新按钮 + 排序 + 更多菜单（含分组管理）。
   ///
-  /// 之前直接 `Scaffold(appBar: AppBar(...))`，顶栏固定不可收起；现在改用
-  /// [CollapsibleTopBarScaffold]，顶栏在「滑动收起」开启后跟随滑动收起/展开。
+  /// 有勾选时进入选择态（设计稿）：leading 变 ✕（清空选择）、标题变
+  /// 「已选择 N 位」、排序按钮换成「一键成组」主色胶囊。
+  /// 分组管理入口按设计稿收进右侧 ⋮ 弹层，不再占一个独立图标；
+  /// 刷新按钮保留（设计稿没画，但去掉是功能倒退）。
+  /// 玻璃胶囊不做：本页顶栏是随滚动收起的 `CollapsibleTopBarScaffold` AppBar，
+  /// 玻璃机制（`liquid_glass_nav_defaults.dart`）只服务悬浮导航栏。
   PreferredSizeWidget _buildAppBar(ButtonStyle iconButtonStyle) {
     return AppBar(
-      title: const Text("关注用户"),
+      title: Obx(
+        () => Text(controller.selectedIds.isEmpty
+            ? "关注用户"
+            : "已选择 ${controller.selectedIds.length} 位"),
+      ),
       actions: [
+        // 选择态：一键成组；普通态：排序 dialog。
+        Obx(
+          () => controller.selectedIds.isEmpty
+              ? IconButton(
+                  style: iconButtonStyle,
+                  tooltip: "排序方式",
+                  icon: const Icon(Remix.sort_asc),
+                  onPressed: controller.showSortDialog,
+                )
+              : Padding(
+                  padding: AppStyle.edgeInsetsV8.copyWith(right: 4),
+                  child: FilledButton.icon(
+                    onPressed: controller.showQuickGroupDialog,
+                    icon: const Icon(Remix.folder_add_line, size: 18),
+                    label: const Text("一键成组"),
+                  ),
+                ),
+        ),
         PopupMenuButton(
           style: iconButtonStyle,
           itemBuilder: (context) {
             // 用自己的 item：官方 `PopupMenuItem` 的 hover 高亮是满宽矩形，
             // 与菜单容器的大圆角对不上。详见 `AppPopupMenuItem`。
             return const [
+              AppPopupMenuItem(
+                value: 6,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Remix.folder_3_line),
+                    AppStyle.hGap12,
+                    Text("分组管理"),
+                  ],
+                ),
+              ),
               AppPopupMenuItem(
                 value: 0,
                 child: Row(
@@ -71,17 +108,6 @@ class FollowUserPage extends GetView<FollowUserController> {
                     Icon(Remix.trophy_line),
                     AppStyle.hGap12,
                     Text("赛事订阅"),
-                  ],
-                ),
-              ),
-              AppPopupMenuItem(
-                value: 2,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Remix.sort_asc),
-                    AppStyle.hGap12,
-                    Text("按序排列"),
                   ],
                 ),
               ),
@@ -103,14 +129,23 @@ class FollowUserPage extends GetView<FollowUserController> {
               Get.toNamed(RoutePath.kSettingsFollow);
             } else if (value == 0) {
               SmartDialog.showToast("此功能暂未开放！敬请期待！");
-            } else if (value == 2) {
-              controller.showSortDialog();
+            } else if (value == 6) {
+              showFollowTagManagerSheet();
             }
           },
         ),
       ],
-      leading: Obx(
-        () => FollowService.instance.updating.value
+      leading: Obx(() {
+        // 选择态：✕ 清空选择并退出。
+        if (controller.selectedIds.isNotEmpty) {
+          return IconButton(
+            style: iconButtonStyle,
+            tooltip: "退出选择",
+            onPressed: controller.clearSelection,
+            icon: const Icon(Icons.close),
+          );
+        }
+        return FollowService.instance.updating.value
             ? IconButton(
                 style: iconButtonStyle,
                 tooltip: "刷新中",
@@ -130,13 +165,13 @@ class FollowUserPage extends GetView<FollowUserController> {
                   controller.refreshData();
                 },
                 icon: const Icon(Icons.refresh),
-              ),
-      ),
+              );
+      }),
     );
   }
 
   Widget _buildBody(
-      ButtonStyle iconButtonStyle, int count, int c) {
+      BuildContext context, ButtonStyle iconButtonStyle, int count, int c) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -175,18 +210,13 @@ class FollowUserPage extends GetView<FollowUserController> {
             ),
           ),
         ),
-        // 3 个内置标签（滚动锚点）+ 自定义标签（筛选）。要计数，所以在 Obx 里。
+        // 3 个内置视图 tab。要计数，所以在 Obx 里。
         Obx(() {
           final live = controller.liveSection.length;
           final offline = controller.offlineSection.length;
-          return _AnchorTabBar(
+          return _ViewSwitchBar(
             controller: controller,
-            liveCount: live,
             counts: [live + offline, live, offline],
-            // 直接复用 build 顶部算好的 c：_sectionTop(2) 的几何反推依赖
-            // 这里的列数**必须等于**下段实际渲染的 GridSection.crossAxisCount，
-            // 两份各写一份公式迟早会改漏一处。
-            cardColumns: c,
           );
         }),
         Obx(
@@ -199,49 +229,43 @@ class FollowUserPage extends GetView<FollowUserController> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  KeepAliveWrapper(
-                    child: PageGridView(
-                      pageController: controller,
-                      padding: AppStyle.edgeInsetsA12,
-                      firstRefresh: true,
-                      // 段与段之间的竖直间距；段内的行距由各段自己的
-                      // mainAxisSpacing 管。
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      sections: [
-                        // 上段：正在直播，走卡片网格。
-                        GridSection(
-                          header:
-                              _SectionHeader(live: true, count: live.length),
-                          crossAxisCount: c,
-                          itemExtent: PageGridView.kDefaultItemExtent,
-                          itemCount: live.length,
+                  // 三页 ViewPager（与首页平台 Tab 同范式）：左右滑动 / 鼠标左键
+                  // 横拖切页，指示器随拖动实时滑动。每页 PageGridView 各自滚动，
+                  // 「全部」页是数据主入口（firstRefresh:true 唯一触发首次加载）。
+                  TabBarView(
+                    controller: controller.tabController,
+                    children: [
+                      KeepAliveWrapper(
+                        child: PageGridView(
+                          pageController: controller,
+                          padding: AppStyle.edgeInsetsA12,
+                          firstRefresh: true,
+                          // 段与段之间的竖直间距；段内的行距由各段自己的
+                          // mainAxisSpacing 管。
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
-                          itemBuilder: (_, i) => _buildLiveCard(live[i]),
+                          sections: _buildGroupedSections(count, hide),
                         ),
-                        // 下段：未开播（含读取中），走紧凑行。列数沿用紧凑模式
-                        // 原来的 width ~/ 500，行因此比上面的卡片宽。
-                        GridSection(
-                          header: _SectionHeader(
-                            live: false,
-                            count: offline.length,
-                            // 段头这句排序说明**必须反映真实的排序方式** ——
-                            // 设计稿写的是「按最近开播时间排序」，但 `SortMethod`
-                            // 里根本没有这一项，照抄就是在骗用户。
-                            sortLabel:
-                                controller.sortMap[controller.sortMethod.value],
-                          ),
-                          crossAxisCount: count,
-                          itemExtent: _kCompactRowExtent,
-                          itemCount: offline.length,
-                          mainAxisSpacing: 4,
-                          crossAxisSpacing: 12,
-                          itemBuilder: (_, i) =>
-                              _buildOfflineRow(offline[i], hide),
-                        ),
-                      ],
-                    ),
+                      ),
+                      PageGridView(
+                        pageController: controller,
+                        padding: AppStyle.edgeInsetsA12,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        scrollOverride: controller.liveScrollController,
+                        refreshOverride: controller.liveRefreshController,
+                        sections: _liveSections(live, c),
+                      ),
+                      PageGridView(
+                        pageController: controller,
+                        padding: AppStyle.edgeInsetsA12,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        scrollOverride: controller.offlineScrollController,
+                        refreshOverride: controller.offlineRefreshController,
+                        sections: _offlineSections(offline, count, hide),
+                      ),
+                    ],
                   ),
                   // 搜索没匹配到任何关注时的提示。
                   //
@@ -270,21 +294,203 @@ class FollowUserPage extends GetView<FollowUserController> {
             );
           },
         ),
+        // 快速重组首次提示条（设计稿）：有勾选且没点过「知道了」才出现。
+        // 操作入口在选择态顶栏（✕ / 已选择 N 位 / 一键成组），这里只做讲解。
+        Obx(() {
+          if (controller.selectedIds.isEmpty ||
+              controller.selectHintDismissed) {
+            return const SizedBox.shrink();
+          }
+          final scheme = Theme.of(context).colorScheme;
+          return Material(
+            color: scheme.inverseSurface,
+            // 竖屏 extendBody 时让出悬浮底栏高度（同原操作栏的注释）。
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: PageGridView.floatingBarInsetOf(context),
+              ),
+              child: Padding(
+                padding: AppStyle.edgeInsetsH12.copyWith(top: 4, bottom: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "点击头像勾选主播，点击其他区域进入直播间",
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: scheme.onInverseSurface,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: controller.dismissSelectHint,
+                      child: Text(
+                        "知道了",
+                        style: TextStyle(color: scheme.onInverseSurface),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
       ],
     );
   }
 
-  /// 段头高度。**必须固定** —— 顶部锚点 tab 是按几何硬算滚动 offset 的，
-  /// 段头一旦随内容撑开，offset 就不准了。
+  /// 「直播中」视图的段：卡片网格。
+  List<PageGridSection> _liveSections(List<FollowUser> live, int c) {
+    return [
+      GridSection(
+        header: _SectionHeader(live: true, count: live.length),
+        crossAxisCount: c,
+        itemExtent: PageGridView.kDefaultItemExtent,
+        itemCount: live.length,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        itemBuilder: (_, i) => _buildLiveCard(live[i]),
+      ),
+    ];
+  }
+
+  /// 「未开播」视图的段：紧凑行。这里没有分组卡片可拖，行不带状态点（整段都是灰点，
+  /// 纯噪音）也不可拖拽。
+  List<PageGridSection> _offlineSections(
+      List<FollowUser> offline, int count, bool hide) {
+    return [
+      GridSection(
+        header: _SectionHeader(
+          live: false,
+          count: offline.length,
+          // 段头这句排序说明**必须反映真实的排序方式** ——
+          // 设计稿写的是「按最近开播时间排序」，但 `SortMethod`
+          // 里根本没有这一项，照抄就是在骗用户。
+          sortLabel: controller.sortMap[controller.sortMethod.value],
+        ),
+        crossAxisCount: count,
+        itemExtent: FollowMemberRow.rowExtent,
+        itemCount: offline.length,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 12,
+        itemBuilder: (_, i) {
+          final u = offline[i];
+          return Obx(
+            () => FollowMemberRow(
+              item: u,
+              selected: controller.selectedIds.contains(u.id),
+              onToggleSelect: () => controller.toggleSelected(u.id),
+              onRemove: hide ? null : () => controller.removeFollow(u),
+              onTap: () => _toDetail(u),
+              onLongPress: () => controller.showBottomMenu(u),
+            ),
+          );
+        },
+      ),
+    ];
+  }
+
+  /// 「全部」视图：每个标签一张可折叠分组卡片，拖头部可调序；
+  /// 未分组的走紧凑行列在卡片下方，未分组段头是「拖出分组」的落点、也可折叠。
+  List<PageGridSection> _buildGroupedSections(int count, bool hide) {
+    final grouped = controller.groupedView;
+    final searching = controller.searchQuery.value.trim().isNotEmpty;
+    // 折叠集合必须在这里（Obx 构建窗口内）读一次 —— itemBuilder 是 sliver
+    // 惰性调用的，那时 `RxInterface.proxy` 已经为 null，读 RxSet 不会登记订阅，
+    // 点折叠箭头就永远等不来重建。
+    final collapsed = Set<String>.of(controller.collapsedGroups);
+    final sections = <PageGridSection>[];
+    if (grouped.groups.isNotEmpty) {
+      sections.add(BoxSection(
+        child: ReorderableListView.builder(
+          shrinkWrap: true,
+          // 外层已有滚动（PageGridView 的 CustomScrollView），这里只负责
+          // 重排手势、不滚。与分组管理 sheet 同范式同理由。
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          padding: EdgeInsets.zero,
+          itemCount: grouped.groups.length,
+          // 注意：material_ui 的 onReorderItem 收到的 newIndex 已按删除旧位置
+          // 校正过，FollowUserController.reorderTag / FollowService.reorderFollowTag
+          // 里都不许再 -1。
+          onReorderItem: (int oldIndex, int newIndex) =>
+              controller.reorderTag(oldIndex, newIndex),
+          itemBuilder: (context, i) {
+            final g = grouped.groups[i];
+            // 卡片间距垫在 item 自己身上（末段与下一段之间还有段间距 12）。
+            return Padding(
+              key: ValueKey(g.tag.id),
+              padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
+              child: FollowGroupCard(
+                group: g,
+                collapsed: collapsed.contains(g.tag.id),
+                // 搜索时空组被过滤掉了，卡片序号与标签序号对不上，禁调序。
+                reorderIndex: searching ? null : i,
+                memberColumns: count,
+                onToggleCollapsed: () =>
+                    controller.toggleGroupCollapsed(g.tag.id),
+                onRename: () => FollowTagManagerController.shared
+                    .editTagDialog("重命名分组", followUserTag: g.tag),
+                onDropMember: (u) => controller.setFollowTag(u, g.tag),
+                onMemberTap: _toDetail,
+                onMemberLongPress: (u) => controller.showBottomMenu(u),
+                onMemberRemove:
+                    hide ? null : (u) => controller.removeFollow(u),
+                selectedIds: controller.selectedIds,
+                onToggleSelect: (u) => controller.toggleSelected(u.id),
+              ),
+            );
+          },
+        ),
+      ));
+    }
+    final ungroupedCollapsed = collapsed.contains(_kUngroupedKey);
+    // 勾选数在这里（Obx 窗口内）算好再传下去，段头保持纯展示。
+    final ungroupedSelectedCount = grouped.ungrouped
+        .where((u) => controller.selectedIds.contains(u.id))
+        .length;
+    if (!searching || grouped.ungrouped.isNotEmpty) {
+      sections.add(BoxSection(
+        child: _UngroupedSection(
+          members: grouped.ungrouped,
+          selectedCount: ungroupedSelectedCount,
+          hasGroups: grouped.groups.isNotEmpty,
+          collapsed: ungroupedCollapsed,
+          columns: count,
+          hideRemove: hide,
+          selectedIds: controller.selectedIds,
+          onToggle: () => controller.toggleGroupCollapsed(_kUngroupedKey),
+          onDrop: (u) => controller.setFollowTag(u, controller.tagList.first),
+          onToggleSelect: (u) => controller.toggleSelected(u.id),
+          onMemberTap: _toDetail,
+          onMemberLongPress: (u) => controller.showBottomMenu(u),
+          onRemove: (u) => controller.removeFollow(u),
+        ),
+      ));
+    }
+    return sections;
+  }
+
+  /// 未分组段折叠态在 `collapsedGroups` 里的哨兵 key。
+  ///
+  /// 自定义标签 id 由 fractional indexing 生成（字母开头、至少两位），
+  /// 不会撞上这个值。
+  static const String _kUngroupedKey = "ungrouped";
+
+  /// 段头高度。紧凑行视图与未分组段头共用这一个值。
   static const double _kSectionHeaderHeight = 34;
 
-  /// 紧凑段的行高。`_OfflineRow` 是 48 头像 + 两行文字，上下各留 16 ⇒ 80 正好。
-  static const double _kCompactRowExtent = 80;
+  void _toDetail(FollowUser item) {
+    AppNavigator.toLiveRoomDetail(
+      site: Sites.allSites[item.siteId]!,
+      roomId: item.roomId,
+    );
+  }
 
-  /// 「正在直播」那一段的卡面。
+  /// 「直播中」视图的卡面。
   ///
   /// **不挂取关按钮、也不带累计观看时长**（用户要求）：卡面只负责吸引点击进直播间，
-  /// 「时长统计」与「取关」两件事统一收在下段的紧凑行里。所以这里既不传
+  /// 「时长统计」与「取关」两件事统一收在紧凑行里。所以这里既不传
   /// `watchDurationSec`，也不传 `onFollowRemove` —— 直播中的主播要取关，
   /// 走「点卡片 → 直播间 → 取消关注」。
   Widget _buildLiveCard(FollowUser item) {
@@ -301,26 +507,9 @@ class FollowUserPage extends GetView<FollowUserController> {
       onLongPress: () => controller.showBottomMenu(item),
     );
   }
-
-  Widget _buildOfflineRow(FollowUser item, bool hideRemove) {
-    return _OfflineRow(
-      item: item,
-      // 取关按钮**只在这段紧凑行里出现**（上段卡面已经不带按钮了），
-      // 由「隐藏快速取关按钮」开关控制显隐。
-      onRemove: hideRemove ? null : () => controller.removeFollow(item),
-      onTap: () => AppNavigator.toLiveRoomDetail(
-        site: Sites.allSites[item.siteId]!,
-        roomId: item.roomId,
-      ),
-      onLongPress: () => controller.showBottomMenu(item),
-    );
-  }
 }
 
 /// 段头：状态圆点 + 「正在直播 / 未开播」+ 计数。
-///
-/// 高度必须固定（`FollowUserPage._kSectionHeaderHeight`）—— 顶部锚点 tab
-/// 按几何算滚动 offset，段头一浮动就算不准。
 class _SectionHeader extends StatelessWidget {
   final bool live;
   final int count;
@@ -376,329 +565,211 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// 未开播那一段的紧凑行。
+/// 「全部」视图里的未分组段：整段（段头 + 成员行）是一个「拖出分组」落点。
 ///
-/// **没有复用 `FollowUserItem`**，两个原因：
-/// 1. 那是个 `ListTile`，内容定位由 `titleAlignment` / `_isDense` / 三行假定
-///    等一整套默认规则决定。放进**固定行高**的网格单元里时内容会偏上
-///    （实测：行高 96 逻辑，内容中心比行中心高 11 逻辑像素；
-///    改成 `ListTileTitleAlignment.center` 也没纠正过来）。
-///    这里用显式的 `Row` + `Center`，位置完全可控。
-/// 2. `FollowUserItem` 还被播放器侧 3 处复用，改它的布局会连带影响那边。
-///
-/// `InkWell` 铺满整个网格单元，所以 hover 高亮是**整行**、内容居中后上下留白相等。
-class _OfflineRow extends StatelessWidget {
-  final FollowUser item;
-  final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
-  final VoidCallback? onRemove;
+/// 之前只有段头那一条固定高度是 `DragTarget`，把成员拖到未分组的**行**上不会
+/// 移出；现在整块包进一个 `DragTarget`，悬停段头或任一成员行都会高亮整块并接收。
+/// 段头点击仍是折叠开关；折叠 / 空态时只剩段头，落点依旧覆盖整块。
+class _UngroupedSection extends StatelessWidget {
+  final List<FollowUser> members;
 
-  const _OfflineRow({
-    required this.item,
-    this.onTap,
-    this.onLongPress,
-    this.onRemove,
+  /// 未分组里已勾选的人数（设计稿「· 已选 X 位」）。
+  final int selectedCount;
+  final bool hasGroups;
+  final bool collapsed;
+  final int columns;
+  final bool hideRemove;
+  final RxSet<String> selectedIds;
+  final VoidCallback onToggle;
+  final ValueChanged<FollowUser> onDrop;
+  final ValueChanged<FollowUser> onToggleSelect;
+  final ValueChanged<FollowUser> onMemberTap;
+  final ValueChanged<FollowUser> onMemberLongPress;
+  final ValueChanged<FollowUser> onRemove;
+
+  const _UngroupedSection({
+    required this.members,
+    required this.selectedCount,
+    required this.hasGroups,
+    required this.collapsed,
+    required this.columns,
+    required this.hideRemove,
+    required this.selectedIds,
+    required this.onToggle,
+    required this.onDrop,
+    required this.onToggleSelect,
+    required this.onMemberTap,
+    required this.onMemberLongPress,
+    required this.onRemove,
   });
-
-  static const double _faceSize = 48;
-
-  /// 第二行的「平台 · 累计观看 N 小时」。没有观看记录时只显示平台名，
-  /// 不留孤零零的分隔符。
-  static String _durationMeta(Site site, FollowUser item) {
-    final duration = watchDurationText(item.watchDurationSec);
-    return duration.isEmpty ? site.name : "${site.name} · $duration";
-  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final site = Sites.allSites[item.siteId]!;
-    return Material(
-      type: MaterialType.transparency,
-      // 圆角要**三处一起给**才真的圆：Material 的 `borderRadius` + `clipBehavior`
-      // 负责把 ink 裁成圆角，InkWell 的 `borderRadius` 负责高亮本身是圆角。
-      // 全局 `listTileTheme.shape` 只管 `ListTile`，这里是自己拼的 InkWell，
-      // 必须显式指定（否则就是直角，和列表别处不一致 —— 用户报过）。
-      borderRadius: AppStyle.radius8,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        borderRadius: AppStyle.radius8,
-        onTap: onTap,
-        onLongPress: onLongPress,
-        // 桌面端右键 = 长按，和列表别处保持一致。
-        onSecondaryTap: onLongPress,
-        child: Center(
-          child: Padding(
-            padding: AppStyle.edgeInsetsL16.copyWith(right: 4),
-            child: Row(
-              children: [
-                // 未开播的头像压暗，和网格里那套占位用同一套视觉语言。
-                ColorFiltered(
-                  colorFilter: AppStyle.offlineDim,
-                  child: NetImage(
-                    item.face,
-                    width: _faceSize,
-                    height: _faceSize,
-                    borderRadius: _faceSize / 2,
-                  ),
-                ),
-                AppStyle.hGap12,
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.remark?.isNotEmpty == true
-                            ? item.remark!
-                            : item.userName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: scheme.onSurface,
+    return DragTarget<FollowUser>(
+      onWillAcceptWithDetails: (details) => details.data.tag != "全部",
+      onAcceptWithDetails: (details) => onDrop(details.data),
+      builder: (context, candidates, _) {
+        final highlighted = candidates.isNotEmpty;
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: AppStyle.radius8,
+            border: Border.all(
+              color: highlighted ? scheme.primary : Colors.transparent,
+              width: 1.5,
+            ),
+            color: highlighted
+                ? scheme.primary.withValues(alpha: 0.08)
+                : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(scheme, highlighted),
+              if (!collapsed && members.isNotEmpty)
+                GridView.count(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  crossAxisCount: columns,
+                  shrinkWrap: true,
+                  // 外层 PageGridView 已有滚动，这里只把成员摆成多列。
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisExtent: FollowMemberRow.rowExtent,
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 12,
+                  children: [
+                    for (final u in members)
+                      // 勾选态在惰性构建里读，必须自带 Obx（同分组卡片成员行）。
+                      Obx(
+                        () => FollowMemberRow(
+                          item: u,
+                          liveRing: true,
+                          draggable: hasGroups,
+                          selected: selectedIds.contains(u.id),
+                          onToggleSelect: () => onToggleSelect(u),
+                          onRemove: hideRemove ? null : () => onRemove(u),
+                          onTap: () => onMemberTap(u),
+                          onLongPress: () => onMemberLongPress(u),
                         ),
                       ),
-                      AppStyle.vGap4,
-                      Row(
-                        children: [
-                          Image.asset(site.logo, width: 16),
-                          AppStyle.hGap4,
-                          Expanded(
-                            child: Text(
-                              // 没有观看记录时 watchDurationText 返回空串，
-                              // 不能在末尾留一个孤零零的「·」
-                              _durationMeta(site, item),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  ],
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader(ColorScheme scheme, bool highlighted) {
+    return SizedBox(
+      height: FollowUserPage._kSectionHeaderHeight,
+      child: InkWell(
+        borderRadius: AppStyle.radius8,
+        onTap: onToggle,
+        child: Row(
+          children: [
+            AppStyle.hGap4,
+            AnimatedRotation(
+              // 展开时朝下、折叠时朝右，与分组卡片箭头一致。
+              turns: collapsed ? -0.25 : 0,
+              duration: const Duration(milliseconds: 250),
+              child: Icon(
+                Icons.expand_more,
+                size: 20,
+                color: highlighted
+                    ? scheme.primary
+                    : scheme.onSurfaceVariant,
+              ),
+            ),
+            AppStyle.hGap8,
+            Text(
+              "未分组",
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: scheme.onSurface,
+              ),
+            ),
+            AppStyle.hGap8,
+            Text(
+              selectedCount > 0
+                  ? "${members.length} 位主播 · 已选 $selectedCount 位"
+                  : "${members.length} 位主播",
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+            if (hasGroups)
+              Expanded(
+                child: Padding(
+                  padding: AppStyle.edgeInsetsH12,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "拖到这里移出分组",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12, color: scheme.onSurfaceVariant),
+                    ),
                   ),
                 ),
-                if (onRemove != null)
-                  IconButton(
-                    // 统一规格：40dp 圆形高亮。**不要**在这里再叠
-                    // `visualDensity: compact` / `padding: zero` /
-                    // `constraints: BoxConstraints()` —— 那套组合会把它压到
-                    // 16dp，几乎看不见（用户报过）。要更小改
-                    // `AppStyle.kIconButtonSize`。
-                    style: AppStyle.iconButtonStyle(scheme),
-                    tooltip: "取消关注",
-                    onPressed: onRemove,
-                    icon: const Icon(Remix.dislike_line),
-                  ),
-              ],
-            ),
-          ),
+              ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// 顶部的 3 个锚点标签 + 自定义标签筛选。
+/// 顶部的 3 个内置 tab：**视图切换**（不再是滚动锚点）。
 ///
-/// 做成 `StatefulWidget` 是为了**跟着滚动更新高亮**：只靠点击设置高亮的话，
-/// 用户手动滚到别的段之后，高亮会停在错的那一项上。
-class _AnchorTabBar extends StatefulWidget {
+/// 全部 = 分组文件夹视图；直播中 = 卡片网格；未开播 = 紧凑行。
+///
+/// 直接用 [TabBar]（与首页平台 Tab 同一套机制）：指示器由 TabBar 自己跟随
+/// [TabController] 绘制，天然与 body 的 `TabBarView` 同步 —— 手算下划线位置会
+/// 和 TabBarView 的实际页码对不上（踩过），交给 TabBar 画才是对的。
+class _ViewSwitchBar extends StatelessWidget {
   final FollowUserController controller;
 
   /// `[全部, 直播中, 未开播]` 三个计数。
   final List<int> counts;
 
-  /// 上段（正在直播）的条目数，算锚点偏移要用。
-  final int liveCount;
-
-  /// 卡片段的列数。
-  final int cardColumns;
-
-  const _AnchorTabBar({
+  const _ViewSwitchBar({
     required this.controller,
     required this.counts,
-    required this.liveCount,
-    required this.cardColumns,
   });
 
   @override
-  State<_AnchorTabBar> createState() => _AnchorTabBarState();
-}
-
-class _AnchorTabBarState extends State<_AnchorTabBar> {
-  /// 锚点滚动动画进行中。这期间**不要**用滚动位置反推高亮 —— 动画途中会经过
-  /// 中间那一段，高亮会来回跳一下。
-  bool _anchorScrolling = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.scrollController.addListener(_syncActiveTab);
-  }
-
-  @override
-  void dispose() {
-    widget.controller.scrollController.removeListener(_syncActiveTab);
-    super.dispose();
-  }
-
-  /// 第 [index] 段的顶部偏移。
-  ///
-  /// **不能用 `Scrollable.ensureVisible`** —— 两段都在 sliver 里，没构建的子项
-  /// 拿不到 RenderObject，滚到未构建的区域会直接失败。所以按固定几何硬算。
-  /// 这里与 `PageGridView._buildSectionSlivers` 的 padding 规则是**耦合**的：
-  /// 段头高固定、段内行距 = itemExtent + spacing、段间距 = mainAxisSpacing。
-  double _sectionTop(int index) {
-    const pad = 12.0; // AppStyle.edgeInsetsA12
-    const gap = 12.0; // PageGridView.mainAxisSpacing（也是段内行距）
-    if (index == 0 || widget.liveCount == 0) {
-      // 上段为空会被整段跳过，下段就落到最上面。
-      return pad;
-    }
-    if (index == 1) {
-      return pad;
-    }
-    final rows =
-        (widget.liveCount + widget.cardColumns - 1) ~/ widget.cardColumns;
-    return pad +
-        FollowUserPage._kSectionHeaderHeight +
-        rows * (PageGridView.kDefaultItemExtent + gap);
-  }
-
-  void _syncActiveTab() {
-    if (_anchorScrolling) {
-      return;
-    }
-    final scroll = widget.controller.scrollController;
-    if (!scroll.hasClients) {
-      return;
-    }
-    final offset = scroll.offset;
-    final int next;
-    if (offset < _sectionTop(1) - 8) {
-      next = 0;
-    } else if (offset < _sectionTop(2) - 8) {
-      next = 1;
-    } else {
-      next = 2;
-    }
-    if (next != widget.controller.activeTab.value) {
-      widget.controller.activeTab.value = next;
-    }
-  }
-
-  Future<void> _onTap(int index) async {
-    final controller = widget.controller;
-    controller.activeTab.value = index;
-    // 「全部」顺带把自定义标签筛选也清掉 —— 它成了锚点之后没有别的入口能清。
-    if (index == 0 &&
-        !FollowUserController.isBuiltinTag(controller.filterMode.value)) {
-      controller.setFilterMode(controller.tagList.first);
-    }
-    final scroll = controller.scrollController;
-    if (!scroll.hasClients) {
-      return;
-    }
-    _anchorScrolling = true;
-    try {
-      await scroll.animateTo(
-        index == 0 ? 0 : _sectionTop(index),
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-      );
-    } finally {
-      _anchorScrolling = false;
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // ⚠️ 这里必须**自己包一层 Obx**。本组件是在页面的 Obx 里被构造的，但
-    // `activeTab` / `tagList` / `filterMode` 都是在**本组件内部**读的 ——
-    // 外层那个 Obx 只追踪它自己 build 期间读到的 Rx，追踪不到子组件内部的读。
-    // 不包的话：滚动时高亮不会跟着变、切换自定义标签也不会重绘（实测踩过）。
-    return Obx(() {
-      final scheme = Theme.of(context).colorScheme;
-      final controller = widget.controller;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              for (var i = 0; i < FollowUserController.builtinTags.length; i++)
-                Expanded(child: _buildTab(scheme, i)),
-            ],
+    // 计数由父级 Obx 读 liveSection/offlineSection 后传进来，选中态由 TabBar
+    // 自己跟随 TabController 画 —— 本组件不再需要自己的 Obx（读不到任何 Rx，
+    // 硬包一层 GetX 会直接抛「没有可观察变量」）。
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TabBar(
+          controller: controller.tabController,
+          isScrollable: false,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelColor: scheme.primary,
+          unselectedLabelColor: scheme.onSurfaceVariant,
+          labelStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
           ),
-          AppStyle.divider,
-          // 自定义标签仍然是筛选。3 个内置标签变成锚点之后，这里是唯一还能改变
-          // 列表内容的入口。`skip(3)` 依赖「内置标签排在 tagList 最前面」这个
-          // 既有约定（`setFollowTagDialog` 里也是这么假设的）。
-          if (controller.tagList.length > 3)
-            Padding(
-              padding: AppStyle.edgeInsetsL8.copyWith(top: 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Wrap(
-                  spacing: 12,
-                  children: controller.tagList
-                      .skip(3)
-                      .map(
-                        (option) => FilterButton(
-                          text: option.tag,
-                          selected: controller.filterMode.value == option,
-                          onTap: () => controller.setFilterMode(option),
-                        ),
-                      )
-                      .toList(),
+          tabs: [
+            for (var i = 0; i < FollowUserController.builtinTags.length; i++)
+              Tab(
+                height: 44,
+                child: Text(
+                  "${FollowUserController.builtinTags[i]} ${counts[i]}",
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-        ],
-      );
-    });
-  }
-
-  Widget _buildTab(ColorScheme scheme, int index) {
-    final selected = widget.controller.activeTab.value == index;
-    // 计数为 0 的段没有落点，点了也不会有反应（例如开了「隐藏离线关注」时的
-    // 未开播段），所以直接置灰并禁用点击。
-    final enabled = widget.counts[index] > 0;
-    final color = !enabled
-        ? scheme.onSurfaceVariant.withValues(alpha: 0.38)
-        : (selected ? scheme.primary : scheme.onSurfaceVariant);
-    return InkWell(
-      onTap: enabled ? () => _onTap(index) : null,
-      child: Padding(
-        padding: AppStyle.edgeInsetsV8,
-        child: Column(
-          children: [
-            Text(
-              "${FollowUserController.builtinTags[index]} ${widget.counts[index]}",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: color,
-              ),
-            ),
-            AppStyle.vGap4,
-            Container(
-              height: 2,
-              width: 28,
-              decoration: BoxDecoration(
-                color:
-                    selected && enabled ? scheme.primary : Colors.transparent,
-                borderRadius: AppStyle.radius4,
-              ),
-            ),
           ],
         ),
-      ),
+        AppStyle.divider,
+      ],
     );
   }
 }

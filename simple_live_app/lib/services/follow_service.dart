@@ -52,9 +52,6 @@ class FollowService extends GetxService {
   /// 用户自定义的tag
   RxList<FollowUserTag> followTagList = RxList<FollowUserTag>();
 
-  /// 当前tag的用户列表
-  RxList<FollowUser> curTagFollowList = RxList<FollowUser>();
-
   /// 线程安全
   final _lock = Lock();
 
@@ -113,7 +110,7 @@ class FollowService extends GetxService {
   Future<void> addFollowUserTag(String tag) async {
     // 判断待添加tag是否已存在，存在则return
     if (followTagList.any((item) => item.tag == tag)) {
-      SmartDialog.showToast("标签名重复，修改失败");
+      SmartDialog.showToast("分组名重复，修改失败");
       return;
     }
     FollowUserTag item = await DBService.instance.addFollowTag(tag);
@@ -187,29 +184,6 @@ class FollowService extends GetxService {
     await addFollow(item);
   }
 
-  void filterDataByTag(FollowUserTag tag) {
-    // 清空curTagFollowList
-    curTagFollowList.clear();
-    // 用一个新的列表来存储需要删除的 userId
-    List<String> toRemove = [];
-    for (var id in tag.userId) {
-      if (followList.any((x) => x.id == id)) {
-        // 找到对应的 followUser 添加到 curTagFollowList
-        curTagFollowList.add(followList.firstWhere((x) => x.id == id));
-      } else {
-        // 标记要删除的 id
-        toRemove.add(id);
-      }
-    }
-    // 在遍历结束后统一移除不在 followList 中的 id
-    tag.userId.removeWhere((id) => toRemove.contains(id));
-    // 更新数据库
-    if (toRemove.isNotEmpty) {
-      DBService.instance.updateFollowTag(tag);
-    }
-    listSortByMethod(curTagFollowList, AppSettingsController.instance.followSortMethod.value);
-  }
-
   void updateFollowTagOrder(FollowUserTag oldTag, FollowUserTag newTag) {
     // 改变先落库再读库最后更新ui，这中间需要同步等待，数据流程糟糕，开发心智负担重
     // 内存优先：实现外表操作结束后异步落库，多写代码 但逻辑较为简单
@@ -220,6 +194,30 @@ class FollowService extends GetxService {
 
     DBService.instance.deleteFollowTag(oldTag.id);
     DBService.instance.updateFollowTag(newTag);
+  }
+
+  /// 按显示顺序移动一个标签（关注页拖拽调序与分组管理 sheet 共用）。
+  ///
+  /// 顺序由 fractional id 承载，重排 = 换 id 重新落库，**移动过的标签 id 会变**
+  /// （按 id 存的折叠态等会随之重置）。索引以 [followTagList]（仅自定义标签）为准。
+  ///
+  /// ⚠️ `onReorderItem` 回调给出的 `newIndex` **已经是删除旧位置后的插入索引**
+  /// （框架内部做过校正），这里不能再减一次。
+  ///
+  /// ⚠️ 相邻 key 必须在「item 已移出列表」的状态下取：先插回再取
+  /// `[insertAt]` 会取到 item 自己 —— 向下拖会抛 `a >= b` 异常，
+  /// 向上拖会算出撞车 id 并在落库时覆盖掉另一个分组
+  /// （2026-09-22 实测丢组，回归见 test/follow_tag_reorder_test.dart）。
+  void reorderFollowTag(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) {
+      return;
+    }
+    final item = followTagList.removeAt(oldIndex);
+    final insertAt = newIndex.clamp(0, followTagList.length);
+    final newKey = FractionalIndexing.generateKeyBetween(
+        insertAt > 0 ? followTagList[insertAt - 1].id : null,
+        insertAt < followTagList.length ? followTagList[insertAt].id : null);
+    updateFollowTagOrder(item, item.copyWith(id: newKey));
   }
 
   // 添加关注
@@ -812,6 +810,9 @@ class FollowService extends GetxService {
     }
     await DBService.instance.tagBox.clear();
     await DBService.instance.tagBox.putAll(res);
+    // 重建的是 tagBox；内存里的 followTagList 必须同步重载，
+    // 否则分组管理 sheet 不重启就一直显示校准前的旧列表
+    getAllTagList();
     Log.i("Follow-Service: data check down，follows:${followUserListTemp.length}，tags:${tagMap.length}");
   }
 

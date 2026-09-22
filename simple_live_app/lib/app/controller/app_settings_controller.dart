@@ -271,6 +271,14 @@ class AppSettingsController extends GetxController {
     followSortMethod.value = SortMethodStore.fromStore(LocalStorageService.instance
         .getValue(LocalStorageService.kFollowSortMethod, SortMethod.watchDuration.storeValue));
 
+    followCollapsedGroups.assignAll(LocalStorageService.instance
+        .getValue(LocalStorageService.kFollowCollapsedGroups, "")
+        .split(",")
+        .where((s) => s.isNotEmpty));
+
+    followSelectHintDismissed.value = LocalStorageService.instance.getValue(
+        LocalStorageService.kFollowSelectHintDismissed, false);
+
     followStyleNotGrid.value = LocalStorageService.instance.getValue(LocalStorageService.kFollowStyleNotGrid, true);
 
     hideOfflineFollow.value = LocalStorageService.instance.getValue(LocalStorageService.kHideOfflineFollow, false);
@@ -854,6 +862,27 @@ class AppSettingsController extends GetxController {
   void setFollowSortMethod(SortMethod e) {
     followSortMethod.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kFollowSortMethod, e.storeValue);
+  }
+
+  /// 关注页分组视图折叠中的标签 id 集合。
+  ///
+  /// 默认值必须留在声明处、只在 `onInit` 里读存储 —— widget test 的假设置
+  /// 跳过 `onInit`，构造期读 `LocalStorageService` 会让测试直接炸。
+  final followCollapsedGroups = <String>[].obs;
+
+  void setFollowCollapsedGroups(List<String> ids) {
+    followCollapsedGroups.value = ids;
+    LocalStorageService.instance.setValue(
+        LocalStorageService.kFollowCollapsedGroups, ids.join(","));
+  }
+
+  /// 关注页「点击头像勾选」提示条是否已被「知道了」永久关闭
+  final followSelectHintDismissed = false.obs;
+
+  void setFollowSelectHintDismissed(bool e) {
+    followSelectHintDismissed.value = e;
+    LocalStorageService.instance.setValue(
+        LocalStorageService.kFollowSelectHintDismissed, e);
   }
 
   // 关注样式是否卡片化

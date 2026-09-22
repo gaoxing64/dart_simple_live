@@ -30,7 +30,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
               Padding(
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
                 child: Text(
-                  "标签管理",
+                  "分组管理",
                   style: context.textTheme.titleSmall,
                 ),
               ),
@@ -39,7 +39,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SettingsAction(
-                      title: "标签管理",
+                      title: "分组管理",
                       onTap: controller.showTagsManager,
                     ),
                   ],
@@ -214,7 +214,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                   children: [
                     SettingsAction(
                       title: "数据校准",
-                      subtitle: '关注以及标签数据错乱可以点击此功能进行校准，请勿重复点击',
+                      subtitle: '关注以及分组数据错乱可以点击此功能进行校准，请勿重复点击',
                       onTap: controller.followDataCheck,
                     ),
                   ],

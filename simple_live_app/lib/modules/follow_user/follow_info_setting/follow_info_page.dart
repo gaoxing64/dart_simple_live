@@ -94,7 +94,7 @@ class FollowInfoPage extends GetView<FollowInfoController> {
             ),
           ),
           AppStyle.divider,
-          // 标签设置：底部弹出选择
+          // 分组设置：底部弹出选择
           Padding(
             padding: AppStyle.edgeInsetsA12,
             child: Obx(() {
@@ -104,7 +104,7 @@ class FollowInfoPage extends GetView<FollowInfoController> {
                 for (final t in items) t.tag: t.tag,
               };
               return SettingsMenu<String>(
-                title: '标签设置',
+                title: '分组设置',
                 value: selected?.tag ?? '全部',
                 valueMap: valueMap,
                 onChanged: (value) {

@@ -271,6 +271,12 @@ class LocalStorageService extends GetxService {
   /// 关注列表排序方法
   static const String kFollowSortMethod = "FollowSortMethod";
 
+  /// 关注页分组视图中处于折叠状态的标签 id 集合（逗号拼接）
+  static const String kFollowCollapsedGroups = "FollowCollapsedGroups";
+
+  /// 关注页「点击头像勾选」操作提示是否已被「知道了」关闭
+  static const String kFollowSelectHintDismissed = "FollowSelectHintDismissed";
+
   /// 关注列表样式
   static const String kFollowStyleNotGrid = "FollowStyleNotGrid";
 
