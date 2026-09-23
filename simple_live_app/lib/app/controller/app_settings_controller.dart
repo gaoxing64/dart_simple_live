@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
@@ -65,8 +67,10 @@ class AppSettingsController extends GetxController {
 
   var dbVer = 0;
 
+  var dbPath = "";
+
   @override
-  void onInit() {
+  Future<void> onInit() async {
     // 存量数据可能越界，统一走归一化，避免 main.dart 的
     // ThemeMode.values[...] 在启动时抛 RangeError
     themeMode.value = normalizeThemeModeIndex(
@@ -289,8 +293,21 @@ class AppSettingsController extends GetxController {
 
     initSiteSort();
     initHomeSort();
+    await initDataPath();
 
     super.onInit();
+  }
+
+  Future<void> initDataPath() async {
+    dbPath = (await getApplicationSupportDirectory()).path;
+    if(!Platform.isAndroid && !Platform.isIOS){
+      // linux 应该有问题，但我不熟悉，先这么写
+      var pathPortable = p.join(p.dirname(Platform.resolvedExecutable), 'data_hive_ce');
+      bool dirPortableExist = await Directory(pathPortable).exists();
+      if(dirPortableExist){
+        dbPath = pathPortable;
+      }
+    }
   }
 
   void initSiteSort() {

@@ -580,4 +580,9 @@ class BiliBiliSite implements LiveSite {
     accessId = id ?? "";
     return accessId;
   }
+
+  @override
+  void setSiteAttrs(Map<String, dynamic> data) {
+    // TODO: implement setSiteAttrs
+  }
 }

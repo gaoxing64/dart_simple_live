@@ -332,6 +332,21 @@ Widget buildFullControls(
                       ),
                     ),
                   ),
+                  Obx(
+                    // only pip
+                    () => Visibility(
+                      visible: controller.smallWindowState.value,
+                      child: IconButton(
+                        onPressed: () {
+                          controller.enterFullScreen();
+                        },
+                        icon: const Icon(
+                          Remix.fullscreen_line,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
                   IconButton(
                     // 和顶部返回按钮同一个动作，提示文案也要一致：
                     // 小窗态下两处都该说「退出小窗」，不然同一屏两个同义按钮
