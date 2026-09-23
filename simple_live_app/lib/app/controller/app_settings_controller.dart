@@ -276,9 +276,6 @@ class AppSettingsController extends GetxController {
         .split(",")
         .where((s) => s.isNotEmpty));
 
-    followSelectHintDismissed.value = LocalStorageService.instance.getValue(
-        LocalStorageService.kFollowSelectHintDismissed, false);
-
     followStyleNotGrid.value = LocalStorageService.instance.getValue(LocalStorageService.kFollowStyleNotGrid, true);
 
     hideOfflineFollow.value = LocalStorageService.instance.getValue(LocalStorageService.kHideOfflineFollow, false);
@@ -874,15 +871,6 @@ class AppSettingsController extends GetxController {
     followCollapsedGroups.value = ids;
     LocalStorageService.instance.setValue(
         LocalStorageService.kFollowCollapsedGroups, ids.join(","));
-  }
-
-  /// 关注页「点击头像勾选」提示条是否已被「知道了」永久关闭
-  final followSelectHintDismissed = false.obs;
-
-  void setFollowSelectHintDismissed(bool e) {
-    followSelectHintDismissed.value = e;
-    LocalStorageService.instance.setValue(
-        LocalStorageService.kFollowSelectHintDismissed, e);
   }
 
   // 关注样式是否卡片化

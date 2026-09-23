@@ -167,10 +167,10 @@ class FollowTagManagerController extends BaseController {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
+        // 这里**不**按 `viewInsets.bottom` 垫底部内边距：对话框路由本身已经把
+        // AlertDialog 摆在键盘上方了，再垫一次等于把键盘高度算两遍 —— 搜索态
+        // （键盘抬起）下长按分组弹重命名，面板会被撑到几乎占满键盘上方整屏。
         content: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(Get.context!).viewInsets.bottom,
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -68,6 +68,24 @@ class FollowUserController extends BasePageController<FollowUser>
   /// —— 只改 [searchQuery] 的话输入框内容还在，看起来像没生效。
   final searchController = TextEditingController();
 
+  /// 顶栏搜索是否处于展开态（点 🔍 展开、点 ← 收起）。系统返回键刻意不接管：
+  /// 本页被 `KeepAliveWrapper` 保活，`PopScope` 会连别的 Tab 的返回键一起吃掉。
+  final searchExpanded = false.obs;
+
+  void openSearch() => searchExpanded.value = true;
+
+  /// 收起搜索并**清空**关键词：输入框都不见了还留着过滤，用户就没有取消的地方了。
+  ///
+  /// 必须一并 `unfocus`：收起动画期间输入框还在树上（只是缩到 0 宽），不收焦点
+  /// 的话输入法会悬在一个已经看不见的框上，这期间敲的字还会写回 [searchQuery]，
+  /// 凭空复活一个没有可见取消入口的过滤。
+  void closeSearch() {
+    searchExpanded.value = false;
+    searchController.clear();
+    searchQuery.value = "";
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   /// 当前要展示的两段数据。
   ///
   /// 在播的（`liveStatus == 2`）在上、走卡片；其余（未开播 + 读取中）在下、
@@ -189,14 +207,6 @@ class FollowUserController extends BasePageController<FollowUser>
 
   void clearSelection() => selectedIds.clear();
 
-  /// 「点击头像勾选」操作提示是否已被「知道了」永久关闭。
-  bool get selectHintDismissed =>
-      AppSettingsController.instance.followSelectHintDismissed.value;
-
-  void dismissSelectHint() {
-    AppSettingsController.instance.setFollowSelectHintDismissed(true);
-  }
-
   /// 「一键成组」弹窗：新建分组（默认）+ 移入已有分组 / 移出分组（设计稿补充）。
   void showQuickGroupDialog() {
     if (selectedIds.isEmpty) {
@@ -236,6 +246,10 @@ class FollowUserController extends BasePageController<FollowUser>
         onMoveTo: (tag) => reassignSelected(tag),
       ),
       backgroundColor: Get.theme.cardColor,
+      // 不放开的话 get 会把 sheet 硬夹在可用高度的 9/16 里
+      // （`isScrollControlled: false` 那条分支），键盘一弹、可用高度缩水，
+      // 表单尾部（取消 / 创建分组）就被裁到盒子外面。
+      isScrollControlled: true,
     );
   }
 
