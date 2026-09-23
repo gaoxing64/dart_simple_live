@@ -73,121 +73,131 @@ class _FollowQuickGroupSheetState extends State<FollowQuickGroupSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final n = widget.selected.length;
+    // 这里**不再**按 `MediaQuery.viewInsets.bottom` 垫底部内边距：
+    // `Get.bottomSheet` 的路由（`GetModalBottomSheetRoute.buildPage`）已经垫过
+    // 一次了，再垫一次等于把键盘高度算两遍 —— 表单整块被推出 sheet 自己的盒子，
+    // 圆角 Material 一裁，移动端点开输入法就只剩一块空白面板。
     return SafeArea(
       top: false,
-      child: Padding(
-        // 键盘弹出时把表单顶起来
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // sheet 顶部拖拽把手（纯装饰，与弹窗动画配套）
-            Center(
-              child: Container(
-                margin: AppStyle.edgeInsetsV8,
-                width: 32,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
-                  borderRadius: AppStyle.radius24,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // sheet 顶部拖拽把手（纯装饰，与弹窗动画配套）
+          Center(
+            child: Container(
+              margin: AppStyle.edgeInsetsV8,
+              width: 32,
+              height: 4,
+              decoration: BoxDecoration(
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
+                borderRadius: AppStyle.radius24,
+              ),
+            ),
+          ),
+          // 表单本体可滚，底部操作行钉在外面：分组多到 Wrap 折成好几行、或小屏
+          // 和键盘同时挤压时，只要整块不滚，「创建分组」就会被挤到盒子外点不到。
+          Flexible(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: AppStyle.edgeInsetsA16.copyWith(bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '一键成组',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    AppStyle.vGap12,
+                    Text(
+                      '分组名称',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    AppStyle.vGap8,
+                    TextField(
+                      key: const Key('quick-group-name-field'),
+                      controller: _nameController,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _create(),
+                      decoration: InputDecoration(
+                        hintText: "例如：CS解说",
+                        prefixIcon: const Icon(Remix.folder_3_line),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: AppStyle.radius12,
+                        ),
+                      ),
+                    ),
+                    AppStyle.vGap12,
+                    Row(
+                      children: [
+                        _AvatarPreview(users: widget.selected),
+                        AppStyle.hGap8,
+                        Expanded(
+                          child: Text(
+                            "将已选的 $n 位主播加入该分组，原分组中的成员不受影响",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    AppStyle.vGap12,
+                    Text(
+                      '或移入已有分组',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    AppStyle.vGap8,
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        for (final t in widget.existingTags)
+                          FilterButton(
+                            text: t.tag,
+                            onTap: () => _moveTo(t),
+                          ),
+                        FilterButton(
+                          text: '全部（移出分组）',
+                          onTap: () => _moveTo(widget.ungroupTag),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-            Padding(
-              padding: AppStyle.edgeInsetsA16.copyWith(bottom: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '一键成组',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                  AppStyle.vGap12,
-                  Text(
-                    '分组名称',
-                    style:
-                        TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                  ),
-                  AppStyle.vGap8,
-                  TextField(
-                    key: const Key('quick-group-name-field'),
-                    controller: _nameController,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _create(),
-                    decoration: InputDecoration(
-                      hintText: "例如：CS解说",
-                      prefixIcon: const Icon(Remix.folder_3_line),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: AppStyle.radius12,
-                      ),
-                    ),
-                  ),
-                  AppStyle.vGap12,
-                  Row(
-                    children: [
-                      _AvatarPreview(users: widget.selected),
-                      AppStyle.hGap8,
-                      Expanded(
-                        child: Text(
-                          "将已选的 $n 位主播加入该分组，原分组中的成员不受影响",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  AppStyle.vGap12,
-                  Text(
-                    '或移入已有分组',
-                    style:
-                        TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                  ),
-                  AppStyle.vGap8,
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      for (final t in widget.existingTags)
-                        FilterButton(
-                          text: t.tag,
-                          onTap: () => _moveTo(t),
-                        ),
-                      FilterButton(
-                        text: '全部（移出分组）',
-                        onTap: () => _moveTo(widget.ungroupTag),
-                      ),
-                    ],
-                  ),
-                  AppStyle.vGap12,
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: Get.back,
-                        child: const Text('取消'),
-                      ),
-                      AppStyle.hGap8,
-                      FilledButton(
-                        onPressed: _busy ? null : _create,
-                        child: const Text('创建分组'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+          ),
+          Padding(
+            padding: AppStyle.edgeInsetsA16.copyWith(top: 0, bottom: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: Get.back,
+                  child: const Text('取消'),
+                ),
+                AppStyle.hGap8,
+                FilledButton(
+                  onPressed: _busy ? null : _create,
+                  child: const Text('创建分组'),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

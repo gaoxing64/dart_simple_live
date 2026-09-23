@@ -43,16 +43,53 @@ class FollowUserPage extends GetView<FollowUserController> {
     final iconButtonStyle = AppStyle.iconButtonStyle(
       Theme.of(context).colorScheme,
     );
+    // 收起搜索只给 ← 按钮，不抢系统返回键：本页被 `KeepAliveWrapper` 保活，
+    // 切到别的 Tab 之后仍然挂在树里，`PopScope` 会连别的 Tab 的返回键一起吃掉。
     return CollapsibleTopBarScaffold(
       appBar: _buildAppBar(iconButtonStyle),
-      body: _buildBody(context, iconButtonStyle, count, c),
+      body: _buildBody(context, count, c),
     );
   }
 
-  /// 顶栏：标题 + 刷新按钮 + 排序 + 更多菜单（含分组管理）。
+  /// 顶栏搜索展开/收起的时长与曲线。
+  ///
+  /// 三个槽位（leading / title / actions）共用同一份，展开才像「一个动作」
+  /// 而不是三处各跳一下。曲线沿用本页折叠卡片与顶栏收起的口径。
+  static const Duration _kSearchAnim = Duration(milliseconds: 280);
+  static const Curve _kSearchIn = Curves.easeOutCubic;
+  static const Curve _kSearchOut = Curves.easeInCubic;
+
+  /// 顶栏槽位的通用切换：淡入淡出 + 沿水平方向滑一小段（纯 transform，
+  /// 不改布局，所以不会牵动顶栏高度）。
+  Widget _fadeSlideSlot(Widget child, {double from = 0.12}) {
+    return AnimatedSwitcher(
+      duration: _kSearchAnim,
+      switchInCurve: _kSearchIn,
+      switchOutCurve: _kSearchOut,
+      transitionBuilder: (inner, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          // 同一条动画驱动进出：入站时 from→0（从那一侧滑进来），
+          // 出站时 0→from（往同一侧滑出去），整组像是被推让开的。
+          position: Tween(begin: Offset(from, 0), end: Offset.zero)
+              .animate(animation),
+          child: inner,
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  /// 顶栏：标题 + 刷新按钮 + 搜索 + 排序 + 更多菜单（含分组管理）。
+  ///
+  /// 搜索是**图标 + 原位展开**：点右侧 🔍 后，leading 换成 ←、title 槽位换成
+  /// 胶囊输入框（从右边缘长出来）、右侧整排图标让位 —— 不再叠一个常驻的搜索行
+  /// 在 tab 上方，那一行平时不提供任何信息，却常年吃掉一格高度。
+  /// 顶栏高度必须恒等于 `preferredSize`（`CollapsibleTopBarScaffold` 拿它换算
+  /// 收起比例），所以宽度过渡只发生在 title 槽位内部，整体高度一帧都不变。
   ///
   /// 有勾选时进入选择态（设计稿）：leading 变 ✕（清空选择）、标题变
-  /// 「已选择 N 位」、排序按钮换成「一键成组」主色胶囊。
+  /// 「已选择 N 位」、排序按钮换成「一键成组」主色胶囊；此时不给搜索入口。
   /// 分组管理入口按设计稿收进右侧 ⋮ 弹层，不再占一个独立图标；
   /// 刷新按钮保留（设计稿没画，但去掉是功能倒退）。
   /// 玻璃胶囊不做：本页顶栏是随滚动收起的 `CollapsibleTopBarScaffold` AppBar，
@@ -60,156 +97,225 @@ class FollowUserPage extends GetView<FollowUserController> {
   PreferredSizeWidget _buildAppBar(ButtonStyle iconButtonStyle) {
     return AppBar(
       title: Obx(
-        () => Text(controller.selectedIds.isEmpty
-            ? "关注用户"
-            : "已选择 ${controller.selectedIds.length} 位"),
+        // 胶囊从右边缘（🔍 图标所在的位置）横向长出来，标题原地淡出 ——
+        // 视觉上就是「那个图标被拉成了输入框」。宽度只在 title 槽位内部变，
+        // 顶栏高度恒定，所以不违反 `CollapsibleTopBarScaffold` 的收起前提。
+        () => AnimatedSwitcher(
+          duration: _kSearchAnim,
+          switchInCurve: _kSearchIn,
+          switchOutCurve: _kSearchOut,
+          transitionBuilder: (inner, animation) =>
+              // 只有输入框吃宽度过渡；标题文字只淡出 —— 一起裁的话字会被
+              // 逐帧切掉半截，看着像被擦掉而不是让位。
+              inner.key == const ValueKey('title')
+                  ? FadeTransition(opacity: animation, child: inner)
+                  : SizeTransition(
+                      axis: Axis.horizontal,
+                      alignment: Alignment.centerRight,
+                      sizeFactor: animation,
+                      child: FadeTransition(opacity: animation, child: inner),
+                    ),
+          child: controller.searchExpanded.value
+              ? _buildSearchField(iconButtonStyle)
+              // 只读 searchExpanded 与 selectedIds，输入过程不重建这一层；
+              // 否则光标与输入法组合态会丢。
+              : Text(
+                  key: const ValueKey('title'),
+                  controller.selectedIds.isEmpty
+                      ? "关注用户"
+                      : "已选择 ${controller.selectedIds.length} 位",
+                ),
+        ),
       ),
       actions: [
-        // 选择态：一键成组；普通态：排序 dialog。
-        Obx(
-          () => controller.selectedIds.isEmpty
-              ? IconButton(
-                  style: iconButtonStyle,
-                  tooltip: "排序方式",
-                  icon: const Icon(Remix.sort_asc),
-                  onPressed: controller.showSortDialog,
-                )
-              : Padding(
-                  padding: AppStyle.edgeInsetsV8.copyWith(right: 4),
-                  child: FilledButton.icon(
-                    onPressed: controller.showQuickGroupDialog,
-                    icon: const Icon(Remix.folder_add_line, size: 18),
-                    label: const Text("一键成组"),
-                  ),
-                ),
-        ),
-        PopupMenuButton(
-          style: iconButtonStyle,
-          itemBuilder: (context) {
-            // 用自己的 item：官方 `PopupMenuItem` 的 hover 高亮是满宽矩形，
-            // 与菜单容器的大圆角对不上。详见 `AppPopupMenuItem`。
-            return const [
-              AppPopupMenuItem(
-                value: 6,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Remix.folder_3_line),
-                    AppStyle.hGap12,
-                    Text("分组管理"),
-                  ],
-                ),
+        // 整组右侧图标一起让位（淡出 + 向右滑），而不是三个各自消失。
+        // key 跟着状态走，所以「普通态 → 选择态」也是交叉淡入淡出而非硬切。
+        Obx(() {
+          final expanded = controller.searchExpanded.value;
+          final selecting = controller.selectedIds.isNotEmpty;
+          return _fadeSlideSlot(
+            KeyedSubtree(
+              key: ValueKey(
+                  '${expanded ? 'x' : 'c'}${selecting ? 's' : 'n'}'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 搜索入口。展开态让位给输入框；选择态不给（leading 已经是
+                  // 退出选择的 ✕，同屏两个返回控件没意义）。
+                  if (!expanded && !selecting)
+                    IconButton(
+                      style: iconButtonStyle,
+                      tooltip: "搜索",
+                      onPressed: controller.openSearch,
+                      icon: const Icon(Icons.search),
+                    ),
+                  if (!expanded)
+                    // 选择态：一键成组；普通态：排序 dialog。
+                    (selecting
+                        ? Padding(
+                            padding: AppStyle.edgeInsetsV8.copyWith(right: 4),
+                            child: FilledButton.icon(
+                              onPressed: controller.showQuickGroupDialog,
+                              icon: const Icon(Remix.folder_add_line, size: 18),
+                              label: const Text("一键成组"),
+                            ),
+                          )
+                        : IconButton(
+                            style: iconButtonStyle,
+                            tooltip: "排序方式",
+                            icon: const Icon(Remix.sort_asc),
+                            onPressed: controller.showSortDialog,
+                          )),
+                  if (!expanded)
+                    PopupMenuButton(
+                      style: iconButtonStyle,
+                      itemBuilder: (context) {
+                        // 用自己的 item：官方 `PopupMenuItem` 的 hover 高亮是满宽矩形，
+                        // 与菜单容器的大圆角对不上。详见 `AppPopupMenuItem`。
+                        return const [
+                          AppPopupMenuItem(
+                            value: 6,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Remix.folder_3_line),
+                                AppStyle.hGap12,
+                                Text("分组管理"),
+                              ],
+                            ),
+                          ),
+                          AppPopupMenuItem(
+                            value: 0,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Remix.trophy_line),
+                                AppStyle.hGap12,
+                                Text("赛事订阅"),
+                              ],
+                            ),
+                          ),
+                          AppPopupMenuItem(
+                            value: 4,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Remix.heart_line),
+                                AppStyle.hGap12,
+                                Text("关注设置"),
+                              ],
+                            ),
+                          ),
+                        ];
+                      },
+                      onSelected: (value) {
+                        if (value == 4) {
+                          Get.toNamed(RoutePath.kSettingsFollow);
+                        } else if (value == 0) {
+                          SmartDialog.showToast("此功能暂未开放！敬请期待！");
+                        } else if (value == 6) {
+                          showFollowTagManagerSheet();
+                        }
+                      },
+                    ),
+                ],
               ),
-              AppPopupMenuItem(
-                value: 0,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Remix.trophy_line),
-                    AppStyle.hGap12,
-                    Text("赛事订阅"),
-                  ],
-                ),
-              ),
-              AppPopupMenuItem(
-                value: 4,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Remix.heart_line),
-                    AppStyle.hGap12,
-                    Text("关注设置"),
-                  ],
-                ),
-              ),
-            ];
-          },
-          onSelected: (value) {
-            if (value == 4) {
-              Get.toNamed(RoutePath.kSettingsFollow);
-            } else if (value == 0) {
-              SmartDialog.showToast("此功能暂未开放！敬请期待！");
-            } else if (value == 6) {
-              showFollowTagManagerSheet();
-            }
-          },
-        ),
+            ),
+          );
+        }),
       ],
       leading: Obx(() {
-        // 选择态：✕ 清空选择并退出。
-        if (controller.selectedIds.isNotEmpty) {
-          return IconButton(
+        // 搜索展开态：← 收起搜索并清空关键词。
+        final Widget slot;
+        if (controller.searchExpanded.value) {
+          slot = IconButton(
+            key: const ValueKey('back'),
+            style: iconButtonStyle,
+            tooltip: "收起搜索",
+            onPressed: controller.closeSearch,
+            icon: const Icon(Icons.arrow_back),
+          );
+        } else if (controller.selectedIds.isNotEmpty) {
+          slot = IconButton(
+            key: const ValueKey('close'),
             style: iconButtonStyle,
             tooltip: "退出选择",
             onPressed: controller.clearSelection,
             icon: const Icon(Icons.close),
           );
-        }
-        return FollowService.instance.updating.value
-            ? IconButton(
-                style: iconButtonStyle,
-                tooltip: "刷新中",
-                onPressed: null,
-                icon: const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
+        } else {
+          slot = FollowService.instance.updating.value
+              ? IconButton(
+                  key: const ValueKey('refreshing'),
+                  style: iconButtonStyle,
+                  tooltip: "刷新中",
+                  onPressed: null,
+                  icon: const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
                   ),
-                ),
-              )
-            : IconButton(
-                style: iconButtonStyle,
-                tooltip: "刷新",
-                onPressed: () {
-                  controller.refreshData();
-                },
-                icon: const Icon(Icons.refresh),
-              );
+                )
+              : IconButton(
+                  key: const ValueKey('refresh'),
+                  style: iconButtonStyle,
+                  tooltip: "刷新",
+                  onPressed: () {
+                    controller.refreshData();
+                  },
+                  icon: const Icon(Icons.refresh),
+                );
+        }
+        // ← 与 ↻/✕ 一律从左侧进出（展开时 ← 从胶囊左端「长」出来，收起时反向），
+        // 方向固定才对称：不能只在展开那一趟带位移。
+        return _fadeSlideSlot(slot, from: -0.12);
       }),
     );
   }
 
-  Widget _buildBody(
-      BuildContext context, ButtonStyle iconButtonStyle, int count, int c) {
+  /// 展开态占在顶栏 title 槽位上的胶囊搜索框。
+  ///
+  /// `autofocus`：点图标就是要输入，不再多跳一次「点一下输入框」。
+  /// 外层 `Obx` 只读 `searchExpanded`，输入过程不会重建这一层。
+  Widget _buildSearchField(ButtonStyle iconButtonStyle) {
+    return TextField(
+      key: const Key('follow-search-field'),
+      controller: controller.searchController,
+      autofocus: true,
+      onChanged: (v) => controller.searchQuery.value = v,
+      decoration: InputDecoration(
+        hintText: "搜索关注的主播",
+        prefixIcon: const Icon(Icons.search),
+        // 清空按钮：有内容时才出现。只把这一小块包进 Obx，理由同上。
+        suffixIcon: Obx(
+          () => controller.searchQuery.value.isEmpty
+              ? const SizedBox.shrink()
+              : IconButton(
+                  style: iconButtonStyle,
+                  tooltip: "清空",
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    controller.searchController.clear();
+                    controller.searchQuery.value = "";
+                  },
+                ),
+        ),
+        isDense: true,
+        border: OutlineInputBorder(
+          borderRadius: AppStyle.radius24,
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, int count, int c) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 搜索框。**放在 Obx 外面** —— 它自己不订阅数据，放进 Obx 会在列表
-        // 刷新时被重建，正在输入的内容和焦点都会丢。
-        Padding(
-          padding: AppStyle.edgeInsetsA12.copyWith(top: 4, bottom: 0),
-          child: TextField(
-            controller: controller.searchController,
-            onChanged: (v) => controller.searchQuery.value = v,
-            decoration: InputDecoration(
-              hintText: "搜索关注的主播",
-              prefixIcon: const Icon(Icons.search),
-              // 清空按钮：有内容时才出现。
-              // **只把这一小块包进 Obx** —— 整个 TextField 是刻意放在外层 Obx
-              // 之外的（见上面的注释），整个塞进去会在列表刷新时重建、丢焦点。
-              suffixIcon: Obx(
-                () => controller.searchQuery.value.isEmpty
-                    ? const SizedBox.shrink()
-                    : IconButton(
-                        style: iconButtonStyle,
-                        tooltip: "清空",
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          controller.searchController.clear();
-                          controller.searchQuery.value = "";
-                        },
-                      ),
-              ),
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: AppStyle.radius24,
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-            ),
-          ),
-        ),
         // 3 个内置视图 tab。要计数，所以在 Obx 里。
         Obx(() {
           final live = controller.liveSection.length;
@@ -294,47 +400,6 @@ class FollowUserPage extends GetView<FollowUserController> {
             );
           },
         ),
-        // 快速重组首次提示条（设计稿）：有勾选且没点过「知道了」才出现。
-        // 操作入口在选择态顶栏（✕ / 已选择 N 位 / 一键成组），这里只做讲解。
-        Obx(() {
-          if (controller.selectedIds.isEmpty ||
-              controller.selectHintDismissed) {
-            return const SizedBox.shrink();
-          }
-          final scheme = Theme.of(context).colorScheme;
-          return Material(
-            color: scheme.inverseSurface,
-            // 竖屏 extendBody 时让出悬浮底栏高度（同原操作栏的注释）。
-            child: Padding(
-              padding: EdgeInsets.only(
-                bottom: PageGridView.floatingBarInsetOf(context),
-              ),
-              child: Padding(
-                padding: AppStyle.edgeInsetsH12.copyWith(top: 4, bottom: 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        "点击头像勾选主播，点击其他区域进入直播间",
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: scheme.onInverseSurface,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: controller.dismissSelectHint,
-                      child: Text(
-                        "知道了",
-                        style: TextStyle(color: scheme.onInverseSurface),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
       ],
     );
   }
@@ -445,14 +510,18 @@ class FollowUserPage extends GetView<FollowUserController> {
       ));
     }
     final ungroupedCollapsed = collapsed.contains(_kUngroupedKey);
-    // 勾选数在这里（Obx 窗口内）算好再传下去，段头保持纯展示。
+    // 勾选数与在播数在这里（Obx 窗口内）算好再传下去，段头保持纯展示。
     final ungroupedSelectedCount = grouped.ungrouped
         .where((u) => controller.selectedIds.contains(u.id))
+        .length;
+    final ungroupedLiveCount = grouped.ungrouped
+        .where((u) => u.liveStatus.value == 2)
         .length;
     if (!searching || grouped.ungrouped.isNotEmpty) {
       sections.add(BoxSection(
         child: _UngroupedSection(
           members: grouped.ungrouped,
+          liveCount: ungroupedLiveCount,
           selectedCount: ungroupedSelectedCount,
           hasGroups: grouped.groups.isNotEmpty,
           collapsed: ungroupedCollapsed,
@@ -573,7 +642,10 @@ class _SectionHeader extends StatelessWidget {
 class _UngroupedSection extends StatelessWidget {
   final List<FollowUser> members;
 
-  /// 未分组里已勾选的人数（设计稿「· 已选 X 位」）。
+  /// 未分组里正在直播的人数（与 [selectedCount] 同在 Obx 窗口内算好传入）。
+  final int liveCount;
+
+  /// 未分组里已勾选的人数（段头「· 已选 X」）。
   final int selectedCount;
   final bool hasGroups;
   final bool collapsed;
@@ -589,6 +661,7 @@ class _UngroupedSection extends StatelessWidget {
 
   const _UngroupedSection({
     required this.members,
+    required this.liveCount,
     required this.selectedCount,
     required this.hasGroups,
     required this.collapsed,
@@ -691,11 +764,12 @@ class _UngroupedSection extends StatelessWidget {
               ),
             ),
             AppStyle.hGap8,
-            Text(
-              selectedCount > 0
-                  ? "${members.length} 位主播 · 已选 $selectedCount 位"
-                  : "${members.length} 位主播",
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            // 与分组卡片同一口径 `● N/M 在播`：原来只写「M 位主播」，
+            // 把在播信息整个丢了，两套口径并排看着像漏改。
+            FollowCountLabel(
+              live: liveCount,
+              total: members.length,
+              selected: selectedCount,
             ),
             if (hasGroups)
               Expanded(

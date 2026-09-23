@@ -4,13 +4,12 @@ import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_member_row.dart';
-import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/shadow_card.dart';
 
 /// 关注页「全部」视图的一个分组卡片：可折叠、成员多列、并且是拖拽换组的落点。
 ///
-/// 头部：`∨/› 箭头 + 组名 +（折叠时成员头像堆叠）+「● N 个正在直播」+
-/// 「共 M 位」灰字 + 右侧拖拽把手图标`。
+/// 头部：`∨/› 箭头 + 组名 + 「● N/M 在播」+ 右侧拖拽把手图标`。
+/// 折叠时不再摆成员头像堆叠 —— 那三枚圆片把组名挤成了省略号。
 /// 头部点按=折叠、长按（移动端）/右键（桌面端）=重命名；**调序只认右侧那枚
 /// [Icons.drag_handle] 把手**（与「主页排序」同款），整条头部不再可拖 —— 否则
 /// 桌面端鼠标左键拖拽 / 移动端竖向滑动都会和调序抢手势。
@@ -143,52 +142,23 @@ class FollowGroupCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (collapsed && group.members.isNotEmpty) ...[
-                    AppStyle.hGap8,
-                    _CollapsedAvatars(members: group.members),
-                  ],
                   AppStyle.hGap8,
-                  if (group.liveCount > 0) ...[
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '● ',
-                            style:
-                                TextStyle(fontSize: 10, color: scheme.primary),
-                          ),
-                          TextSpan(text: '${group.liveCount} 个正在直播'),
-                        ],
-                      ),
-                      style: TextStyle(fontSize: 12, color: scheme.primary),
-                    ),
-                    AppStyle.hGap8,
-                  ],
-                  // 总数 + 组内已勾选数（设计稿「· 已选 X 位」）合成一段、可省略，
-                  // 窄视口下不会把头部挤爆。卡片在惰性 itemBuilder 里构建，
-                  // 勾选集合必须自带 Obx 才订阅得到。
+                  // 计数压成一段 `● 3/4 在播`：原来「3 个正在直播」+「共 4 位」
+                  // 两段中文占了大半行，组名只能出省略号（移动端实测）。
                   Flexible(
                     child: selectedIds == null
-                        ? Text(
-                            '共 ${group.totalCount} 位',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 12, color: scheme.onSurfaceVariant),
-                          )
+                        ? FollowCountLabel(
+                            live: group.liveCount, total: group.totalCount)
                         : Obx(() {
+                            // 勾选数（`· 已选 X`）：勾选集合是 RxSet，卡片又在
+                            // 惰性 itemBuilder 里构建，必须自带 Obx 才订阅得到。
                             final sel = group.members
                                 .where((m) => selectedIds!.contains(m.id))
                                 .length;
-                            return Text(
-                              sel > 0
-                                  ? '共 ${group.totalCount} 位 · 已选 $sel 位'
-                                  : '共 ${group.totalCount} 位',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: scheme.onSurfaceVariant),
+                            return FollowCountLabel(
+                              live: group.liveCount,
+                              total: group.totalCount,
+                              selected: sel,
                             );
                           }),
                   ),
@@ -218,6 +188,11 @@ class FollowGroupCard extends StatelessWidget {
     return Padding(
       padding: AppStyle.edgeInsetsH12.copyWith(top: 4, bottom: 8),
       child: GridView.count(
+        // 必须显式给：`padding` 为 null 时 `ScrollView` 会拿
+        // `MediaQuery.padding` 的**主轴分量**（这里就是顶/底安全区，含悬浮底栏
+        // 那一段）当默认内边距，而外层是 `CustomScrollView`（它不做这件事），
+        // 于是那一段高度一路传到卡片里，每张卡片底部凭空多出一截空白。
+        padding: EdgeInsets.zero,
         crossAxisCount: memberColumns,
         shrinkWrap: true,
         // 外层 PageGridView 已有滚动，这里只是把成员摆成多列。
@@ -248,42 +223,47 @@ class FollowGroupCard extends StatelessWidget {
   }
 }
 
-/// 折叠态组名后的成员头像小堆叠（设计稿：最多 3 个，重叠圆片）。
-class _CollapsedAvatars extends StatelessWidget {
-  final List<FollowUser> members;
-  const _CollapsedAvatars({required this.members});
+/// 分组卡片头部与未分组段头共用的计数：`● 3/4 在播`（+ 勾选态 `· 已选 2`）。
+///
+/// 圆点只在有在播成员时出现并取主题色，零在播就是灰字 `0/3 在播` —— 两种情况下
+/// 这段文字的宽度都稳定，不会因为有组在播就把组名挤成省略号。
+class FollowCountLabel extends StatelessWidget {
+  final int live;
+  final int total;
+  final int selected;
 
-  static const double _size = 18;
-  static const double _step = 12;
+  const FollowCountLabel({
+    required this.live,
+    required this.total,
+    this.selected = 0,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // 空组（未分组清空后仍要留作拖拽落点）不显示计数，`0/0 在播` 是噪音。
+    if (total == 0) {
+      return const SizedBox.shrink();
+    }
     final scheme = Theme.of(context).colorScheme;
-    final shown = members.take(3).toList();
-    return SizedBox(
-      height: _size,
-      width: _size + _step * (shown.length - 1),
-      child: Stack(
+    return Text.rich(
+      TextSpan(
+        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
         children: [
-          for (var i = 0; i < shown.length; i++)
-            Positioned(
-              left: i * _step,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  // 描边取卡片底色，让重叠圆片之间分得开
-                  border: Border.all(color: scheme.surface, width: 2),
-                ),
-                child: NetImage(
-                  shown[i].face,
-                  width: _size,
-                  height: _size,
-                  borderRadius: _size / 2,
-                ),
-              ),
+          if (live > 0)
+            TextSpan(
+              text: '● ',
+              style: TextStyle(fontSize: 10, color: scheme.primary),
             ),
+          TextSpan(
+            text: '$live/$total 在播',
+            style: live > 0 ? TextStyle(color: scheme.primary) : null,
+          ),
+          if (selected > 0) TextSpan(text: ' · 已选 $selected'),
         ],
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

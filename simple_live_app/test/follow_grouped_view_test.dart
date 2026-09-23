@@ -7,7 +7,8 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/gestures.dart' show kSecondaryButton;
-import 'package:flutter/material.dart' show Icons, Key;
+import 'package:flutter/material.dart'
+    show Icons, Key, MediaQuery, SingleChildScrollView;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
@@ -67,22 +68,22 @@ void main() {
         findsOneWidget);
     expect(find.descendant(of: cardOf('CS解说'), matching: find.text('乙')),
         findsOneWidget);
-    // CS解说 = 1 个正在直播 + 共 2 位；LOL解说 无人直播 → 只有「共 1 位」
+    // CS解说 = `● 1/2 在播`；LOL解说 无人直播 = `0/1 在播`（不带圆点）
     expect(
         find.descendant(
-            of: cardOf('CS解说'), matching: find.textContaining('1 个正在直播')),
+            of: cardOf('CS解说'), matching: find.textContaining('1/2 在播')),
         findsOneWidget);
     expect(
         find.descendant(
-            of: cardOf('CS解说'), matching: find.textContaining('共 2 位')),
+            of: cardOf('CS解说'), matching: find.textContaining('●')),
         findsOneWidget);
     expect(
         find.descendant(
-            of: cardOf('LOL解说'), matching: find.textContaining('个正在直播')),
+            of: cardOf('LOL解说'), matching: find.textContaining('●')),
         findsNothing);
     expect(
         find.descendant(
-            of: cardOf('LOL解说'), matching: find.textContaining('共 1 位')),
+            of: cardOf('LOL解说'), matching: find.textContaining('0/1 在播')),
         findsOneWidget);
     // 未分组段：丁 + 右对齐的拖出提示
     expect(rowOf('丁'), findsOneWidget);
@@ -100,10 +101,10 @@ void main() {
     expect(
         find.descendant(of: cardOf('CS解说'), matching: find.text('甲')),
         findsNothing);
-    // 折叠时组名后出现成员头像小堆叠（2 个成员 → 2 个圆片）
+    // 折叠态不再在组名后摆成员头像堆叠（三枚圆片会把组名挤成省略号）
     expect(
         find.descendant(of: cardOf('CS解说'), matching: find.byType(NetImage)),
-        findsNWidgets(2));
+        findsNothing);
     // 另一张卡片不受影响
     expect(
         find.descendant(of: cardOf('LOL解说'), matching: find.text('丙')),
@@ -138,6 +139,34 @@ void main() {
     expect(find.text('重命名分组'), findsOneWidget);
     await tester.tap(find.text('否'));
     await settle(tester);
+    await settleEnd(tester);
+  });
+
+  testWidgets('键盘抬起时弹重命名：面板不被键盘高度撑大', (tester) async {
+    // `Get.dialog` 的路由已经把 AlertDialog 摆在键盘上方，弹窗内容里若再垫一次
+    // `viewInsets.bottom`，搜索态（键盘抬起）下长按分组弹重命名时面板会被撑到
+    // 几乎占满键盘上方整屏（移动端实测）。
+    await seedGrouped(tester);
+    await tester.tap(find.byTooltip('搜索'));
+    await settle(tester);
+    tester.view.viewInsets =
+        FakeViewPadding(bottom: 300 * tester.view.devicePixelRatio);
+    await settle(tester);
+
+    await tester.longPress(find.text('CS解说'));
+    await settle(tester);
+
+    expect(find.text('重命名分组'), findsOneWidget);
+    // 弹窗标题在滚动容器里，从它往上找容器（不依赖 AlertDialog 的具体类型，
+    // material_ui 有自己的实现）。
+    final scroll = find
+        .ancestor(
+            of: find.text('重命名分组'),
+            matching: find.byType(SingleChildScrollView))
+        .first;
+    // 内容本身约 120 高；把键盘高度算两遍的话这里会是 ~420
+    expect(tester.getSize(scroll).height, lessThan(200));
+    tester.view.viewInsets = FakeViewPadding.zero;
     await settleEnd(tester);
   });
 
@@ -238,7 +267,7 @@ void main() {
     await settleEnd(tester);
   });
 
-  testWidgets('勾选→一键成组：顶栏选择态 + 提示条 + 新建分组批量移入', (tester) async {
+  testWidgets('勾选→一键成组：顶栏选择态 + 新建分组批量移入', (tester) async {
     final svc = await seedGrouped(tester);
     final c = Get.find<FollowUserController>();
 
@@ -246,19 +275,15 @@ void main() {
     await tester.dragFrom(const Offset(200, 560), const Offset(0, -200));
     await settle(tester);
 
-    // 勾选丁（未分组）→ 顶栏进入选择态、底部出现操作提示条
+    // 勾选丁（未分组）→ 顶栏进入选择态
     await tester.tap(
         find.descendant(of: rowOf('丁'), matching: find.byType(NetImage)));
     await settle(tester);
     expect(c.selectedIds.contains('huya_丁'), isTrue);
     expect(find.text('已选择 1 位'), findsOneWidget);
-    expect(find.textContaining('点击头像勾选主播'), findsOneWidget);
-    // 未分组段头追加已选数（设计稿「· 已选 X 位」）
-    expect(find.textContaining('· 已选 1 位'), findsOneWidget);
-
-    // 「知道了」永久关闭提示条
-    await tester.tap(find.text('知道了'));
-    await settle(tester);
+    // 未分组段头追加已选数（`· 已选 X`）
+    expect(find.textContaining('在播 · 已选 1'), findsOneWidget);
+    // 「点击头像勾选」讲解条已删：勾选态一看便知，不值得占一条横幅
     expect(find.textContaining('点击头像勾选主播'), findsNothing);
 
     // 再勾选乙（CS解说组内）→ 跨组累积
@@ -266,7 +291,7 @@ void main() {
         find.descendant(of: rowOf('乙'), matching: find.byType(NetImage)));
     await settle(tester);
     expect(find.text('已选择 2 位'), findsOneWidget);
-    expect(find.textContaining('· 已选 1 位'), findsNWidgets(2));
+    expect(find.textContaining('在播 · 已选 1'), findsNWidgets(2));
 
     // 滚回顶部让收起的顶栏展开，再点「一键成组」
     await tester.dragFrom(const Offset(200, 400), const Offset(0, 300));
@@ -310,6 +335,56 @@ void main() {
     await settle(tester);
 
     expect(svc.followList.firstWhere((u) => u.userName == '丁').tag, 'LOL解说');
+    await settleEnd(tester);
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('一键成组弹窗：键盘弹起不得把表单挤出 sheet 可见区', (tester) async {
+    // `Get.bottomSheet` 的路由自己就按 `viewInsets.bottom` 把 sheet 抬起来了，
+    // 表单里不能再抬一次；再叠上 get 默认那条 9/16 高度硬夹，移动端一点输入法
+    // 整张表单就被裁到盒子外面（用户实测：只剩一块空白面板）。
+    await seedGrouped(tester);
+    await tester.dragFrom(const Offset(200, 560), const Offset(0, -200));
+    await settle(tester);
+    await tester.tap(
+        find.descendant(of: rowOf('丁'), matching: find.byType(NetImage)));
+    await settle(tester);
+    await tester.dragFrom(const Offset(200, 400), const Offset(0, 300));
+    await settle(tester);
+    await tester.tap(find.text('一键成组'));
+    await settle(tester);
+
+    tester.view.viewInsets =
+        FakeViewPadding(bottom: 300 * tester.view.devicePixelRatio);
+    await settle(tester);
+
+    final sheet = find.byType(FollowQuickGroupSheet);
+    final box = tester.getRect(sheet);
+    final createBtn = tester.getRect(find.descendant(
+        of: sheet, matching: find.text('创建分组')));
+    expect(box.bottom, closeTo(500, 1),
+        reason: 'sheet 底边应正好贴在键盘上沿（800 视口 - 300 键盘）');
+    expect(createBtn.bottom, lessThanOrEqualTo(box.bottom),
+        reason: '表单尾部必须留在 sheet 盒子内，否则会被圆角 Material 裁掉');
+    expect(tester.takeException(), isNull);
+
+    // 更极端的键盘（400/800）+ 分组多到换行：表单要能滚、操作行必须还够得着
+    tester.view.viewInsets =
+        FakeViewPadding(bottom: 400 * tester.view.devicePixelRatio);
+    await settle(tester);
+    final box2 = tester.getRect(sheet);
+    final createBtn2 = tester.getRect(find.descendant(
+        of: sheet, matching: find.text('创建分组')));
+    expect(createBtn2.bottom, lessThanOrEqualTo(box2.bottom),
+        reason: '极端挤压下「创建分组」被挤出去就再也点不到了');
+    expect(tester.getSize(find.ancestor(
+            of: find.text('分组名称'),
+            matching: find.byType(SingleChildScrollView)).first).height,
+        lessThan(313),
+        reason: '表单本体应为了让出空间而收缩（可滚），不是把盒子撑爆');
+    expect(tester.takeException(), isNull);
+
+    tester.view.viewInsets = FakeViewPadding.zero;
     await settleEnd(tester);
     await tester.pump(const Duration(seconds: 3));
   });
@@ -387,6 +462,26 @@ void main() {
     expect(onCard, greaterThan(0), reason: '滚轮悬停在分组卡片头部不得失效');
     expect(onMember, greaterThan(0), reason: '滚轮悬停在卡片成员行上不得失效');
     expect(onUngrouped, greaterThan(0), reason: '滚轮在未分组区应滚动');
+    await settleEnd(tester);
+  });
+
+  testWidgets('移动端：分组卡片底部不被底栏安全区撑出空白', (tester) async {
+    // 悬浮底栏的高度由 Scaffold 记进 MediaQuery.padding.bottom。卡片里的成员
+    // GridView 若不显式给 padding，`ScrollView` 会拿它当默认内边距（ListView /
+    // GridView 的自动安全区行为），整张卡片底部就凭空多出一截。
+    await seedGrouped(tester);
+    final card = cardOf('CS解说');
+    final mq = MediaQuery.of(tester.element(card.first));
+    expect(mq.padding.bottom, greaterThan(0),
+        reason: '前提：本用例要跑在「有底栏安全区」的移动端口径下');
+
+    final cardBottom = tester.getRect(card.first).bottom;
+    final lastRowBottom = tester
+        .getRect(find.descendant(
+            of: card, matching: find.byType(FollowMemberRow)).last)
+        .bottom;
+    // 成员行之下只剩卡片自己的 8 底部内边距 + 1.5 描边（拖拽高亮框）。
+    expect(cardBottom - lastRowBottom, lessThanOrEqualTo(10));
     await settleEnd(tester);
   });
 
