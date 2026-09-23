@@ -1256,4 +1256,19 @@ class DouyinSite implements LiveSite {
       return url;
     }
   }
+
+  @override
+  void setSiteAttrs(Map<String, dynamic> data) {
+    if (data.containsKey('cookie')) {
+      final cookie = data['cookie'] as String;
+      if (cookie.isEmpty) {
+        headers.remove('cookie');
+      } else {
+        headers['cookie'] = cookie;
+      }
+    }
+    if (data.containsKey('hlsFirst')) {
+      hlsFirst = data['hlsFirst'] as bool;
+    }
+  }
 }
