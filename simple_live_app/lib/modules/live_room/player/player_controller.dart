@@ -449,6 +449,13 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   void exitFull() async {
     // todo: 还应该关闭所有的dialog
     SmartDialog.dismiss();
+    // 小窗态下 fullScreenState 同样为 true，双击/ESC/返回键都会汇入本方法。
+    // 小窗清理（置顶、纵横比锁定、最小尺寸、isPIP）只在 exitSmallWindow 里，
+    // 直接走下面的全屏分支会把这些状态残留下来，故此处整单转交。
+    if (smallWindowState.value) {
+      await exitSmallWindow();
+      return;
+    }
     if (Platform.isAndroid || Platform.isIOS) {
       // 系统栏即将恢复：若设备不再上报恢复后的 inset，用进全屏前的高度兜底
       SystemUiBottomInset.markRestoring();
