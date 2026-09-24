@@ -332,21 +332,6 @@ Widget buildFullControls(
                       ),
                     ),
                   ),
-                  Obx(
-                    // only pip
-                    () => Visibility(
-                      visible: controller.smallWindowState.value,
-                      child: IconButton(
-                        onPressed: () {
-                          controller.enterFullScreen();
-                        },
-                        icon: const Icon(
-                          Remix.fullscreen_line,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
                   IconButton(
                     // 和顶部返回按钮同一个动作，提示文案也要一致：
                     // 小窗态下两处都该说「退出小窗」，不然同一屏两个同义按钮
@@ -361,9 +346,29 @@ Widget buildFullControls(
                         controller.exitFull();
                       }
                     },
-                    icon: const Icon(
-                      Remix.fullscreen_exit_fill,
+                    icon: Icon(
+                      // 退出小窗用与「小窗播放」入口相同的图标，
+                      // 全屏的进入/退出才用 fullscreen 图标族
+                      controller.smallWindowState.value
+                          ? Icons.picture_in_picture
+                          : Remix.fullscreen_exit_fill,
                       color: Colors.white,
+                    ),
+                  ),
+                  Obx(
+                    // only pip
+                    () => Visibility(
+                      visible: controller.smallWindowState.value,
+                      child: IconButton(
+                        tooltip: "全屏播放",
+                        onPressed: () {
+                          controller.enterFullScreen();
+                        },
+                        icon: const Icon(
+                          Remix.fullscreen_line,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ],
