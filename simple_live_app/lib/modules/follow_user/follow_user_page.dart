@@ -96,6 +96,10 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 玻璃机制（`liquid_glass_nav_defaults.dart`）只服务悬浮导航栏。
   PreferredSizeWidget _buildAppBar(ButtonStyle iconButtonStyle) {
     return AppBar(
+      // 普通态 leading 要并排放两个图标（刷新 + 一键展开/折叠全部分组），
+      // 默认的 56 只够一个，放到 96。标题居中（`AppBarTheme.centerTitle`），
+      // 且 `NavigationToolbar` 会在居中位置撞到 leading 时把标题右移，不会重叠。
+      leadingWidth: 96,
       title: Obx(
         // 胶囊从右边缘（🔍 图标所在的位置）横向长出来，标题原地淡出 ——
         // 视觉上就是「那个图标被拉成了输入框」。宽度只在 title 槽位内部变，
@@ -244,33 +248,63 @@ class FollowUserPage extends GetView<FollowUserController> {
             icon: const Icon(Icons.close),
           );
         } else {
-          slot = FollowService.instance.updating.value
-              ? IconButton(
-                  key: const ValueKey('refreshing'),
+          // 普通态两个图标：刷新 + 一键展开/折叠全部分组。
+          // 只有「全部」视图有分组卡片可折叠；关注列表也空时按钮没意义。
+          final showFoldAll = controller.activeTab.value == 0 &&
+              (controller.customTags.isNotEmpty || controller.list.isNotEmpty);
+          final folded = controller.hasCollapsedGroups;
+          slot = Row(
+            key: const ValueKey('normal'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 刷新 ⇄ 刷新中 仍按原来那样单独淡入淡出 —— 外面那层
+              // `_fadeSlideSlot` 只负责「普通态 ⇄ 搜索/选择态」的整体切换。
+              _fadeSlideSlot(
+                FollowService.instance.updating.value
+                    ? IconButton(
+                        key: const ValueKey('refreshing'),
+                        style: iconButtonStyle,
+                        tooltip: "刷新中",
+                        onPressed: null,
+                        icon: const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      )
+                    : IconButton(
+                        key: const ValueKey('refresh'),
+                        style: iconButtonStyle,
+                        tooltip: "刷新",
+                        onPressed: () {
+                          controller.refreshData();
+                        },
+                        icon: const Icon(Icons.refresh),
+                      ),
+                from: -0.12,
+              ),
+              if (showFoldAll)
+                IconButton(
+                  key: const ValueKey('fold-all'),
                   style: iconButtonStyle,
-                  tooltip: "刷新中",
-                  onPressed: null,
-                  icon: const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  ),
-                )
-              : IconButton(
-                  key: const ValueKey('refresh'),
-                  style: iconButtonStyle,
-                  tooltip: "刷新",
-                  onPressed: () {
-                    controller.refreshData();
-                  },
-                  icon: const Icon(Icons.refresh),
-                );
+                  tooltip: folded ? "展开全部分组" : "折叠全部分组",
+                  onPressed: controller.toggleAllGroupsCollapsed,
+                  icon: Icon(folded ? Icons.unfold_more : Icons.unfold_less),
+                ),
+            ],
+          );
         }
         // ← 与 ↻/✕ 一律从左侧进出（展开时 ← 从胶囊左端「长」出来，收起时反向），
         // 方向固定才对称：不能只在展开那一趟带位移。
-        return _fadeSlideSlot(slot, from: -0.12);
+        // 外面套一层 Align：leading 槽位放宽到 96 之后，`AnimatedSwitcher` 内部
+        // 那个居中的 Stack 会把单图标状态（← / ✕ / ↻）浮到槽位中间，比原来
+        // 56 宽时偏右一截。
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: _fadeSlideSlot(slot, from: -0.12),
+        );
       }),
     );
   }
@@ -509,7 +543,9 @@ class FollowUserPage extends GetView<FollowUserController> {
         ),
       ));
     }
-    final ungroupedCollapsed = collapsed.contains(_kUngroupedKey);
+    final ungroupedCollapsed = collapsed.contains(
+      FollowUserController.kUngroupedKey,
+    );
     // 勾选数与在播数在这里（Obx 窗口内）算好再传下去，段头保持纯展示。
     final ungroupedSelectedCount = grouped.ungrouped
         .where((u) => controller.selectedIds.contains(u.id))
@@ -528,7 +564,9 @@ class FollowUserPage extends GetView<FollowUserController> {
           columns: count,
           hideRemove: hide,
           selectedIds: controller.selectedIds,
-          onToggle: () => controller.toggleGroupCollapsed(_kUngroupedKey),
+          onToggle: () => controller.toggleGroupCollapsed(
+            FollowUserController.kUngroupedKey,
+          ),
           onDrop: (u) => controller.setFollowTag(u, controller.tagList.first),
           onToggleSelect: (u) => controller.toggleSelected(u.id),
           onMemberTap: _toDetail,
@@ -539,12 +577,6 @@ class FollowUserPage extends GetView<FollowUserController> {
     }
     return sections;
   }
-
-  /// 未分组段折叠态在 `collapsedGroups` 里的哨兵 key。
-  ///
-  /// 自定义标签 id 由 fractional indexing 生成（字母开头、至少两位），
-  /// 不会撞上这个值。
-  static const String _kUngroupedKey = "ungrouped";
 
   /// 段头高度。紧凑行视图与未分组段头共用这一个值。
   static const double _kSectionHeaderHeight = 34;

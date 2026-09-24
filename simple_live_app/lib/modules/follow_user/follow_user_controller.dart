@@ -53,6 +53,12 @@ class FollowUserController extends BasePageController<FollowUser>
   static bool isReservedTagName(String name) =>
       builtinTags.contains(name.trim());
 
+  /// 未分组段在 [collapsedGroups] 里的哨兵 key。
+  ///
+  /// 自定义标签 id 由 fractional indexing 生成（字母开头、至少两位），
+  /// 不会撞上这个值。
+  static const String kUngroupedKey = "ungrouped";
+
   /// 当前视图：0=全部（分组文件夹）1=直播中（卡片网格）2=未开播（紧凑行）。
   final activeTab = 0.obs;
 
@@ -169,6 +175,37 @@ class FollowUserController extends BasePageController<FollowUser>
   void toggleGroupCollapsed(String tagId) {
     if (!collapsedGroups.remove(tagId)) {
       collapsedGroups.add(tagId);
+    }
+    AppSettingsController.instance.setFollowCollapsedGroups(
+      collapsedGroups.toList(),
+    );
+  }
+
+  /// 「全部」视图里是否还有折叠中的分组。
+  ///
+  /// 顶栏那个按钮据此在「展开全部 / 折叠全部」之间翻转。
+  ///
+  /// 只认**当前真实存在**的分组：拖拽调序会换掉标签 id、删分组也不会回头清理
+  /// 集合，只看 `isNotEmpty` 的话，孤儿 id 会让按钮显示「展开全部」而点下去界面
+  /// 上什么都不展开 —— 新按钮的第一下「点了没反应」。
+  bool get hasCollapsedGroups {
+    final liveIds = {for (final t in customTags) t.id, kUngroupedKey};
+    return collapsedGroups.any(liveIds.contains);
+  }
+
+  /// 顶栏一键：有折叠就全部展开，否则把自定义分组与未分组段全部折叠。
+  ///
+  /// 与 [toggleGroupCollapsed] 写同一份存储，重启后保持。
+  void toggleAllGroupsCollapsed() {
+    // 判据与按钮显示口径共用 [hasCollapsedGroups]：孤儿 id 不该让这一下变成
+    // 「只清理、不展开」的空动作。
+    if (hasCollapsedGroups) {
+      collapsedGroups.clear();
+    } else {
+      collapsedGroups.assignAll([
+        for (final t in customTags) t.id,
+        kUngroupedKey,
+      ]);
     }
     AppSettingsController.instance.setFollowCollapsedGroups(
       collapsedGroups.toList(),
