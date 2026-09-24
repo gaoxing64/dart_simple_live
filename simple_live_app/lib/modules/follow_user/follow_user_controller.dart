@@ -228,7 +228,7 @@ class FollowUserController extends BasePageController<FollowUser>
   /// 不进入独立"选择模式"，与长按菜单、拖拽换组互不干扰。
   final selectedIds = <String>{}.obs;
 
-  /// 勾选中的关注项（按当前列表顺序），一键成组弹窗的头像预览用。
+  /// 勾选中的关注项（按当前列表顺序），编辑弹窗的头像预览用。
   List<FollowUser> get selectedUsers {
     final ids = Set<String>.of(selectedIds);
     return FollowService.instance.followList
@@ -244,7 +244,7 @@ class FollowUserController extends BasePageController<FollowUser>
 
   void clearSelection() => selectedIds.clear();
 
-  /// 「一键成组」弹窗：新建分组（默认）+ 移入已有分组 / 移出分组（设计稿补充）。
+  /// 「编辑」弹窗：新建分组（默认）+ 移入已有分组 / 移出分组（设计稿补充）。
   void showQuickGroupDialog() {
     if (selectedIds.isEmpty) {
       return;

@@ -267,7 +267,7 @@ void main() {
     await settleEnd(tester);
   });
 
-  testWidgets('勾选→一键成组：顶栏选择态 + 新建分组批量移入', (tester) async {
+  testWidgets('勾选→编辑：顶栏选择态 + 新建分组批量移入', (tester) async {
     final svc = await seedGrouped(tester);
     final c = Get.find<FollowUserController>();
 
@@ -293,11 +293,11 @@ void main() {
     expect(find.text('已选择 2 位'), findsOneWidget);
     expect(find.textContaining('在播 · 已选 1'), findsNWidgets(2));
 
-    // 滚回顶部让收起的顶栏展开，再点「一键成组」
+    // 滚回顶部让收起的顶栏展开，再点「编辑」
     await tester.dragFrom(const Offset(200, 400), const Offset(0, 300));
     await settle(tester);
-    // 一键成组 → 弹窗填名字 → 创建分组
-    await tester.tap(find.text('一键成组'));
+    // 编辑 → 弹窗填名字 → 创建分组
+    await tester.tap(find.text('编辑'));
     await settle(tester);
     expect(find.text('分组名称'), findsOneWidget);
     await tester.enterText(
@@ -317,7 +317,7 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
   });
 
-  testWidgets('一键成组弹窗：移入已有分组', (tester) async {
+  testWidgets('编辑弹窗：移入已有分组', (tester) async {
     final svc = await seedGrouped(tester);
 
     await tester.dragFrom(const Offset(200, 560), const Offset(0, -200));
@@ -328,7 +328,7 @@ void main() {
     // 滚回顶部让收起的顶栏展开
     await tester.dragFrom(const Offset(200, 400), const Offset(0, 300));
     await settle(tester);
-    await tester.tap(find.text('一键成组'));
+    await tester.tap(find.text('编辑'));
     await settle(tester);
     await tester.tap(find.descendant(
         of: find.byType(FollowQuickGroupSheet), matching: find.text('LOL解说')));
@@ -339,7 +339,7 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
   });
 
-  testWidgets('一键成组弹窗：键盘弹起不得把表单挤出 sheet 可见区', (tester) async {
+  testWidgets('编辑弹窗：键盘弹起不得把表单挤出 sheet 可见区', (tester) async {
     // `Get.bottomSheet` 的路由自己就按 `viewInsets.bottom` 把 sheet 抬起来了，
     // 表单里不能再抬一次；再叠上 get 默认那条 9/16 高度硬夹，移动端一点输入法
     // 整张表单就被裁到盒子外面（用户实测：只剩一块空白面板）。
@@ -351,7 +351,7 @@ void main() {
     await settle(tester);
     await tester.dragFrom(const Offset(200, 400), const Offset(0, 300));
     await settle(tester);
-    await tester.tap(find.text('一键成组'));
+    await tester.tap(find.text('编辑'));
     await settle(tester);
 
     tester.view.viewInsets =

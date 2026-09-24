@@ -89,7 +89,7 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 收起比例），所以宽度过渡只发生在 title 槽位内部，整体高度一帧都不变。
   ///
   /// 有勾选时进入选择态（设计稿）：leading 变 ✕（清空选择）、标题变
-  /// 「已选择 N 位」、排序按钮换成「一键成组」主色胶囊；此时不给搜索入口。
+  /// 「已选择 N 位」、排序按钮换成「编辑」主色胶囊；此时不给搜索入口。
   /// 分组管理入口按设计稿收进右侧 ⋮ 弹层，不再占一个独立图标；
   /// 刷新按钮保留（设计稿没画，但去掉是功能倒退）。
   /// 玻璃胶囊不做：本页顶栏是随滚动收起的 `CollapsibleTopBarScaffold` AppBar，
@@ -154,14 +154,14 @@ class FollowUserPage extends GetView<FollowUserController> {
                       icon: const Icon(Icons.search),
                     ),
                   if (!expanded)
-                    // 选择态：一键成组；普通态：排序 dialog。
+                    // 选择态：编辑；普通态：排序 dialog。
                     (selecting
                         ? Padding(
                             padding: AppStyle.edgeInsetsV8.copyWith(right: 4),
                             child: FilledButton.icon(
                               onPressed: controller.showQuickGroupDialog,
                               icon: const Icon(Remix.folder_add_line, size: 18),
-                              label: const Text("一键成组"),
+                              label: const Text("编辑"),
                             ),
                           )
                         : IconButton(

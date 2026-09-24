@@ -7,7 +7,7 @@ import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/widgets/filter_button.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 
-/// 「一键成组」bottom sheet（设计稿样式）：
+/// 「编辑」bottom sheet（设计稿样式）：
 /// 输入分组名称 → 创建并把已勾选的主播加入；
 /// 或点已有分组 / 「全部（移出分组）」chip 把已勾选成员批量移过去。
 class FollowQuickGroupSheet extends StatefulWidget {
@@ -105,7 +105,7 @@ class _FollowQuickGroupSheetState extends State<FollowQuickGroupSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '一键成组',
+                      '编辑',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
