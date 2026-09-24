@@ -121,7 +121,16 @@ class SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
   static bool get isWheelAnimating => _wheelAnimatingCount > 0;
 
   /// 一格滚轮的过渡时长。太短看着还是跳，太长会有「拖泥带水」的滞后感。
-  static const Duration _duration = Duration(milliseconds: 180);
+  ///
+  /// 公开给 `IndexedController`：列表滚不动时栏位那条过渡动画用同一个时长，
+  /// 「栏位搭着列表滚」与「列表滚不动、栏位自己走」两种手感才一致。
+  static const Duration wheelStepDuration = Duration(milliseconds: 180);
+
+  /// 滚轮没被列表消费掉的那部分增量（贴边那格被 clamp 掉的余量）。
+  ///
+  /// 拖动越界时框架会走 `didOverscrollBy` → `OverscrollNotification`，滚轮没有
+  /// 对应通知，只能从这条口子交出去；`IndexedController` 接住它驱动顶/底栏收起。
+  static void Function(double delta)? onWheelUnconsumed;
 
   @override
   void pointerScroll(double delta) {
@@ -134,11 +143,22 @@ class SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
     }
 
     final double base = _wheelTarget ?? pixels;
+    final double raw = base + delta;
     final double target = clampDouble(
-      base + delta,
+      raw,
       minScrollExtent,
       maxScrollExtent,
     );
+    // 一格滚轮没被列表吃干净时（例如离底 5px 而这一格滚 30px），被吃掉的这部分
+    // 由滚动通知正常驱动栏位，剩下的交给 [onWheelUnconsumed] —— 拖动越界时框架
+    // 会走 `didOverscrollBy` 派发 OverscrollNotification，滚轮没有对应通知，
+    // 不接住就静默丢了。
+    // 注意：贴边到「完全滚不动」时走不到这里 —— `Scrollable._receivedPointerSignal`
+    // 判定这一格不会产生滚动，直接弃权、连 `pointerScroll` 都不调用。那一路由
+    // `indexed_page.dart` 的 `_WheelBarFallback` 兜底。
+    if (raw != target && _isVertical) {
+      onWheelUnconsumed?.call(raw - target);
+    }
     if (target == pixels) {
       return;
     }
@@ -149,7 +169,7 @@ class SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
       -delta > 0.0 ? ScrollDirection.forward : ScrollDirection.reverse,
     );
     _wheelAnimatingCount++;
-    animateTo(target, duration: _duration, curve: Curves.easeOutCubic)
+    animateTo(target, duration: wheelStepDuration, curve: Curves.easeOutCubic)
         .whenComplete(() {
       _wheelAnimatingCount--;
       // 动画结束且期间没有新目标就清掉，免得下次从一个过期的目标起算。
@@ -158,4 +178,11 @@ class SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
       }
     });
   }
+
+  /// 本滚动区是不是竖向的。
+  ///
+  /// 栏位收起只跟竖向滚动走：横向滚动区（真要有人把本 controller 用在横列表上）
+  /// 的滚轮余量不该驱动它。
+  bool get _isVertical =>
+      axisDirection == AxisDirection.up || axisDirection == AxisDirection.down;
 }

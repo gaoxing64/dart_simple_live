@@ -14,9 +14,11 @@ import 'package:simple_live_app/modules/home/home_page.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_page.dart';
 import 'package:simple_live_app/modules/mine/mine_page.dart';
+import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
 
-class IndexedController extends GetxController {
+class IndexedController extends GetxController
+    with GetSingleTickerProviderStateMixin {
   RxList<HomePageItem> items = RxList<HomePageItem>([]);
 
   var index = 0.obs;
@@ -152,8 +154,101 @@ class IndexedController extends GetxController {
     barOffset.value = value;
   }
 
+  /// 兜底滚轮动画的累加目标与起点（同步模式用）。
+  ///
+  /// 累加目标而不是每格从 `barOffset.value` 起算：连续几格滚轮时动画还在跑、
+  /// 当前值已经变了，逐格相加会「吃掉」上一格的距离 —— 与
+  /// `SmoothWheelScrollPosition._wheelTarget` 同一套思路。
+  double? _wheelBarTarget;
+  double _wheelBarFrom = 0;
+
+  /// 本动画上一帧推进到的位置。
+  ///
+  /// 每帧只把**增量**交给 [`_updateBarOffset`]：贴边那一格「没被列表吃掉」的
+  /// 部分走这条兜底，而「被吃掉」的部分仍由滚动通知按增量写 `barOffset` ——
+  /// 这里按绝对值覆盖的话会把通知那边累加出来的位移擦掉（实测少走一截）。
+  double _wheelBarWritten = 0;
+
+  /// 兜底滚轮的过渡动画（同步模式）。
+  ///
+  /// 时长与曲线跟滚轮滚列表那套一致，两种情形手感才相同：
+  /// 「列表在滚、栏位跟着走」与「列表滚不动、栏位自己走」。
+  late final AnimationController _wheelBarAnim = AnimationController(
+    vsync: this,
+    duration: SmoothWheelScrollPosition.wheelStepDuration,
+  )
+    ..addListener(_onWheelBarTick)
+    ..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        // 跑完就清掉累加目标，免得下次从一个过期的目标起算（拖动期间
+        // barOffset 会变，不清就会从旧目标接着算）。
+        _wheelBarTarget = null;
+      }
+    });
+
+  void _onWheelBarTick() {
+    final target = _wheelBarTarget;
+    if (target == null) {
+      return;
+    }
+    final progress = Curves.easeOutCubic.transform(_wheelBarAnim.value);
+    final next = _wheelBarFrom + (target - _wheelBarFrom) * progress;
+    final delta = next - _wheelBarWritten;
+    _wheelBarWritten = next;
+    _updateBarOffset(delta);
+  }
+
+  /// 列表滚不动时（贴边 / 内容不足一屏）没被消费掉的滚轮增量。
+  ///
+  /// 两个来源：`indexed_page.dart` 的 `_WheelBarFallback`（`Scrollable` 直接
+  /// 弃权、连 `pointerScroll` 都不调用那种），以及
+  /// `SmoothWheelScrollPosition` 里贴边那格被 clamp 掉的余量。两条路都不会派发
+  /// 滚动通知，栏位收不到驱动 —— 表现为「页面留白 / 分组全折叠后，滚轮拉不出
+  /// 被隐藏的顶栏」。开关与模式判断照走，不会绕过用户的设置。
+  void onWheelUnconsumed(double delta) {
+    var settings = AppSettingsController.instance;
+    if (!settings.hideTopBar.value && !settings.hideBottomBar.value) {
+      return;
+    }
+    // 静态回调是全局的：压在首页壳之上的整屏路由（搜索 / 分类详情 / 历史）里
+    // 也用的是 SmoothWheel 列表，滚到贴边同样会回调到这里 —— 那会把**看不见的**
+    // 栏位收起来，返回首页时停在那儿。`_WheelBarFallback` 靠命中测试天然只在壳
+    // 可见时生效，两条路的作用域要一致。
+    if (Get.currentRoute != RoutePath.kIndex) {
+      return;
+    }
+    if (settings.barHideType.value == 0) {
+      // 即时模式只认方向：向上滚（内容下移）展开、向下滚收起。列表能滚时这一步
+      // 由 `pointerScroll` 的 updateUserScrollDirection 发 UserScrollNotification
+      // 完成；滚不动时那条通知不会来，这里补上。显隐自己的过渡动画在
+      // `CollapsibleTopBarScaffold` 里（TweenAnimationBuilder），这里不用管。
+      final show = delta < 0;
+      showTopBar.value = show;
+      showBottomBar.value = show;
+      return;
+    }
+    // 同步模式按距离走，并且必须自己补过渡 —— 列表能滚时栏位是搭着滚轮那 180ms
+    // 的滚动动画逐帧走的，直接写值会「一帧跳过去」。
+    final base = _wheelBarTarget ?? barOffset.value;
+    var target = base + delta;
+    if (target < 0) target = 0;
+    if (target > maxBarOffset) target = maxBarOffset;
+    _wheelBarTarget = target;
+    if (barOffset.value == target) {
+      // 已经到位（栏位早就夹紧了）：不必再起一次动画。
+      return;
+    }
+    _wheelBarFrom = barOffset.value;
+    _wheelBarWritten = barOffset.value;
+    _wheelBarAnim.forward(from: 0);
+  }
+
   /// 恢复顶/底栏展开状态
   void resetBars() {
+    // 兜底动画（`_wheelBarAnim`）是唯一会异步写 barOffset 的写入者：不先停掉，
+    // 下一帧它就把复位覆盖回去，切 Tab / 改设置时的复位会静默失效。
+    _wheelBarAnim.stop();
+    _wheelBarTarget = null;
     barOffset.value = 0;
     showTopBar.value = true;
     showBottomBar.value = true;
@@ -235,6 +330,9 @@ class IndexedController extends GetxController {
     ever(AppSettingsController.instance.hideTopBar, (_) => resetBars());
     ever(AppSettingsController.instance.hideBottomBar, (_) => resetBars());
     ever(AppSettingsController.instance.barHideType, (_) => resetBars());
+    // 滚轮贴边处没吃干净的余量也走同一条路径（`SmoothWheelScrollPosition` 里
+    // 被 clamp 掉的那部分）。注销在 onClose 里做。
+    SmoothWheelScrollPosition.onWheelUnconsumed = onWheelUnconsumed;
     setIndex(0);
     super.onInit();
   }
@@ -242,6 +340,13 @@ class IndexedController extends GetxController {
   @override
   void onClose() {
     pageController.dispose();
+    // 静态入口持有的是本实例的 bound method：不清会留悬空引用（实例无法回收），
+    // 销毁后再触发滚轮还会对已 dispose 的 AnimationController 调 forward()。
+    // 只在仍指向本实例时才清，免得页面重建时把新实例刚挂上的回调抹掉。
+    if (SmoothWheelScrollPosition.onWheelUnconsumed == onWheelUnconsumed) {
+      SmoothWheelScrollPosition.onWheelUnconsumed = null;
+    }
+    _wheelBarAnim.dispose();
     super.onClose();
   }
 

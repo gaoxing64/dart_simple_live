@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
@@ -378,7 +379,57 @@ class _JumpTransitionState extends State<_JumpTransition> with SingleTickerProvi
           ),
         );
       },
-      child: widget.child,
+      // 视口外层统一挂滚轮兜底（见 [_WheelBarFallback]）：放在这里而不是各个
+      // 列表里，是因为它要在**所有**页内滚动区之后补位，同时又在 shell 的
+      // PageView 之内；页面自己的列表、AppBar 上的滚轮都能覆盖到。
+      child: _WheelBarFallback(
+        controller: widget.controller,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// 滚轮兜底：列表滚不动时，把这一格增量交给顶/底栏收起。
+///
+/// `Scrollable` 只在「这一格确实会滚动」时才参与 `pointerSignalResolver` 竞争
+/// （`_receivedPointerSignal` 的前置判断），贴边 / 内容不足一屏时它直接弃权 ——
+/// 事件既不滚动、也不派发任何滚动通知，同步模式的顶/底栏就永远收不到驱动。
+/// 表现就是用户看到的那条：页面留白（内容不足一屏）时，滚轮怎么滚都拉不出被
+/// 隐藏的「关注用户」抬头，只有拖动越界能拉出来。
+///
+/// 这里以**后注册**的方式补位：解析器「先注册者胜」，列表真的能滚动时它的回调
+/// 已经占了位，我们的注册会被忽略 —— 不会和滚动通知重复驱动栏位。
+///
+/// 接住之后怎么走见 [IndexedController.onWheelUnconsumed]：同步模式按距离并自己
+/// 补一条过渡动画（列表滚不动时没有滚动动画可搭），即时模式只认方向。
+class _WheelBarFallback extends StatelessWidget {
+  final IndexedController controller;
+  final Widget child;
+
+  const _WheelBarFallback({
+    required this.controller,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is! PointerScrollEvent) {
+          return;
+        }
+        // 栏位只跟竖向滚动走；横向滚轮（含水平滚动区里的事件）不参与。
+        final delta = event.scrollDelta.dy;
+        if (delta == 0) {
+          return;
+        }
+        GestureBinding.instance.pointerSignalResolver.register(
+          event,
+          (_) => controller.onWheelUnconsumed(delta),
+        );
+      },
+      child: child,
     );
   }
 }
