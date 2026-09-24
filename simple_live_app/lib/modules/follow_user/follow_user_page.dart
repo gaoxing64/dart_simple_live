@@ -59,6 +59,30 @@ class FollowUserPage extends GetView<FollowUserController> {
   static const Curve _kSearchIn = Curves.easeOutCubic;
   static const Curve _kSearchOut = Curves.easeInCubic;
 
+  /// leading 里单个图标的占位宽度。普通态并排两个图标（刷新 + 展开/折叠）。
+  static const double _kLeadingSlotWidth = 96;
+
+  /// leading 左侧留白。
+  ///
+  /// `leadingWidth` 放宽后 leading 内容整体贴左（不再被 `Center` 居中），只隔着
+  /// 按钮自己那点内衬，横屏时几乎贴住左侧导航栏；补这一段回到 Material 惯例。
+  static const double _kLeadingInset = 8;
+
+  static const double _kLeadingWidth = _kLeadingInset + _kLeadingSlotWidth;
+
+  /// leading 里一个状态的外壳：**定宽** + 内容贴左，key 交给 `AnimatedSwitcher`。
+  ///
+  /// `AnimatedSwitcher` 内部那个 Stack 取最宽子项做尺寸、对齐写死居中：普通态是
+  /// 两个图标（96），选择态只有一个 ✕（48）。不统一宽度的话，过渡途中 Stack 仍
+  /// 按 96 宽布局，✕ 会被居中摆在两个图标中间，等过渡结束才跳回左端。
+  Widget _leadingSlot(String key, Widget child) {
+    return SizedBox(
+      key: ValueKey(key),
+      width: _kLeadingSlotWidth,
+      child: Align(alignment: Alignment.centerLeft, child: child),
+    );
+  }
+
   /// 顶栏槽位的通用切换：淡入淡出 + 沿水平方向滑一小段（纯 transform，
   /// 不改布局，所以不会牵动顶栏高度）。
   Widget _fadeSlideSlot(Widget child, {double from = 0.12}) {
@@ -82,9 +106,10 @@ class FollowUserPage extends GetView<FollowUserController> {
 
   /// 顶栏：标题 + 刷新按钮 + 搜索 + 排序 + 更多菜单（含分组管理）。
   ///
-  /// 搜索是**图标 + 原位展开**：点右侧 🔍 后，leading 换成 ←、title 槽位换成
-  /// 胶囊输入框（从右边缘长出来）、右侧整排图标让位 —— 不再叠一个常驻的搜索行
-  /// 在 tab 上方，那一行平时不提供任何信息，却常年吃掉一格高度。
+  /// 搜索是**图标 + 原位展开**：点右侧 🔍 后，title 槽位换成胶囊输入框（从右边缘
+  /// 长出来）、右侧整排图标让位；胶囊的外观与交互照搬搜索页，返回键收在胶囊内部
+  /// （见 [_buildSearchField]）—— 不再叠一个常驻的搜索行在 tab 上方，那一行平时
+  /// 不提供任何信息，却常年吃掉一格高度。
   /// 顶栏高度必须恒等于 `preferredSize`（`CollapsibleTopBarScaffold` 拿它换算
   /// 收起比例），所以宽度过渡只发生在 title 槽位内部，整体高度一帧都不变。
   ///
@@ -97,9 +122,10 @@ class FollowUserPage extends GetView<FollowUserController> {
   PreferredSizeWidget _buildAppBar(ButtonStyle iconButtonStyle) {
     return AppBar(
       // 普通态 leading 要并排放两个图标（刷新 + 一键展开/折叠全部分组），
-      // 默认的 56 只够一个，放到 96。标题居中（`AppBarTheme.centerTitle`），
-      // 且 `NavigationToolbar` 会在居中位置撞到 leading 时把标题右移，不会重叠。
-      leadingWidth: 96,
+      // 默认的 56 只够一个，放到 [_kLeadingWidth]（左内边距 + 两个图标位）。
+      // 标题居中（`AppBarTheme.centerTitle`），且 `NavigationToolbar` 会在居中
+      // 位置撞到 leading 时把标题右移，不会重叠。
+      leadingWidth: _kLeadingWidth,
       title: Obx(
         // 胶囊从右边缘（🔍 图标所在的位置）横向长出来，标题原地淡出 ——
         // 视觉上就是「那个图标被拉成了输入框」。宽度只在 title 槽位内部变，
@@ -113,10 +139,20 @@ class FollowUserPage extends GetView<FollowUserController> {
               // 逐帧切掉半截，看着像被擦掉而不是让位。
               inner.key == const ValueKey('title')
                   ? FadeTransition(opacity: animation, child: inner)
-                  : SizeTransition(
-                      axis: Axis.horizontal,
-                      alignment: Alignment.centerRight,
-                      sizeFactor: animation,
+                  // 不能直接用 `SizeTransition`：它本质是**直角** `ClipRect`
+                  // （框架文档原话），胶囊从右往左长出来时左端会被切成一条直边，
+                  // 与右端自己的圆角不对称。这里换成圆角裁剪，半径与输入框的
+                  // 胶囊一致，几何与时长不变。
+                  : AnimatedBuilder(
+                      animation: animation,
+                      builder: (_, child) => ClipRRect(
+                        borderRadius: AppStyle.radius24,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          widthFactor: animation.value,
+                          child: child,
+                        ),
+                      ),
                       child: FadeTransition(opacity: animation, child: inner),
                     ),
           child: controller.searchExpanded.value
@@ -137,7 +173,7 @@ class FollowUserPage extends GetView<FollowUserController> {
         Obx(() {
           final expanded = controller.searchExpanded.value;
           final selecting = controller.selectedIds.isNotEmpty;
-          return _fadeSlideSlot(
+          final actions = _fadeSlideSlot(
             KeyedSubtree(
               key: ValueKey(
                   '${expanded ? 'x' : 'c'}${selecting ? 's' : 'n'}'),
@@ -226,34 +262,31 @@ class FollowUserPage extends GetView<FollowUserController> {
               ),
             ),
           );
+          // 让位不只是淡出：宽度也要一起收回，见 [_SlotWidthCollapse]。
+          return _SlotWidthCollapse(visible: !expanded, child: actions);
         }),
       ],
       leading: Obx(() {
-        // 搜索展开态：← 收起搜索并清空关键词。
+        // 搜索态的返回键收在胶囊内部（见 [_buildSearchField]），所以这里只剩
+        // 「选择态 ✕」与「普通态刷新 + 展开/折叠」两种；两者都用 [_leadingSlot]
+        // 统一宽度，切换时不位移。
         final Widget slot;
-        if (controller.searchExpanded.value) {
-          slot = IconButton(
-            key: const ValueKey('back'),
-            style: iconButtonStyle,
-            tooltip: "收起搜索",
-            onPressed: controller.closeSearch,
-            icon: const Icon(Icons.arrow_back),
-          );
-        } else if (controller.selectedIds.isNotEmpty) {
-          slot = IconButton(
+        if (controller.selectedIds.isNotEmpty) {
+          final close = IconButton(
             key: const ValueKey('close'),
             style: iconButtonStyle,
             tooltip: "退出选择",
             onPressed: controller.clearSelection,
             icon: const Icon(Icons.close),
           );
+          slot = _leadingSlot('close', close);
         } else {
           // 普通态两个图标：刷新 + 一键展开/折叠全部分组。
           // 只有「全部」视图有分组卡片可折叠；关注列表也空时按钮没意义。
           final showFoldAll = controller.activeTab.value == 0 &&
               (controller.customTags.isNotEmpty || controller.list.isNotEmpty);
           final folded = controller.hasCollapsedGroups;
-          slot = Row(
+          final icons = Row(
             key: const ValueKey('normal'),
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -295,14 +328,11 @@ class FollowUserPage extends GetView<FollowUserController> {
                 ),
             ],
           );
+          slot = _leadingSlot('normal', icons);
         }
-        // ← 与 ↻/✕ 一律从左侧进出（展开时 ← 从胶囊左端「长」出来，收起时反向），
-        // 方向固定才对称：不能只在展开那一趟带位移。
-        // 外面套一层 Align：leading 槽位放宽到 96 之后，`AnimatedSwitcher` 内部
-        // 那个居中的 Stack 会把单图标状态（← / ✕ / ↻）浮到槽位中间，比原来
-        // 56 宽时偏右一截。
-        return Align(
-          alignment: Alignment.centerLeft,
+        // ↻ 与 ✕ 一律从左侧进出，方向固定才对称：不能只在切换的那一趟带位移。
+        return Padding(
+          padding: const EdgeInsets.only(left: _kLeadingInset),
           child: _fadeSlideSlot(slot, from: -0.12),
         );
       }),
@@ -310,6 +340,10 @@ class FollowUserPage extends GetView<FollowUserController> {
   }
 
   /// 展开态占在顶栏 title 槽位上的胶囊搜索框。
+  ///
+  /// 外观与交互照搬搜索页的顶栏输入框（`search_page.dart`），只去掉关注页没有的
+  /// 「房间 / 主播」切换。返回键收进胶囊**内部**：它不再占 leading 槽位，也就没有
+  /// 「← 与输入框之间空一截」「左侧图标被挤」这类问题。
   ///
   /// `autofocus`：点图标就是要输入，不再多跳一次「点一下输入框」。
   /// 外层 `Obx` 只读 `searchExpanded`，输入过程不会重建这一层。
@@ -321,7 +355,20 @@ class FollowUserPage extends GetView<FollowUserController> {
       onChanged: (v) => controller.searchQuery.value = v,
       decoration: InputDecoration(
         hintText: "搜索关注的主播",
-        prefixIcon: const Icon(Icons.search),
+        border: OutlineInputBorder(borderRadius: AppStyle.radius24),
+        contentPadding: AppStyle.edgeInsetsH12,
+        prefixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              style: iconButtonStyle,
+              tooltip: "收起搜索",
+              onPressed: controller.closeSearch,
+              icon: const Icon(Icons.arrow_back),
+            ),
+            AppStyle.hGap8,
+          ],
+        ),
         // 清空按钮：有内容时才出现。只把这一小块包进 Obx，理由同上。
         suffixIcon: Obx(
           () => controller.searchQuery.value.isEmpty
@@ -336,12 +383,6 @@ class FollowUserPage extends GetView<FollowUserController> {
                   },
                 ),
         ),
-        isDense: true,
-        border: OutlineInputBorder(
-          borderRadius: AppStyle.radius24,
-          borderSide: BorderSide.none,
-        ),
-        filled: true,
       ),
     );
   }
@@ -606,6 +647,45 @@ class FollowUserPage extends GetView<FollowUserController> {
         online: item.online.value,
       ),
       onLongPress: () => controller.showBottomMenu(item),
+    );
+  }
+}
+
+/// 让顶栏某个槽位的**宽度**随状态收放（纯绘制，不碰顶栏高度）。
+///
+/// 右侧那排图标让位时不能只淡出：`AnimatedSwitcher` 会把退场的那一份一直留在
+/// 布局里（内部 Stack 取最宽子项），于是宽度要等整段过渡结束才还给 title 槽位，
+/// 而搜索框的 `SizeTransition` 同时长跑完 —— 它先长满「被挤窄的宽度」，紧接着
+/// 一帧内被迫变宽，看着就是闪一下。
+///
+/// 曲线与 title 槽位同源：让位时 easeOutCubic 尽早腾地方，让回来时 easeInCubic
+/// 等对方先缩走。
+class _SlotWidthCollapse extends StatelessWidget {
+  /// true = 恢复自身宽度；false = 收到 0 宽（让位）。
+  final bool visible;
+
+  final Widget child;
+
+  const _SlotWidthCollapse({
+    required this.visible,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: visible ? 1.0 : 0.0),
+      duration: FollowUserPage._kSearchAnim,
+      curve: visible ? FollowUserPage._kSearchOut : FollowUserPage._kSearchIn,
+      builder: (_, factor, inner) => ClipRect(
+        child: Align(
+          // 贴右边缘收放：图标本来就是朝右边退场的，宽度也朝右收才自然。
+          alignment: Alignment.centerRight,
+          widthFactor: factor,
+          child: inner,
+        ),
+      ),
+      child: child,
     );
   }
 }
