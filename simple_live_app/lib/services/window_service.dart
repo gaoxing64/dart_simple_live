@@ -29,8 +29,14 @@ class WindowService extends GetxService implements WindowListener {
   int _pipStallCount = 0; // 连续「有偏差但仍未收敛」的纠正次数（熔断用）
   static const double _pipEpsPx = 1.0; // 合规容差（逻辑像素）
   static const int _pipMaxStall = 5; // 熔断阈值
-  static const Size _normalMinimumSize =
-      Size(320, 280); // 与 init() 中 WindowOptions 一致
+  /// 普通态最小尺寸。宽度 436 = 「至少 2 列完整卡面」下限，口径见 init()
+  /// 里的注释；进全屏/退小窗会经 restoreNormalMinimumSize 写回此值，
+  /// 必须与 init() 的 WindowOptions 是同一份，别再抄字面量。
+  static const Size _normalMinimumSize = Size(436, 280);
+
+  /// 小窗态下限（未锁纵横比时用）。小窗是纯播放器界面，不受普通态
+  /// 「2 列卡面」约束，沿用历史下限即可；锁定纵横比的走 setPipMinimumSize。
+  static const Size _pipFloorMinimumSize = Size(320, 280);
   bool get pipAspectLocked => _pipActiveAspect != null;
 
   /// 是否应当施加锁定（设置项开启）。
@@ -110,7 +116,7 @@ class WindowService extends GetxService implements WindowListener {
       //（卡宽 kMinCardWidth=200、列距 kCardSpacing=12、padding edgeInsetsA12=12，
       // 均为逻辑像素）。在 DPR=2.0（200% 缩放）下 = 872 物理像素；DPR=1.0
       //（100% 缩放）下 = 436 物理像素——跨缩放下「至少 2 列」语义一致。
-      minimumSize: const Size(436, 280), // 防止无脑小窗导致界面报错
+      minimumSize: _normalMinimumSize, // 防止无脑小窗导致界面报错
       center: false,
       title: "Slive",
     );
@@ -612,6 +618,17 @@ class WindowService extends GetxService implements WindowListener {
   Future<void> restoreNormalMinimumSize() async {
     try {
       await windowManager.setMinimumSize(_normalMinimumSize);
+    } catch (e) {
+      Log.logPrint(e);
+    }
+  }
+
+  /// 未锁纵横比进小窗前调用：把下限降到 _pipFloorMinimumSize 再 setSize。
+  /// 否则普通态 436 下限会把小于 436 的记忆小窗尺寸顶大，随后
+  /// onWindowResized 的记忆保存把顶大后的值当成用户偏好覆写。
+  Future<void> setPipFloorMinimumSize() async {
+    try {
+      await windowManager.setMinimumSize(_pipFloorMinimumSize);
     } catch (e) {
       Log.logPrint(e);
     }

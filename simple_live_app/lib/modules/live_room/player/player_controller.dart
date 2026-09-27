@@ -653,6 +653,8 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         _bindPipAspectListener();
       } else {
         // 旧逻辑：按记忆小窗尺寸（保持横/竖屏对调）
+        // 与锁定分支同理「先降下限、后设尺寸」，普通态 436 下限会顶大记忆尺寸
+        await WindowService.instance.setPipFloorMinimumSize();
         var width = player.state.width ?? 16;
         var height = player.state.height ?? 9;
         var pWidth = AppSettingsController.instance.windowPipWidth.value;
