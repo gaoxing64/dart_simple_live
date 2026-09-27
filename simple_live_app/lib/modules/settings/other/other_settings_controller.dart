@@ -146,15 +146,34 @@ class OtherSettingsController extends BaseController {
   }
 
   void saveLogFile(LogFileModel item) async {
-    var filePath = await FilePicker.saveFile(
-      allowedExtensions: ['log'],
-      type: FileType.custom,
-      fileName: item.name,
-    );
-    if (filePath != null) {
+    try {
       var file = File(item.path);
-      await file.copy(filePath);
+      var bytes = await file.readAsBytes();
+
+      // Android/iOS/Web 上 FilePicker 会直接写入，必须把内容一并传过去
+      var inlineSave = Platform.isAndroid || Platform.isIOS || kIsWeb;
+
+      var filePath = await FilePicker.saveFile(
+        allowedExtensions: ['log'],
+        type: FileType.custom,
+        fileName: item.name,
+        bytes: inlineSave ? bytes : null,
+      );
+
+      if (filePath == null && !kIsWeb) {
+        SmartDialog.showToast("保存取消");
+        return;
+      }
+
+      // 桌面平台需要手动写入
+      if (!inlineSave && filePath != null) {
+        await File(filePath).writeAsBytes(bytes);
+      }
+
       SmartDialog.showToast("保存成功");
+    } catch (e) {
+      Log.logPrint(e);
+      SmartDialog.showToast("保存失败:$e");
     }
   }
 
