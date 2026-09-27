@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
@@ -187,6 +188,10 @@ class AppSettingsController extends GetxController {
       LocalStorageService.kPlayerVolume,
       100.0,
     );
+    playerMaxVolume.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kPlayerMaxVolume,
+      100,
+    );
     pipHideDanmu.value = LocalStorageService.instance.getValue(LocalStorageService.kPIPHideDanmu, true);
     pipLockAspect.value = LocalStorageService.instance.getValue(LocalStorageService.kPipLockAspect, true);
 
@@ -244,6 +249,16 @@ class AppSettingsController extends GetxController {
     enableRtxVsr.value = LocalStorageService.instance.getValue(
       LocalStorageService.kEnableRtxVsr,
       false,
+    );
+
+    volumeNormalize.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kVolumeNormalize,
+      true,
+    );
+
+    volumeNormalizeTargetLufs.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kVolumeNormalizeTargetLufs,
+      -16,
     );
 
     autoUpdateFollowEnable.value =
@@ -656,6 +671,24 @@ class AppSettingsController extends GetxController {
     );
   }
 
+  /// 播放器最大音量（mpv volume-max）。100 为不放大，130 是 mpv 官方默认上限。
+  Rx<int> playerMaxVolume = 100.obs;
+
+  void setPlayerMaxVolume(int e) {
+    playerMaxVolume.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kPlayerMaxVolume,
+      e,
+    );
+    // 上限调低时把当前音量一并夹到上限内，避免滑块位置越界
+    // （音量本身由 mpv 按 volume-max 截断，不必另行下发）
+    if (playerVolume.value > e) {
+      setPlayerVolume(e.toDouble());
+    }
+    // 通知当前播放器重设 volume-max，不必重进直播间
+    EventBus.instance.emit(EventBus.kPlayerMaxVolumeChanged, e);
+  }
+
   var pipHideDanmu = true.obs;
 
   void setPIPHideDanmu(bool e) {
@@ -820,6 +853,29 @@ class AppSettingsController extends GetxController {
   void setEnableRtxVsr(bool e) {
     enableRtxVsr.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kEnableRtxVsr, e);
+  }
+
+  /// 音量均衡：不同平台/主播的响度差异大，用 loudnorm 归一化到目标 LUFS 拉平。
+  /// 依赖 fork 的 libmpv 构建（feat/audio-filters，含 dynaudnorm/loudnorm），
+  /// 若运行在未编译该滤镜的内核上会走"探测失败→自动关闭"流程。
+  var volumeNormalize = true.obs;
+
+  void setVolumeNormalize(bool e) {
+    volumeNormalize.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kVolumeNormalize, e);
+    // 通知当前播放器实时增删 af 滤波链，不必重进直播间
+    EventBus.instance.emit(EventBus.kVolumeNormalizeChanged, e);
+  }
+
+  /// 音量均衡的目标响度（LUFS）。-16 为移动端流媒体惯例，觉得整体偏轻可调 -14/-12。
+  var volumeNormalizeTargetLufs = (-16).obs;
+
+  void setVolumeNormalizeTargetLufs(int e) {
+    volumeNormalizeTargetLufs.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kVolumeNormalizeTargetLufs, e);
+    // 目标变了要重建 af 滤波链，通知当前播放器即时生效。
+    // 沿用 bool 负载：订阅方不读 payload，但事件名只有一个，别混入 int。
+    EventBus.instance.emit(EventBus.kVolumeNormalizeChanged, volumeNormalize.value);
   }
 
   var autoUpdateFollowEnable = false.obs;

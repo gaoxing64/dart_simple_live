@@ -128,6 +128,51 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                         controller.setVerticalDragLock(e);
                       }),
                 ),
+                AppStyle.divider,
+                Obx(
+                  () => SettingsSwitch(
+                      title: "音量均衡",
+                      subtitle:
+                          "按 EBU R128 响度自动拉平不同平台/主播的音量差异（loudnorm），播放中开关即时生效",
+                      value: controller.volumeNormalize.value,
+                      onChanged: (e) {
+                        controller.setVolumeNormalize(e);
+                      }),
+                ),
+                Obx(
+                  () => Visibility(
+                    visible: controller.volumeNormalize.value,
+                    child: SettingsMenu<int>(
+                      title: "均衡目标响度",
+                      subtitle: "觉得均衡后整体偏轻就调高（对齐原版网页可试 -14 或 -12）",
+                      value: controller.volumeNormalizeTargetLufs.value,
+                      valueMap: const {
+                        -18: "-18 LUFS（接近原声动态）",
+                        -16: "-16 LUFS（移动端标准）",
+                        -14: "-14 LUFS（偏响）",
+                        -12: "-12 LUFS（很响）",
+                      },
+                      onChanged: (e) {
+                        controller.setVolumeNormalizeTargetLufs(e);
+                      },
+                    ),
+                  ),
+                ),
+                AppStyle.divider,
+                Obx(
+                  () => SettingsNumber(
+                    title: "最大音量",
+                    subtitle: "音量滑块的上限；超过 100 才是放大，过高易削波",
+                    value: controller.playerMaxVolume.value,
+                    min: 100,
+                    max: 130,
+                    step: 10,
+                    unit: "%",
+                    onChanged: (e) {
+                      controller.setPlayerMaxVolume(e);
+                    },
+                  ),
+                ),
               ],
             ),
           ),

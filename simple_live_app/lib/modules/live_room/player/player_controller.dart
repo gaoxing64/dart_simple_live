@@ -29,6 +29,35 @@ import 'package:simple_live_core/simple_live_core.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
+/// 音量均衡（loudnorm / EBU R128 响度标准化）的 mpv 音频滤波链，目标响度取设置项。
+///
+/// 直播流没有内嵌 ReplayGain 元数据，mpv 的 `--replaygain=track` 对直播是空操作
+/// （它只认文件标签）。曾用 dynaudnorm，但它是**峰值**归一化：抖音等平台的转码
+/// 普遍挂限幅器，各主播流的峰值都贴着 0dBFS，目标 0.95 算出的增益趋近 1，
+/// 等于没效果；听感上的响度差异来自综合响度（LUFS），所以改用 loudnorm：
+/// - I=<设置项>  目标综合响度（默认 -16 LUFS，移动端流媒体惯例，可调 -14/-12 更响）
+/// - TP=-1.5     真峰值上限 -1.5 dBTP，防止增益后削波
+/// - LRA=11      响度范围 11 LU（默认值），限制压动态的程度
+///
+/// 注意：loudnorm 动态模式约 3s 一个测量窗，刚进直播间响度要一两个窗才稳定；
+/// 内部按 192kHz 处理并强制输出该采样率，mpv 会在链尾自动插 aresample 回设备
+/// 采样率，无需手动补偿。
+///
+/// ⚠️ 依赖播放内核编译了 loudnorm 滤镜。Predidit 官方的 libmpv 构建（ffmpeg
+/// `--disable-filters` 只留 overlay/equalizer）没有它，挂载会导致 af 链初始化失败、
+/// mpv 直接禁用音频轨道（静音）。本项目使用 fork 构建（feat/audio-filters，已含
+/// dynaudnorm/loudnorm），运行时仍保留日志自愈，详见 volume-normalize-notes.md。
+String volumeNormalizeAF() => 'lavfi=[loudnorm='
+    'I=${AppSettingsController.instance.volumeNormalizeTargetLufs.value}:'
+    'TP=-1.5:LRA=11]';
+
+/// 本次会话已探测到播放内核缺少音频滤镜。
+/// 滤镜有无是编译期属性，会话内不会变；置位后不再挂载，避免每次进直播间都静音一次。
+bool _volumeNormalizeUnsupported = false;
+
+/// 音量均衡滤波链已挂载、正在等起播结果（用于匹配失败日志，避免误伤其他日志）。
+bool _volumeNormalizePending = false;
+
 /// `initializePlayer()` 里通过 `setProperty` 设置的配置项，用于回读校验。
 ///
 /// media_kit 的 `NativePlayer.setProperty()` 直接调用 `mpv_set_property_string()`
@@ -41,7 +70,9 @@ import 'package:window_manager/window_manager.dart';
 const List<String> _kPlayerConfigProps = [
   // 本项目通过 setProperty 设置的配置项
   'ao',
+  'volume-max',
   'vf',
+  'af',
   'hwdec',
   'force-seekable',
   'cache',
@@ -81,6 +112,11 @@ mixin PlayerMixin {
     } else if (Platform.isLinux) {
       await pp.setProperty('ao', 'alsa');
     }
+    // 音量上限：mpv 默认 130，这里以设置项为准（100 即不放大）
+    await pp.setProperty(
+      'volume-max',
+      AppSettingsController.instance.playerMaxVolume.value.toString(),
+    );
     // media_kit 仓库更新导致的问题，临时解决办法
     if (Platform.isAndroid) {
       // 通过错误参数强制media_kit不seek, 解决了加载-pause-seek 在直播流上的开屏问题
@@ -139,10 +175,80 @@ mixin PlayerMixin {
       await pp.setProperty('hwdec', 'd3d11va');
       await pp.setProperty('vf', 'd3d11vpp=scale=2:scaling-mode=nvidia');
     }
+    await applyVolumeNormalize();
     if (AppSettingsController.instance.logEnable.value) {
       await logPlayerProperties();
     }
   }
+
+  /// 按设置开关当前播放器的音量均衡滤波链。
+  ///
+  /// `af` 属性支持运行时修改，mpv 会自动重建音频滤波链，直播中即时生效。
+  /// 关闭时写入空串清空滤波链（mpv 自身的软音量不走用户 af 链，不受影响）。
+  Future<void> applyVolumeNormalize() async {
+    if (player.platform is! NativePlayer) {
+      return;
+    }
+    final pp = player.platform as NativePlayer;
+    if (!AppSettingsController.instance.volumeNormalize.value) {
+      _volumeNormalizePending = false;
+      await pp.setProperty('af', '');
+      return;
+    }
+    // 内核缺滤镜时不再尝试：挂上去必然 af 链初始化失败 → 音频轨道被禁用（静音）。
+    if (_volumeNormalizeUnsupported) {
+      return;
+    }
+    _volumeNormalizePending = true;
+    await pp.setProperty('af', volumeNormalizeAF());
+  }
+
+  /// 把设置里的最大音量下发给播放器的 volume-max，播放中即时生效。
+  ///
+  /// mpv 对越界的 volume 是拒绝写入而不是夹紧，且调低 volume-max 不会把已有的
+  /// volume 拉回来（实测：上限降到 100 后 volume 仍读作 130）。所以下完上限要补写
+  /// 一次当前音量——设置侧的 setPlayerMaxVolume 已把它夹进新上限。
+  Future<void> applyPlayerMaxVolume() async {
+    if (player.platform is! NativePlayer) {
+      return;
+    }
+    final pp = player.platform as NativePlayer;
+    await pp.setProperty(
+      'volume-max',
+      AppSettingsController.instance.playerMaxVolume.value.toString(),
+    );
+    await player.setVolume(AppSettingsController.instance.playerVolume.value);
+  }
+
+  /// 匹配播放器日志，自愈「内核缺滤镜」的情况。
+  ///
+  /// mpv 挂了不存在的滤镜时，af 链初始化失败会走 error_on_track 直接禁用音频轨道
+  /// （player/audio.c 的 "Audio filter initialized failed!"），没有"跳过滤波器继续播"
+  /// 的回退，表现就是无声。这里清掉滤波链、标记本会话不再尝试，并让宿主重连恢复声音。
+  void checkVolumeNormalizeFailed(PlayerLog event) {
+    if (!_volumeNormalizePending ||
+        !event.text.contains('Audio filter initialized failed')) {
+      return;
+    }
+    _volumeNormalizePending = false;
+    _volumeNormalizeUnsupported = true;
+    // 让设置页开关如实反映不可用（只改内存不落盘，换回有滤镜的内核后重启即恢复）。
+    AppSettingsController.instance.volumeNormalize.value = false;
+    Log.d('音量均衡：内核缺少音频滤镜（af 链初始化失败），自动关闭');
+    Future(() async {
+      if (player.platform is NativePlayer) {
+        await (player.platform as NativePlayer).setProperty('af', '');
+      }
+      SmartDialog.showToast('音量均衡不可用：播放内核未编译音频滤镜，已自动关闭并重连');
+      onVolumeNormalizeUnavailable();
+    });
+  }
+
+  /// 音量均衡滤波链初始化失败且已清理后的回调。
+  ///
+  /// af 链失败时 mpv 已通过 error_on_track 禁用音频轨道，仅清掉 `af` 不会自动恢复
+  /// 出声，宿主需要重连当前线路（重新拉流）。
+  void onVolumeNormalizeUnavailable() {}
 
   /// 回读 mpv 属性并写入日志（仅在「日志」开关打开时调用）。
   ///
@@ -925,6 +1031,8 @@ class PlayerController extends BaseController
   StreamSubscription? _logSubscription;
   StreamSubscription? _playingSubscription;
   StreamSubscription? _escSubscription;
+  StreamSubscription? _volumeNormalizeSubscription;
+  StreamSubscription? _playerMaxVolumeSubscription;
 
   void initStream() {
     _errorSubscription = player.stream.error.listen((event) {
@@ -940,6 +1048,10 @@ class PlayerController extends BaseController
 
     _playingSubscription = player.stream.playing.listen((event) {
       if (event) {
+        // 起播成功说明本次挂载的 af 链存活，结束「等待挂载结果」窗口。
+        // 否则 pending 永久为 true，之后任何一条 af 失败日志（如流中途
+        // 重建滤波链失败）都会被误判成内核缺滤镜而永久禁用均衡。
+        _volumeNormalizePending = false;
         WakelockPlus.enable();
         Log.d("Playing");
       }
@@ -952,6 +1064,7 @@ class PlayerController extends BaseController
     });
     _logSubscription = player.stream.log.listen((event) {
       Log.d("播放器日志：$event");
+      checkVolumeNormalizeFailed(event);
     });
     _widthSubscription = player.stream.width.listen((event) {
       Log.d('width:$event  W:${(player.state.width)}  H:${(player.state.height)}');
@@ -972,6 +1085,18 @@ class PlayerController extends BaseController
     _escSubscription = EventBus.instance.listen(EventBus.kEscapePressed, (event) {
       exitFull();
     });
+    _volumeNormalizeSubscription = EventBus.instance.listen(
+      EventBus.kVolumeNormalizeChanged,
+      (event) {
+        applyVolumeNormalize();
+      },
+    );
+    _playerMaxVolumeSubscription = EventBus.instance.listen(
+      EventBus.kPlayerMaxVolumeChanged,
+      (event) {
+        applyPlayerMaxVolume();
+      },
+    );
   }
 
   void disposeStream() {
@@ -983,6 +1108,8 @@ class PlayerController extends BaseController
     _pipSubscription?.cancel();
     _playingSubscription?.cancel();
     _escSubscription?.cancel();
+    _volumeNormalizeSubscription?.cancel();
+    _playerMaxVolumeSubscription?.cancel();
   }
 
   void mediaEnd() {

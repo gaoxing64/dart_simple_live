@@ -9,6 +9,12 @@ class EventBus {
 
   /// 用户按了Esc
   static const String kEscapePressed = "EscapePressed";
+
+  /// 音量均衡设置变更，播放器需要实时增删 af 滤波链
+  static const String kVolumeNormalizeChanged = "VolumeNormalizeChanged";
+
+  /// 最大音量设置变更，播放器需要实时重设 mpv 的 volume-max
+  static const String kPlayerMaxVolumeChanged = "PlayerMaxVolumeChanged";
   static EventBus? _instance;
 
   static EventBus get instance {

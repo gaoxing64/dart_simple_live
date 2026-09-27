@@ -97,18 +97,18 @@ dependencies:
   volume_controller: any
   media_kit:
     git:
-      url: https://github.com/Predidit/media-kit.git
-      ref: 78d4cce7b49d5b6b918f78b18ec1fbb7c400b9da
+      url: https://github.com/gaoxing64/media-kit.git
+      ref: 57ea33e5fd31e367d92fe9412324b7344c018677
       path: ./media_kit
   media_kit_video:
     git:
-      url: https://github.com/Predidit/media-kit.git
-      ref: 78d4cce7b49d5b6b918f78b18ec1fbb7c400b9da
+      url: https://github.com/gaoxing64/media-kit.git
+      ref: 57ea33e5fd31e367d92fe9412324b7344c018677
       path: ./media_kit_video
   media_kit_libs_video:
     git:
-      url: https://github.com/Predidit/media-kit.git
-      ref: 78d4cce7b49d5b6b918f78b18ec1fbb7c400b9da
+      url: https://github.com/gaoxing64/media-kit.git
+      ref: 57ea33e5fd31e367d92fe9412324b7344c018677
       path: ./libs/universal/media_kit_libs_video
 
 dependency_overrides:
@@ -119,28 +119,28 @@ dependency_overrides:
 
   media_kit_libs_linux:
     git:
-      url: https://github.com/Predidit/media-kit.git
-      ref: 78d4cce7b49d5b6b918f78b18ec1fbb7c400b9da
+      url: https://github.com/gaoxing64/media-kit.git
+      ref: 57ea33e5fd31e367d92fe9412324b7344c018677
       path: ./libs/linux/media_kit_libs_linux
   media_kit_libs_ios_video:
     git:
-      url: https://github.com/Predidit/media-kit.git
-      ref: 78d4cce7b49d5b6b918f78b18ec1fbb7c400b9da
+      url: https://github.com/gaoxing64/media-kit.git
+      ref: 57ea33e5fd31e367d92fe9412324b7344c018677
       path: ./libs/ios/media_kit_libs_ios_video
   media_kit_libs_android_video:
     git:
-      url: https://github.com/Predidit/media-kit.git
-      ref: 78d4cce7b49d5b6b918f78b18ec1fbb7c400b9da
+      url: https://github.com/gaoxing64/media-kit.git
+      ref: 57ea33e5fd31e367d92fe9412324b7344c018677
       path: ./libs/android/media_kit_libs_android_video
   media_kit_libs_windows_video:
     git:
-      url: https://github.com/Predidit/media-kit.git
-      ref: 78d4cce7b49d5b6b918f78b18ec1fbb7c400b9da
+      url: https://github.com/gaoxing64/media-kit.git
+      ref: 57ea33e5fd31e367d92fe9412324b7344c018677
       path: ./libs/windows/media_kit_libs_windows_video
   media_kit_libs_macos_video:
     git:
-      url: https://github.com/Predidit/media-kit.git
-      ref: 78d4cce7b49d5b6b918f78b18ec1fbb7c400b9da
+      url: https://github.com/gaoxing64/media-kit.git
+      ref: 57ea33e5fd31e367d92fe9412324b7344c018677
       path: ./libs/macos/media_kit_libs_macos_video
 
 dev_dependencies:

@@ -168,6 +168,9 @@ class LocalStorageService extends GetxService {
   /// 播放器音量
   static const String kPlayerVolume = "PlayerVolume";
 
+  /// 播放器最大音量（mpv volume-max，百分比）
+  static const String kPlayerMaxVolume = "PlayerMaxVolume";
+
   /// 播放器音量
   static const String kVerticalDragLock = "VerticalDragLock";
 
@@ -221,6 +224,12 @@ class LocalStorageService extends GetxService {
 
   /// NVIDIA RTX Video Super Resolution
   static const String kEnableRtxVsr = "EnableRtxVsr";
+
+  /// 音量均衡（loudnorm，EBU R128 响度标准化）
+  static const String kVolumeNormalize = "VolumeNormalize";
+
+  /// 音量均衡目标响度（LUFS）
+  static const String kVolumeNormalizeTargetLufs = "VolumeNormalizeTargetLufs";
 
   /// 开启自动更新关注
   static const String kAutoUpdateFollowEnable = "AutoUpdateFollowEnable";

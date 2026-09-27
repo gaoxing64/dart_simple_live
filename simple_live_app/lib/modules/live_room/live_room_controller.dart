@@ -654,6 +654,15 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     }
   }
 
+  /// 音量均衡滤波链不可用（播放内核未编译音频滤镜）时被回调。
+  ///
+  /// af 链失败后音频轨道已被 mpv 判死，播放器层清掉 `af` 不会自动恢复出声，
+  /// 这里重连当前线路重新拉流。
+  @override
+  void onVolumeNormalizeUnavailable() {
+    setPlayer();
+  }
+
   /// 读取SC
   void getSuperChatMessage() async {
     try {
@@ -789,7 +798,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
               width: 200,
               child: Slider(
                 min: 0,
-                max: 100,
+                max: AppSettingsController.instance.playerMaxVolume.value.toDouble(),
                 value: AppSettingsController.instance.playerVolume.value,
                 onChanged: (newValue) {
                   player.setVolume(newValue);
