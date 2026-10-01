@@ -8,6 +8,7 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/sync_client_info_model.dart';
+import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/services/bilibili_account_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
@@ -24,7 +25,14 @@ class AppNavigator {
   }
 
   /// 跳转至直播间
-  static void toLiveRoomDetail({required Site site, required String roomId}) async {
+  ///
+  /// [together] 是多开批量入口带进来的「另外几路」：会一次性预载成多开棋盘里的格子
+  /// （第 0 格仍是 [site]/[roomId] 这一路）。旧调用点不必传。
+  static void toLiveRoomDetail({
+    required Site site,
+    required String roomId,
+    List<LiveRoomTarget> together = const [],
+  }) async {
     if (site.id == Constant.kBiliBili &&
         !BiliBiliAccountService.instance.logined.value &&
         AppSettingsController.instance.bilibiliLoginTip.value) {
@@ -49,9 +57,10 @@ class AppNavigator {
       }
     }
 
-    Get.toNamed(RoutePath.kLiveRoomDetail, arguments: site, parameters: {
-      "roomId": roomId,
-    });
+    Get.toNamed(
+      RoutePath.kLiveRoomDetail,
+      arguments: LiveRoomRouteArgs(site: site, roomId: roomId, together: together),
+    );
   }
 
   /// 跳转至哔哩哔哩登录

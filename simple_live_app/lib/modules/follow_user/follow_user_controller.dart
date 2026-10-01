@@ -12,10 +12,14 @@ import 'package:simple_live_app/app/app_scroll_behavior.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/event_bus.dart';
+import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_selection.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
+import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_quick_group_sheet.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 
@@ -309,6 +313,36 @@ class FollowUserController extends BasePageController<FollowUser>
     clearSelection();
     filterData();
     SmartDialog.showToast("已将 $moved 位主播移入「${target.tag}」");
+  }
+
+  /// 把勾选中的、正在直播的主播一次性开成多开（选择态 ⋮ 菜单里的「多开」）。
+  ///
+  /// 顺序按**关注列表顺序**（`selectedUsers` 的顺序），不是点击顺序：第 0 路会成为
+  /// 直播间页自带的那一格，其余几路预载成棋盘里的格子。
+  void openMultiPlayFromSelection() {
+    final result = selectForMultiPlay(selectedUsers);
+    switch (result.problem) {
+      case MultiPlaySelectionProblem.empty:
+        SmartDialog.showToast("选中的主播都不在直播中");
+        return;
+      case MultiPlaySelectionProblem.tooMany:
+        SmartDialog.showToast("最多同时播放 $kMultiPlayMaxTiles 个直播间");
+        return;
+      case MultiPlaySelectionProblem.none:
+        break;
+    }
+
+    final first = result.rooms.first;
+    final rest = [
+      for (final user in result.rooms.skip(1))
+        LiveRoomTarget(site: Sites.allSites[user.siteId]!, roomId: user.roomId),
+    ];
+    clearSelection();
+    AppNavigator.toLiveRoomDetail(
+      site: Sites.allSites[first.siteId]!,
+      roomId: first.roomId,
+      together: rest,
+    );
   }
 
   RxList<FollowUserTag> tagList = [

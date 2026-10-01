@@ -50,6 +50,7 @@ import 'package:simple_live_app/modules/sync/remote_sync/webdav/remote_sync_webd
 import 'package:simple_live_app/modules/sync/sync_page.dart';
 
 import '../modules/indexed/indexed_page.dart';
+import 'live_room_route_args.dart';
 import 'route_path.dart';
 
 class AppPages {
@@ -111,12 +112,15 @@ class AppPages {
     GetPage(
       name: RoutePath.kLiveRoomDetail,
       page: () => const LiveRoomPage(),
-      binding: BindingsBuilder.put(
-        () => LiveRoomController(
-          pSite: Get.arguments,
-          pRoomId: Get.parameters["roomId"] ?? "",
-        ),
-      ),
+      binding: BindingsBuilder.put(() {
+        // 参数统一走 LiveRoomRouteArgs（见 AppNavigator.toLiveRoomDetail）
+        final args = Get.arguments as LiveRoomRouteArgs;
+        return LiveRoomController(
+          pSite: args.site,
+          pRoomId: args.roomId,
+          together: args.together,
+        );
+      }),
     ),
     //弹幕设置
     GetPage(

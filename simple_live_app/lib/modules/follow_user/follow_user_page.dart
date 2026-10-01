@@ -190,15 +190,26 @@ class FollowUserPage extends GetView<FollowUserController> {
                       icon: const Icon(Icons.search),
                     ),
                   if (!expanded)
-                    // 选择态：编辑；普通态：排序 dialog。
+                    // 选择态：两个动作直接外显（移入分组 / 多开播放）；普通态：排序。
+                    // 都只留图标 + tooltip —— 原来那个「编辑」文案不明所以；去掉文案
+                    // 正好腾出宽度，让「多开播放」不必再藏进 ⋮ 菜单里。
                     (selecting
-                        ? Padding(
-                            padding: AppStyle.edgeInsetsV8.copyWith(right: 4),
-                            child: FilledButton.icon(
-                              onPressed: controller.showQuickGroupDialog,
-                              icon: const Icon(Remix.folder_add_line, size: 18),
-                              label: const Text("编辑"),
-                            ),
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                style: iconButtonStyle,
+                                tooltip: "移入分组",
+                                onPressed: controller.showQuickGroupDialog,
+                                icon: const Icon(Remix.folder_add_line),
+                              ),
+                              IconButton(
+                                style: iconButtonStyle,
+                                tooltip: "多开播放",
+                                onPressed: controller.openMultiPlayFromSelection,
+                                icon: const Icon(Remix.play_circle_line),
+                              ),
+                            ],
                           )
                         : IconButton(
                             style: iconButtonStyle,
@@ -212,8 +223,8 @@ class FollowUserPage extends GetView<FollowUserController> {
                       itemBuilder: (context) {
                         // 用自己的 item：官方 `PopupMenuItem` 的 hover 高亮是满宽矩形，
                         // 与菜单容器的大圆角对不上。详见 `AppPopupMenuItem`。
-                        return const [
-                          AppPopupMenuItem(
+                        return [
+                          const AppPopupMenuItem(
                             value: 6,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -224,7 +235,7 @@ class FollowUserPage extends GetView<FollowUserController> {
                               ],
                             ),
                           ),
-                          AppPopupMenuItem(
+                          const AppPopupMenuItem(
                             value: 0,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -235,7 +246,7 @@ class FollowUserPage extends GetView<FollowUserController> {
                               ],
                             ),
                           ),
-                          AppPopupMenuItem(
+                          const AppPopupMenuItem(
                             value: 4,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -637,16 +648,21 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 走「点卡片 → 直播间 → 取消关注」。
   Widget _buildLiveCard(FollowUser item) {
     final site = Sites.allSites[item.siteId]!;
-    return LiveRoomCard(
-      site,
-      LiveRoomItem(
-        roomId: item.roomId,
-        title: item.title.value,
-        cover: item.cover.value,
-        userName: item.userName,
-        online: item.online.value,
+    // 逐卡 Obx：勾选态的描边/光晕要靠它当场刷新（外层不会因勾选而重建）
+    return Obx(
+      () => LiveRoomCard(
+        site,
+        LiveRoomItem(
+          roomId: item.roomId,
+          title: item.title.value,
+          cover: item.cover.value,
+          userName: item.userName,
+          online: item.online.value,
+        ),
+        onLongPress: () => controller.showBottomMenu(item),
+        selected: controller.selectedIds.contains(item.id),
+        onToggleSelect: () => controller.toggleSelected(item.id),
       ),
-      onLongPress: () => controller.showBottomMenu(item),
     );
   }
 }

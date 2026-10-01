@@ -49,16 +49,25 @@ class LiveRoomCard extends StatelessWidget {
   final LiveRoomItem item;
   final Function()? onLongPress;
 
+  /// 勾选态（多开播放的批量选择用）：卡面加强调色描边 + 光晕。
+  final bool selected;
+
+  /// 点**主播名那一行**切换勾选（卡面布局没有头像可点，而多开最常见的就是
+  /// 「直播中」这个卡面视图）。为 null 时主播名不可点，首页等处保持原样。
+  final VoidCallback? onToggleSelect;
+
   const LiveRoomCard(
     this.site,
     this.item, {
     super.key,
     this.onLongPress,
+    this.selected = false,
+    this.onToggleSelect,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ShadowCard(
+    final card = ShadowCard(
       onTap: () {
         AppNavigator.toLiveRoomDetail(site: site, roomId: item.roomId);
       },
@@ -108,17 +117,58 @@ class LiveRoomCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  item.userName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _kMetaTextStyle,
-                ),
+                _buildUserName(),
               ],
             ),
           )
         ],
       ),
+    );
+
+    if (onToggleSelect == null) {
+      return card;
+    }
+    // 强调色描边 + 光晕：卡面布局里没有头像那圈「选中环」，勾选态只能靠卡面本身表达。
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: selected ? scheme.primary : Colors.transparent,
+          width: 2,
+        ),
+        boxShadow: selected
+            ? [
+                BoxShadow(
+                  color: scheme.primary.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
+      ),
+      child: card,
+    );
+  }
+
+  /// 主播名一行。选择态下整行可点（比只点几个字好按），点它就切换勾选；
+  /// 标题与封面仍然整卡进直播间。
+  Widget _buildUserName() {
+    final label = Text(
+      item.userName,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: _kMetaTextStyle,
+    );
+    final onToggle = onToggleSelect;
+    if (onToggle == null) {
+      return label;
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onToggle,
+      child: SizedBox(width: double.infinity, child: label),
     );
   }
 }
