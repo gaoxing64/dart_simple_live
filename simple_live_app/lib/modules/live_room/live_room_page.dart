@@ -12,7 +12,11 @@ import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/modules/live_room/chat_emoticon_span.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_grid.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
+import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/context_menu.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
@@ -28,6 +32,23 @@ import 'package:simple_live_core/simple_live_core.dart';
 
 class LiveRoomPage extends GetView<LiveRoomController> {
   const LiveRoomPage({super.key});
+
+  /// 横屏时右侧聊天栏的宽度。
+  ///
+  /// 底栏要与上面一行同宽切段，两处必须用同一个值；这个值同时也是多开窗口下限里
+  /// 预留的 chrome 宽（`kMultiPlayChromeWidth`），别各写各的。
+  static const double _kSidebarWidth = kMultiPlayChromeWidth;
+
+  /// 底栏按钮（含「多开播放」胶囊）的文字样式。
+  ///
+  /// ⚠️ 必须自己带上字族：`TextButton.styleFrom(textStyle: …)` 在 Flutter 里的取值是
+  /// `widgetStyle ?? themeStyle ?? defaultStyle`——**取第一个非空、不做合并**
+  /// （见 `ButtonStyleButton.effectiveValue`）。所以只写 `TextStyle(fontSize: 14)` 会让
+  /// 按钮文字丢掉设置里选的字体、退回系统默认字体，跟同屏其他文字对不上。
+  static TextStyle get _toolbarTextStyle => TextStyle(
+        fontSize: 14,
+        fontFamily: AppStyleSettingController.instance.curFontName.value,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +115,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               controller.exitFull();
             },
             child: Scaffold(
-              body: buildMediaPlayer(),
+              body: buildLiveRoomVideoArea(),
             ),
           );
         } else {
@@ -112,19 +133,40 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
+  /// 聊天区、底部操作与各弹窗跟随的那一路：多开时是聚焦格，单画面时就是页面主格。
+  ///
+  /// 视频区不用它——单画面的 `Video` 恒绑页面主格自己的控制器，多开时视频区是网格。
+  LiveRoomController get room => controller.focused;
+
   Widget buildPageUI() {
-    return OrientationBuilder(
+    final page = OrientationBuilder(
       builder: (context, orientation) {
         return Scaffold(
           appBar: AppBar(
             title: Obx(
-              () => Text(controller.detail.value?.title ?? "直播间"),
+              () => Text(room.detail.value?.title ?? "直播间"),
             ),
             actions: buildAppbarActions(context),
           ),
           body: orientation == Orientation.portrait ? buildPhoneUI(context) : buildTabletUI(context),
         );
       },
+    );
+    // 多开时返回键的第一段只关掉其余几路，再按一次才离开直播间：
+    // 一次 ESC 就把四路连播放器一起毁掉，代价比单画面大得多。
+    return Obx(
+      () => controller.multiPlay.isActive
+          ? PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, result) {
+                if (didPop) {
+                  return;
+                }
+                controller.multiPlay.closeAllTiles();
+              },
+              child: page,
+            )
+          : page,
     );
   }
 
@@ -133,7 +175,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       children: [
         AspectRatio(
           aspectRatio: 16 / 9,
-          child: buildMediaPlayer(),
+          child: buildLiveRoomVideoArea(),
         ),
         buildUserProfile(context),
         buildMessageArea(context),
@@ -149,12 +191,13 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           child: Row(
             children: [
               Expanded(
-                child: buildMediaPlayer(),
+                child: buildLiveRoomVideoArea(),
               ),
               SizedBox(
-                width: 300,
+                width: _kSidebarWidth,
                 child: Column(
                   children: [
+                    buildSidebarFollowHint(context),
                     buildUserProfile(context),
                     buildMessageArea(context),
                   ],
@@ -178,59 +221,80 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           ),
           child: Row(
             children: [
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 14),
-                ),
-                onPressed: controller.refreshRoom,
-                icon: const Icon(Remix.refresh_line),
-                label: const Text("刷新"),
-              ),
-              Obx(
-                () => controller.followed.value
-                    ? TextButton.icon(
-                        style: TextButton.styleFrom(
-                          textStyle: const TextStyle(fontSize: 14),
-                        ),
-                        onPressed: controller.removeFollowUser,
-                        icon: const Icon(Remix.heart_fill),
-                        label: const Text("取消关注"),
-                      )
-                    : TextButton.icon(
-                        style: TextButton.styleFrom(
-                          textStyle: const TextStyle(fontSize: 14),
-                        ),
-                        onPressed: controller.followUser,
-                        icon: const Icon(Remix.heart_line),
-                        label: const Text("关注"),
-                      ),
-              ),
-              const Expanded(child: Center()),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 14),
-                ),
-                onPressed: controller.share,
-                icon: const Icon(Remix.share_line),
-                label: const Text("分享"),
-              ),
-              (Platform.isWindows || Platform.isLinux)
-                  ? TextButton.icon(
+              // 与上面一行同宽地切成两段：左段对齐视频区、右段对齐侧栏。
+              // 「多开播放」要右对齐到视频区的右边距，只能这么放——原来那条单行跨整窗，
+              // 它的最右端其实已经落到侧栏下面，跟视频区脱钩了。
+              Expanded(
+                child: Row(
+                  children: [
+                    TextButton.icon(
                       style: TextButton.styleFrom(
-                        textStyle: const TextStyle(fontSize: 14),
+                        textStyle: _toolbarTextStyle,
                       ),
-                      onPressed: controller.visitWebLive,
-                      icon: const Icon(Remix.chrome_fill),
-                      label: const Text("浏览器打开"),
-                    )
-                  : TextButton.icon(
-                      style: TextButton.styleFrom(
-                        textStyle: const TextStyle(fontSize: 14),
-                      ),
-                      onPressed: controller.copyUrl,
-                      icon: const Icon(Remix.file_copy_line),
-                      label: const Text("复制链接"),
+                      onPressed: () => room.refreshRoom(),
+                      icon: const Icon(Remix.refresh_line),
+                      label: const Text("刷新"),
                     ),
+                    Obx(
+                      () => room.followed.value
+                          ? TextButton.icon(
+                              style: TextButton.styleFrom(
+                                textStyle: _toolbarTextStyle,
+                              ),
+                              onPressed: () => room.removeFollowUser(),
+                              icon: const Icon(Remix.heart_fill),
+                              label: const Text("取消关注"),
+                            )
+                          : TextButton.icon(
+                              style: TextButton.styleFrom(
+                                textStyle: _toolbarTextStyle,
+                              ),
+                              onPressed: () => room.followUser(),
+                              icon: const Icon(Remix.heart_line),
+                              label: const Text("关注"),
+                            ),
+                    ),
+                    const Expanded(child: Center()),
+                    if (!(Platform.isAndroid || Platform.isIOS)) ...[
+                      _buildMultiPlayToggle(context),
+                      const SizedBox(width: 12),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: _kSidebarWidth,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        textStyle: _toolbarTextStyle,
+                      ),
+                      onPressed: () => room.share(),
+                      icon: const Icon(Remix.share_line),
+                      label: const Text("分享"),
+                    ),
+                    (Platform.isWindows || Platform.isLinux)
+                        ? TextButton.icon(
+                            style: TextButton.styleFrom(
+                              textStyle: _toolbarTextStyle,
+                            ),
+                            onPressed: () => room.visitWebLive(),
+                            icon: const Icon(Remix.chrome_fill),
+                            label: const Text("浏览器打开"),
+                          )
+                        : TextButton.icon(
+                            style: TextButton.styleFrom(
+                              textStyle: _toolbarTextStyle,
+                            ),
+                            onPressed: () => room.copyUrl(),
+                            icon: const Icon(Remix.file_copy_line),
+                            label: const Text("复制链接"),
+                          ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -239,26 +303,90 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
-  Widget buildMediaPlayer() {
-    var boxFit = BoxFit.contain;
-    double? aspectRatio;
-    if (AppSettingsController.instance.scaleMode.value == 0) {
-      boxFit = BoxFit.contain;
-    } else if (AppSettingsController.instance.scaleMode.value == 1) {
-      boxFit = BoxFit.fill;
-    } else if (AppSettingsController.instance.scaleMode.value == 2) {
-      boxFit = BoxFit.cover;
-    } else if (AppSettingsController.instance.scaleMode.value == 3) {
-      boxFit = BoxFit.contain;
-      aspectRatio = 16 / 9;
-    } else if (AppSettingsController.instance.scaleMode.value == 4) {
-      boxFit = BoxFit.contain;
-      aspectRatio = 4 / 3;
-    } else if (AppSettingsController.instance.scaleMode.value == 5) {
-      boxFit = BoxFit.contain;
-      double aspectByUser = AppSettingsController.instance.aspectByUser.value;
-      aspectRatio = aspectByUser;
+  /// 多开播放开关：胶囊。关闭态是普通文字按钮，开启态用强调色填充 + 带上 `3/4` 路数。
+  ///
+  /// 横屏挂在底栏**视频区那一段**的右端（与视频区右边距对齐）；竖屏/窄窗挂在底栏最右端。
+  /// 不额外占一行——多一条 40px 的窄条是不必要的。
+  Widget _buildMultiPlayToggle(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Obx(() {
+      final session = controller.multiPlay;
+      final on = session.enabled.value;
+      final counting = on && session.slots.length > 1;
+      return TextButton.icon(
+        style: TextButton.styleFrom(
+          textStyle: _toolbarTextStyle,
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          foregroundColor: on ? scheme.onPrimary : null,
+          backgroundColor: on ? scheme.primary : null,
+        ),
+        onPressed: () => session.setEnabled(!on),
+        icon: const Icon(Remix.play_circle_line, size: 18),
+        label: Text(
+          counting ? "多开播放 · ${session.slots.length}/$kMultiPlayMaxTiles" : "多开播放",
+        ),
+      );
+    });
+  }
+
+  /// 侧栏跟随提示：聊天/SC 跟着聚焦格走这件事在界面上本来完全无形，
+  /// 这里给一行短状态（`① 主播名 · 侧栏跟随`）。只在真的多开时出现——
+  /// 单画面没有「跟谁」的问题，摆一行状态反而是噪音。
+  Widget buildSidebarFollowHint(BuildContext context) {
+    if (Platform.isAndroid || Platform.isIOS) {
+      return const SizedBox.shrink();
     }
+    final scheme = Theme.of(context).colorScheme;
+    return Obx(() {
+      final session = controller.multiPlay;
+      if (!session.isActive) {
+        return const SizedBox.shrink();
+      }
+      final slot = session.focusedSlot.value.clamp(0, session.slots.length - 1);
+      final name = session.slots[slot].detail.value?.userName;
+      return Container(
+        width: double.infinity,
+        color: scheme.primary.withValues(alpha: 0.12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+              child: Text(
+                "${slot + 1}",
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onPrimary,
+                ),
+              ),
+            ),
+            AppStyle.hGap8,
+            Flexible(
+              child: Text(
+                (name == null || name.isEmpty) ? "第${slot + 1}路" : name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+            Text(
+              " · 侧栏跟随",
+              style: TextStyle(fontSize: 12, color: scheme.primary),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget buildMediaPlayer() {
+    final fit = resolvePlayerFit();
     return Stack(
       children: [
         Video(
@@ -269,8 +397,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           controls: (state) {
             return playerControls(state, controller);
           },
-          aspectRatio: aspectRatio,
-          fit: boxFit,
+          aspectRatio: fit.aspectRatio,
+          fit: fit.fit,
           // 自己实现
           wakelock: false,
         ),
@@ -286,6 +414,20 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           ),
         ),
       ],
+    );
+  }
+
+  /// 视频区：单画面走 [buildMediaPlayer]，多画面换成网格。
+  ///
+  /// 移动端一律单画面——多开是桌面功能，`PiPSwitcher` 那条路也只认单画面。
+  Widget buildLiveRoomVideoArea() {
+    if (Platform.isAndroid || Platform.isIOS) {
+      return buildMediaPlayer();
+    }
+    return Obx(
+      () => controller.multiPlay.isActive
+          ? buildMultiPlayGrid(controller)
+          : buildMediaPlayer(),
     );
   }
 
@@ -316,7 +458,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                 borderRadius: AppStyle.radius24,
               ),
               child: NetImage(
-                controller.detail.value?.userAvatar ?? "",
+                room.detail.value?.userAvatar ?? "",
                 width: 48,
                 height: 48,
                 borderRadius: 24,
@@ -328,7 +470,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    controller.detail.value?.userName ?? "",
+                    room.detail.value?.userName ?? "",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -336,12 +478,12 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                   Row(
                     children: [
                       Image.asset(
-                        controller.site.logo,
+                        room.site.logo,
                         width: 20,
                       ),
                       AppStyle.hGap4,
                       Text(
-                        controller.site.name,
+                        room.site.name,
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
@@ -364,7 +506,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                 AppStyle.hGap4,
                 Text(
                   Utils.onlineToString(
-                    controller.detail.value?.online ?? 0,
+                    room.detail.value?.online ?? 0,
                   ),
                   style: const TextStyle(fontSize: 14),
                 ),
@@ -391,20 +533,20 @@ class LiveRoomPage extends GetView<LiveRoomController> {
         children: [
           Expanded(
             child: Obx(
-              () => controller.followed.value
+              () => room.followed.value
                   ? TextButton.icon(
                       style: TextButton.styleFrom(
-                        textStyle: const TextStyle(fontSize: 14),
+                        textStyle: _toolbarTextStyle,
                       ),
-                      onPressed: controller.removeFollowUser,
+                      onPressed: () => room.removeFollowUser(),
                       icon: const Icon(Remix.heart_fill),
                       label: const Text("取消关注"),
                     )
                   : TextButton.icon(
                       style: TextButton.styleFrom(
-                        textStyle: const TextStyle(fontSize: 14),
+                        textStyle: _toolbarTextStyle,
                       ),
-                      onPressed: controller.followUser,
+                      onPressed: () => room.followUser(),
                       icon: const Icon(Remix.heart_line),
                       label: const Text("关注"),
                     ),
@@ -413,9 +555,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           Expanded(
             child: TextButton.icon(
               style: TextButton.styleFrom(
-                textStyle: const TextStyle(fontSize: 14),
+                textStyle: _toolbarTextStyle,
               ),
-              onPressed: controller.refreshRoom,
+              onPressed: () => room.refreshRoom(),
               icon: const Icon(Remix.refresh_line),
               label: const Text("刷新"),
             ),
@@ -423,13 +565,20 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           Expanded(
             child: TextButton.icon(
               style: TextButton.styleFrom(
-                textStyle: const TextStyle(fontSize: 14),
+                textStyle: _toolbarTextStyle,
               ),
-              onPressed: controller.share,
+              onPressed: () => room.share(),
               icon: const Icon(Remix.share_line),
               label: const Text("分享"),
             ),
           ),
+          // 竖屏/窄窗没有视频区下方那条，开关就挂在这条底栏的最右端；
+          // 移动端不显示（多开是桌面功能）。
+          if (!(Platform.isAndroid || Platform.isIOS)) ...[
+            const SizedBox(width: 8),
+            _buildMultiPlayToggle(context),
+            const SizedBox(width: 12),
+          ],
         ],
       ),
     );
@@ -452,7 +601,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                 Tab(
                   child: Obx(
                     () => Text(
-                      controller.superChats.isNotEmpty ? "SC(${controller.superChats.length})" : "SC",
+                      room.superChats.isNotEmpty ? "SC(${room.superChats.length})" : "SC",
                     ),
                   ),
                 ),
@@ -471,7 +620,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                     () => Stack(
                       children: [
                         ListView.separated(
-                          controller: controller.scrollController,
+                          controller: room.scrollController,
                           separatorBuilder: (_, i) => Obx(
                             () => SizedBox(
                               // *2与原来的EdgeInsets.symmetric(vertical: )做兼容
@@ -479,21 +628,21 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                             ),
                           ),
                           padding: AppStyle.edgeInsetsA12,
-                          itemCount: controller.messages.length,
+                          itemCount: room.messages.length,
                           itemBuilder: (context, i) {
-                            var item = controller.messages[i];
+                            var item = room.messages[i];
                             return buildMessageItem(item, context);
                           },
                         ),
                         Visibility(
-                          visible: controller.disableAutoScroll.value,
+                          visible: room.disableAutoScroll.value,
                           child: Positioned(
                             right: 12,
                             bottom: 12,
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                controller.disableAutoScroll.value = false;
-                                controller.chatScrollToBottom();
+                                room.disableAutoScroll.value = false;
+                                room.chatScrollToBottom();
                               },
                               icon: const Icon(Icons.expand_more),
                               label: const Text("最新"),
@@ -602,8 +751,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       context,
       editableTextState,
       {
-        '屏蔽用户': (s) => controller.addCurBlockAccount(s),
-        '屏蔽关键词': (s) => controller.addCurBlockWord(s),
+        '屏蔽用户': (s) => room.addCurBlockAccount(s),
+        '屏蔽关键词': (s) => room.addCurBlockWord(s),
       },
     );
   }
@@ -613,10 +762,10 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       child: Obx(
         () => ListView.separated(
           padding: AppStyle.edgeInsetsA12,
-          itemCount: controller.superChats.length,
+          itemCount: room.superChats.length,
           separatorBuilder: (_, i) => AppStyle.vGap12,
           itemBuilder: (_, i) {
-            var item = controller.superChats[i];
+            var item = room.superChats[i];
             return SuperChatCard(
               item,
             );
@@ -626,6 +775,10 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
+  /// 「设置」页签。
+  ///
+  /// 屏蔽项跟着聊天区走聚焦格（[room]），因为聊天显示的就是那一路的消息；
+  /// 其余（弹幕设置、定时关闭、画面尺寸）都是全局或窗口级设置，走 [controller]。
   Widget buildSettings(BuildContext context) {
     return ListView(
       padding: AppStyle.edgeInsetsA12,
@@ -640,6 +793,71 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             ),
           ),
         ),
+        // 多画面只在桌面提供：移动端已有 PiP，且小屏上四路也看不清。
+        // 「多画面」开关已挪到「关注」页签（那里才是它管的行为），这里只留参数旋钮；
+        // 没开多画面时整段不渲染（也不加解释性提示）。每个旋钮各自包 Obx —— 它们的
+        // 取值要能随点击当场刷新，只订阅 enabled 是不够的。
+        Obx(() {
+          if (Platform.isAndroid || Platform.isIOS || !controller.multiPlay.enabled.value) {
+            return const SizedBox.shrink();
+          }
+          return Column(
+            children: [
+              Padding(
+                padding: AppStyle.edgeInsetsA12,
+                child: Text(
+                  "多开播放",
+                  style: context.textTheme.titleSmall,
+                ),
+              ),
+              SettingsCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Obx(
+                      () => SettingsNumber(
+                        title: "非聚焦音量",
+                        subtitle: "聚焦的一路保持总音量，其余按这个比例压低（不是静音）",
+                        value: (AppSettingsController.instance.multiPlayDuckVolume.value * 100).round(),
+                        min: 0,
+                        max: 100,
+                        step: 5,
+                        unit: "%",
+                        onChanged: (e) {
+                          AppSettingsController.instance.setMultiPlayDuckVolume(e / 100);
+                          // 设置只落盘，正在跑的四路要重下一次音量
+                          controller.multiPlay.applyVolumes();
+                        },
+                      ),
+                    ),
+                    AppStyle.divider,
+                    Obx(
+                      () => SettingsSwitch(
+                        title: "各格显示弹幕",
+                        subtitle: "关掉后四路都不画弹幕，CPU 会明显下来",
+                        value: AppSettingsController.instance.multiPlayTileDanmaku.value,
+                        onChanged: controller.multiPlay.setTileDanmakuVisible,
+                      ),
+                    ),
+                    AppStyle.divider,
+                    Obx(
+                      () => SettingsNumber(
+                        title: "每路缓存",
+                        subtitle: "四路各占一份，重进直播间生效",
+                        value: AppSettingsController.instance.multiPlayTileBufferSize.value,
+                        min: 8,
+                        max: 32,
+                        step: 4,
+                        unit: "MiB",
+                        onChanged: AppSettingsController.instance.setMultiPlayTileBufferSize,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }),
         Padding(
           padding: AppStyle.edgeInsetsA12,
           child: Text(
@@ -700,11 +918,11 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             children: [
               SettingsAction(
                 title: "关键词屏蔽",
-                onTap: controller.showFollowBlockShield,
+                onTap: () => room.showFollowBlockShield(),
               ),
               SettingsAction(
                 title: "用户屏蔽",
-                onTap: () => controller.showFollowBlockShield(blockWords: false),
+                onTap: () => room.showFollowBlockShield(blockWords: false),
               ),
               AppStyle.divider,
               SettingsAction(
@@ -746,9 +964,12 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                 return Obx(
                   () => FollowUserItem(
                     item: item,
-                    playing: controller.rxSite.value.id == item.siteId && controller.rxRoomId.value == item.roomId,
+                    // 多开时可能好几路同时在播，命中任意一格都算「在播」
+                    playing: controller.multiPlay.slots.any(
+                      (t) => t.site.id == item.siteId && t.roomId == item.roomId,
+                    ),
                     onTap: () {
-                      controller.resetRoom(
+                      controller.multiPlay.onFollowItemTap(
                         Sites.allSites[item.siteId]!,
                         item.roomId,
                       );
@@ -786,6 +1007,11 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     ];
   }
 
+  /// 房间菜单。
+  ///
+  /// 多开时的分工：刷新 / 清晰度 / 线路 / 截图 / 分享 / 链接 / 播放信息都作用于
+  /// 聚焦格（[room]）；定时关闭、小窗、画面尺寸是窗口级或全局设置，恒走页面主格
+  /// （[controller]）——四路各跑一份倒计时或直接 `exit(0)` 是不能接受的。
   void showMore() {
     showModalBottomSheet(
       context: Get.context!,
@@ -805,7 +1031,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               title: const Text("刷新"),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                controller.refreshRoom();
+                room.refreshRoom();
               },
             ),
             ListTile(
@@ -814,7 +1040,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               title: const Text("切换清晰度"),
               onTap: () {
                 Get.back();
-                controller.showQualitySheet();
+                room.showQualitySheet();
               },
             ),
             ListTile(
@@ -823,7 +1049,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Get.back();
-                controller.showPlayUrlsSheet();
+                room.showPlayUrlsSheet();
               },
             ),
             ListTile(
@@ -840,7 +1066,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               title: const Text("截图"),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                controller.saveScreenshot();
+                room.saveScreenshot();
               },
             ),
             Visibility(
@@ -870,7 +1096,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Get.back();
-                controller.share();
+                room.share();
               },
             ),
             ListTile(
@@ -879,7 +1105,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Get.back();
-                controller.copyUrl();
+                room.copyUrl();
               },
             ),
             ListTile(
@@ -888,7 +1114,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Get.back();
-                controller.openNaviteAPP();
+                room.openNaviteAPP();
               },
             ),
             ListTile(
@@ -897,7 +1123,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Get.back();
-                controller.showDebugInfo();
+                room.showDebugInfo();
               },
             ),
           ],
