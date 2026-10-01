@@ -15,6 +15,9 @@ class EventBus {
 
   /// 最大音量设置变更，播放器需要实时重设 mpv 的 volume-max
   static const String kPlayerMaxVolumeChanged = "PlayerMaxVolumeChanged";
+
+  /// Stats 覆盖层后端变更，播放器需要在自绘浮层与 mpv 内置 OSD 之间收尾
+  static const String kOSDBackendChanged = "OSDBackendChanged";
   static EventBus? _instance;
 
   static EventBus get instance {

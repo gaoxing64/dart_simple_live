@@ -261,6 +261,11 @@ class AppSettingsController extends GetxController {
       -16,
     );
 
+    osdBackend.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kOSDBackend,
+      "app",
+    );
+
     autoUpdateFollowEnable.value =
         LocalStorageService.instance.getValue(LocalStorageService.kAutoUpdateFollowEnable, true);
 
@@ -876,6 +881,17 @@ class AppSettingsController extends GetxController {
     // 目标变了要重建 af 滤波链，通知当前播放器即时生效。
     // 沿用 bool 负载：订阅方不读 payload，但事件名只有一个，别混入 int。
     EventBus.instance.emit(EventBus.kVolumeNormalizeChanged, volumeNormalize.value);
+  }
+
+  /// Stats 覆盖层后端："app" = Flutter 自绘浮层（默认，HDR 屏不会出现 mpv OSD 的亮度闪烁），
+  /// "mpv" = mpv 内置 stats.lua（script-binding，需内核编入 Lua）。
+  var osdBackend = "app".obs;
+
+  void setOSDBackend(String e) {
+    osdBackend.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kOSDBackend, e);
+    // 通知当前播放器收尾：切到 mpv 时关掉自绘浮层，切回自绘时关掉 mpv 的 OSD。
+    EventBus.instance.emit(EventBus.kOSDBackendChanged, e);
   }
 
   var autoUpdateFollowEnable = false.obs;

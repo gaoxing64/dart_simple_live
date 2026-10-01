@@ -173,6 +173,21 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                     },
                   ),
                 ),
+                AppStyle.divider,
+                Obx(
+                  () => SettingsMenu<String>(
+                    title: "Stats 覆盖层后端",
+                    subtitle: "应用自绘可避免 mpv 内置 OSD 在 HDR 屏上引发的 1Hz 亮度闪烁，推荐保持默认",
+                    value: controller.osdBackend.value,
+                    valueMap: const {
+                      "app": "应用自绘（推荐）",
+                      "mpv": "mpv 内置 OSD",
+                    },
+                    onChanged: (e) {
+                      controller.setOSDBackend(e);
+                    },
+                  ),
+                ),
               ],
             ),
           ),

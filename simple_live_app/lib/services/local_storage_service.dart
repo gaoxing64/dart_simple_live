@@ -231,6 +231,9 @@ class LocalStorageService extends GetxService {
   /// 音量均衡目标响度（LUFS）
   static const String kVolumeNormalizeTargetLufs = "VolumeNormalizeTargetLufs";
 
+  /// Stats 覆盖层后端（app = 应用自绘浮层 / mpv = mpv 内置 OSD）
+  static const String kOSDBackend = "OSDBackend";
+
   /// 开启自动更新关注
   static const String kAutoUpdateFollowEnable = "AutoUpdateFollowEnable";
 

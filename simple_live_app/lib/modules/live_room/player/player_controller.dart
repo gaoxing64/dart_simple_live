@@ -58,6 +58,10 @@ bool _volumeNormalizeUnsupported = false;
 /// 音量均衡滤波链已挂载、正在等起播结果（用于匹配失败日志，避免误伤其他日志）。
 bool _volumeNormalizePending = false;
 
+/// 本次会话的播放内核是否编入了 Lua（决定 mpv 内置 OSD 是否可用）。
+/// Lua 有无是编译期属性，会话内不会变；首次探测后缓存。
+bool? _mpvLuaSupported;
+
 /// `initializePlayer()` 里通过 `setProperty` 设置的配置项，用于回读校验。
 ///
 /// media_kit 的 `NativePlayer.setProperty()` 直接调用 `mpv_set_property_string()`
@@ -335,8 +339,17 @@ mixin PlayerStateMixin on PlayerMixin {
   /// 显示提示底部Tip
   RxBool showBottomTip = false.obs;
 
-  /// 是否显示OSD统计信息
+  /// 是否显示OSD统计信息（应用自绘浮层）
   RxBool showOSDStats = false.obs;
+
+  /// mpv 内置 OSD（stats.lua）是否已开
+  RxBool showMPVOSDStats = false.obs;
+
+  /// Stats 覆盖层当前是否可见（按设置里的后端解释，供播放信息里的开关显示）
+  bool get osdStatsVisible =>
+      AppSettingsController.instance.osdBackend.value == "mpv"
+          ? showMPVOSDStats.value
+          : showOSDStats.value;
 
   /// 提示底部Tip文本
   RxString bottomTipText = "".obs;
@@ -1035,6 +1048,7 @@ class PlayerController extends BaseController
   StreamSubscription? _escSubscription;
   StreamSubscription? _volumeNormalizeSubscription;
   StreamSubscription? _playerMaxVolumeSubscription;
+  StreamSubscription? _osdBackendSubscription;
 
   void initStream() {
     _errorSubscription = player.stream.error.listen((event) {
@@ -1099,6 +1113,30 @@ class PlayerController extends BaseController
         applyPlayerMaxVolume();
       },
     );
+    _osdBackendSubscription = EventBus.instance.listen(
+      EventBus.kOSDBackendChanged,
+      (event) async {
+        // 换后端时给旧的收尾：切到 mpv 先关掉自绘浮层（内核缺 Lua 则回退并提示）；
+        // 切回自绘则关掉 mpv 的 OSD。
+        if (AppSettingsController.instance.osdBackend.value == "mpv") {
+          showOSDStats.value = false;
+          if (!await mpvOSDAvailable()) {
+            fallbackToAppOSD(showStats: false);
+          }
+          return;
+        }
+        if (showMPVOSDStats.value) {
+          showMPVOSDStats.value = false;
+          if (player.platform is NativePlayer) {
+            unawaited(
+              (player.platform as NativePlayer).command(
+                ["script-binding", "stats/display-page-1-toggle"],
+              ),
+            );
+          }
+        }
+      },
+    );
   }
 
   void disposeStream() {
@@ -1112,6 +1150,7 @@ class PlayerController extends BaseController
     _escSubscription?.cancel();
     _volumeNormalizeSubscription?.cancel();
     _playerMaxVolumeSubscription?.cancel();
+    _osdBackendSubscription?.cancel();
   }
 
   void mediaEnd() {
@@ -1123,11 +1162,59 @@ class PlayerController extends BaseController
     // WakelockPlus.disable();
   }
 
+  /// 探测播放内核能否跑 mpv 内置 OSD（stats.lua 需要内核编入 Lua）。
+  ///
+  /// media_kit 的 `command()`/`setProperty()` 都丢弃 mpv 返回值，没法靠报错判断
+  /// binding 是否存在；改用只读属性 `mpv-configuration`（mpv 的编译配置串）探测：
+  /// 出现 `lua=disabled`（或读不到）即视为不可用。Lua 有无是编译期属性，缓存结果。
+  Future<bool> mpvOSDAvailable() async {
+    if (_mpvLuaSupported != null) {
+      return _mpvLuaSupported!;
+    }
+    if (player.platform is! NativePlayer) {
+      return false;
+    }
+    final config = await (player.platform as NativePlayer).getProperty('mpv-configuration');
+    _mpvLuaSupported = config.isNotEmpty && !config.contains('lua=disabled');
+    return _mpvLuaSupported!;
+  }
+
+  /// mpv 内置 OSD 不可用时回退到应用自绘。
+  /// 与音量均衡自愈一致：只改内存不落盘，换回带 Lua 的内核后重启即恢复。
+  void fallbackToAppOSD({required bool showStats}) {
+    showMPVOSDStats.value = false;
+    AppSettingsController.instance.osdBackend.value = "app";
+    Log.d('Stats 覆盖层：内核未编入 Lua，mpv 内置 OSD 不可用，已回退应用自绘');
+    SmartDialog.showToast('mpv 内置 OSD 不可用：内核未编入 Lua，已改用应用自绘');
+    if (showStats) {
+      showOSDStats.value = true;
+    }
+  }
+
   /// 切换 OSD 统计浮层。
-  /// 原实现调用 mpv 的 script-binding stats/display-page-1-toggle（stats.lua），
-  /// 在未编译 Lua 脚本的 libmpv 构建中会报错（见错误日志），已改为纯 Flutter 自绘浮层。
+  /// 后端由设置决定：应用自绘（Flutter 浮层，默认）或 mpv 内置 OSD（stats.lua）。
   void toggleOSDStats() {
+    if (AppSettingsController.instance.osdBackend.value == "mpv") {
+      unawaited(toggleMPVOSDStats());
+      return;
+    }
     showOSDStats.value = !showOSDStats.value;
+  }
+
+  Future<void> toggleMPVOSDStats() async {
+    if (!await mpvOSDAvailable()) {
+      fallbackToAppOSD(showStats: true);
+      return;
+    }
+    showMPVOSDStats.value = !showMPVOSDStats.value;
+    showOSDStats.value = false;
+    if (player.platform is NativePlayer) {
+      unawaited(
+        (player.platform as NativePlayer).command(
+          ["script-binding", "stats/display-page-1-toggle"],
+        ),
+      );
+    }
   }
 
   void showDebugInfo() {
@@ -1137,7 +1224,7 @@ class PlayerController extends BaseController
         children: [
           Obx(() => SettingsSwitch(
               title: "OSD 显示",
-              value: showOSDStats.value,
+              value: osdStatsVisible,
               onChanged: (value) => toggleOSDStats())),
           ListTile(
             title: const Text("Resolution"),
