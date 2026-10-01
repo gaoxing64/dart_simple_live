@@ -42,6 +42,7 @@ deliverables/
 # feat/volume-normalize-libs 分支，等构建仓库出新 release 后改 libs 下载 URL+SHA256
 /libmpv-win32-video-cmake/
 /libmpv-android-video-build/
+/libmpv-darwin-build/
 /media-kit/
 /libmpv-worktrees/
 
