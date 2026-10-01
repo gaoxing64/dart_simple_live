@@ -34,6 +34,20 @@ class WindowService extends GetxService implements WindowListener {
   /// 必须与 init() 的 WindowOptions 是同一份，别再抄字面量。
   static const Size _normalMinimumSize = Size(436, 280);
 
+  /// 常规态窗口下限（多开态下限要在它之上取大，见 MultiPlaySession 的说明）。
+  Size get normalMinimumSize => _normalMinimumSize;
+
+  /// 是否处于多开播放态。由 `MultiPlaySession` 维护。
+  ///
+  /// 用途有二：① 决定 `restoreNormalMinimumSize` 恢复哪一档下限；
+  /// ② 让窗口尺寸的「用户偏好」落盘在整个多开期间停机——进多开时窗口会被
+  /// 主动撑大，那之后每一次 onWindowResized 都会把撑大后的尺寸写成用户偏好，
+  /// 下次启动就莫名变成多开尺寸。
+  bool multiPlayActive = false;
+
+  /// 多开态下限；null = 不在多开态。
+  Size? _multiPlayMinimumSize;
+
   /// 小窗态下限（未锁纵横比时用）。小窗是纯播放器界面，不受普通态
   /// 「2 列卡面」约束，沿用历史下限即可；锁定纵横比的走 setPipMinimumSize。
   static const Size _pipFloorMinimumSize = Size(320, 280);
@@ -373,7 +387,12 @@ class WindowService extends GetxService implements WindowListener {
     final position = await windowManager.getPosition();
     if (!isPIP) {
       await danmakuFontClamped();
-      _saveSizeAndPositon(size, position);
+      // 多开期间不落盘：进多开时窗口会被主动撑大，之后的每次 resize 都会把撑大后的
+      // 尺寸写成用户偏好，下次启动就莫名变成多开尺寸。退出多开时由
+      // MultiPlaySession 恢复进多开前的尺寸，那一次才会被记下来。
+      if (!multiPlayActive) {
+        _saveSizeAndPositon(size, position);
+      }
     } else {
       _savePipSizeAndPositon(size, position);
     }
@@ -614,10 +633,27 @@ class WindowService extends GetxService implements WindowListener {
     }
   }
 
-  /// 恢复普通态最小尺寸 _normalMinimumSize。
+  /// 恢复「当前模式」的最小尺寸：多开态恢复多开下限，否则常规下限。
+  ///
+  /// 不能无条件写 _normalMinimumSize：小窗进出等路径都会调到这里，
+  /// 无条件写回会让多开下限被悄悄降掉，四宫格随即被拖成一格大小。
   Future<void> restoreNormalMinimumSize() async {
     try {
-      await windowManager.setMinimumSize(_normalMinimumSize);
+      await windowManager.setMinimumSize(_multiPlayMinimumSize ?? _normalMinimumSize);
+    } catch (e) {
+      Log.logPrint(e);
+    }
+  }
+
+  /// 施加多开态窗口下限；传 null 表示退出多开、恢复常规下限。
+  ///
+  /// 只设下限不会把已经更小的窗口撑大（Windows 的 MINMAXINFO 只约束用户拖拽），
+  /// 需要在调用方自行 setSize，见 `MultiPlaySession.refreshWindowFloor`。
+  Future<void> setMultiPlayMinimumSize(Size? size) async {
+    _multiPlayMinimumSize = size;
+    multiPlayActive = size != null;
+    try {
+      await windowManager.setMinimumSize(size ?? _normalMinimumSize);
     } catch (e) {
       Log.logPrint(e);
     }

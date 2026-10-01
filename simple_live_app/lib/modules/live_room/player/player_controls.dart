@@ -685,9 +685,8 @@ Widget buildDanmuView(VideoState videoState, LiveRoomController controller) {
   var padding = MediaQuery.of(videoState.context).padding;
   // completed: resizeDanmakuFontSize if clamped is true
   // danmakuFontResize is temp
-  var reSize = AppSettingsController.instance.danmakuFontClamped.value
-      ? AppSettingsController.instance.danmakuFontResize
-      : AppSettingsController.instance.danmuSize.value;
+  // 多开时每格有自己的字号（按格子高度算），优先于「按整窗高度缩放」的口径
+  var reSize = controller.danmakuFontSizeOverride ?? controller.resolveWindowScaledDanmakuFontSize();
   controller.danmakuView ??= DanmakuScreen(
     createdController: controller.initDanmakuController,
     option: DanmakuOption(

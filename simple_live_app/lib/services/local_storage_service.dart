@@ -171,6 +171,18 @@ class LocalStorageService extends GetxService {
   /// 播放器最大音量（mpv volume-max，百分比）
   static const String kPlayerMaxVolume = "PlayerMaxVolume";
 
+  /// 多开播放：记住上次的布局模式（单画面 / 多画面）
+  static const String kMultiPlayEnable = "MultiPlayEnable";
+
+  /// 多开播放：非聚焦格的音量比例（0~1，乘在总音量上）
+  static const String kMultiPlayDuckVolume = "MultiPlayDuckVolume";
+
+  /// 多开播放：副格的 mpv 缓存上限（MiB）
+  static const String kMultiPlayTileBufferSize = "MultiPlayTileBufferSize";
+
+  /// 多开播放：是否显示各格的弹幕
+  static const String kMultiPlayTileDanmaku = "MultiPlayTileDanmaku";
+
   /// 播放器音量
   static const String kVerticalDragLock = "VerticalDragLock";
 

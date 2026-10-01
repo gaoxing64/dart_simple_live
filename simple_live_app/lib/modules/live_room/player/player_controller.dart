@@ -99,10 +99,45 @@ mixin PlayerMixin {
   /// 播放器实例
   late final player = Player(
     configuration: PlayerConfiguration(
-      title: "Slive Player",
+      title: playerTitle,
+      bufferSize: playerBufferSize,
       logLevel: AppSettingsController.instance.logEnable.value ? MPVLogLevel.debug : MPVLogLevel.error,
     ),
   );
+
+  /// 本实例的 mpv 缓存上限（字节）。
+  ///
+  /// media_kit 默认 32MiB，会写进 mpv 的 `demuxer-max-bytes`；四路同时跑就是 128MiB 起，
+  /// 所以副格走设置项压低（`LiveRoomController` 覆写），主格保持默认不动。
+  int get playerBufferSize => 32 * 1024 * 1024;
+
+  /// 播放器标题：多开时每格带槽位，便于在 mpv 日志里区分是哪一路。
+  ///
+  /// 注意它们同在一个进程里，Windows 音量合成器按进程分会话，所以标题**不会**
+  /// 拆出四条音量滑块——真正的按格音量靠 [resolveTargetVolume]。
+  String get playerTitle => "Slive Player";
+
+  /// 本实例此刻该用的 mpv 音量（百分比）。
+  ///
+  /// 单开路径就是全局总音量；多开时 `LiveRoomController` 覆写成「聚焦格用总音量、
+  /// 其余格按设置压低」。
+  double resolveTargetVolume() => AppSettingsController.instance.playerVolume.value;
+
+  /// 把 [resolveTargetVolume] 的结果下发给 mpv。
+  Future<void> applyTargetVolume() async {
+    if (player.platform is! NativePlayer) {
+      return;
+    }
+    await player.setVolume(resolveTargetVolume());
+  }
+
+  /// 是否允许做窗口级操作（全屏 / 小窗 / PiP / 自动全屏）。
+  ///
+  /// 多开时窗口只有一个，只有页面主格能碰，副格一律 false。
+  bool get allowsWindowOps => true;
+
+  /// 是否处于多开播放中（含聚集态与折叠态）。小窗等在多开下整体禁用。
+  bool get multiPlayActive => false;
 
   /// 初始化播放器并设置 ao 参数
   Future<void> initializePlayer() async {
@@ -221,7 +256,9 @@ mixin PlayerMixin {
       'volume-max',
       AppSettingsController.instance.playerMaxVolume.value.toString(),
     );
-    await player.setVolume(AppSettingsController.instance.playerVolume.value);
+    // 必须走 applyTargetVolume 而不是直接写全局音量：多开时非聚焦格要按比例压低，
+    // 直写总音量会把 ducking 冲掉。
+    await applyTargetVolume();
   }
 
   /// 匹配播放器日志，自愈「内核缺滤镜」的情况。
@@ -437,8 +474,51 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
   /// 弹幕控制器
   late DanmakuController? danmakuController;
 
+  /// 强制指定的弹幕字号（逻辑像素）。
+  ///
+  /// 单开时为 null：`buildDanmuView` 沿用「按整窗高度缩放」那套口径
+  /// （`danmakuFontClamped` / `danmakuFontResize` / `danmuSize`）。
+  /// 多开时每格高度都不同，整窗口径对不上格子，由 `MultiPlaySession`
+  /// 按格子实际高度算好写进来。
+  double? danmakuFontSizeOverride;
+
   void initDanmakuController(DanmakuController e) {
     danmakuController = e;
+  }
+
+  /// 设置按格字号并即时生效（弹幕控制器还没建时只记下 override，建的时候会用到）。
+  void applyDanmakuFontSize(double fontSize) {
+    if (danmakuFontSizeOverride == fontSize) {
+      return;
+    }
+    danmakuFontSizeOverride = fontSize;
+    final option = danmakuController?.option;
+    if (option != null) {
+      updateDanmuOption(option.copyWith(fontSize: fontSize));
+    }
+  }
+
+  /// 「按整窗高度缩放」那套字号口径。
+  ///
+  /// 单开时 `buildDanmuView` 用它，`WindowService.danmakuFontClamped` 广播的
+  /// `kUpdateDanmaku` 也是这个值；多开时被 [danmakuFontSizeOverride] 顶掉。
+  double resolveWindowScaledDanmakuFontSize() {
+    final settings = AppSettingsController.instance;
+    return settings.danmakuFontClamped.value
+        ? settings.danmakuFontResize
+        : settings.danmuSize.value;
+  }
+
+  /// 清掉按格字号，回到整窗口径（退出多开时用）。
+  void clearDanmakuFontSizeOverride() {
+    if (danmakuFontSizeOverride == null) {
+      return;
+    }
+    danmakuFontSizeOverride = null;
+    final option = danmakuController?.option;
+    if (option != null) {
+      updateDanmuOption(option.copyWith(fontSize: resolveWindowScaledDanmakuFontSize()));
+    }
   }
 
   void updateDanmuOption(DanmakuOption? option) {
@@ -642,6 +722,11 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
 
   ///小窗模式()
   void enterSmallWindow() async {
+    if (multiPlayActive) {
+      // 多路没有单一宽高比可锁，小窗语义不成立；四格同时改窗口尺寸/置顶只会互相打架。
+      SmartDialog.showToast("多开播放中不支持小窗，请先关掉其余几路");
+      return;
+    }
     if (!(Platform.isAndroid || Platform.isIOS)) {
       fullScreenState.value = true;
       smallWindowState.value = true;
@@ -1035,7 +1120,7 @@ class PlayerController extends BaseController
     initSystem();
     initStream();
     //设置音量
-    player.setVolume(AppSettingsController.instance.playerVolume.value);
+    applyTargetVolume();
     super.onInit();
   }
 
@@ -1089,7 +1174,7 @@ class PlayerController extends BaseController
       } else {
         // 可获取直播流size时且不为全屏模式时判断是否进入全屏模式
         isVertical.value = player.state.height! > player.state.width!;
-        if (AppSettingsController.instance.autoFullScreen.value && !fullScreenState.value) {
+        if (allowsWindowOps && AppSettingsController.instance.autoFullScreen.value && !fullScreenState.value) {
           enterFullScreen();
         }
       }
@@ -1098,9 +1183,12 @@ class PlayerController extends BaseController
       Log.d('height:$event  W:${(player.state.width)}  H:${(player.state.height)}');
       isVertical.value = (player.state.height ?? 9) > (player.state.width ?? 16);
     });
-    _escSubscription = EventBus.instance.listen(EventBus.kEscapePressed, (event) {
-      exitFull();
-    });
+    // Esc 是窗口级操作：多开时四路都订阅会让一次 Esc 在每一格上都退一次全屏
+    if (allowsWindowOps) {
+      _escSubscription = EventBus.instance.listen(EventBus.kEscapePressed, (event) {
+        exitFull();
+      });
+    }
     _volumeNormalizeSubscription = EventBus.instance.listen(
       EventBus.kVolumeNormalizeChanged,
       (event) {

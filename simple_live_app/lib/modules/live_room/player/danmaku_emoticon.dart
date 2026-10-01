@@ -403,9 +403,30 @@ class DanmakuEmoticonRenderer {
   ///
   /// 切换直播间时调用：表情是**分房间**下发的，留着上一个房间的位图只是白占内存。
   /// 注意源图句柄本来就归 Flutter 的 `ImageCache` 管，这里丢的只是我们的引用。
+  ///
+  /// 多开时不要直接调它——缓存是进程级共享的，四路里任何一格换房间都会清掉别人
+  /// 正在用的位图。用 [acquireCache]/[releaseCache] 表达「最后一个持有者才清」。
   static void clearCache() {
     _ImageHandleCache.clear();
     _CompositeCache.clear();
+  }
+
+  /// 表情缓存的持有者计数，见 [acquireCache]。
+  static int _owners = 0;
+
+  /// 进入一个直播间时登记一个持有者（`LiveRoomController.onInit`）。
+  static void acquireCache() {
+    _owners++;
+  }
+
+  /// 离开或切走直播间时释放；计数归零才真正清空缓存。
+  static void releaseCache() {
+    if (_owners > 0) {
+      _owners--;
+    }
+    if (_owners == 0) {
+      clearCache();
+    }
   }
 
   static double _aspectRatio(LiveMessageEmoticon emoticon, ui.Image image) {

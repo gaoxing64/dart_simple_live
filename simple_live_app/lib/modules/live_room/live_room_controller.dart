@@ -22,7 +22,9 @@ import 'package:simple_live_app/models/db/follow_user_block.dart';
 import 'package:simple_live_app/models/db/history.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controller.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_session.dart';
 import 'package:simple_live_app/modules/settings/danmu_settings_page.dart';
+import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_block_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
@@ -47,9 +49,24 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   Timer? danmakuTimer;
   bool _isProcessingBuffer = false;
 
+  /// 多开播放时本实例是「副格」而非页面主格。
+  ///
+  /// 副格只负责自己那一路的播放 / 弹幕 / 聊天，绝不碰窗口操作、SmartDialog 加载
+  /// 浮层、自动关闭计时这些全 app 只有一份的东西——四路同时跑会互相打架。
+  final bool isSecondaryTile;
+
+  /// 多开时的槽位（0 = 主格）。用于弹幕定时器错峰与日志区分。
+  final int tileSlot;
+
+  /// 批量入口预载的其余几路（不含自己）。只有主格会消费它。
+  final List<LiveRoomTarget> together;
+
   LiveRoomController({
     required this.pSite,
     required this.pRoomId,
+    this.isSecondaryTile = false,
+    this.tileSlot = 0,
+    this.together = const [],
   }) {
     rxSite = pSite.obs;
     rxRoomId = pRoomId.obs;
@@ -58,6 +75,112 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     if (site.id == "douyin") {
       isVertical.value = true;
     }
+  }
+
+  /// 历史记录 / 关注记录的 id。
+  String get historyId => "${site.id}_$roomId";
+
+  /// 每格的身份编号：只用于 GetX 的注册 tag 与网格 key，**与房间无关**。
+  ///
+  /// 全局单调 + `late final` 懒分配：首次访问取号、之后永不变。
+  /// 不能用 [historyId] 派生——换台（[resetRoom]）会改掉它的值，而实例仍注册在旧
+  /// tag 下，`Get.delete` 会静默返回 false，那一格的播放器与弹幕 WS 就泄漏了
+  /// （而且还在出声），连关掉直播间页都回收不了。
+  static int _tileSeq = 0;
+  late final int tileId = ++_tileSeq;
+
+  /// 多开时注册进 GetX 用的 tag。
+  ///
+  /// 主格走路由绑定的无 tag 注册；副格必须带 tag——fork 的 get 不会覆盖已存活实例，
+  /// 不带 tag 时第二个直播间会静默复用第一个的播放器。
+  /// 用 [tileId] 而不是房间，保证换台后 tag 不变、销得掉。
+  String get getxTag => "multi_tile_$tileId";
+
+  @override
+  bool get multiPlayActive => multiPlay.isActive;
+
+  @override
+  bool get allowsWindowOps => !isSecondaryTile;
+
+  /// 这一路相对基准音量的系数（0~1）。1 = 按焦点/ducking 规则算出来的值，0 = 静音。
+  ///
+  /// 格子底栏的音量按钮改的就是它：点一下在 0 与上次的值之间切换，滚轮悬停微调。
+  /// 让用户能对「这一路」做细调（两路都听得见时把吵的那路再压低；或从静音慢慢加上来）。
+  final RxDouble volumeFactor = 1.0.obs;
+
+  /// 静音前的系数，取消静音时还原。
+  double _factorBeforeMute = 1.0;
+
+  bool get muted => volumeFactor.value <= 0.001;
+
+  void toggleMute() {
+    if (muted) {
+      volumeFactor.value = _factorBeforeMute > 0.001 ? _factorBeforeMute : 1.0;
+    } else {
+      _factorBeforeMute = volumeFactor.value;
+      volumeFactor.value = 0;
+    }
+    applyTargetVolume();
+  }
+
+  /// 滚轮微调这一路的音量系数（[delta] 如 ±0.05）。
+  void nudgeVolumeFactor(double delta) {
+    final next = (volumeFactor.value + delta).clamp(0.0, 1.0);
+    if (next == volumeFactor.value) {
+      return;
+    }
+    volumeFactor.value = next;
+    if (next > 0.001) {
+      _factorBeforeMute = next;
+    }
+    applyTargetVolume();
+  }
+
+  /// 副格的目标音量：多开时非聚焦格按设置压低，详见 [resolveTargetVolume]。
+  @override
+  double resolveTargetVolume() {
+    final factor = volumeFactor.value;
+    if (factor <= 0) {
+      return 0;
+    }
+    final master = AppSettingsController.instance.playerVolume.value;
+    if (!multiPlay.isActive || multiPlay.focused == this) {
+      return master * factor;
+    }
+    return master * AppSettingsController.instance.multiPlayDuckVolume.value * factor;
+  }
+
+  @override
+  String get playerTitle =>
+      isSecondaryTile ? "Slive Player · 第${tileSlot + 1}路" : "Slive Player";
+
+  /// 副格用设置项压低缓存上限：四路各 32MiB 起步对弱机不友好。
+  ///
+  /// 注意 `Player` 只构造一次，改了设置要重进直播间才生效。
+  @override
+  int get playerBufferSize => isSecondaryTile
+      ? AppSettingsController.instance.multiPlayTileBufferSize.value * 1024 * 1024
+      : super.playerBufferSize;
+
+  /// 页面各区块要跟随的那一路：多开时是聚焦格，单画面时就是自己。
+  ///
+  /// 页面里读「当前房间」的地方都走这个 getter。因为里面读了 focusedSlot，
+  /// `Obx` 会自动订阅它，切焦点时聊天区自己重建，不需要手动 update。
+  LiveRoomController get focused => multiPlay.focused;
+
+  MultiPlaySession? _hostSession;
+
+  /// 我归属的多开会话。
+  ///
+  /// 主格惰性建自己那份；副格由 [MultiPlaySession.addRoom] 回填成页面主格那个。
+  /// 必须回填：副格若查自己那份「单人会话」，`isActive` 恒为 false，音量判定就会
+  /// 得出「没在多开」的结论——结果是副格永远不会被压低而主格会，两路音量在
+  /// 「一样大」和「差 10dB」之间随焦点乱跳。
+  MultiPlaySession get multiPlay => _hostSession ??= MultiPlaySession(this);
+
+  /// 由会话在创建副格时回填归属。
+  void attachHostSession(MultiPlaySession session) {
+    _hostSession = session;
   }
 
   late Rx<Site> rxSite;
@@ -129,24 +252,46 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     if (FollowService.instance.followList.isEmpty) {
       FollowService.instance.loadData();
     }
-    initAutoExit();
-    showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
-    followed.value = FollowService.instance.getFollowExist("${site.id}_$roomId");
+    // 自动关闭会 exit(0) 并弹确认框，只能由页面主格管；副格跑了就是四份倒计时
+    if (!isSecondaryTile) {
+      initAutoExit();
+    }
+    // 副格的弹幕还要看「多开时显示弹幕」设置：关掉后 addDanmaku 直接提前返回，
+    // 弹幕集合保持为空、ticker 近乎免费（Offstage 是停不了 Ticker 的）。
+    showDanmakuState.value = AppSettingsController.instance.danmuEnable.value &&
+        (!isSecondaryTile || AppSettingsController.instance.multiPlayTileDanmaku.value);
+    followed.value = FollowService.instance.getFollowExist(historyId);
     // 解冻：更新 lastWatchTime 并从休眠列表移除
-    FollowService.instance.resumeUser("${site.id}_$roomId");
+    FollowService.instance.resumeUser(historyId);
     loadData();
 
     scrollController.addListener(scrollListener);
-    subscription = EventBus.instance.listen(Constant.kUpdateDanmaku, (data) {
-      if(danmakuController?.option.fontSize != data as double ){
-        updateDanmuOption(danmakuController?.option.copyWith(fontSize: data));
-      }
-    });
+    // 这个字号是 WindowService 按**整窗高度**算出来的，多开时每格高度都不同，
+    // 只该由主格在单画面下消费；多开的字号走 MultiPlaySession 的按格缩放。
+    if (!isSecondaryTile) {
+      subscription = EventBus.instance.listen(Constant.kUpdateDanmaku, (data) {
+        // 多开时主格也只是其中一格，按整窗算出来的值会让它比其他格大一大截
+        // （「弹幕跟随窗口缩放」开着时尤其明显），必须让位给按格字号。
+        if (multiPlay.isActive) {
+          return;
+        }
+        if (danmakuController?.option.fontSize != data as double) {
+          updateDanmuOption(danmakuController?.option.copyWith(fontSize: data));
+        }
+      });
+    }
     _initDanmakuMask();
+    DanmakuEmoticonRenderer.acquireCache();
     super.onInit();
+    // 批量入口预载的其余几路。放在 super.onInit() 之后，避免建格跟主格自己的初始化
+    // 抢顺序（此时播放器与弹幕 WS 都已就位）。
+    if (together.isNotEmpty && !(Platform.isAndroid || Platform.isIOS)) {
+      // 移动端不渲染网格，批量格会变成「看不见但在出声、在解码」
+      multiPlay.addRooms(together);
+    }
   }
 
-  void _initDanmakuMask() async {
+  void _initDanmakuMask() {
     rustDanmakuMask = DanmakuMask(
       baseWindowMs: AppSettingsController.instance.danmuWindowMs.value * 1000,
       bucketCount: AppSettingsController.instance.danmuWindowMs.value,
@@ -155,7 +300,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
       maxFrequency: AppSettingsController.instance.danmuMaxFrequency.value,
     );
     danmakuTimer = Timer.periodic(
-      const Duration(milliseconds: 500),
+      // 多开时按槽位错峰：每 500ms 每个房间各有一次同步 FFI 的 allowListBatch 与一次
+      // messages 追加，四路同相位会把它们挤在同一帧上。
+      Duration(milliseconds: 500 + tileSlot * 125),
       (timer) {
         _processDanmakuBuffer();
         // sc同步计时调用 先刷后删
@@ -222,6 +369,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   }
 
   void scrollListener() {
+    if (!scrollController.hasClients) {
+      return;
+    }
     if (scrollController.position.userScrollDirection == ScrollDirection.forward) {
       disableAutoScroll.value = true;
     }
@@ -448,11 +598,24 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
 
   /// 加载直播间信息
   void loadData() async {
+    // SmartDialog 的加载浮层是全局单例，多开时四路都 show/dismiss 会互相顶掉，
+    // 因此只由页面主格负责。副格的加载态由格子自身的进度指示表达。
+    final ownsLoading = !isSecondaryTile;
     try {
-      SmartDialog.showLoading(msg: "");
+      if (ownsLoading) {
+        SmartDialog.showLoading(msg: "");
+      }
       loadError.value = false;
       addSysMsg("正在读取直播间信息");
-      detail.value = await site.liveSite.getRoomDetail(roomId: roomId);
+      // 本次加载针对哪一路；换台时上一次的请求可能更晚落地
+      final target = roomId;
+      detail.value = await site.liveSite.getRoomDetail(roomId: target);
+      // 世代守卫：换台后旧请求晚到会把上一路的标题/封面/在线数盖到新房间上。
+      // 只认最后一次发起的那个（注意要放在下面抖音改写 roomId 之前判断，
+      // 否则会被那个改写误伤）。
+      if (roomId != target) {
+        return;
+      }
 
       if (site.id == Constant.kDouyin) {
         // 1.6.0之前收藏的WebRid
@@ -504,7 +667,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
         error = e;
       }
     } finally {
-      SmartDialog.dismiss(status: SmartStatus.loading);
+      if (ownsLoading) {
+        SmartDialog.dismiss(status: SmartStatus.loading);
+      }
     }
   }
 
@@ -801,8 +966,10 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
                 max: AppSettingsController.instance.playerMaxVolume.value.toDouble(),
                 value: AppSettingsController.instance.playerVolume.value,
                 onChanged: (newValue) {
-                  player.setVolume(newValue);
                   AppSettingsController.instance.setPlayerVolume(newValue);
+                  // 总音量是唯一的音量权威：多开时非聚焦格按 duck 比例跟着走，
+                  // 所以不能像原来那样只 setVolume 自己这一路。
+                  multiPlay.applyVolumes();
                 },
               ),
             ),
@@ -1113,7 +1280,8 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
                       playing: rxSite.value.id == item.siteId && rxRoomId.value == item.roomId,
                       onTap: () {
                         Get.back();
-                        resetRoom(
+                        // 多画面模式下挑选的是「加入哪一格」，单画面模式仍是切换当前房间
+                        multiPlay.onFollowItemTap(
                           Sites.allSites[item.siteId]!,
                           item.roomId,
                         );
@@ -1236,17 +1404,26 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     if (this.site == site && this.roomId == roomId) {
       return;
     }
+    // 离开的房间停止计时：观看时长现在按房间各记一份，不显式停掉它会一直累加。
+    HistoryService.instance.stop(roomId: historyId);
 
     rxSite.value = site;
     rxRoomId.value = roomId;
+
+    // 与构造里的默认保持一致：抖音默认竖屏
+    if (site.id == Constant.kDouyin) {
+      isVertical.value = true;
+    }
 
     // 清除全部消息
     liveDanmaku.stop();
     messages.clear();
     superChats.clear();
     danmakuController?.clear();
-    // 表情包是分房间下发的，换房间后上一个房间的合成位图没有复用价值
-    DanmakuEmoticonRenderer.clearCache();
+    // 表情包是分房间下发的，换房间后上一个房间的合成位图没有复用价值；
+    // 但缓存是进程级共享的，多开时别的格子还在用，交给计数决定最后一个持有者才清。
+    DanmakuEmoticonRenderer.releaseCache();
+    DanmakuEmoticonRenderer.acquireCache();
 
     // 重新设置LiveDanmaku
     liveDanmaku = site.liveSite.getDanmaku();
@@ -1257,7 +1434,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
 
     // 刷新信息
     loadData();
-    HistoryService.instance.reset("${site.id}_$roomId");
+    HistoryService.instance.reset(historyId);
   }
 
   void copyErrorDetail() {
@@ -1288,7 +1465,7 @@ ${error?.stackTrace}''');
       var height = MediaQuery.of(Get.context!).padding.top;
       Log.d("当前状态栏高度$height");
       Log.d("返回前台");
-      danmakuController?.resume;
+      danmakuController?.resume();
       isBackground = false;
     }
   }
@@ -1299,14 +1476,23 @@ ${error?.stackTrace}''');
     scrollController.removeListener(scrollListener);
     autoExitTimer?.cancel();
     danmakuTimer?.cancel();
-    HistoryService.instance.stop();
+    // 这个 EventBus 订阅原来一直没被取消：每关一个直播间就漏一个 kUpdateDanmaku
+    // 监听者，多开时泄漏量翻四倍。
+    subscription?.cancel();
+    HistoryService.instance.stop(roomId: historyId);
 
     liveDanmaku.stop();
     danmakuController = null;
     // 直接退出直播间不经过 resetRoom，这里补一次：表情是分房间下发的，
     // 留在静态缓存里的源图句柄与合成位图出房间后就没有复用价值了。
-    DanmakuEmoticonRenderer.clearCache();
+    DanmakuEmoticonRenderer.releaseCache();
     rustDanmakuMask.dispose();
+    if (!isSecondaryTile) {
+      // 副格是手工 Get.put(tag:) 注册的，路由 pop 不会回收它们——必须在主格退出时
+      // 显式摘掉，否则四路播放器会连着音频一起泄漏。副格自己的 onClose 不做这件事
+      // （它持有的空会话会把窗口下限改回常规值）。
+      multiPlay.dispose();
+    }
     super.onClose();
   }
 }

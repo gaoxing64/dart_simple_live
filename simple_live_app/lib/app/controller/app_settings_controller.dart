@@ -246,6 +246,26 @@ class AppSettingsController extends GetxController {
       false,
     );
 
+    multiPlayEnable.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kMultiPlayEnable,
+      false,
+    );
+
+    multiPlayDuckVolume.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kMultiPlayDuckVolume,
+      0.3,
+    );
+
+    multiPlayTileBufferSize.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kMultiPlayTileBufferSize,
+      16,
+    );
+
+    multiPlayTileDanmaku.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kMultiPlayTileDanmaku,
+      true,
+    );
+
     enableRtxVsr.value = LocalStorageService.instance.getValue(
       LocalStorageService.kEnableRtxVsr,
       false,
@@ -692,6 +712,55 @@ class AppSettingsController extends GetxController {
     }
     // 通知当前播放器重设 volume-max，不必重进直播间
     EventBus.instance.emit(EventBus.kPlayerMaxVolumeChanged, e);
+  }
+
+  /// 多开播放：记住上次的布局模式（单画面 / 多画面）。
+  ///
+  /// 注意它只表示「上次是不是多画面」；真正的多开是否成立还要看已经加了几路
+  /// （见 `MultiPlaySession.isActive`）。
+  var multiPlayEnable = false.obs;
+
+  void setMultiPlayEnable(bool e) {
+    multiPlayEnable.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kMultiPlayEnable, e);
+  }
+
+  /// 多开播放：非聚焦格的音量比例，乘在总音量上。
+  ///
+  /// 默认 0.3（≈ −10.5 dB）：需求是「聚焦格正常、其余压低」而不是静音，所以刻意不取 0。
+  /// 允许 0 但那是用户自己的选择，滑块到 0 附近是渐弱而非突变。
+  var multiPlayDuckVolume = 0.3.obs;
+
+  void setMultiPlayDuckVolume(double e) {
+    multiPlayDuckVolume.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kMultiPlayDuckVolume,
+      e,
+    );
+  }
+
+  /// 多开播放：副格的 mpv 缓存上限（MiB）。
+  ///
+  /// media_kit 默认每路 32MiB，四路就是 128MiB 起；这是弱机上的主要内存旋钮。
+  var multiPlayTileBufferSize = 16.obs;
+
+  void setMultiPlayTileBufferSize(int e) {
+    multiPlayTileBufferSize.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kMultiPlayTileBufferSize,
+      e,
+    );
+  }
+
+  /// 多开播放：是否显示各格的弹幕。关闭后各路弹幕的 item 集合保持为空。
+  var multiPlayTileDanmaku = true.obs;
+
+  void setMultiPlayTileDanmaku(bool e) {
+    multiPlayTileDanmaku.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kMultiPlayTileDanmaku,
+      e,
+    );
   }
 
   var pipHideDanmu = true.obs;
