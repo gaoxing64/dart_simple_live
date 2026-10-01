@@ -1201,30 +1201,34 @@ class PlayerController extends BaseController
         applyPlayerMaxVolume();
       },
     );
-    _osdBackendSubscription = EventBus.instance.listen(
-      EventBus.kOSDBackendChanged,
-      (event) async {
-        // 换后端时给旧的收尾：切到 mpv 先关掉自绘浮层（内核缺 Lua 则回退并提示）；
-        // 切回自绘则关掉 mpv 的 OSD。
-        if (AppSettingsController.instance.osdBackend.value == "mpv") {
-          showOSDStats.value = false;
-          if (!await mpvOSDAvailable()) {
-            fallbackToAppOSD(showStats: false);
+    // OSD 是页面级的东西，只有主格需要收尾；多开时四格都订阅会让一次切换
+// 触发 4 次探测（缺 Lua 时还会弹 4 条回退提示）。
+    if (allowsWindowOps) {
+      _osdBackendSubscription = EventBus.instance.listen(
+        EventBus.kOSDBackendChanged,
+        (event) async {
+          // 换后端时给旧的收尾：切到 mpv 先关掉自绘浮层（内核缺 Lua 则回退并提示）；
+          // 切回自绘则关掉 mpv 的 OSD。
+          if (AppSettingsController.instance.osdBackend.value == "mpv") {
+            showOSDStats.value = false;
+            if (!await mpvOSDAvailable()) {
+              fallbackToAppOSD(showStats: false);
+            }
+            return;
           }
-          return;
-        }
-        if (showMPVOSDStats.value) {
-          showMPVOSDStats.value = false;
-          if (player.platform is NativePlayer) {
-            unawaited(
-              (player.platform as NativePlayer).command(
-                ["script-binding", "stats/display-page-1-toggle"],
-              ),
-            );
+          if (showMPVOSDStats.value) {
+            showMPVOSDStats.value = false;
+            if (player.platform is NativePlayer) {
+              unawaited(
+                (player.platform as NativePlayer).command(
+                  ["script-binding", "stats/display-page-1-toggle"],
+                ),
+              );
+            }
           }
-        }
-      },
-    );
+        },
+      );
+    }
   }
 
   void disposeStream() {

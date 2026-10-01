@@ -218,7 +218,6 @@ class MultiPlayTile extends StatelessWidget {
   /// 菜单只列**正在直播**的关注主播，每行「主播名 + 平台」——认陌生人够用，
   /// 又比带头像的面板轻。
   Widget _buildSwitchButton() {
-    final entries = page.multiPlay.buildSwitchEntries();
     return PopupMenuButton<FollowUser>(
       tooltip: "换台",
       padding: EdgeInsets.zero,
@@ -228,6 +227,8 @@ class MultiPlayTile extends StatelessWidget {
       // 菜单开着时把网格那几秒倒计时续上，避免底栏（连同这个入口）被隐藏
       onOpened: onInteract,
       itemBuilder: (context) {
+        // 在菜单打开时才扫关注列表：之前放在 build 里，四格每帧都要扫一遍
+        final entries = page.multiPlay.buildSwitchEntries();
         if (entries.isEmpty) {
           return const [
             AppPopupMenuItem<FollowUser>(
