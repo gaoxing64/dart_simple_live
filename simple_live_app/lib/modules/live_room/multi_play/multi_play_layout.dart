@@ -24,10 +24,12 @@ const double kMultiPlayMinTileHeight = 135;
 
 /// 多开窗口下限里要预留的 chrome 尺寸（逻辑像素）。
 ///
-/// 横屏时视频区右侧恒有 [kMultiPlayChromeWidth] 宽的聊天栏，纵向是 AppBar + 底栏。
+/// 横屏时视频区右侧恒有 [kMultiPlayChromeWidth] 宽的聊天栏；纵向是 AppBar(56)
+/// 加底栏（padding + 一行按钮，实测约 48），这里留 120 的余量——算小了会让四路在
+/// 「刚好等于下限」的窗口里白白折叠一格。
 /// 页面那边切底栏、算下限都按这两个值走，别各写各的。
 const double kMultiPlayChromeWidth = 300;
-const double kMultiPlayChromeHeight = 100;
+const double kMultiPlayChromeHeight = 120;
 
 /// 排布形态。UI 用它决定要不要画分隔线 / 是否需要横竖切换。
 enum MultiPlayArrangement { single, sideBySide, stacked, grid }
@@ -111,11 +113,11 @@ class MultiPlayLayoutSpec {
   /// 用户明确否掉了这个行为。
   final List<MultiPlayTileSlot> slots;
 
-  /// 因窗口过小被折叠、本次不渲染的房间下标（从最后加入的开始丢）。
+  /// 因窗口过小被折叠、本次不渲染的房间下标（先保聚焦格，其余从最后加入的开始丢）。
   ///
   /// 正常路径上不该出现：多开窗口下限就是按当前路数「不折叠」算出来的
   /// （见 [resolveMultiPlayMinimumWindowSize]），`setMinimumSize` 会挡住再缩小。
-  /// 它是下限设置失败或异常窄屏时的兜底。
+  /// 它是下限设置失败、或某一格比例特别极端时的兜底。
   final List<int> hiddenIndexes;
 
   /// 会话里的总路数（含被折叠的）。
@@ -148,29 +150,43 @@ class MultiPlayLayoutSpec {
 /// 由可用区域尺寸与路数推导排布。
 ///
 /// 语义（顺序即优先级）：
-/// 1. 路数夹到 `[1, kMultiPlayMaxTiles]`；可见格**恒按加入顺序**排（不随焦点变）。
+/// 1. 路数夹到 `[1, kMultiPlayMaxTiles]`；可见格**按加入顺序**排（不随焦点变）——
+///    点某一格只改高亮与音量，画面绝不跳位置。
 /// 2. 候选排布按「块形状与窗口形状的接近程度」排序：`blockAspect = (cols/rows) ×
 ///    tileAspect`，取 `|log(blockAspect / windowAspect)|` 最小者；距离相等时按
 ///    [_kArrangementCandidates] 的声明顺序（宽窗倾向）。
-/// 3. 取第一个「每格都不小于最小尺寸」的候选。全不可行则丢掉最后加入的一格后重试，
-///    直到只剩 1 格。
+/// 3. 取第一个「每格都不小于最小尺寸」的候选。全不可行则再丢一格重试，直到只剩 1 格。
+///    **折叠时先保住 [focusedIndex]**（其余按加入顺序从后往前丢）：位置不跟焦点走，
+///    但「谁会被折叠」要跟——否则聚焦格可能被藏起来，而聊天区/音量还在跟着它
+///    （等于在一路看不见的画面上说话）。
 /// 4. 传进来的 [maxWidth]/[maxHeight] 是**视频区域**（已扣掉 AppBar、侧栏等），
 ///    窗口整体下限请用 [resolveMultiPlayMinimumWindowSize] 计算。
-///
-/// 注意签名里**没有焦点**：焦点只影响高亮与音量分配，不影响谁在第几格。
 MultiPlayLayoutSpec resolveMultiPlayLayout({
   required double maxWidth,
   required double maxHeight,
   required int roomCount,
   required double tileAspect,
+  /// 只用于「折叠时先保留谁」；不参与位置计算。
+  int focusedIndex = 0,
   double spacing = kMultiPlaySpacing,
   double minTileWidth = kMultiPlayMinTileWidth,
   double minTileHeight = kMultiPlayMinTileHeight,
 }) {
   final total = roomCount.clamp(1, kMultiPlayMaxTiles);
   final aspect = _usableAspect(tileAspect);
+  final safeFocus = focusedIndex.clamp(0, total - 1);
+
+  // 折叠时的保留优先级：聚焦格第一，其余按加入顺序。
+  final keepOrder = <int>[safeFocus];
+  for (var i = 0; i < total; i++) {
+    if (i != safeFocus) {
+      keepOrder.add(i);
+    }
+  }
 
   for (var visible = total; visible >= 1; visible--) {
+    // 位置恒按加入顺序排，所以先把保留下来的下标排好序再落格
+    final visibleIndexes = keepOrder.sublist(0, visible)..sort();
     final candidate = _pickArrangement(
       count: visible,
       maxWidth: maxWidth,
@@ -190,15 +206,15 @@ MultiPlayLayoutSpec resolveMultiPlayLayout({
     final cellHeight = math.max(0.0, (maxHeight - (rows - 1) * spacing) / rows);
 
     final slots = <MultiPlayTileSlot>[];
-    for (var i = 0; i < visible; i++) {
-      slots.add(MultiPlayTileSlot(index: i, row: i ~/ cols, col: i % cols));
+    for (var i = 0; i < visibleIndexes.length; i++) {
+      slots.add(MultiPlayTileSlot(index: visibleIndexes[i], row: i ~/ cols, col: i % cols));
     }
     return MultiPlayLayoutSpec(
       arrangement: _arrangementOf(rows, cols, visible),
       rows: rows,
       columns: cols,
       slots: slots,
-      hiddenIndexes: [for (var i = visible; i < total; i++) i],
+      hiddenIndexes: keepOrder.sublist(visible)..sort(),
       totalCount: total,
       tileAspect: aspect,
       cellWidth: cellWidth,

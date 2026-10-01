@@ -30,26 +30,35 @@ class _MultiPlayGridState extends State<_MultiPlayGrid> {
   /// 停下几秒或指针离开网格再一起隐藏。多开时面对的多半是陌生主播，昵称要能一眼
   /// 全看到才好决定切哪一路；只亮指针底下那一格等于逼着人一格一格划过去。
   bool _namesVisible = false;
-  Timer? _namesHideTimer;
 
-  /// 停手后多久隐藏。比单画面 OSD 的 5s 略短，网格上元素更密、更该早点让开。
-  static const Duration _namesHideDelay = Duration(seconds: 4);
+  /// 停手多久后隐藏。
+  ///
+  /// 用「一个每秒的周期定时器 + 空闲计数」而不是「每次鼠标移动都 cancel/新建一个
+  /// Timer」：onHover 每秒能触发上百次，后者会持续分配定时器。
+  int _idleSeconds = 0;
+  Timer? _idleTimer;
+  static const int _namesIdleSeconds = 4;
 
   void _showNames() {
-    _namesHideTimer?.cancel();
+    _idleSeconds = 0;
     if (!_namesVisible) {
       setState(() => _namesVisible = true);
     }
-    _namesHideTimer = Timer(_namesHideDelay, () {
-      if (mounted) {
+    _idleTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) {
+        return;
+      }
+      _idleSeconds++;
+      if (_idleSeconds >= _namesIdleSeconds && _namesVisible) {
         setState(() => _namesVisible = false);
       }
     });
   }
 
   void _hideNames() {
-    _namesHideTimer?.cancel();
-    _namesHideTimer = null;
+    _idleSeconds = 0;
+    _idleTimer?.cancel();
+    _idleTimer = null;
     if (_namesVisible) {
       setState(() => _namesVisible = false);
     }
@@ -57,7 +66,7 @@ class _MultiPlayGridState extends State<_MultiPlayGrid> {
 
   @override
   void dispose() {
-    _namesHideTimer?.cancel();
+    _idleTimer?.cancel();
     super.dispose();
   }
 
@@ -77,7 +86,9 @@ class _MultiPlayGridState extends State<_MultiPlayGrid> {
               maxWidth: constraints.maxWidth,
               maxHeight: constraints.maxHeight,
               roomCount: session.slots.length,
-              tileAspect: session.focusedTileAspect(),
+              tileAspect: session.tileAspect(),
+              // 位置不受焦点影响，但折叠时要先保住聚焦格
+              focusedIndex: session.focusedSlot.value,
             );
             // 字号要在 build 里算（这里读得到设置 → 订阅），下发排到帧后：build 里不改状态。
             final danmakuFontSize = session.resolveTileDanmakuFontSize(spec);

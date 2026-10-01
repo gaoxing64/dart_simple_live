@@ -62,7 +62,10 @@ class MultiPlaySession {
 
   /// 关注列表点选：多画面模式下占一个空格，否则维持原来的「替换当前房间」。
   void onFollowItemTap(Site site, String roomId) {
-    if (enabled.value) {
+    // 移动端没有多开视图：万一 enabled 被（同步/备份恢复）带成 true，这里也必须
+    // 走换台，否则会建出一个永远不会被渲染、却照旧出声解码的格子。
+    final desktop = !(Platform.isAndroid || Platform.isIOS);
+    if (enabled.value && desktop) {
       addRoom(site, roomId);
     } else {
       page.resetRoom(site, roomId);
@@ -337,8 +340,11 @@ class MultiPlaySession {
       // 会一直停在格子大小。放在平台守卫之后：多开只有桌面能开。
       clearTileDanmakuFonts();
       // 主格的弹幕显隐也交还给全局「弹幕」设置：不然「各格显示弹幕」关着时
-      // 退出多开，单画面会一直没弹幕。
-      page.showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
+      // 退出多开，单画面会一直没弹幕。只在「确实退出过多种布局」时写，单画面
+      // 关闭页面这条路径不该顺手动它（保持单画面逐位不变）。
+      if (enabled.value) {
+        page.showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
+      }
       await window.setMultiPlayMinimumSize(null);
       final restore = _preMultiPlaySize;
       _preMultiPlaySize = null;
@@ -365,7 +371,7 @@ class MultiPlaySession {
   Size requiredMinimumWindowSize() {
     final layout = resolveMultiPlayMinimumWindowSize(
       roomCount: slots.length,
-      tileAspect: focusedTileAspect(),
+      tileAspect: tileAspect(),
       chromeWidth: kMultiPlayChromeWidth,
       chromeHeight: kMultiPlayChromeHeight,
     );
@@ -376,17 +382,26 @@ class MultiPlaySession {
     );
   }
 
-  /// 聚焦格的显示比例，喂给布局引擎算格子的横竖。
+  /// 喂给布局引擎的显示比例：取各格里**最宽**的那个。
   ///
   /// 复用 `buildMediaPlayer` 的 scaleMode 语义，保证「画面尺寸」设置在多开下同样生效。
-  double focusedTileAspect() {
-    final state = focused.player.state;
-    return PipAspectCalculator.resolveDisplayAspect(
-      scaleMode: AppSettingsController.instance.scaleMode.value,
-      aspectByUser: AppSettingsController.instance.aspectByUser.value,
-      videoWidth: state.width?.toDouble(),
-      videoHeight: state.height?.toDouble(),
-    );
+  /// 取最大值而不是「聚焦格的比例」，是为了让窗口下限与焦点无关：否则切到一个竖屏格时
+  /// 布局会按新比例重排、而下限还是旧比例算的，窗口可能低于新下限、白折几格。
+  double tileAspect() {
+    var aspect = 0.0;
+    for (final tile in slots) {
+      final state = tile.player.state;
+      final value = PipAspectCalculator.resolveDisplayAspect(
+        scaleMode: AppSettingsController.instance.scaleMode.value,
+        aspectByUser: AppSettingsController.instance.aspectByUser.value,
+        videoWidth: state.width?.toDouble(),
+        videoHeight: state.height?.toDouble(),
+      );
+      if (value.isFinite && value > aspect) {
+        aspect = value;
+      }
+    }
+    return aspect > 0 ? aspect : PipAspectCalculator.fallbackAspect;
   }
 }
 

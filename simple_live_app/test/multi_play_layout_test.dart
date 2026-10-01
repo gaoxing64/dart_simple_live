@@ -155,6 +155,24 @@ void main() {
       expect(spec.slots.length + spec.hiddenIndexes.length, 4);
     });
 
+    test('折叠时先保住聚焦格，位置仍按加入顺序升序', () {
+      // 聚焦第 4 格（下标 3）而窗口只能放 2 格：它绝不能被藏起来，
+      // 否则聊天区与音量还在跟着一路看不见的画面
+      final spec = resolveMultiPlayLayout(
+        maxWidth: 500,
+        maxHeight: 150,
+        roomCount: 4,
+        focusedIndex: 3,
+        tileAspect: a169,
+      );
+      expect(spec.degraded, isTrue);
+      expect(spec.slots.map((e) => e.index), contains(3));
+      expect(spec.hiddenIndexes, isNot(contains(3)));
+      // 位置恒按加入顺序：可见格下标升序
+      final visible = spec.slots.map((e) => e.index).toList();
+      expect(visible, List.of(visible)..sort());
+    });
+
     test('小到一格都放不下时仍给 1×1（取第 0 格）', () {
       final spec = resolveMultiPlayLayout(
         maxWidth: 100,

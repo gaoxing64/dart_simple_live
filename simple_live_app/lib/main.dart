@@ -187,7 +187,10 @@ class MyApp extends StatelessWidget {
       SmartDialog.dismiss(status: SmartStatus.smart);
       return;
     }
-    Get.back();
+    // 用 maybePop 而不是 back：PopScope 只对 maybePop 生效，裸 pop 会绕过它。
+    // 直播间页多开时靠 PopScope 拦下第一下返回（只收起其余几路），用 back 会
+    // 直接把整页弹掉、四路一起销毁。
+    Get.key.currentState?.maybePop();
   }
 
   @override
@@ -282,7 +285,9 @@ class MyApp extends StatelessWidget {
                                 return;
                               }
                             }
-                            Get.back();
+                            // 同 appBack：走 maybePop，否则会绕过直播间页的 PopScope
+                            // （多开时那一下本该只收起其余几路，而不是把整页弹掉）
+                            Get.key.currentState?.maybePop();
                           };
                         },
                       ),

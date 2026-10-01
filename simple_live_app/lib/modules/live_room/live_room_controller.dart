@@ -598,9 +598,8 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
 
   /// 加载直播间信息
   void loadData() async {
-    // SmartDialog 的加载浮层是全局单例，多开时四路都 show/dismiss 会互相顶掉，
-    // 因此只由页面主格负责。副格的加载态由格子自身的进度指示表达。
-    final ownsLoading = !isSecondaryTile;
+    // 多开时主格也只是其中一格：整窗加载浮层会盖住棋盘，交给格子自身的进度指示。
+    final ownsLoading = !isSecondaryTile && !multiPlay.isActive;
     try {
       if (ownsLoading) {
         SmartDialog.showLoading(msg: "");
