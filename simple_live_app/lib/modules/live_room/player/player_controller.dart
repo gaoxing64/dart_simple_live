@@ -625,8 +625,10 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       // todo: animation isn't smooth...
       // fix: pip->full->normal bug
       // 不再考虑从什么状态切换，逻辑混乱，而是确定窗口状态直接设置属性
-      // 记忆进入全屏前的状态
-      windowMaxState.value = await windowManager.isMaximized();
+      // 记忆进入全屏前的状态（几何 + 最大化标记），退出全屏时消费。
+      // 此刻窗口仍在窗口态，采到的才是「退出全屏要落回去的那个」尺寸；
+      // 小窗→全屏这条路径上离开窗口态那一刻已经采过，这里不会重复覆盖。
+      await _captureNormalGeometry();
       // 读取窗口大小
       smallWindowState.value = false; // no pip
       WindowService.instance.isPIP = smallWindowState.value;
@@ -663,17 +665,26 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       setPortraitOrientation();
     } else {
       // 退回原来的大小
-      if (windowMaxState.value) await windowManager.maximize();
-      if (_lastWindowSize != null) {
-        await windowManager.setSize(_lastWindowSize!);
-      }
-      if (_lastWindowPosition != null) {
-        await windowManager.setPosition(_lastWindowPosition!);
+      if (windowMaxState.value) {
+        await windowManager.maximize();
+      } else {
+        // WHY 只在非最大化时显式还原：还原点如今「进全屏」也采，于是每次退全屏
+        // 都会走到这段（原先只有进过小窗才有值）。进全屏前若是最大化态，上面刚
+        // maximize()，紧跟 setSize 会把最大化顶掉；而 Windows 上
+        // setFullScreen(false) 自己就会回弹到全屏前的摆放，那条路不用多事。
+        // 非最大化这段留着是兜底：「小窗→全屏→退出」靠它落回窗口态。
+        if (_lastWindowSize != null) {
+          await windowManager.setSize(_lastWindowSize!);
+        }
+        if (_lastWindowPosition != null) {
+          await windowManager.setPosition(_lastWindowPosition!);
+        }
       }
       Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
       Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
       windowManager.setFullScreen(false);
       windowManager.setTitleBarStyle(TitleBarStyle.normal);
+      _consumeNormalGeometry();
       await WindowService.instance.danmakuFontClamped();
     }
     fullScreenState.value = false;
@@ -682,6 +693,28 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
 
   Size? _lastWindowSize;
   Offset? _lastWindowPosition;
+
+  /// 窗口态（非全屏、非小窗）的几何，用于退出全屏/小窗时还原。
+  ///
+  /// 「谁先离开窗口态谁捕获」：原先只有 `enterSmallWindow` 写这两个字段，
+  /// 于是从全屏进小窗时记下来的是满屏几何，退出小窗后窗口停在满屏大小——
+  /// 这就是全屏里那颗「小窗播放」按钮原来不敢放的原因。
+  bool _normalGeometryCaptured = false;
+
+  Future<void> _captureNormalGeometry() async {
+    if (_normalGeometryCaptured) {
+      return;
+    }
+    _lastWindowSize = await windowManager.getSize();
+    _lastWindowPosition = await windowManager.getPosition();
+    windowMaxState.value = await windowManager.isMaximized();
+    _normalGeometryCaptured = true;
+  }
+
+  /// 退出到窗口态时消费还原点，下一次进全屏重新采。
+  void _consumeNormalGeometry() {
+    _normalGeometryCaptured = false;
+  }
 
   /// 当前应锁定的「widget 实际显示比例」（与 buildMediaPlayer 的 scaleMode 语义一致）。
   double _currentDisplayAspect() => PipAspectCalculator.resolveDisplayAspect(
@@ -728,13 +761,21 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       return;
     }
     if (!(Platform.isAndroid || Platform.isIOS)) {
+      final wasFullScreen = fullScreenState.value;
+      // 还原点在离开窗口态那一刻采（全屏或小窗），退出时消费。
+      await _captureNormalGeometry();
       fullScreenState.value = true;
       smallWindowState.value = true;
       WindowService.instance.isPIP = smallWindowState.value;
       // 进入小窗会自动恢复默认弹幕大小
-      // 读取窗口大小
-      _lastWindowSize = await windowManager.getSize();
-      _lastWindowPosition = await windowManager.getPosition();
+      // 从 OS 全屏进小窗必须先退全屏：`setFullScreen(true)` 期间 setSize 会被
+      // 全屏的窗口样式吃掉，收不成小窗；最大化态同理会顶住目标尺寸。
+      if (wasFullScreen) {
+        await windowManager.setFullScreen(false);
+        if (windowMaxState.value) {
+          await windowManager.unmaximize();
+        }
+      }
       Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
       Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
       // 翻转 Q5：必须先 await 让平台侧「隐藏标题栏」样式就绪，随后 measureFrameInsets
@@ -790,6 +831,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         windowManager.setPosition(_lastWindowPosition!);
       }
       windowManager.setAlwaysOnTop(false);
+      _consumeNormalGeometry();
       //windowManager.setAlignment(Alignment.center);
     }
   }
