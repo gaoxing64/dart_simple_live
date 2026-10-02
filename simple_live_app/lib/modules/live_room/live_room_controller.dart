@@ -103,7 +103,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   @override
   bool get allowsWindowOps => !isSecondaryTile;
 
-  /// 这一路相对基准音量的系数（0~1）。1 = 按焦点/ducking 规则算出来的值，0 = 静音。
+  /// 这一路相对基准音量的系数（0~1）。1 = 按焦点（及可选压低）规则算出来的值，0 = 静音。
   ///
   /// 格子底栏的音量按钮改的就是它：点一下在 0 与上次的值之间切换，滚轮悬停微调。
   /// 让用户能对「这一路」做细调（两路都听得见时把吵的那路再压低；或从静音慢慢加上来）。
@@ -174,7 +174,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   ///
   /// 主格惰性建自己那份；副格由 [MultiPlaySession.addRoom] 回填成页面主格那个。
   /// 必须回填：副格若查自己那份「单人会话」，`isActive` 恒为 false，音量判定就会
-  /// 得出「没在多开」的结论——结果是副格永远不会被压低而主格会，两路音量在
+  /// 得出「没在多开」的结论——结果开了压低时副格不被压低而主格会，两路音量在
   /// 「一样大」和「差 10dB」之间随焦点乱跳。
   MultiPlaySession get multiPlay => _hostSession ??= MultiPlaySession(this);
 
@@ -966,7 +966,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
                 value: AppSettingsController.instance.playerVolume.value,
                 onChanged: (newValue) {
                   AppSettingsController.instance.setPlayerVolume(newValue);
-                  // 总音量是唯一的音量权威：多开时非聚焦格按 duck 比例跟着走，
+                  // 总音量是唯一的音量权威：开了压低时，非聚焦格按 duck 比例跟着走，
                   // 所以不能像原来那样只 setVolume 自己这一路。
                   multiPlay.applyVolumes();
                 },

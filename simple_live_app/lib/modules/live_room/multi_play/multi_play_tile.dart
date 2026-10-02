@@ -410,7 +410,7 @@ class MultiPlayTile extends StatelessWidget {
 /// 音量按钮：点一下静音 / 取消静音；**指针悬停在它上面滚动滚轮**可微调这一路的音量。
 ///
 /// 只有静音开关是不够用的：静音状态下想「加一点点声音」就无路可走，只能先取消静音再去
-/// 动总音量，而那会连带影响其他路。滚轮改的是这一路自己的音量系数，与 ducking 叠加。
+/// 动总音量，而那会连带影响其他路。滚轮改的是这一路自己的音量系数，与可选压低叠加。
 /// 改完在按钮上方浮一个百分比、停 1.2 秒自隐——否则滚轮的改动完全看不见。
 class _TileVolumeButton extends StatefulWidget {
   const _TileVolumeButton({

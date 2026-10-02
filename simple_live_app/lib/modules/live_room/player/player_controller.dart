@@ -120,7 +120,7 @@ mixin PlayerMixin {
   /// 本实例此刻该用的 mpv 音量（百分比）。
   ///
   /// 单开路径就是全局总音量；多开时 `LiveRoomController` 覆写成「聚焦格用总音量、
-  /// 其余格按设置压低」。
+  /// 其余格开了压低才按设置压低」。
   double resolveTargetVolume() => AppSettingsController.instance.playerVolume.value;
 
   /// 把 [resolveTargetVolume] 的结果下发给 mpv。
@@ -256,8 +256,8 @@ mixin PlayerMixin {
       'volume-max',
       AppSettingsController.instance.playerMaxVolume.value.toString(),
     );
-    // 必须走 applyTargetVolume 而不是直接写全局音量：多开时非聚焦格要按比例压低，
-    // 直写总音量会把 ducking 冲掉。
+    // 必须走 applyTargetVolume 而不是直接写全局音量：多开时非聚焦格若开了压低，
+    // 要按比例压低，直写总音量会把 ducking 冲掉。
     await applyTargetVolume();
   }
 

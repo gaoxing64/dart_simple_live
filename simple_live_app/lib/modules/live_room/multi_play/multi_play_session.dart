@@ -22,7 +22,7 @@ import 'package:window_manager/window_manager.dart';
 ///
 /// 只有页面主格那份是「真的」：副格在 [addRoom] 里被回填成同一个会话
 /// （`attachHostSession`），所以四路查到的「是否在多开、谁是焦点」是同一份状态。
-/// 这一点对音量尤其关键——否则副格会以为自己没在多开，永远不会被压低。
+/// 这一点对音量尤其关键——否则副格会以为自己没在多开，开了压低时也不会被压低。
 ///
 /// 为什么每格就是一个完整的 `LiveRoomController` 而不是抽一层「纯播放器」：
 /// `resetRoom` 早就划好了「一个直播间 = 一个 controller」的边界（弹幕 WS、Rust 面具、
@@ -108,7 +108,7 @@ class MultiPlaySession {
     // 别人），不切焦点也不会打断当前音频；新那一路等加载好了手动点过去即可。
     //
     // 但音量必须重算一次：新建的格在 onInit 里算音量时还没进 slots（入列在上面那行
-    // 之后），会判断成「没在多开」而拿主音量 —— 不重算就和聚焦格等响、ducking 失效。
+    // 之后），会判断成「没在多开」而拿主音量 —— 不重算就和聚焦格等响、开了压低也失效。
     applyVolumes();
     refreshWindowFloor();
   }
@@ -249,8 +249,9 @@ class MultiPlaySession {
     applyVolumes();
   }
 
-  /// 按当前焦点重新分配各路音量（总音量按设置里 [AppSettingsController.multiPlayDuckVolume]
-  /// 的比例压低非聚焦格）。总音量滑块变化时也走这里。
+  /// 按当前焦点重新分配各路音量（开了压低时，总音量按设置里
+  /// [AppSettingsController.multiPlayDuckVolume] 的比例压低非聚焦格）。
+  /// 总音量滑块变化时也走这里。
   void applyVolumes() {
     for (final tile in slots) {
       tile.applyTargetVolume();
