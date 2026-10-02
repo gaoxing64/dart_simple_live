@@ -177,6 +177,9 @@ class LocalStorageService extends GetxService {
   /// 多开播放：非聚焦格的音量比例（0~1，乘在总音量上）
   static const String kMultiPlayDuckVolume = "MultiPlayDuckVolume";
 
+  /// 多开播放：是否自动压低非聚焦格（关掉时 [kMultiPlayDuckVolume] 不参与计算）
+  static const String kMultiPlayDuckEnable = "MultiPlayDuckEnable";
+
   /// 多开播放：副格的 mpv 缓存上限（MiB）
   static const String kMultiPlayTileBufferSize = "MultiPlayTileBufferSize";
 

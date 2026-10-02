@@ -256,6 +256,11 @@ class AppSettingsController extends GetxController {
       0.3,
     );
 
+    multiPlayDuckEnabled.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kMultiPlayDuckEnable,
+      false,
+    );
+
     multiPlayTileBufferSize.value = LocalStorageService.instance.getValue(
       LocalStorageService.kMultiPlayTileBufferSize,
       16,
@@ -735,6 +740,20 @@ class AppSettingsController extends GetxController {
     multiPlayDuckVolume.value = e;
     LocalStorageService.instance.setValue(
       LocalStorageService.kMultiPlayDuckVolume,
+      e,
+    );
+  }
+
+  /// 多开播放：非聚焦格是否自动压低。
+  ///
+  /// 默认关：主模型是「每一路自己说了算」，压低只是给习惯「聚焦即安静」的人的可选行为。
+  /// 关掉时 [multiPlayDuckVolume] 原样留着，重新打开不用再调一遍。
+  var multiPlayDuckEnabled = false.obs;
+
+  void setMultiPlayDuckEnabled(bool e) {
+    multiPlayDuckEnabled.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kMultiPlayDuckEnable,
       e,
     );
   }

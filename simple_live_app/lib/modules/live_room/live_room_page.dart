@@ -815,9 +815,20 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Obx(
+                      () => SettingsSwitch(
+                        title: "非聚焦自动压低",
+                        value: AppSettingsController.instance.multiPlayDuckEnabled.value,
+                        onChanged: (e) {
+                          AppSettingsController.instance.setMultiPlayDuckEnabled(e);
+                          // 设置只落盘，正在跑的几路要重下一次音量
+                          controller.multiPlay.applyVolumes();
+                        },
+                      ),
+                    ),
+                    AppStyle.divider,
+                    Obx(
                       () => SettingsNumber(
                         title: "非聚焦音量",
-                        subtitle: "聚焦的一路保持总音量，其余按这个比例压低（不是静音）",
                         value: (AppSettingsController.instance.multiPlayDuckVolume.value * 100).round(),
                         min: 0,
                         max: 100,

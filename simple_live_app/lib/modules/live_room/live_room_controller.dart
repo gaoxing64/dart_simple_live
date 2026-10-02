@@ -23,6 +23,7 @@ import 'package:simple_live_app/models/db/history.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_session.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_volume.dart';
 import 'package:simple_live_app/modules/settings/danmu_settings_page.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/services/db_service.dart';
@@ -136,18 +137,17 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     applyTargetVolume();
   }
 
-  /// 副格的目标音量：多开时非聚焦格按设置压低，详见 [resolveTargetVolume]。
+  /// 本路此刻该给多大音量：见 `resolveTileVolume`。
   @override
   double resolveTargetVolume() {
-    final factor = volumeFactor.value;
-    if (factor <= 0) {
-      return 0;
-    }
-    final master = AppSettingsController.instance.playerVolume.value;
-    if (!multiPlay.isActive || multiPlay.focused == this) {
-      return master * factor;
-    }
-    return master * AppSettingsController.instance.multiPlayDuckVolume.value * factor;
+    final settings = AppSettingsController.instance;
+    return resolveTileVolume(
+      master: settings.playerVolume.value,
+      duckEnabled: settings.multiPlayDuckEnabled.value,
+      duckRatio: settings.multiPlayDuckVolume.value,
+      factor: volumeFactor.value,
+      focused: !multiPlay.isActive || multiPlay.focused == this,
+    );
   }
 
   @override
