@@ -6,9 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
-import 'package:simple_live_app/app/sites.dart';
-import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
+import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
@@ -213,71 +212,20 @@ class MultiPlayTile extends StatelessWidget {
     });
   }
 
-  /// 昵称后的 ▾：换这一格播哪一路。
+  /// 昵称后的 ▾：换这一格播哪一路（菜单本体在 `FollowPickButton`，与单画面同源）。
   ///
-  /// 菜单只列**正在直播**的关注主播，每行「主播名 + 平台」——认陌生人够用，
-  /// 又比带头像的面板轻。
+  /// [FollowPickButton.target] 传本格 `tile`：`tile.multiPlay` 与 `page.multiPlay`
+  /// 是同一个会话对象（副格由 `attachHostSession` 回填），所以数据源
+  /// (`buildSwitchEntries`) 与换台落点 (`replaceTileRoom(tile, ...)`) 与内联实现等价。
   Widget _buildSwitchButton() {
-    return PopupMenuButton<FollowUser>(
-      tooltip: "换台",
-      padding: EdgeInsets.zero,
+    return FollowPickButton(
+      target: tile,
       iconSize: 20,
       icon: const Icon(Icons.arrow_drop_down),
       style: _iconStyle,
+      tooltip: "换台",
       // 菜单开着时把网格那几秒倒计时续上，避免底栏（连同这个入口）被隐藏
       onOpened: onInteract,
-      itemBuilder: (context) {
-        // 在菜单打开时才扫关注列表：之前放在 build 里，四格每帧都要扫一遍
-        final entries = page.multiPlay.buildSwitchEntries();
-        if (entries.isEmpty) {
-          return const [
-            AppPopupMenuItem<FollowUser>(
-              enabled: false,
-              child: SizedBox(
-                width: 220,
-                child: Text("关注列表里没有正在直播的主播"),
-              ),
-            ),
-          ];
-        }
-        return [
-          for (final entry in entries)
-            AppPopupMenuItem<FollowUser>(
-              value: entry.user,
-              // 定宽：菜单容器宽度可能是无界的，Expanded 撞上无界约束会直接报错
-              child: SizedBox(
-                width: 220,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        entry.user.userName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      entry.platform,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    if (entry.isPlaying) ...[
-                      const SizedBox(width: 6),
-                      const Text("在播", style: TextStyle(fontSize: 12)),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-        ];
-      },
-      onSelected: (user) {
-        final site = Sites.allSites[user.siteId];
-        if (site == null) {
-          return;
-        }
-        page.multiPlay.replaceTileRoom(tile, site, user.roomId);
-      },
     );
   }
 
