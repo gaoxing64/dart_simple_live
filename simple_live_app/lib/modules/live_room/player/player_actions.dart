@@ -105,7 +105,7 @@ const List<PlayerAction> _kAllActions = [
   ),
   PlayerAction(
     id: PlayerActionId.pick,
-    title: "选台",
+    title: "换台",
   ),
   PlayerAction(
     id: PlayerActionId.volume,
