@@ -629,7 +629,6 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       // 此刻窗口仍在窗口态，采到的才是「退出全屏要落回去的那个」尺寸；
       // 小窗→全屏这条路径上离开窗口态那一刻已经采过，这里不会重复覆盖。
       await _captureNormalGeometry();
-      // 读取窗口大小
       smallWindowState.value = false; // no pip
       WindowService.instance.isPIP = smallWindowState.value;
       // 小窗→全屏：先释放纵横比约束，后全屏（次序铁律）
@@ -702,13 +701,20 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   bool _normalGeometryCaptured = false;
 
   Future<void> _captureNormalGeometry() async {
-    if (_normalGeometryCaptured) {
+    // 只有「控制器认为自己已经回到窗口态」时才允许重采。
+    // 单看标志不够：存在绕过 exitFull 的 OS 退全屏（main.dart 的鼠标第四键直接
+    // setFullScreen(false) 就 return，不通知控制器），那时标志会永久停在 true 上，
+    // 之后每次 窗口→全屏 / 窗口→小窗 都提前返回，还原点再也更新不了。
+    if (_normalGeometryCaptured &&
+        (fullScreenState.value || smallWindowState.value)) {
       return;
     }
+    // 先抢占标志、后 await 赋值：标志若在三段 await 之后才置 true，
+    // 快速连点两次转换会双双越过守卫，把满屏矩形当成还原点采进去。
+    _normalGeometryCaptured = true;
     _lastWindowSize = await windowManager.getSize();
     _lastWindowPosition = await windowManager.getPosition();
     windowMaxState.value = await windowManager.isMaximized();
-    _normalGeometryCaptured = true;
   }
 
   /// 退出到窗口态时消费还原点，下一次进全屏重新采。
@@ -766,16 +772,29 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       await _captureNormalGeometry();
       fullScreenState.value = true;
       smallWindowState.value = true;
-      WindowService.instance.isPIP = smallWindowState.value;
       // 进入小窗会自动恢复默认弹幕大小
       // 从 OS 全屏进小窗必须先退全屏：`setFullScreen(true)` 期间 setSize 会被
       // 全屏的窗口样式吃掉，收不成小窗；最大化态同理会顶住目标尺寸。
       if (wasFullScreen) {
         await windowManager.setFullScreen(false);
-        if (windowMaxState.value) {
-          await windowManager.unmaximize();
-        }
       }
+      // 判据取采集到的 windowMaxState 而不是 wasFullScreen：
+      // 「最大化 → 直接进小窗」全程没经过全屏，但最大化窗口同样会被工作区顶住
+      // 目标尺寸，setSize 收不成小窗。
+      // 必须排在退 OS 全屏之后：Windows 上 setFullScreen(false) 会自行回弹到进全屏前
+      // 的摆放（可能就是最大化态），先 unmaximize 会被它再顶回去。
+      if (windowMaxState.value) {
+        await windowManager.unmaximize();
+      }
+      // WHY：isPIP 要晚于上面两次 OS 窗口操作再置位。退全屏 / 取消最大化会派发
+      // onWindowResized/onWindowMoved，WindowService.windowStateChanged 只要看到
+      // isPIP 为真，就把那一刻「回落中的窗口外框」（典型 1280×720）连同位置写进
+      // 小窗记忆偏好 windowPipWidth/Height/X/Y；而本次真正读这几项是在下面
+      // setTitleBarStyle / applyPipAspect 的 await 之后，竞速结果多半是偏好已被写脏，
+      // 于是小窗按窗口尺寸开成 oversized，且脏值持久化，之后不经全屏进小窗也会开大。
+      // 反过来，从这里开始的 setTitleBarStyle(hidden)/applyPipAspect/setSize 期间
+      // isPIP 必须为真——那几次落盘的才是真正该记的小窗几何。
+      WindowService.instance.isPIP = smallWindowState.value;
       Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
       Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
       // 翻转 Q5：必须先 await 让平台侧「隐藏标题栏」样式就绪，随后 measureFrameInsets
