@@ -153,25 +153,29 @@ void main() {
         hasQuality: false,
         hasLine: false,
       );
-      expect(
-        l.overflow.map((e) => e.id),
-        isNot(contains(PlayerActionId.quality)),
-      );
-      expect(l.bar.map((e) => e.id), isNot(contains(PlayerActionId.line)));
+      // 两个 id 都得同时从 bar 和 overflow 里消失：只查一侧会放过「把 quality 留在
+      // bar、只把 line 挪走」这类镜像 bug，所以取全集 _all 来断言。
+      final ids = _all(l);
+      expect(ids, isNot(contains(PlayerActionId.quality)));
+      expect(ids, isNot(contains(PlayerActionId.line)));
     });
 
-    // 「装得下」指的是没有动作被**宽度**挤进 ⋮：menuOnly 一档按 spec §7 恒在 ⋮ 里
-    // （页级「更多」正是读 windowed 的 overflow 全集，见 spec §8），所以宽到 4000
-    // 也仍然给 ⋮，只是再没有别的动作沉下去。
+    // 「装得下」指的是没有动作被**宽度**挤进 ⋮：windowed 下恒进 ⋮ 的只有 menuOnly
+    // 一档（spec §8 末行：页级「更多」＝这一列的 overflow 全集），宽到 4000 再没有
+    // 别的动作沉下去，⋮ 仍在。这里不读 PlayerAction.tier——tier 不是清单字段。
     test('装得下时没有动作是被宽度挤进 ⋮ 的', () {
       final l = resolvePlayerActions(
         host: PlayerHost.windowed,
         availableWidth: 4000,
       );
-      expect(
-        l.overflow.where((e) => e.tier != PlayerActionTier.menuOnly),
-        isEmpty,
-      );
+      expect(l.overflow.map((e) => e.id).toSet(), {
+        PlayerActionId.scale,
+        PlayerActionId.share,
+        PlayerActionId.copyUrl,
+        PlayerActionId.openApp,
+        PlayerActionId.debugInfo,
+        PlayerActionId.autoExit,
+      });
       expect(l.hasOverflow, isTrue);
     });
 
@@ -180,9 +184,22 @@ void main() {
         host: PlayerHost.windowed,
         availableWidth: 1200,
       ).bar;
-      final right = bar.where((e) => e.rightSide).map((e) => e.id).toList();
-      expect(bar.last.id, right.last);
-      expect(bar.first.rightSide, isFalse);
+      // 真正要锁的性质是「最后一个左簇项的索引 < 第一个右簇项的索引」。
+      // （旧断言 bar.last.id == right.last 只证明最右那颗属于右簇，整条簇被反接
+      // 也照样通过，压根测不到标题说的「左簇在前、右簇在后」。）
+      final lastLeftIndex = bar.lastIndexWhere((e) => !e.rightSide);
+      final firstRightIndex = bar.indexWhere((e) => e.rightSide);
+      expect(
+        lastLeftIndex,
+        greaterThanOrEqualTo(0),
+        reason: '左簇为空，该断言失去意义',
+      );
+      expect(
+        firstRightIndex,
+        greaterThanOrEqualTo(0),
+        reason: '右簇为空，该断言失去意义',
+      );
+      expect(lastLeftIndex, lessThan(firstRightIndex));
     });
   });
 

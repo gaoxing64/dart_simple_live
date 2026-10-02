@@ -43,11 +43,15 @@ enum PlayerActionTier {
   menuOnly,
 }
 
+/// 一条动作的「存在性」声明：是什么、占多宽、在哪一簇、全屏放顶栏还是底栏。
+///
+/// 「此刻平铺还是收进 `⋮`」不写在字段里——那是 `_tierFor` 按宿主现算的内部判断
+/// （见 `resolvePlayerActions`）。刻意不设 `tier` 字段：清单里写死的 `tier` 会被
+/// `_tierFor` 的结果覆盖，两处各说各话；改清单那行只是静默无效的 no-op。
 class PlayerAction {
   const PlayerAction({
     required this.id,
     required this.title,
-    required this.tier,
     this.slotWidth = 40,
     this.placeInTopBar = false,
     this.rightSide = false,
@@ -55,7 +59,6 @@ class PlayerAction {
 
   final PlayerActionId id;
   final String title;
-  final PlayerActionTier tier;
 
   /// 平铺时占的宽度预算：图标按钮 40，文字按钮（清晰度／线路）56。
   final double slotWidth;
@@ -79,105 +82,92 @@ class PlayerActionLayout {
 const double kOverflowButtonWidth = 40;
 
 /// 声明顺序＝条带里的显示顺序（左簇 → 右簇，`⋮` 恒在最右）。
+///
+/// 清单只携带「存在性」字段，不写 tier：某个动作此刻是平铺还是进 `⋮`，一律由
+/// `_tierFor` 按宿主现算（`PlayerAction` 也没有 tier 字段可读），保持单一真相源。
 const List<PlayerAction> _kAllActions = [
   PlayerAction(
     id: PlayerActionId.refresh,
     title: "刷新",
-    tier: PlayerActionTier.core,
   ),
   PlayerAction(
     id: PlayerActionId.danmakuToggle,
     title: "弹幕",
-    tier: PlayerActionTier.core,
   ),
   PlayerAction(
     id: PlayerActionId.danmakuSettings,
     title: "弹幕设置",
-    tier: PlayerActionTier.whenFits,
   ),
   PlayerAction(
     id: PlayerActionId.screenshot,
     title: "截图",
-    tier: PlayerActionTier.whenFits,
     placeInTopBar: true,
   ),
   PlayerAction(
     id: PlayerActionId.pick,
     title: "选台",
-    tier: PlayerActionTier.whenFits,
-    placeInTopBar: true,
-  ),
-  PlayerAction(
-    id: PlayerActionId.closeTile,
-    title: "关闭这一路",
-    tier: PlayerActionTier.core,
   ),
   PlayerAction(
     id: PlayerActionId.volume,
     title: "音量",
-    tier: PlayerActionTier.core,
     rightSide: true,
   ),
   PlayerAction(
     id: PlayerActionId.quality,
     title: "清晰度",
-    tier: PlayerActionTier.whenFits,
     slotWidth: 56,
     rightSide: true,
   ),
   PlayerAction(
     id: PlayerActionId.line,
     title: "线路",
-    tier: PlayerActionTier.whenFits,
     slotWidth: 56,
     rightSide: true,
   ),
   PlayerAction(
     id: PlayerActionId.scale,
     title: "画面尺寸",
-    tier: PlayerActionTier.menuOnly,
-    placeInTopBar: true,
   ),
   PlayerAction(
     id: PlayerActionId.smallWindow,
     title: "小窗播放",
-    tier: PlayerActionTier.whenFits,
     rightSide: true,
   ),
   PlayerAction(
     id: PlayerActionId.fullscreenToggle,
     title: "全屏",
-    tier: PlayerActionTier.core,
+    rightSide: true,
+  ),
+  // 关闭排在最右簇末尾：今天 `multi_play_tile` 的胶囊里「关闭这一路」就在「更多」
+  // 之后、整条最右；声明顺序＝输出顺序，Task 9 接线才接得住这颗。
+  PlayerAction(
+    id: PlayerActionId.closeTile,
+    title: "关闭这一路",
     rightSide: true,
   ),
   PlayerAction(
     id: PlayerActionId.debugInfo,
     title: "播放信息",
-    tier: PlayerActionTier.menuOnly,
   ),
   PlayerAction(
     id: PlayerActionId.autoExit,
     title: "定时关闭",
-    tier: PlayerActionTier.menuOnly,
   ),
   PlayerAction(
     id: PlayerActionId.share,
     title: "分享直播间",
-    tier: PlayerActionTier.menuOnly,
   ),
   PlayerAction(
     id: PlayerActionId.copyUrl,
     title: "复制链接",
-    tier: PlayerActionTier.menuOnly,
   ),
   PlayerAction(
     id: PlayerActionId.openApp,
     title: "APP 中打开",
-    tier: PlayerActionTier.menuOnly,
   ),
 ];
 
-/// 该动作在这个宿主是否存在（不是「是否平铺」，那由 tier 决定）。
+/// 该动作在这个宿主是否存在（不是「是否平铺」，那由 `_tierFor` 现算）。
 bool _available(
   PlayerActionId id,
   PlayerHost host, {
@@ -248,6 +238,12 @@ PlayerActionTier _tierFor(
   }
 }
 
+/// 一条候选在「这个宿主此刻」的判定：清单条目 + `_tierFor` 现算出的档。
+///
+/// 私有、且只活在 resolver 内部——`PlayerAction` 不带 tier 正是为了不给下游
+/// （Task 5/6/8/9/10）留一个能读到「过时 tier」的入口。
+typedef _Resolved = ({PlayerAction action, PlayerActionTier tier});
+
 PlayerActionLayout resolvePlayerActions({
   required PlayerHost host,
   required double availableWidth,
@@ -256,7 +252,7 @@ PlayerActionLayout resolvePlayerActions({
   bool hasQuality = true,
   bool hasLine = true,
 }) {
-  final candidates = [
+  final candidates = <_Resolved>[
     for (final action in _kAllActions)
       if (_available(
         action.id,
@@ -265,20 +261,16 @@ PlayerActionLayout resolvePlayerActions({
         hasQuality: hasQuality,
         hasLine: hasLine,
       ))
-        PlayerAction(
-          id: action.id,
-          title: action.title,
+        (
+          action: action,
           tier: _tierFor(action.id, host, isVertical: isVertical),
-          slotWidth: action.slotWidth,
-          placeInTopBar: action.placeInTopBar,
-          rightSide: action.rightSide,
         ),
   ];
 
   // 要不要给 `⋮` 留位：有 menuOnly 的候选，或者非 menuOnly 的候选本身已经超宽。
   final flexibleTotal = candidates
       .where((e) => e.tier != PlayerActionTier.menuOnly)
-      .fold<double>(0, (sum, e) => sum + e.slotWidth);
+      .fold<double>(0, (sum, e) => sum + e.action.slotWidth);
   final needsMenu =
       candidates.any((e) => e.tier == PlayerActionTier.menuOnly) ||
       flexibleTotal > availableWidth;
@@ -286,13 +278,15 @@ PlayerActionLayout resolvePlayerActions({
   final bar = <PlayerAction>[];
   final overflow = <PlayerAction>[];
   var budget = availableWidth - (needsMenu ? kOverflowButtonWidth : 0);
-  for (final action in candidates) {
-    if (action.tier == PlayerActionTier.menuOnly) {
+  for (final candidate in candidates) {
+    final action = candidate.action;
+    if (candidate.tier == PlayerActionTier.menuOnly) {
       overflow.add(action);
       continue;
     }
     // core 无条件在场：宽度不够也要留住，这是「常驻至少三件」的底线。
-    if (action.tier == PlayerActionTier.core || budget >= action.slotWidth) {
+    if (candidate.tier == PlayerActionTier.core ||
+        budget >= action.slotWidth) {
       bar.add(action);
       budget -= action.slotWidth;
       continue;
