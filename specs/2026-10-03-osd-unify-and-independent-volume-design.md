@@ -39,6 +39,8 @@
 - **一致性口径＝动作集合一致，不是容器统一**。窗口化仍是一条通栏、全屏仍是上下两条带、
   格子仍是两个 hug 控件的胶囊；同一份清单按可用宽度决定平铺还是收进 `⋮`。
 - **只管桌面**。移动端继续跑现在这套，靠平台判定隔离，要求是「不回归」。
+  **修订（2026-10-03 写计划时定）：移动端完全不进这套模型**——`playerControls` 与页级「更多」
+  都以平台门短路，安卓/iOS 走现有代码路径；resolver 只为桌面产出，不产出移动端清单。
 - **清单类弹层统一成右侧抽屉**（`Utils.showRightDialog`，`app/utils.dart:112`，自带返回按钮）。
 - **`▾` 换台与音量滑条是例外，保留贴着按钮的锚定浮层**；全屏顶栏那颗「关注列表」因此也改成
   锚定浮层，与格子的 `▾` 合并成同一个动作 `pick`（同一块浮层，只是标题不同）。
@@ -74,10 +76,14 @@ PlayerHostContext ──▶ resolvePlayerActions()  ──▶ List<PlayerAction>
   - `enum PlayerActionId { exit, title, refresh, danmakuToggle, danmakuSettings, volume, quality,
     line, screenshot, pick, scale, smallWindow, fullscreenToggle, lock, closeTile, share, copyUrl,
     openApp, debugInfo, autoExit }`
-  - `class PlayerAction { id; 标题; 图标; slotWidth(平铺占位预算); tier(1 常驻 / 2 宽时平铺 / 3 只进 ⋮) }`
+  - `class PlayerAction { id; 标题; tier(core 恒平铺 / whenFits 宽度够才平铺 / menuOnly 只进 ⋮);
+    slotWidth(平铺占位预算); placeInTopBar(全屏顶栏还是底栏); rightSide(条带左簇还是右簇) }`
+    ——**不持有图标**：弹幕开关用的是 asset `ImageIcon`，清晰度用的是文字按钮，形态本来就不一律；
+    模型只决定「哪些、在哪」，图标与按下行为归 renderer。
   - `({List<PlayerAction> bar, List<PlayerAction> overflow}) resolvePlayerActions({
-    required PlayerHost host, required bool isMobile, required bool isVertical,
-    required bool multiPlayActive, required bool canCloseTile, required double availableWidth})`
+    required PlayerHost host, required double availableWidth, required bool isVertical,
+    required bool canCloseTile, required bool hasQuality, required bool hasLine})`
+    （移动端不进模型，所以没有 `isMobile`；`multiPlayActive` 也不需要——宿主枚举已经说明了它）
   - 收纳规则：`tier 3` 恒进 `overflow`；`tier 1/2` 按清单顺序累加 `slotWidth`，装不下的进
     `overflow`；`⋮` 自身预留 40；**常驻至少 3 件**（音量／弹幕开关／全屏切换），
     即使宽度不够也不进 `⋮`。
@@ -95,6 +101,12 @@ PlayerHostContext ──▶ resolvePlayerActions()  ──▶ List<PlayerAction>
   - 目标格规则：动作恒作用于**该宿主自己的 controller**；窗口化／全屏＝页面主格（多开时＝聚焦格，
     沿用 `live_room_page.dart:139` 的 `room => controller.focused`），格子＝本格 `tile`；
     窗口级动作（`smallWindow`、`autoExit`、`lock`）恒走页面主格。
+
+- **`lib/modules/live_room/player/player_action_bar.dart`**（renderer：把 resolver 的产物画成
+  条带／胶囊，含 `⋮` 那颗；三个宿主共用）
+- **`lib/modules/live_room/player/player_volume_action.dart`**（音量三态控件：点击静音／悬停滑条／
+  滚轮微调；`VolumeTarget` 区分「总音量」与「该格系数」两种绑定）
+- **`lib/modules/live_room/multi_play/multi_play_volume.dart`**（纯函数 `resolveTileVolume`，见 §5）
 
 改动文件：
 
@@ -178,6 +190,11 @@ double resolveTileVolume({
 
 `✓`＝平铺在条/胶囊里，`⋮`＝收进 `⋮`，`✗`＝该宿主不提供。
 
+**建模口径修订（写计划时定）**：`exit`、`title`、`lock` **不建模为动作**——它们是全屏容器的结构
+部分（顶栏的返回与标题、两侧的锁定按钮），renderer 直接画，resolver 不产出；表里那三行只作
+为「全屏容器有什么」的说明保留。`pick` 与 `volume` 是**锚定控件**（`pick` ＝ `PopupMenuButton`
+的行内形态，`volume` ＝ 悬停浮层/行内展开），不是点开抽屉的图标按钮。
+
 | id | windowed | fullscreen | smallWindow | tile |
 |---|---|---|---|---|
 | exit | ✗ | ✓ 顶栏 | ✗（顶栏不出，退出由 `smallWindow` 那颗承担） | ✗ |
@@ -230,7 +247,8 @@ autoExit/scale/refresh/quality/line/screenshot/danmakuSettings`），保证两�
   - `smallWindow` 宿主的 `bar` 恰好 {`smallWindow`(文案「退出小窗」), `fullscreenToggle`,
     `danmakuToggle`, `volume`} 再加一个 `⋮`，且 `overflow` 含其余全部清单类动作；
   - 宽度收窄时按 tier 沉进 `⋮`，且常驻三件不被收走；
-  - `isMobile` 时输出与今天安卓的集合一致（回归护栏）。
+  - 移动端不进模型（§3 的平台门），因此没有「移动端清单」可断言；护栏是
+    `playerControls` 与 `showMore()` 在安卓分支的短路必须存在，改动只发生在桌面分支。
 - 新增 `test/multi_play_volume_test.dart`：§5 的真值表。
 - 现有 37 个用例保持绿；`flutter analyze` 无告警；不要跑 `dart format`（仓库手工 80 列折行）。
 - 构建：`flutter build windows --release`，**须先关掉正在运行的 app**（`slive.exe` 会锁住
