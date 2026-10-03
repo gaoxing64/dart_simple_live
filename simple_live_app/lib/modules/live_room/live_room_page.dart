@@ -1049,8 +1049,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
         // 抽屉不受条带宽度约束：给足宽度让全部动作进 overflow 之外的部分也列出来
         availableWidth: 4000,
         isVertical: room.isVertical.value,
-        hasQuality: room.qualites.length > 1,
-        hasLine: room.playUrls.length > 1,
+        hasQuality: room.hasMultipleQualities,
+        hasLine: room.hasMultipleLines,
       );
       showActionMenu(
         title: "更多",

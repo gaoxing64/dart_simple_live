@@ -176,8 +176,8 @@ class MultiPlayTile extends StatelessWidget {
         // 能不能关这一格由 resolver 决定（主格是页面本身，销不得），renderer 只接
         // onCloseTile：closeTile 出现在 bar 里，那颗 ✕ 才会被画出来。
         canCloseTile: index > 0,
-        hasQuality: tile.qualites.length > 1,
-        hasLine: tile.playUrls.length > 1,
+        hasQuality: tile.hasMultipleQualities,
+        hasLine: tile.hasMultipleLines,
         isVertical: tile.isVertical.value,
       );
       return Container(

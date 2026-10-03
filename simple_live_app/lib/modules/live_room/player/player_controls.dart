@@ -82,8 +82,8 @@ Widget _gestureTip(LiveRoomController controller) {
 Widget _buildDesktopControls(VideoState videoState, LiveRoomController controller) {
   return Obx(() {
     final isVertical = controller.isVertical.value;
-    final hasQuality = controller.qualites.length > 1;
-    final hasLine = controller.playUrls.length > 1;
+    final hasQuality = controller.hasMultipleQualities;
+    final hasLine = controller.hasMultipleLines;
     return LayoutBuilder(
       builder: (context, constraints) {
         // availableWidth 扣掉条带自己的左右内边距（各 12），否则 resolver 会按整窗宽
@@ -199,8 +199,8 @@ Widget _buildDesktopFullControls(
         ? PlayerHost.smallWindow
         : PlayerHost.fullscreen;
     final isVertical = controller.isVertical.value;
-    final hasQuality = controller.qualites.length > 1;
-    final hasLine = controller.playUrls.length > 1;
+    final hasQuality = controller.hasMultipleQualities;
+    final hasLine = controller.hasMultipleLines;
     // 顶栏只在非小窗的全屏画：小窗没有返回/标题那一行。
     final showTopBar = host == PlayerHost.fullscreen;
     return buildDragToMoveArea(

@@ -231,6 +231,17 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   /// 线路数据
   RxList<String> playUrls = RxList<String>();
 
+  /// 清晰度/线路动作「是否存在」的谓词：多于一路可选项才提供入口。
+  ///
+  /// WHY 收在 controller：`qualites.length > 1` 此前在桌面两条宿主、格子胶囊与页级
+  /// 「更多」四个调用点各写一遍，改一处漏一处就会让「同一动作在不同宿主有的有、
+  /// 有的没有」这个本次要消灭的问题重新长回来。注意这比 spec §9 的
+  /// 「无数据」措辞更严——只有一档也算「无可切换」，行/按钮同样不提供，
+  /// 这是既有出货行为，保持不变。
+  bool get hasMultipleQualities => qualites.length > 1;
+
+  bool get hasMultipleLines => playUrls.length > 1;
+
   Map<String, String>? playHeaders;
 
   /// 当前线路
