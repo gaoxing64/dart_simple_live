@@ -136,9 +136,10 @@ class MultiPlayTile extends StatelessWidget {
   ///
   /// 遮罩只包住这一簇；名字用 `Flexible` 兜住（窄格子自动省略号），名字被挤到 0 也还
   /// 留得住序号牌与 ▾（实测这一簇最小 66 宽）。
-  /// ⚠️ 右下胶囊接 renderer 后实测 184 宽（5 颗 36×36 + 内边距），240 宽的格子
-  /// （`kMultiPlayMinTileWidth`，四路 2×2 把窗口缩到下限正好落在这尺寸）里两条胶囊的
-  /// 最小和已经顶过 Row 的 224——名字会先被挤成 0，再窄就溢出。Task 11 手测盯这条。
+  /// ⚠️ 宽度预算：接 renderer 后右胶囊若按桌面 36×36 的 chrome 实测 184 宽，240 宽的
+  /// 格子（`kMultiPlayMinTileWidth`，四路 2×2 把窗口缩到下限正好落在这尺寸）里两胶囊
+  /// 最小和 250 顶过 Row 的 224，名字挤成 0 后内层溢出；右胶囊改用紧凑密度（30×30，
+  /// 实测 ~154）后 66+154=220 留得住余量，回归由 `test/player_action_bar_test.dart` 钉住。
   Widget _buildInfoPill(ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.only(left: 6, right: 2),
@@ -200,7 +201,10 @@ class MultiPlayTile extends StatelessWidget {
           // pick 画在左下信息胶囊里（▾ 紧挨昵称），这里滤掉免得一颗胶囊冒出两颗换台。
           bar: layout.bar.where((e) => e.id != PlayerActionId.pick).toList(),
           overflow: layout.overflow,
-          iconSize: 20,
+          // 紧凑密度（30×30 按钮 + 20 图标）：240 宽的格子（kMultiPlayMinTileWidth）里
+          // 桌面 chrome 的五颗按钮会把两胶囊顶过底栏，溢出回归由
+          // test/player_action_bar_test.dart 钉住；桌面条带调用点不传这颗，尺寸不变。
+          compact: true,
           // 格子胶囊是无界 Row 的非 flex 孩子：hug 走 MainAxisSize.min，renderer 里
           // 那颗 `Spacer`（就是 Expanded）在无界宽度下会直接抛错。
           hug: true,

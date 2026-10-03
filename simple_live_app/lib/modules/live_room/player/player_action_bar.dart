@@ -6,15 +6,39 @@ import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 
-/// 条带／胶囊里那颗统一尺寸的图标按钮样式：小尺寸、无内边距、白色前景。
+/// 条带／胶囊共用的图标按钮样式底版：小尺寸、无内边距、白色前景。
 ///
 /// 提到文件级：`PlayerActionBar` 组装整行用得到，`buildPlayerActionItem`
 /// 逐个排（全屏顶栏走这条）也用得到——同一个动作在两个宿主里必须同形。
-final ButtonStyle _iconStyle = IconButton.styleFrom(
-  minimumSize: const Size(36, 36),
+/// 密度（按钮最小尺寸）是唯一随 `compact` 变的量，其余属性都出自这同一份底版，
+/// 两档不可能在别处悄悄分叉（见 [_iconStyleFor]）。
+final ButtonStyle _iconStyleBase = IconButton.styleFrom(
   padding: EdgeInsets.zero,
   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
   foregroundColor: Colors.white,
+);
+
+/// 桌面条带的按钮最小尺寸（现状值：桌面窗口化／全屏／小窗的调用点不传 compact，保持原样）。
+const Size _kDesktopButtonSize = Size(36, 36);
+
+/// 紧凑密度：按钮 30×30、图标 20——格子接共用 renderer 之前胶囊原本的尺寸。
+///
+/// WHY 要有这一档：格子最小合法宽度 240 逻辑像素（`kMultiPlayMinTileWidth`，四路 2×2
+/// 把窗口缩到下限正好落在这尺寸），底部 chrome 行减去左右各 8 的内缩只剩 224 可用，
+/// 而信息胶囊实测最小 66。格子的按钮簇现在有五颗（弹幕／音量／全屏／✕／⋮）：按桌面
+/// 36×36 的 chrome 胶囊要 ~184 宽，两条合计 250 > 224，名字挤成 0 后内层 Row 溢出
+/// （RenderFlex overflow）；按 30×30 是 ~154，格子重新拿回改造前的余量。
+/// 宽度预算由 `test/player_action_bar_test.dart` 按 240 宽钉住，改动这里先看那条。
+const Size _kCompactButtonSize = Size(30, 30);
+const double _kCompactIconSize = 20;
+
+/// 同一份底版按密度派生出按钮样式：只 merge 最小尺寸，其余属性两档共用。
+ButtonStyle _iconStyleFor({required bool compact}) => _iconStyleBase.merge(
+  ButtonStyle(
+    minimumSize: WidgetStatePropertyAll<Size?>(
+      compact ? _kCompactButtonSize : _kDesktopButtonSize,
+    ),
+  ),
 );
 
 /// 底栏按钮（含「多开播放」胶囊）的文字样式。
@@ -48,9 +72,10 @@ class PlayerActionBar extends StatelessWidget {
     this.textStyle,
     this.onInteract,
     this.trailing,
-    this.iconSize = 24,
+    this.iconSize,
     this.onCloseTile,
     this.hug = false,
+    this.compact = false,
   });
 
   final PlayerHost host;
@@ -61,8 +86,15 @@ class PlayerActionBar extends StatelessWidget {
   final TextStyle? textStyle;
   final VoidCallback? onInteract;
   final Widget? trailing;
-  final double iconSize;
+
+  /// 图标尺寸；null＝按密度取默认（桌面条带 24，紧凑胶囊 20）。
+  final double? iconSize;
   final VoidCallback? onCloseTile;
+
+  /// true＝紧凑密度：按钮最小尺寸压到 30×30、默认图标 20，`⋮` 与音量颗同档，
+  /// 整颗胶囊一致；false（桌面窗口化／全屏／小窗都不传）＝现状 36×36／24。
+  /// WHY 需要这一档见 [_kCompactButtonSize] 的注释（240 宽的格子）。
+  final bool compact;
 
   /// true＝贴紧内容（格子胶囊：无界主轴的孩子，`Spacer` 会直接抛错）；
   /// false＝窗口化／全屏整幅底栏，保留 `Spacer` 把左右簇推向两端。
@@ -77,6 +109,10 @@ class PlayerActionBar extends StatelessWidget {
   /// `Spacer` 吃掉余量即可，且不会像 flex 那样先分掉一半宽度。
   @override
   Widget build(BuildContext context) {
+    // 图标尺寸没显式传时按密度取默认：桌面 24、紧凑胶囊 20（两档的 chrome 是一个
+    // 整体旋钮，不让「30×30 的按钮配 24 的图标」这种半紧凑组合出现）。
+    final effectiveIconSize = iconSize ?? (compact ? _kCompactIconSize : 24.0);
+    final buttonStyle = _iconStyleFor(compact: compact);
     final left = <Widget>[];
     final right = <Widget>[];
     for (final action in bar) {
@@ -89,7 +125,8 @@ class PlayerActionBar extends StatelessWidget {
         target: target,
         page: page,
         textStyle: textStyle,
-        iconSize: iconSize,
+        iconSize: effectiveIconSize,
+        compact: compact,
         onInteract: onInteract,
         onCloseTile: onCloseTile,
       );
@@ -111,8 +148,8 @@ class PlayerActionBar extends StatelessWidget {
         if (menuItems.isNotEmpty)
           IconButton(
             tooltip: "更多",
-            iconSize: iconSize,
-            style: _iconStyle,
+            iconSize: effectiveIconSize,
+            style: buttonStyle,
             icon: const Icon(Icons.more_horiz, color: Colors.white),
             onPressed: () {
               onInteract?.call();
@@ -146,9 +183,13 @@ Widget buildPlayerActionItem({
   required LiveRoomController page,
   required TextStyle? textStyle,
   double iconSize = 24,
+  bool compact = false,
   VoidCallback? onInteract,
   VoidCallback? onCloseTile,
 }) {
+  // 按钮 chrome 只由密度派生一份（底版共用，见 _iconStyleFor）；顶栏调用点不传
+  // compact，拿到的就是桌面 36×36，与条带同形。
+  final buttonStyle = _iconStyleFor(compact: compact);
   switch (action.id) {
     case PlayerActionId.danmakuToggle:
       // 开／关两个 asset 图标，是「状态」而不是「动作名」，所以不能收进 ⋮ 用通用图标。
@@ -156,7 +197,7 @@ Widget buildPlayerActionItem({
         () => IconButton(
           tooltip: target.showDanmakuState.value ? "关闭弹幕" : "开启弹幕",
           iconSize: iconSize,
-          style: _iconStyle,
+          style: buttonStyle,
           icon: ImageIcon(
             AssetImage(
               target.showDanmakuState.value
@@ -208,7 +249,7 @@ Widget buildPlayerActionItem({
     case PlayerActionId.pick:
       return FollowPickButton(
         target: target,
-        style: _iconStyle,
+        style: buttonStyle,
         iconSize: iconSize,
         icon: const Icon(Icons.arrow_drop_down),
         onOpened: onInteract,
@@ -218,7 +259,7 @@ Widget buildPlayerActionItem({
         target: host == PlayerHost.tile
             ? VolumeTarget.tile(target)
             : VolumeTarget.master(page),
-        style: _iconStyle,
+        style: buttonStyle,
         iconSize: iconSize,
         overlayPopover: host == PlayerHost.tile,
         onInteract: onInteract,
@@ -227,7 +268,7 @@ Widget buildPlayerActionItem({
       return IconButton(
         tooltip: action.title,
         iconSize: iconSize,
-        style: _iconStyle,
+        style: buttonStyle,
         icon: const Icon(Icons.close),
         onPressed: onCloseTile,
       );
@@ -236,7 +277,7 @@ Widget buildPlayerActionItem({
         () => IconButton(
           tooltip: page.smallWindowState.value ? "退出小窗" : action.title,
           iconSize: iconSize,
-          style: _iconStyle,
+          style: buttonStyle,
           icon: Icon(Icons.picture_in_picture, color: Colors.white),
           onPressed: () => invokePlayerAction(
             target: target,
@@ -259,7 +300,7 @@ Widget buildPlayerActionItem({
           return IconButton(
             tooltip: showExit ? "退出全屏" : "全屏播放",
             iconSize: iconSize,
-            style: _iconStyle,
+            style: buttonStyle,
             icon: Icon(
               showExit ? Icons.fullscreen_exit : Icons.fullscreen,
               color: Colors.white,
@@ -279,7 +320,7 @@ Widget buildPlayerActionItem({
       return IconButton(
         tooltip: action.title,
         iconSize: iconSize,
-        style: _iconStyle,
+        style: buttonStyle,
         icon: Icon(playerActionIcon(action.id), color: Colors.white),
         onPressed: () {
           onInteract?.call();
