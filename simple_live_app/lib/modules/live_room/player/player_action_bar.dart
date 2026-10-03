@@ -81,6 +81,7 @@ class PlayerActionBar extends StatelessWidget {
     this.onInteract,
     this.iconSize,
     this.onCloseTile,
+    this.pickMenuKey,
     this.hug = false,
     this.compact = false,
   });
@@ -96,6 +97,10 @@ class PlayerActionBar extends StatelessWidget {
   /// 图标尺寸；null＝按密度取默认（桌面条带 24，紧凑胶囊 20）。
   final double? iconSize;
   final VoidCallback? onCloseTile;
+
+  /// 转给条带里那颗 ▾（换台）的键，宿主用它就能把那颗锚定菜单就地弹出来
+  /// （桌面全屏的长按走的就是这条）。null＝不挂键，窗口化条带与格子胶囊都不传。
+  final Key? pickMenuKey;
 
   /// true＝紧凑密度：按钮最小尺寸压到 30×30、默认图标 20，`⋮` 与音量颗同档，
   /// 整颗胶囊一致；false（桌面窗口化／全屏／小窗都不传）＝现状 36×36／24。
@@ -135,6 +140,7 @@ class PlayerActionBar extends StatelessWidget {
         compact: compact,
         onInteract: onInteract,
         onCloseTile: onCloseTile,
+        pickMenuKey: pickMenuKey,
       );
       // 文字按钮（清晰度／线路）的实宽是内容驱动的：resolver 的收纳预算按 56px
       // 记，可「原画(1080P)」这类标签真实排版远超它——不包 Flexible，窄窗口里
@@ -202,6 +208,7 @@ Widget buildPlayerActionItem({
   bool compact = false,
   VoidCallback? onInteract,
   VoidCallback? onCloseTile,
+  Key? pickMenuKey,
 }) {
   // 按钮 chrome 只由密度派生一份（底版共用，见 _iconStyleFor）；顶栏调用点不传
   // compact，拿到的就是桌面 36×36，与条带同形。
@@ -275,6 +282,9 @@ Widget buildPlayerActionItem({
         iconSize: iconSize,
         icon: const Icon(Icons.arrow_drop_down),
         onOpened: onInteract,
+        // 宿主传了键才挂（桌面全屏底栏）：长按画面要靠它把这颗的菜单就地弹出来，
+        // 与条带共用同一块浮层。没传就是没传，不影响这颗按钮本身。
+        menuKey: pickMenuKey,
       );
     case PlayerActionId.volume:
       return VolumeActionWidget(

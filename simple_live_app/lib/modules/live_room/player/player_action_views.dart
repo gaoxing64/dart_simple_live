@@ -29,7 +29,9 @@ void invokePlayerAction({
       // 所以这里不必按平台分支。竖屏主播在这些实现内部落回底部抽屉——沿用
       // `showQualitesInfo` 改造前就有的兜底口径，本次保留：竖屏画面窄，右侧
       // 抽屉会盖住直播内容。
-      showDanmakuSettings(target);
+      // perStreamerShield 在这条桌面臂上给 true：能走到这里就一定是桌面 surface，
+      // 它要的是这一格主播自己的屏蔽面板（移动端那层不带这条入口）。
+      showDanmakuSettings(target, perStreamerShield: true);
     case PlayerActionId.screenshot:
       target.saveScreenshot();
     case PlayerActionId.quality:
@@ -185,6 +187,7 @@ class FollowPickButton extends StatelessWidget {
     this.iconSize,
     this.tooltip = "换台",
     this.onOpened,
+    this.menuKey,
   });
 
   final LiveRoomController target;
@@ -194,9 +197,18 @@ class FollowPickButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback? onOpened;
 
+  /// 宿主想要的那颗 `PopupMenuButton` 的键（桌面全屏长按用它直接弹这一颗的菜单，
+  /// 见 `LiveRoomController.followPickMenuKey`）。
+  ///
+  /// WHY 单独一个字段而不是用 [super.key]：键必须挂在**内层**那颗 `PopupMenuButton`
+  /// 上才拿得到 `PopupMenuButtonState`——挂在这颗 StatelessWidget 自己身上只能取到
+  /// element，取不到 state。
+  final Key? menuKey;
+
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<FollowUser>(
+      key: menuKey,
       tooltip: tooltip,
       padding: EdgeInsets.zero,
       iconSize: iconSize,

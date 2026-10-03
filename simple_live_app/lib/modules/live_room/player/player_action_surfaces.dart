@@ -122,7 +122,16 @@ void showQualitesInfo(LiveRoomController controller) {
   );
 }
 
-void showDanmakuSettings(LiveRoomController controller) {
+/// 弹幕设置弹层。
+///
+/// [perStreamerShield] 由调用的那一层 surface 给：桌面条带／⋮（`invokePlayerAction`）
+/// 要的是「这一格主播」的屏蔽面板，传 true。移动端横屏全屏的底栏（
+/// `player_controls.dart` 的 `buildFullControls`）不传——移动端不进这套模型，那层在本体
+/// 收拢之前就没有这条入口，点了落的是全局屏蔽设置页，行为必须逐位保持原样。
+void showDanmakuSettings(
+  LiveRoomController controller, {
+  bool perStreamerShield = false,
+}) {
   if (controller.isVertical.value) {
     controller.showDanmuSettingsSheet();
     return;
@@ -139,6 +148,7 @@ void showDanmakuSettings(LiveRoomController controller) {
         // hideRightDialog 而不是 `Get.back`。
         controller.buildDanmuSettingsBody(
           onDismiss: Utils.hideRightDialog,
+          perStreamerShield: perStreamerShield,
         ),
       ],
     ),

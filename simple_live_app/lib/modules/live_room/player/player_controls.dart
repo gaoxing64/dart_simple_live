@@ -233,9 +233,19 @@ Widget _buildDesktopFullControls(
                     if (controller.lockControlsState.value) {
                       return;
                     }
-                    // 长按＝换台：长按没有按钮可锚，所以保留右侧抽屉形态（与顶栏那颗
-                    // 同源的列表，见 showFollowUser）；条带/胶囊里的换台才是锚定浮层。
-                    showFollowUser(controller);
+                    // 长按＝换台，而且与条带里那颗 ▾ 是**同一块浮层**（spec §3：全屏那颗
+                    // 「关注列表」与 ▾ 合并成同一个动作 pick，「同一块浮层，只是标题不同」）：
+                    // 不再另开一份 400px 右侧抽屉，而是把常挂的那颗 ▾ 的锚定菜单就地弹出来。
+                    // 条目、选中落点、`onOpened` 的续期全同源，两份实现再也没有各自漂移的可能。
+                    // 取不到 currentState 的现实场景只有一个：小窗宿主——那里 pick 是
+                    // menuOnly（`player_actions.dart` 的 `_tierFor`），条带里根本没挂这颗，
+                    // 长按总不能退化成死手势，所以那一路仍落回抽屉（其余宿主里这颗恒常挂）。
+                    final pickButton = controller.followPickMenuKey.currentState;
+                    if (pickButton == null) {
+                      showFollowUser(controller);
+                      return;
+                    }
+                    pickButton.showButtonMenu();
                   },
                   onVerticalDragStart: controller.onVerticalDragStart,
                   onVerticalDragUpdate: controller.onVerticalDragUpdate,
@@ -356,6 +366,9 @@ Widget _buildDesktopFullControls(
                         overflow: layout.overflow,
                         textStyle: playerToolbarTextStyle(),
                         onInteract: controller.showControls,
+                        // 只有这一处（桌面全屏／小窗的底栏）把 ▾ 的键交出去：上面的长按
+                        // 要靠它弹同一块浮层。窗口化条带与格子胶囊不传，全树同键仅一处。
+                        pickMenuKey: controller.followPickMenuKey,
                       ),
                     ),
                   );

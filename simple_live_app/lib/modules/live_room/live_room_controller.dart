@@ -103,6 +103,19 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   @override
   bool get allowsWindowOps => !isSecondaryTile;
 
+  /// 桌面全屏条带里那颗 ▾（换台）的锚点：长按画面弹的就是**这一颗**的菜单，
+  /// 不再另开一份关注列表抽屉（spec §3「同一块浮层，只是标题不同」）。
+  ///
+  /// WHY 存在这里而不是全屏宿主函数的局部：`GlobalKey` 得跨 rebuild 保持同一个实例，
+  /// 而 `_buildDesktopFullControls` 每次 rebuild 都会新建一个——键一换，挂在下面的
+  /// `PopupMenuButtonState` 就整个重挂载，`showButtonMenu` 的 `.then` 里那句
+  /// `if (!mounted) return null`（popup_menu.dart）会把选中的那一路静默丢掉，
+  /// 表现就是长按换台点了没反应。
+  /// 全树只有桌面全屏底栏那一颗 ▾ 会拿到它（`player_controls.dart` 显式传下去，
+  /// 窗口化条带与格子胶囊都不传），所以不会同键两处。
+  final GlobalKey<PopupMenuButtonState<FollowUser>> followPickMenuKey =
+      GlobalKey<PopupMenuButtonState<FollowUser>>();
+
   /// 这一路相对基准音量的系数（0~1）。1 = 按焦点（及可选压低）规则算出来的值，0 = 静音。
   ///
   /// 格子底栏的音量按钮改的就是它：点一下在 0 与上次的值之间切换，滚轮悬停微调。
@@ -965,13 +978,27 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   /// `Utils.hideRightDialog`，本体只管「先收起当前这层，再开这一路的屏蔽面板」。
   /// 屏蔽面板跟着 `this` 走，也就是打开这条 surface 的那一路（`target`），不是页面
   /// 主格——多开里副格设置的是副格自己的主播屏蔽词。
-  Widget buildDanmuSettingsBody({required VoidCallback onDismiss}) {
+  ///
+  /// [perStreamerShield] 这条按主播的屏蔽入口**按 surface 选入**，默认关。
+  /// WHY 要选入而不是统一开着：本体收拢（`d1b02d45`）之前，移动横屏全屏那层弹层是
+  /// 自己抄的一份 `DanmuSettingsView`、没抄 `onTapDanmuShield`，点「关键词屏蔽」落的是
+  /// 它的默认（全局屏蔽设置页）。收拢时桌面补回了入口，顺手把移动端那层也改成了按主播
+  /// ——而本项目的硬约束是「移动端不进这套模型」，移动端路径必须与改造前逐位一致。
+  /// 关掉时什么都不往下传，`DanmuSettingsView` 于是走它自己那份默认，正是改前的行为。
+  /// 开关做成 bool 而不是把回调透传给调用方自己拼：「先收层再开面板」这个顺序留在本体这
+  /// 一份里，两个 surface 才拼不出两种顺序，测试也才钉得住它。
+  Widget buildDanmuSettingsBody({
+    required VoidCallback onDismiss,
+    bool perStreamerShield = false,
+  }) {
     return DanmuSettingsView(
       danmakuController: danmakuController,
-      onTapDanmuShield: () {
-        onDismiss();
-        showFollowBlockShield();
-      },
+      onTapDanmuShield: perStreamerShield
+          ? () {
+              onDismiss();
+              showFollowBlockShield();
+            }
+          : null,
     );
   }
 
@@ -982,7 +1009,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
       child: ListView(
         padding: AppStyle.edgeInsetsA12,
         children: [
-          buildDanmuSettingsBody(onDismiss: () => Get.back()),
+          // 移动端的底部抽屉（竖屏主播与移动横屏都落这儿）改前就有这条入口，继续给。
+          buildDanmuSettingsBody(
+            onDismiss: () => Get.back(),
+            perStreamerShield: true,
+          ),
         ],
       ),
     );
