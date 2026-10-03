@@ -119,7 +119,7 @@ class PlayerActionBar extends StatelessWidget {
       if (host == PlayerHost.fullscreen && action.placeInTopBar) {
         continue;
       }
-      final item = buildPlayerActionItem(
+      var item = buildPlayerActionItem(
         action: action,
         host: host,
         target: target,
@@ -130,6 +130,17 @@ class PlayerActionBar extends StatelessWidget {
         onInteract: onInteract,
         onCloseTile: onCloseTile,
       );
+      // 文字按钮（清晰度／线路）的实宽是内容驱动的：resolver 的收纳预算按 56px
+      // 记，可「原画(1080P)」这类标签真实排版远超它——不包 Flexible，窄窗口里
+      // 固定的 core 件加超长读数会把 Row 顶出 RenderFlex 溢出（窗口化／全屏条带
+      // 的实测错位，回归钉在 test/player_action_bar_test.dart）。
+      // hug（格子胶囊）在无界主轴里包 Flexible 会直接抛错，且 tile 宿主的
+      // quality/line 恒是 menuOnly、进不了 bar——收缩只给有界宿主。
+      if (!hug &&
+          (action.id == PlayerActionId.quality ||
+              action.id == PlayerActionId.line)) {
+        item = Flexible(child: item);
+      }
       (action.rightSide ? right : left).add(item);
     }
     // ⋮ 的可见性问的是「抽屉里到底有几行」，不是「overflow 有几项」：
@@ -224,6 +235,10 @@ Widget buildPlayerActionItem({
             style: TextButton.styleFrom(
               textStyle: textStyle,
               foregroundColor: Colors.white,
+              // 收缩支持：M3 默认 minimumSize 是 64×36——外层 Flexible 压到 64
+              // 以下时它顶不住，溢出照旧。宽度下限归零，高度维持默认 36，
+              // 观感（内容宽时）与原来逐像素一致。
+              minimumSize: const Size(0, 36),
             ),
             onPressed: () {
               onInteract?.call();
@@ -238,6 +253,8 @@ Widget buildPlayerActionItem({
               action.id == PlayerActionId.quality
                   ? target.currentQualityInfo.value
                   : target.currentLineInfo.value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: (textStyle ?? const TextStyle()).copyWith(
                 color: Colors.white,
                 fontSize: labelFontSize,

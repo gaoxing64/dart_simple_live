@@ -118,4 +118,65 @@ void main() {
     expect(find.byType(IconButton), findsNWidgets(5));
     expect(tester.getSize(find.byType(PlayerActionBar)).width, 150);
   });
+
+  // 桌面条带（windowed 宿主）的收纳预算给清晰度／线路各 56px（`player_actions.dart`
+  // 的 slotWidth），但 renderer 画的是 `Text(target.currentQualityInfo.value)`——宽度
+  // 是内容驱动的：「原画(1080P)」这种标签实测就超 56，core 件更是无条件进 bar。
+  // 于是 resolver 判「装得下」的窄窗口，真实排版会 RenderFlex 溢出——与格子那条
+  // Task 9 量过并修掉的溢出是同一类 bug。用例复刻这个错位：按 resolver 判得下的
+  // 宽度取清单（quality/line 留在 bar），再画进更窄的真实宿主里。
+  testWidgets('窄窗口化条带含长清晰度／线路标签：文字件可收缩、不溢出', (tester) async {
+    final tile = _FakeTile();
+    tile.currentQualityInfo.value = "原画(1080P)";
+    tile.currentLineInfo.value = "线路1备份备用";
+    final layout = resolvePlayerActions(
+      host: PlayerHost.windowed,
+      availableWidth: 400,
+    );
+    expect(
+      layout.bar.map((e) => e.id).toList(),
+      containsAll(<PlayerActionId>[
+        PlayerActionId.quality,
+        PlayerActionId.line,
+      ]),
+      reason: '用例必须拿着 resolver 判「装得下」的那份清单（预算 56）',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            // 真实可用宽比 resolver 的预算窄：左簇+音量+全屏+⋮ 的固定 chrome
+            // 加两颗长文字按钮在这宽度下排不下，必须靠收缩（ellipsis）兜住。
+            child: SizedBox(
+              width: 360,
+              child: PlayerActionBar(
+                host: PlayerHost.windowed,
+                target: tile,
+                page: tile,
+                bar: layout.bar,
+                overflow: layout.overflow,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    // RenderFlex 溢出在绘制阶段上报，多泵一帧保证异常已进采集器。
+    await tester.pump();
+
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: '长文字按钮在窄窗口化条带里必须可收缩，不许 RenderFlex 溢出',
+    );
+    // 溢出断言不能因「两颗文字按钮根本没排出来」而空过。
+    expect(find.byType(TextButton), findsNWidgets(2));
+    // 收缩真的生效到省略号上：文字按钮的实宽小于其内容的固有宽。
+    expect(
+      tester.getSize(find.text("原画(1080P)")).width,
+      lessThan(120),
+      reason: '清晰度标签应被压缩（ellipsis），而不是按固有宽排出',
+    );
+  });
 }
