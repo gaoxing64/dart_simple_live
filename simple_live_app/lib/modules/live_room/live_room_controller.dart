@@ -967,7 +967,8 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     }
   }
 
-  /// 「弹幕设置」本体：底部抽屉（移动）与右侧抽屉（桌面）共用这一份。
+  /// 「弹幕设置」本体：底部抽屉与右侧抽屉两个容器共用这一份。容器按 surface 选、
+  /// 不按平台选——桌面条带／⋮ 与移动横屏全屏开的都是右侧抽屉。
   ///
   /// WHY 共用而不是两处各写一份：和 `buildScaleModeRadioList` 同一个理由——两个
   /// 容器之间该只有容器之差，可「关键词屏蔽」这条入口原先只长在底部抽屉那一份里，
@@ -1002,14 +1003,17 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     );
   }
 
-  /// 底部打开播放器设置
+  /// 底部打开弹幕设置
   void showDanmuSettingsSheet() {
     Utils.showBottomSheet(
       title: "弹幕设置",
       child: ListView(
         padding: AppStyle.edgeInsetsA12,
         children: [
-          // 移动端的底部抽屉（竖屏主播与移动横屏都落这儿）改前就有这条入口，继续给。
+          // 落到底部抽屉的三个宿主（移动非全屏底栏、页面「更多设置」面板、竖屏主播
+          // 兜底）改前就有这条入口，所以这里恒给 true。唯独移动横屏全屏不落这儿：
+          // 它经 `showDanmakuSettings` 进右侧抽屉，那一层的 perStreamerShield 是关的。
+          // 「移动端逐位不变」钉的是全屏那一层，别把它也算成底部抽屉的宿主再补 true。
           buildDanmuSettingsBody(
             onDismiss: () => Get.back(),
             perStreamerShield: true,
