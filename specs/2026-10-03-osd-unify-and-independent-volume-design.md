@@ -147,13 +147,20 @@ double resolveTileVolume({
 - 触发点不动：`MultiPlaySession.applyVolumes()`(`multi_play_session.dart:254`) 仍是唯一权威，
   `focusSlot`／`addRoom`／`_dropTile`／`toggleTileMute`／`nudgeTileVolume`／总音量滑条各自照调。
   duck 关掉后焦点只剩三件事：描边、侧栏跟随、折叠时先保谁。
-- 设置卡片：在「非聚焦音量」(`live_room_page.dart:817`) 上面加 `SettingsSwitch`「非聚焦自动压低」，
-  关掉时把比例那行灰掉；文案里「不是静音」这类讲解句去掉，只留功能名。
+- 设置卡片：在「非聚焦音量」(`live_room_page.dart:817`) 上面加 `SettingsSwitch`「非聚焦自动压低」。
+  **修订（实现期定）：开关关掉时不渲染比例那行**——`SettingsNumber` 没有 disabled 态，灰它要新加一层支持；
+  而「一行现在不起作用」这种状态本来就该用不显示来表达（项目自己的口径：空集合不显示）。
+  文案里「不是静音」这类讲解句去掉，只留功能名。
 - 每格音量控件的三态：点击 `toggleMute()`（`live_room_controller.dart:116`，系数 0↔上次值，
   **不落盘**，退出直播间即失效）、悬停出滑条、滚轮 `nudgeVolumeFactor(±0.05)`（`:127`）。
   滑条在单播放宿主绑 `playerVolume`/`playerMaxVolume`，在格子宿主绑 `volumeFactor`。
-- 悬停滑条与格子 chrome 的 4 秒自动隐藏会打架：按钮与滑条必须包在**同一个 `MouseRegion`** 里
-  （滑条算 hover 区的一部分，不能用独立 overlay 飘出去），并在滑条展开期间调 `onInteract()` 续期。
+  **修订（实现期定）：静音在两种宿主下都问同一件事——「这一路被我静音了吗」，一律读/写 `volumeFactor`**；
+  滑条才各自绑总音量与该格系数。所以把总音量拖到 0 时图标仍是 `volume_up`，这是对的。
+- 悬停滑条与 chrome 自动隐藏的打架，**按宿主分两种解法（实现期推翻了我原来「都不能用 overlay」的判断）**：
+  条带（窗口化／全屏／小窗）里滑条**行内展开在同一个 `MouseRegion` 内**，向左长、右侧那一簇不动，零位移；
+  格子里必须走 `Overlay`（`OverlayPortal.overlayChildLayoutBuilder`，即 `RawTooltip` 那套）——
+  `Positioned` 画出盒子之外的东西不参与命中测试（`RenderBox.hitTest` 先按自身尺寸筛，`clipBehavior: none` 只管绘制），
+  指针一移到滑条上就 `onExit`、滑条既会消失也拖不动。格子那条用 150ms 宽限期 + 滑条自带 `MouseRegion` 续命。
 
 ## 6. 按格独立画面尺寸
 
@@ -218,8 +225,9 @@ double resolveTileVolume({
 其余全在 `⋮` 里；并且**顶栏在小窗态不再出现**（现在 `fullScreenState` 为 true 时顶栏是照给的）。
 已知取舍：`⋮` 打开的是右侧抽屉，在几百 px 的小窗里会盖住画面。
 
-页级「更多」的清单＝上表 `windowed` 一列的 `overflow` 全集（含 `share/copyUrl/openApp/debugInfo/
-autoExit/scale/refresh/quality/line/screenshot/danmakuSettings`），保证两处内容同源、无重复实现。
+页级「更多」与视频区 `⋮` **同源但不同范围**（实现期定，2026-10-03）：`⋮` 只列「条带这一刻放不下的那些」，
+页级「更多」列**全集**（`[...bar, ...overflow]`，锚定件由 `actionableMenuItems` 剔掉）。
+两处内容都来自同一份 resolver，不存在第二份清单；差别只在「就近的溢出桶」与「完整菜单」这一层级。
 
 ## 9. 错误处理与边界
 

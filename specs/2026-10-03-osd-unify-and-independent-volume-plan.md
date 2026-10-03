@@ -910,7 +910,7 @@ git commit -m "fix(player): 小窗还原点改为离开窗口态时采集，支�
 
 **Files:**
 - Create: `simple_live_app/lib/modules/live_room/player/player_action_views.dart`
-- Modify: `simple_live_app/lib/modules/live_room/live_room_controller.dart`（`showVolumeSlider` 保留，新增 `showScaleModeMenu` 由 Task 7 加；本任务只加 `pick` 用的选台浮层组件）
+- Modify: `simple_live_app/lib/modules/live_room/live_room_controller.dart`（本任务不动它；`showVolumeSlider` 在 Task 8 之后已无调用点，随死代码清理删除）
 
 **Interfaces:**
 - Consumes: Task 2 的 `PlayerAction` / `PlayerActionId` / `PlayerActionLayout`；`LiveRoomController` 上既有方法 `refreshRoom` `saveScreenshot` `showQualitySheet` `showPlayUrlsSheet` `showPlayerSettingsSheet` `showDanmuSettingsSheet` `showDebugInfo` `showAutoExitSheet` `share` `copyUrl` `openNaviteAPP` `enterSmallWindow` `exitSmallWindow` `enterFullScreen` `exitFull`，以及 `multiPlay.replaceTileRoom` / `buildSwitchEntries`；`Utils.showRightDialog`（`app/utils.dart:112`）
