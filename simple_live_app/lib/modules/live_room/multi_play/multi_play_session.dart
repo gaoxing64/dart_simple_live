@@ -201,13 +201,6 @@ class MultiPlaySession {
     ];
   }
 
-  /// 切换某一格的手动静音（与 ducking 无关：静音时音量恒为 0，不随焦点变）。
-  void toggleTileMute(LiveRoomController tile) => tile.toggleMute();
-
-  /// 滚轮微调某一格的音量系数（格子底栏音量按钮上的滚轮）。
-  void nudgeTileVolume(LiveRoomController tile, double delta) =>
-      tile.nudgeVolumeFactor(delta);
-
   /// 摘掉一路副格（主格不可摘：它是路由绑定的那个 controller，销掉它等于把整页拆了；
 /// 要换内容请走 [onFollowItemTap] 的单画面分支，或格子上的 ▾ 换台）。
   void removeTile(LiveRoomController tile) {

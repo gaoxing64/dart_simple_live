@@ -48,8 +48,18 @@ void invokePlayerAction({
       }
     case PlayerActionId.fullscreenToggle:
       if (page.fullScreenState.value) {
+        // 退出全屏只是把窗口收回常态，不是「换了一路」，所以焦点一律不动。
         page.exitFull();
       } else {
+        // 双击/全屏那一路要先成为焦点，否则侧栏与音量权威跟着别的流走。
+        // 走会话已有的 focusSlot 这条路，不在格子侧另造一套聚焦机制。
+        final session = page.multiPlay;
+        if (target != page) {
+          final index = session.slots.indexOf(target);
+          if (index >= 0) {
+            session.focusSlot(index);
+          }
+        }
         page.enterFullScreen();
       }
     case PlayerActionId.debugInfo:
