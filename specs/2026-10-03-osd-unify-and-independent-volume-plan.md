@@ -210,7 +210,11 @@ git commit -m "feat(multiplay): 音量决策抽成纯函数，压低改为可叠
   - `enum PlayerHost { windowed, fullscreen, smallWindow, tile }`
   - `enum PlayerActionId { refresh, danmakuToggle, danmakuSettings, volume, quality, line, screenshot, pick, scale, smallWindow, fullscreenToggle, closeTile, share, copyUrl, openApp, debugInfo, autoExit }`
   - `enum PlayerActionTier { core, whenFits, menuOnly }`
-  - `class PlayerAction { PlayerActionId id; String title; PlayerActionTier tier; double slotWidth; bool placeInTopBar; bool rightSide; }`
+  - `class PlayerAction { PlayerActionId id; String title; double slotWidth; bool placeInTopBar; bool rightSide; }`
+    ——**评审后修正（见 ledger `Task 2: Ruling(Important-1)`）**：`tier` 不再是 `PlayerAction` 的字段。
+    声明表里的 tier 会被 `_tierFor` 覆写、无人读，两个真相源；tier 只作为 resolver 的内部判断。
+    同一轮修正还把 `closeTile` 移到 `fullscreenToggle` 之后并置 `rightSide: true`（声明顺序＝输出顺序，
+    原顺序会把「关闭这一路」插到音量左边），并清掉 `pick`/`scale` 上多余的 `placeInTopBar`。
   - `class PlayerActionLayout { List<PlayerAction> bar; List<PlayerAction> overflow; bool hasOverflow; }`
   - `PlayerActionLayout resolvePlayerActions({required PlayerHost host, required double availableWidth, bool isVertical = false, bool canCloseTile = false, bool hasQuality = true, bool hasLine = true})`
   - `const double kOverflowButtonWidth = 40;`
@@ -1184,7 +1188,7 @@ git commit -m "feat(player): 动作执行层与 ⋮ 抽屉、选台锚定浮层
 - Consumes: `LiveRoomController.volumeFactor` / `muted` / `toggleMute()` / `nudgeVolumeFactor(double)`（`live_room_controller.dart:109-137`）、`AppSettingsController.playerVolume` / `playerMaxVolume` / `setPlayerVolume(double)`、`MultiPlaySession.applyVolumes()`
 - Produces:
   - `class VolumeTarget { VolumeTarget.master(LiveRoomController page) / VolumeTarget.tile(LiveRoomController tile); double get value; double get maxValue; String get label; void setValue(double); void nudge(double); void toggleMute(); }`
-  - `class VolumeActionWidget extends StatelessWidget { VolumeActionWidget({required VolumeTarget target, required ButtonStyle style, double iconSize = 24, bool floatPopover = false, VoidCallback? onInteract}) }`
+  - `class VolumeActionWidget extends StatelessWidget { VolumeActionWidget({required VolumeTarget target, required ButtonStyle style, double iconSize = 24, bool overlayPopover = false, VoidCallback? onInteract}) }`
 
 - [ ] **Step 1: 写 `VolumeTarget`**
 
@@ -1265,7 +1269,7 @@ class VolumeTarget {
 ///
 /// 滑条是**同一个 `MouseRegion` 的孩子**，不能飘出去用 `SmartDialog`：飘出去就不在
 /// hover 区内，指针移到滑条上会触发 `onExit`，滑条立刻消失、根本拖不动。
-/// [floatPopover] 为 true 时（格子宿主）滑条浮在按钮上方、向左上展开，
+/// [overlayPopover] 为 true 时（格子宿主）滑条浮在按钮上方、向左上展开，
 /// 因为格子胶囊只有 240px 宽，行内展开会把旁边的昵称挤成省略号；
 /// 条带宿主用行内展开（向左长，右侧那簇不动，Expanded 吃掉宽度），零位移。
 class VolumeActionWidget extends StatefulWidget {
@@ -1274,14 +1278,14 @@ class VolumeActionWidget extends StatefulWidget {
     required this.target,
     required this.style,
     this.iconSize = 24,
-    this.floatPopover = false,
+    this.overlayPopover = false,
     this.onInteract,
   });
 
   final VolumeTarget target;
   final ButtonStyle style;
   final double iconSize;
-  final bool floatPopover;
+  final bool overlayPopover;
   final VoidCallback? onInteract;
 
   static const double _step = 0.05;
@@ -1385,7 +1389,7 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
               widget.target.toggleMute();
             },
           );
-          if (widget.floatPopover) {
+          if (widget.overlayPopover) {
             return Stack(
               clipBehavior: Clip.none,
               children: [
@@ -1792,7 +1796,7 @@ Widget buildPlayerActionItem({
           target: host == PlayerHost.tile ? VolumeTarget.tile(target) : VolumeTarget.master(page),
           style: _iconStyle,
           iconSize: iconSize,
-          floatPopover: host == PlayerHost.tile,
+          overlayPopover: host == PlayerHost.tile,
           onInteract: onInteract,
         );
       case PlayerActionId.closeTile:
