@@ -827,22 +827,32 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                         },
                       ),
                     ),
-                    AppStyle.divider,
-                    Obx(
-                      () => SettingsNumber(
-                        title: "非聚焦音量",
-                        value: (AppSettingsController.instance.multiPlayDuckVolume.value * 100).round(),
-                        min: 0,
-                        max: 100,
-                        step: 5,
-                        unit: "%",
-                        onChanged: (e) {
-                          AppSettingsController.instance.setMultiPlayDuckVolume(e / 100);
-                          // 设置只落盘，正在跑的四路要重下一次音量
-                          controller.multiPlay.applyVolumes();
-                        },
-                      ),
-                    ),
+                    // 比例那行只在压低开着时出现：`SettingsNumber` 没有 disabled 态，
+                    // 关着还摆在那儿是「可编辑但不生效」的假供应——按项目里
+                    // 「空集合不显示」的规矩，直接不渲染比灰掉更诚实。
+                    Obx(() {
+                      if (!AppSettingsController.instance.multiPlayDuckEnabled.value) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        children: [
+                          AppStyle.divider,
+                          SettingsNumber(
+                            title: "非聚焦音量",
+                            value: (AppSettingsController.instance.multiPlayDuckVolume.value * 100).round(),
+                            min: 0,
+                            max: 100,
+                            step: 5,
+                            unit: "%",
+                            onChanged: (e) {
+                              AppSettingsController.instance.setMultiPlayDuckVolume(e / 100);
+                              // 设置只落盘，正在跑的四路要重下一次音量
+                              controller.multiPlay.applyVolumes();
+                            },
+                          ),
+                        ],
+                      );
+                    }),
                     AppStyle.divider,
                     Obx(
                       () => SettingsSwitch(
@@ -1044,8 +1054,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       );
       showActionMenu(
         title: "更多",
-        // availableWidth 给足时 bar 里只剩 core 件，页级菜单要的是「条带放不下的那些」，
-        // 所以这里列全集，让用户从一处就能直达。
+        // 页级菜单列**全集**（bar + overflow），当直达入口用——它不是「条带放不下的
+        // 那些」那份子集；锚定件（pick/volume）由 showActionMenu 内部的
+        // actionableMenuItems 滤掉（抽屉里点了没反应），其余每项都在。
         items: [...layout.bar, ...layout.overflow],
         onSelect: (id) => invokePlayerAction(
           target: room,
