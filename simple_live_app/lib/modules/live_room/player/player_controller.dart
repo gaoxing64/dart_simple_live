@@ -24,6 +24,7 @@ import 'package:simple_live_app/app/custom_throttle.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
+import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -440,35 +441,23 @@ mixin PlayerStateMixin on PlayerMixin {
   }
 
   void updateScaleMode() {
-    var boxFit = BoxFit.contain;
-    double? aspectRatio;
-    if (player.state.width != null && player.state.height != null) {
-      aspectRatio = player.state.width! / player.state.height!;
-    }
-
-    if (AppSettingsController.instance.scaleMode.value == 0) {
-      boxFit = BoxFit.contain;
-    } else if (AppSettingsController.instance.scaleMode.value == 1) {
-      boxFit = BoxFit.fill;
-    } else if (AppSettingsController.instance.scaleMode.value == 2) {
-      boxFit = BoxFit.cover;
-    } else if (AppSettingsController.instance.scaleMode.value == 3) {
-      boxFit = BoxFit.contain;
-      aspectRatio = 16 / 9;
-    } else if (AppSettingsController.instance.scaleMode.value == 4) {
-      boxFit = BoxFit.contain;
-      aspectRatio = 4 / 3;
-    } else if (AppSettingsController.instance.scaleMode.value == 5) {
-      boxFit = BoxFit.contain;
-      double aspectByUser = AppSettingsController.instance.aspectByUser.value;
-      aspectRatio = aspectByUser;
-    }
-    // todo: 代码复用
+    final resolved = resolvePlayerFit(effectiveScaleModeForFit());
+    // update() 的 aspectRatio 是 copyWith 语义：null 表示「维持旧值」而不是「解锁」。
+    // 从 16:9/4:3/自定义 切回 适应/拉伸/铺满 时必须把流原始比例传回去才能顶掉锁定
+    // （与原内联实现一致；null 只在 Video 构造参数那一路才等于自动比例）。
+    final aspectRatio = resolved.aspectRatio ??
+        (player.state.width != null && player.state.height != null
+            ? player.state.width! / player.state.height!
+            : null);
     globalPlayerKey.currentState?.update(
       aspectRatio: aspectRatio,
-      fit: boxFit,
+      fit: resolved.fit,
     );
   }
+
+  /// 本实例该用哪个 scaleMode 算 fit：`LiveRoomController` 覆写成「按格覆盖优先」。
+  /// 基类（非直播间控制器）就读全局。
+  int effectiveScaleModeForFit() => AppSettingsController.instance.scaleMode.value;
 }
 mixin PlayerDanmakuMixin on PlayerStateMixin {
   /// 弹幕控制器

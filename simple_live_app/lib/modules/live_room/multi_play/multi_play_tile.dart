@@ -289,7 +289,9 @@ class MultiPlayTile extends StatelessWidget {
 
   Widget _buildVideo() {
     final settings = AppSettingsController.instance;
-    final fit = resolvePlayerFit();
+    // 订阅本格的覆盖值：它变了这格的外框比例要跟着重建（updateScaleMode 只改 state，
+    // 初始参数不变的话、下一次重建又会回到旧值）。
+    final fit = resolvePlayerFit(tile.effectiveScaleMode);
     return Video(
       key: tile.globalPlayerKey,
       controller: tile.videoController,

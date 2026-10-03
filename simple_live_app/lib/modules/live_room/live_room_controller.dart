@@ -109,6 +109,24 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   /// 让用户能对「这一路」做细调（两路都听得见时把吵的那路再压低；或从静音慢慢加上来）。
   final RxDouble volumeFactor = 1.0.obs;
 
+  /// 这一格的画面尺寸覆盖值；null ＝跟随全局设置。
+  ///
+  /// 会话级、不落盘：格子是临时身份（换台会换房间、关一格就散），存下来下一次
+  /// 对不上号反而更困惑。新加入的一路继承全局设置。
+  /// 自定义比例的宽:高仍然是全局值，按格只覆盖模式。
+  final RxnInt scaleModeOverride = RxnInt();
+
+  int get effectiveScaleMode => scaleModeOverride.value ?? AppSettingsController.instance.scaleMode.value;
+
+  @override
+  int effectiveScaleModeForFit() => effectiveScaleMode;
+
+  /// 由格子的画面尺寸菜单调用：改完立刻下发到这一格的 `Video`。
+  void setTileScaleMode(int mode) {
+    scaleModeOverride.value = mode;
+    updateScaleMode();
+  }
+
   /// 静音前的系数，取消静音时还原。
   double _factorBeforeMute = 1.0;
 
@@ -1059,16 +1077,27 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
 
   void showPlayerSettingsSheet() {
     Utils.showBottomSheet(
-      title: "画面尺寸",
+      // 多开的格子改的是自己那一格，标题要说清楚作用范围，
+      // 否则用户会以为在调整窗。
+      title: isSecondaryTile ? "画面尺寸 · 第${tileSlot + 1}路（仅这一格）" : "画面尺寸",
       child: Obx(
         () => ListView(
           padding: AppStyle.edgeInsetsV12,
           children: [
             RadioGroup(
-              groupValue: AppSettingsController.instance.scaleMode.value,
+              groupValue: effectiveScaleMode,
               onChanged: (e) {
-                AppSettingsController.instance.setScaleMode(e ?? 0);
-                updateScaleMode();
+                final mode = e ?? 0;
+                if (multiPlay.isActive) {
+                  setTileScaleMode(mode);
+                } else {
+                  // 从多开退回单画面时本格可能还留着会话期的覆盖值：既然这次写的是
+                  // 全局设置，就把它一并清掉，否则本格有效值仍被覆盖值主导，
+                  // 单选钮点完会跳回旧值。
+                  scaleModeOverride.value = null;
+                  AppSettingsController.instance.setScaleMode(mode);
+                  updateScaleMode();
+                }
               },
               child: Column(
                 children: [
