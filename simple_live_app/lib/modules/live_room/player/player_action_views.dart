@@ -4,6 +4,7 @@ import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
+import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
 import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
 
 /// 动作 id → 真实调用。
@@ -23,15 +24,20 @@ void invokePlayerAction({
     case PlayerActionId.danmakuToggle:
       target.showDanmakuState.value = !target.showDanmakuState.value;
     case PlayerActionId.danmakuSettings:
-      target.showDanmuSettingsSheet();
+      // 清单类弹层在桌面统一开成右侧抽屉（spec §3）。`invokePlayerAction` 只有
+      // 桌面宿主会调到（移动端被平台门短路在原有代码路径里，不进这套模型），
+      // 所以这里不必按平台分支。竖屏主播在这些实现内部落回底部抽屉——沿用
+      // `showQualitesInfo` 改造前就有的兜底口径，本次保留：竖屏画面窄，右侧
+      // 抽屉会盖住直播内容。
+      showDanmakuSettings(target);
     case PlayerActionId.screenshot:
       target.saveScreenshot();
     case PlayerActionId.quality:
-      target.showQualitySheet();
+      showQualitesInfo(target);
     case PlayerActionId.line:
-      target.showPlayUrlsSheet();
+      showLinesInfo(target);
     case PlayerActionId.scale:
-      target.showPlayerSettingsSheet();
+      showScaleModeInfo(target);
     case PlayerActionId.smallWindow:
       // 小窗态下同一个位置的动作是「退出小窗」，由 renderer 换 title，这里只看状态。
       // WHY 旗标读 page 而不是 target：这两面旗标只被「调用的接收者」写

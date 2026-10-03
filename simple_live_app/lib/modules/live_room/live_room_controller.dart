@@ -1041,73 +1041,83 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     );
   }
 
-  void showPlayerSettingsSheet() {
-    Utils.showBottomSheet(
-      // 多开的格子改的是自己那一格，标题要说清楚作用范围，
-      // 否则用户会以为在调整窗。
-      // 标题与作用范围必须用**同一个谓词**（multiPlay.isActive，即下方写入分支的判据）：
-      // 主格在多开期间也是槽位、也只改本格（isSecondaryTile=false 却 isActive=true），
-      // 若按 isSecondaryTile 定标题，主格会显示「全局」字样却做按格的事。
-      title: multiPlay.isActive
-          ? "画面尺寸 · 第${tileSlot + 1}路（仅这一格）"
-          : "画面尺寸",
-      child: Obx(
-        () => ListView(
-          padding: AppStyle.edgeInsetsV12,
+  /// 「画面尺寸」弹层的标题：按格生效时必须标出作用范围（spec §6）。
+  ///
+  /// 标题与作用范围必须用**同一个谓词**（multiPlay.isActive，即下方写入分支的判据）：
+  /// 主格在多开期间也是槽位、也只改本格（isSecondaryTile=false 却 isActive=true），
+  /// 若按 isSecondaryTile 定标题，主格会显示「全局」字样却做按格的事。
+  String get scaleModeSheetTitle => multiPlay.isActive
+      ? "画面尺寸 · 第${tileSlot + 1}路（仅这一格）"
+      : "画面尺寸";
+
+  /// 「画面尺寸」单选列表本体：底部抽屉（移动）与右侧抽屉（桌面）共用这一份。
+  ///
+  /// WHY 共用而不是两处各写一份：两个容器之间唯一的差别本来是容器本身，可按格
+  /// 写入逻辑（Task 7 修的：`multiPlay.isActive` 时走 `setTileScaleMode`）却只长在
+  /// 底部抽屉那一份里——右侧那份照旧写全局，会把本格刚设好的覆盖值顶掉，同一个
+  /// 动作在两种宿主下做出两种结果。清单收在一处，这类分叉才写不出来。
+  Widget buildScaleModeRadioList() {
+    return Obx(
+      () => RadioGroup(
+        groupValue: effectiveScaleMode,
+        onChanged: (e) {
+          final mode = e ?? 0;
+          if (multiPlay.isActive) {
+            setTileScaleMode(mode);
+          } else {
+            // 从多开退回单画面时本格可能还留着会话期的覆盖值：既然这次写的是
+            // 全局设置，就把它一并清掉，否则本格有效值仍被覆盖值主导，
+            // 单选钮点完会跳回旧值。
+            scaleModeOverride.value = null;
+            AppSettingsController.instance.setScaleMode(mode);
+            updateScaleMode();
+          }
+        },
+        child: Column(
           children: [
-            RadioGroup(
-              groupValue: effectiveScaleMode,
-              onChanged: (e) {
-                final mode = e ?? 0;
-                if (multiPlay.isActive) {
-                  setTileScaleMode(mode);
-                } else {
-                  // 从多开退回单画面时本格可能还留着会话期的覆盖值：既然这次写的是
-                  // 全局设置，就把它一并清掉，否则本格有效值仍被覆盖值主导，
-                  // 单选钮点完会跳回旧值。
-                  scaleModeOverride.value = null;
-                  AppSettingsController.instance.setScaleMode(mode);
-                  updateScaleMode();
-                }
-              },
-              child: Column(
-                children: [
-                  RadioListTile(
-                    value: 0,
-                    title: const Text("适应"),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  RadioListTile(
-                    value: 1,
-                    title: const Text("拉伸"),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  RadioListTile(
-                    value: 2,
-                    title: const Text("铺满"),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  RadioListTile(
-                    value: 3,
-                    title: const Text("16:9"),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  RadioListTile(
-                    value: 4,
-                    title: const Text("4:3"),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  RadioListTile(
-                    value: 5,
-                    title: Obx(() => Text(
-                        "自定义（${AppSettingsController.instance.aspectWidth.value}:${AppSettingsController.instance.aspectHeight.value}）")),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
+            RadioListTile(
+              value: 0,
+              title: const Text("适应"),
+              visualDensity: VisualDensity.compact,
+            ),
+            RadioListTile(
+              value: 1,
+              title: const Text("拉伸"),
+              visualDensity: VisualDensity.compact,
+            ),
+            RadioListTile(
+              value: 2,
+              title: const Text("铺满"),
+              visualDensity: VisualDensity.compact,
+            ),
+            RadioListTile(
+              value: 3,
+              title: const Text("16:9"),
+              visualDensity: VisualDensity.compact,
+            ),
+            RadioListTile(
+              value: 4,
+              title: const Text("4:3"),
+              visualDensity: VisualDensity.compact,
+            ),
+            RadioListTile(
+              value: 5,
+              title: Obx(() => Text(
+                  "自定义（${AppSettingsController.instance.aspectWidth.value}:${AppSettingsController.instance.aspectHeight.value}）")),
+              visualDensity: VisualDensity.compact,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void showPlayerSettingsSheet() {
+    Utils.showBottomSheet(
+      title: scaleModeSheetTitle,
+      child: ListView(
+        padding: AppStyle.edgeInsetsV12,
+        children: [buildScaleModeRadioList()],
       ),
     );
   }

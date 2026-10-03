@@ -1135,72 +1135,41 @@ void showPlayerSettings(LiveRoomController controller) {
   Utils.showRightDialog(
     title: "设置",
     width: 320,
-    child: Obx(
-      () => ListView(
-        padding: AppStyle.edgeInsetsV12,
-        children: [
-          Padding(
-            padding: AppStyle.edgeInsetsH16,
-            child: Text(
-              "画面尺寸",
-              style: Get.textTheme.titleMedium,
-            ),
+    child: ListView(
+      padding: AppStyle.edgeInsetsV12,
+      children: [
+        Padding(
+          padding: AppStyle.edgeInsetsH16,
+          child: Text(
+            "画面尺寸",
+            style: Get.textTheme.titleMedium,
           ),
-          RadioGroup(
-            // 读本格有效值而非全局：横屏全屏对话框在多开期间可达（双击某格进全屏），
-            // 此时控制器可能带着会话级覆盖值，用全局值会让钮显在旧档、点完画面不动。
-            groupValue: controller.effectiveScaleMode,
-            onChanged: (e) {
-              // 这里写的是全局设置：一并清掉本控制器可能残留的会话级覆盖值，
-              // 否则 effectiveScaleMode 仍被覆盖值主导，钮跳回旧档、成为死点击。
-              controller.scaleModeOverride.value = null;
-              AppSettingsController.instance.setScaleMode(e ?? 0);
-              controller.updateScaleMode();
-            },
-            child: Column(
-              children: [
-                RadioListTile(
-                  value: 0,
-                  contentPadding: AppStyle.edgeInsetsH4,
-                  title: const Text("适应"),
-                  visualDensity: VisualDensity.compact,
-                ),
-                RadioListTile(
-                  value: 1,
-                  contentPadding: AppStyle.edgeInsetsH4,
-                  title: const Text("拉伸"),
-                  visualDensity: VisualDensity.compact,
-                ),
-                RadioListTile(
-                  value: 2,
-                  contentPadding: AppStyle.edgeInsetsH4,
-                  title: const Text("铺满"),
-                  visualDensity: VisualDensity.compact,
-                ),
-                RadioListTile(
-                  value: 3,
-                  contentPadding: AppStyle.edgeInsetsH4,
-                  title: const Text("16:9"),
-                  visualDensity: VisualDensity.compact,
-                ),
-                RadioListTile(
-                  value: 4,
-                  contentPadding: AppStyle.edgeInsetsH4,
-                  title: const Text("4:3"),
-                  visualDensity: VisualDensity.compact,
-                ),
-                RadioListTile(
-                  value: 5,
-                  contentPadding: AppStyle.edgeInsetsH4,
-                  title: Obx(() => Text(
-                      "自定义（${AppSettingsController.instance.aspectWidth.value}:${AppSettingsController.instance.aspectHeight.value}）")),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        // 单选列表本体与底部抽屉共用 controller 那一份（含 Task 7 的按格写入）：
+        // 这里原先自己写了一份「只写全局」的 RadioGroup，多开中从这条路径进来
+        // 会把刚设好的按格覆盖顶掉。
+        controller.buildScaleModeRadioList(),
+      ],
+    ),
+  );
+}
+
+/// 桌面「画面尺寸」动作的右侧抽屉（spec §3：清单类弹层统一成右侧抽屉）。
+///
+/// 竖屏主播落回底部抽屉——与 `showQualitesInfo` 改造前就有的兜底同一口径：
+/// 竖屏画面又窄又高，右侧抽屉会盖住直播内容，底部抽屉从下方升起来不挡脸。
+/// 这条兜底本次保留，不改成右侧。
+void showScaleModeInfo(LiveRoomController controller) {
+  if (controller.isVertical.value) {
+    controller.showPlayerSettingsSheet();
+    return;
+  }
+  Utils.showRightDialog(
+    title: controller.scaleModeSheetTitle,
+    width: 320,
+    child: ListView(
+      padding: AppStyle.edgeInsetsV12,
+      children: [controller.buildScaleModeRadioList()],
     ),
   );
 }
