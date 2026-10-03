@@ -385,7 +385,10 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   Widget buildMediaPlayer() {
-    final fit = resolvePlayerFit();
+    // 读本格**有效**的画面尺寸（按格覆盖优先，否则全局）：`updateScaleMode()`、
+    // `MultiPlaySession.tileAspect()` 用的都是有效值，这里若读全局，三方就各说各话——
+    // 带着按格覆盖进单画面时，`Video` 的初始参数会静默把画面翻回全局档（下次重建生效）。
+    final fit = resolvePlayerFit(controller.effectiveScaleMode);
     return Stack(
       children: [
         Video(

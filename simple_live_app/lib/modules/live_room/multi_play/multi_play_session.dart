@@ -219,7 +219,7 @@ class MultiPlaySession {
     }
   }
 
-  /// 摘掉指定下标的格子并收尾（焦点校正 / 音量 / 窗口下限）。
+  /// 摘掉指定下标的格子并收尾（焦点校正 / 音量 / 画面尺寸收口 / 窗口下限）。
   void _dropTile(int index) {
     final tile = slots[index];
     slots.removeAt(index);
@@ -230,7 +230,29 @@ class MultiPlaySession {
       remainingLength: slots.length,
     );
     applyVolumes();
+    _clearScaleModeOverridesWhenIdle();
     refreshWindowFloor();
+  }
+
+  /// 会话不再以多开形态呈现时，清掉留下来的每一路按格画面尺寸覆盖。
+  ///
+  /// WHY 收在这一处、而不是散在三个调用点：`scaleModeOverride` 的语义是
+  /// 「这一格的临时选择」（会话级、不落盘）；一路不再是「一格」（关掉多开 / 关到
+  /// 只剩主格）之后，再持有这个临时值就没有身份可归属——主格若留着它，单画面会
+  /// 带着「第 2 路选的铺满」继续播，而设置面板显示「适应」，下一次 `Video` 重建
+  /// 还静默换画面。`setEnabled(false)`→`closeAllTiles` 与逐格 `removeTile` 全部
+  /// 汇入 `_dropTile`，所以这一处就是「会话不再 active」的唯一漏斗。
+  void _clearScaleModeOverridesWhenIdle() {
+    if (isActive) {
+      return;
+    }
+    for (final tile in slots) {
+      if (tile.scaleModeOverride.value != null) {
+        tile.scaleModeOverride.value = null;
+        // 清完必须按全局设置重下发一次：已经建好的那路 Video 还带着旧覆盖值。
+        tile.updateScaleMode();
+      }
+    }
   }
 
   /// 切换聚焦格。切焦点不销毁任何一路：所有播放器、弹幕 WS、Rust 面具都继续跑。

@@ -692,8 +692,11 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   Future<void> _captureNormalGeometry() async {
     // 只有「控制器认为自己已经回到窗口态」时才允许重采。
     // 单看标志不够：存在绕过 exitFull 的 OS 退全屏（main.dart 的鼠标第四键直接
-    // setFullScreen(false) 就 return，不通知控制器），那时标志会永久停在 true 上，
-    // 之后每次 窗口→全屏 / 窗口→小窗 都提前返回，还原点再也更新不了。
+    // setFullScreen(false) 就 return，不通知控制器），那时标志与 fullScreenState
+    // 都停在 true——暴露的是**一代过期**：ghost 全屏期间若改过窗口大小，下一次
+    // 进全屏的 re-capture 会被这道守卫挡掉，还原点仍是改大小之前那份。
+    // 不会永久卡死：exitFull 与 exitSmallWindow 两个消费点都会把标志清回 false，
+    // 走过任意一条正常退出路径后重采就恢复。
     if (_normalGeometryCaptured &&
         (fullScreenState.value || smallWindowState.value)) {
       return;
@@ -712,8 +715,12 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   }
 
   /// 当前应锁定的「widget 实际显示比例」（与 buildMediaPlayer 的 scaleMode 语义一致）。
+  ///
+  /// 走 `effectiveScaleModeForFit()` 而不是直读全局：PiP 锁定的必须正是画面上
+  /// 在播的比例；`LiveRoomController` 会把它覆写成「按格覆盖优先」，读全局时
+  /// 带着按格覆盖进小窗会锁错外框（与 `tileAspect()`/`updateScaleMode` 同一口径）。
   double _currentDisplayAspect() => PipAspectCalculator.resolveDisplayAspect(
-        scaleMode: AppSettingsController.instance.scaleMode.value,
+        scaleMode: effectiveScaleModeForFit(),
         aspectByUser: AppSettingsController.instance.aspectByUser.value,
         videoWidth: player.state.width?.toDouble(),
         videoHeight: player.state.height?.toDouble(),
