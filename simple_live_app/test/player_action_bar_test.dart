@@ -6,12 +6,23 @@
 // 0 再溢出（RenderFlex overflow）。溢出正是「大窗口看不见、把窗口缩小才炸」的那类
 // bug，所以用例钉在**最小合法格宽**上，动作切片用 tile 宿主真实的那一份。
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
+
+/// 跳过本地存储（Hive 在 widget test 的 fake-async 环境下不可用）。
+/// windowed 宿主的音量颗绑的是总音量（`VolumeTarget.master`），构建时要读
+/// `AppSettingsController.instance.playerVolume/playerMaxVolume`。
+class _FakeSettings extends AppSettingsController {
+  @override
+  // ignore: must_call_super
+  Future<void> onInit() async {}
+}
 
 /// 与 `player_volume_action_test.dart` 同一套替身：音量与状态读写走真实现，只把
 /// 「下发给 mpv」空掉——widget test 里没有原生播放器，碰 `player` 会去加载动态库。
@@ -47,6 +58,15 @@ Widget _buildInfoPillStandIn() {
 }
 
 void main() {
+  setUp(() {
+    Get.testMode = true;
+    Get.put<AppSettingsController>(_FakeSettings());
+  });
+
+  tearDown(() {
+    Get.reset();
+  });
+
   testWidgets('格子最小宽度 224 可用：紧凑密度胶囊不溢出', (tester) async {
     final tile = _FakeTile();
     // 与格子调用点同一片：tile 宿主的 core 件平铺、其余进 ⋮；pick 由信息胶囊渲染，

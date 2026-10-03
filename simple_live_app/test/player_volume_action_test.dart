@@ -6,7 +6,9 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
@@ -27,7 +29,31 @@ class _FakeTile extends LiveRoomController {
   Future<void> applyTargetVolume() async {}
 }
 
+/// 跳过本地存储（Hive 在 widget test 的 fake-async 环境下不可用）。
+/// 单播放宿主的音量颗绑总音量，构建时要读 `AppSettingsController.instance`。
+class _FakeSettings extends AppSettingsController {
+  @override
+  // ignore: must_call_super
+  Future<void> onInit() async {}
+}
+
+/// 单播放宿主（页面主格）的替身，同样只空掉「下发给 mpv」。
+class _FakeMaster extends LiveRoomController {
+  _FakeMaster() : super(pSite: Sites.allSites.values.first, pRoomId: "r0");
+
+  @override
+  Future<void> applyTargetVolume() async {}
+}
+
 void main() {
+  setUp(() {
+    Get.testMode = true;
+    Get.put<AppSettingsController>(_FakeSettings());
+  });
+
+  tearDown(() {
+    Get.reset();
+  });
   testWidgets('鼠标从按钮移到浮层滑条上：滑条不消失，拖得动这一路',
       (tester) async {
     final tile = _FakeTile();
@@ -97,5 +123,38 @@ void main() {
     await gesture.moveTo(Offset(buttonRect.right + 80, buttonRect.bottom + 80));
     await tester.pump(const Duration(milliseconds: 300));
     expect(slider, findsNothing, reason: '按钮与浮层都离开后应当收起');
+  });
+
+  testWidgets('总音量拖到 0：图标显示 volume_off，但写路径一个字不动', (tester) async {
+    final page = _FakeMaster();
+    final settings = AppSettingsController.instance;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.master(page),
+              style: const ButtonStyle(),
+            ),
+          ),
+        ),
+      ),
+    );
+    // 这一路系数 1、总音量 100：volume_up。
+    expect(find.byIcon(Icons.volume_up), findsOneWidget);
+    // 显示侧读合并：总音量拖到 0 时用户听到的是无声，图标不能还说「这一路没静音」。
+    settings.playerVolume.value = 0.0;
+    await tester.pump();
+    expect(
+      find.byIcon(Icons.volume_off),
+      findsOneWidget,
+      reason: '总音量为 0 时图标必须说实话',
+    );
+    // 但这一读**不是**第二条音量权威：什么都没被写过。
+    expect(page.volumeFactor.value, 1.0, reason: '显示判定不落任何写');
+    // 拖回去，图标自己回来。
+    settings.playerVolume.value = 100.0;
+    await tester.pump();
+    expect(find.byIcon(Icons.volume_up), findsOneWidget);
   });
 }
