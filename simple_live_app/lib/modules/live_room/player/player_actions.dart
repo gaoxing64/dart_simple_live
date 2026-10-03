@@ -77,6 +77,12 @@ class PlayerActionLayout {
   final List<PlayerAction> bar;
   final List<PlayerAction> overflow;
 
+  /// 有没有被收纳的项。
+  ///
+  /// 现在只被 `test/player_action_set_test.dart` 的收纳断言使用——renderer 那颗 `⋮`
+  /// 的可见性问的是「抽屉里到底有几行」（`actionableMenuItems`，见
+  /// `player_action_views.dart`），和「overflow 非空」是两个问题。**不要当死代码删**：
+  /// 它是测试表达「沉下去的东西还在」这语义的入口。
   bool get hasOverflow => overflow.isNotEmpty;
 }
 
@@ -227,14 +233,18 @@ PlayerActionTier _tierFor(
           (id == PlayerActionId.quality || id == PlayerActionId.line)) {
         return PlayerActionTier.menuOnly;
       }
+      // pick（换台）是锚定件：renderer 与 `showActionMenu` 都把它滤出抽屉
+      // （actionableMenuItems——进抽屉就是点了没反应的死行），它一旦因宽度沉进
+      // overflow，窄窗口里就再也没有任何换台入口（桌面窗口化没有长按兜底）。
+      // 锚定那颗本来就是 40px 的按钮槽，与音量同类，按常驻处理。
       return switch (id) {
         PlayerActionId.refresh ||
         PlayerActionId.danmakuToggle ||
+        PlayerActionId.pick ||
         PlayerActionId.volume ||
         PlayerActionId.fullscreenToggle => PlayerActionTier.core,
         PlayerActionId.danmakuSettings ||
         PlayerActionId.screenshot ||
-        PlayerActionId.pick ||
         PlayerActionId.quality ||
         PlayerActionId.line ||
         PlayerActionId.smallWindow => PlayerActionTier.whenFits,

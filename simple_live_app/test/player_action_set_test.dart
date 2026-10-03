@@ -51,6 +51,30 @@ void main() {
       expect(_all(narrow), _all(wide));
       expect(narrow.bar.length, lessThan(wide.bar.length));
     });
+
+    test('锚定件（换台／音量）任何宽度都不沉进 ⋮', () {
+      // pick/volume 会被 `actionableMenuItems` 滤出抽屉（锚定控件进抽屉＝死行），
+      // 它们若因宽度沉进 overflow，窄窗口里就再也没有换台／静音入口。
+      for (final host in [PlayerHost.windowed, PlayerHost.fullscreen]) {
+        for (final width in [0.0, 120.0, 320.0, 400.0, 1200.0]) {
+          final l = resolvePlayerActions(host: host, availableWidth: width);
+          final barIds = l.bar.map((e) => e.id).toSet();
+          expect(
+            barIds,
+            containsAll(<PlayerActionId>{
+              PlayerActionId.pick,
+              PlayerActionId.volume,
+            }),
+            reason: '$host 宽 $width 时锚定件被收进了 ⋮',
+          );
+          expect(
+            l.overflow.map((e) => e.id),
+            isNot(contains(PlayerActionId.pick)),
+            reason: '$host 宽 $width 时 pick 落进了抽屉（渲染不出、点了没反应）',
+          );
+        }
+      }
+    });
   });
 
   group('格子', () {
