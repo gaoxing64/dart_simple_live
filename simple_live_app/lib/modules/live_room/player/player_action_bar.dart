@@ -95,6 +95,11 @@ class PlayerActionBar extends StatelessWidget {
       );
       (action.rightSide ? right : left).add(item);
     }
+    // ⋮ 的可见性问的是「抽屉里到底有几行」，不是「overflow 有几项」：
+    // overflow 可能只装着 pick/volume/closeTile 这三类抽屉里点不动的锚定件，
+    // 那种时候 showActionMenu 会直接 return，画出来的 ⋮ 就是颗死按钮。
+    // 所以两边都用 actionableMenuItems 这同一个判定，不在这儿另抄一份过滤。
+    final menuItems = actionableMenuItems(overflow);
     return Row(
       mainAxisSize: hug ? MainAxisSize.min : MainAxisSize.max,
       children: [
@@ -103,7 +108,7 @@ class PlayerActionBar extends StatelessWidget {
         // 格子那颗胶囊整条走 MainAxisSize.min，由内容自己定宽。
         if (!hug) const Spacer(),
         ...right,
-        if (overflow.isNotEmpty)
+        if (menuItems.isNotEmpty)
           IconButton(
             tooltip: "更多",
             iconSize: iconSize,
@@ -171,25 +176,34 @@ Widget buildPlayerActionItem({
     case PlayerActionId.quality:
     case PlayerActionId.line:
       return Obx(
-        () => TextButton(
-          style: TextButton.styleFrom(
-            textStyle: textStyle,
-            foregroundColor: Colors.white,
-          ),
-          onPressed: () {
-            onInteract?.call();
-            invokePlayerAction(target: target, page: page, id: action.id);
-          },
-          child: Text(
-            action.id == PlayerActionId.quality
-                ? target.currentQualityInfo.value
-                : target.currentLineInfo.value,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: iconSize > 20 ? 15 : 13,
+        () {
+          // 字号随宿主尺寸定（条带 24 用 15，胶囊小图标用 13），颜色固定白。
+          final labelFontSize = iconSize > 20 ? 15.0 : 13.0;
+          return TextButton(
+            style: TextButton.styleFrom(
+              textStyle: textStyle,
+              foregroundColor: Colors.white,
             ),
-          ),
-        ),
+            onPressed: () {
+              onInteract?.call();
+              invokePlayerAction(target: target, page: page, id: action.id);
+            },
+            // ⚠️ 子 Text 的 style 是「整体替换」而不是合并 TextButton 的 textStyle：
+            // `ButtonStyleButton.effectiveValue` 取 `widgetStyle ?? themeStyle ?? defaultStyle`
+            // 的第一份非空（见 live_room_page 里 _toolbarTextStyle 的同一陷阱），所以这里
+            // 只写 color/fontSize 会把 [textStyle] 带来的用户字族丢掉，清晰度／线路
+            // 就与同屏其它文字对不上。以 [textStyle] 为底再覆盖颜色字号，字族才留得住。
+            child: Text(
+              action.id == PlayerActionId.quality
+                  ? target.currentQualityInfo.value
+                  : target.currentLineInfo.value,
+              style: (textStyle ?? const TextStyle()).copyWith(
+                color: Colors.white,
+                fontSize: labelFontSize,
+              ),
+            ),
+          );
+        },
       );
     case PlayerActionId.pick:
       return FollowPickButton(

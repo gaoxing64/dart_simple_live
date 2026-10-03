@@ -71,29 +71,40 @@ void invokePlayerAction({
   }
 }
 
+/// `⋮` 抽屉真正会列出来的行。
+///
+/// **[items] 与抽屉内容之间的唯一判定**：`pick`/`volume` 是锚定控件、`closeTile` 需要
+/// 格子的 index，三类在 `invokePlayerAction` 里刻意是 no-op（见那里的注释），放进抽屉
+/// 就是「看得见、点了没反应」的死行，所以要滤掉。
+///
+/// WHY 对外暴露：条带上的 `⋮` 按钮和 `showActionMenu` 必须用同一个问句决定「有没有东西可看」。
+/// 各自判一次就会分叉——窄窗口把 `pick` 挤进 overflow 时，`overflow.isNotEmpty` 为真、
+/// 滤完为空，于是画出一颗点了什么都不发生的 `⋮`。可见性用这个函数算，两处永不打架。
+List<PlayerAction> actionableMenuItems(List<PlayerAction> items) {
+  return items
+      .where(
+        (item) =>
+            item.id != PlayerActionId.pick &&
+            item.id != PlayerActionId.volume &&
+            item.id != PlayerActionId.closeTile,
+      )
+      .toList();
+}
+
 /// `⋮` 的内容：桌面右侧抽屉，按清单顺序列出「图标 + 标题」。
 ///
 /// 抽屉自带返回按钮（`Utils.showRightDialog` 的头），点外部是否关闭沿用现有行为，
 /// 本次不改。移动端不会走到这里（平台门短路）。
 ///
-/// [items] 允许直接把 resolver 的 `layout.overflow` 递进来，所以这里必须自己滤掉
-/// 三类「在抽屉里点不动」的行：`pick`/`volume` 是锚定控件、`closeTile` 需要格子的
-/// index，它们在 `invokePlayerAction` 里刻意是 no-op（见那里的注释）。不滤就渲染出
-/// 一排「看得见、点了没反应」的死行。滤完为空则整颗 `⋮` 不弹，避免只有头的空抽屉。
+/// [items] 允许直接把 resolver 的 `layout.overflow` 递进来，所以行先过
+/// [actionableMenuItems]（滤由它一处定义，与条带那颗 `⋮` 的可见性同源）。
+/// 滤完为空则整颗 `⋮` 不弹，避免只有头的空抽屉。
 void showActionMenu({
   required String title,
   required List<PlayerAction> items,
   required void Function(PlayerActionId) onSelect,
 }) {
-  final rows =
-      items
-          .where(
-            (item) =>
-                item.id != PlayerActionId.pick &&
-                item.id != PlayerActionId.volume &&
-                item.id != PlayerActionId.closeTile,
-          )
-          .toList();
+  final rows = actionableMenuItems(items);
   if (rows.isEmpty) {
     return;
   }

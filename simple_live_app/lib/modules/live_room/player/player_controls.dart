@@ -403,7 +403,6 @@ Widget buildFullControls(
   LiveRoomController controller,
 ) {
   var padding = MediaQuery.of(videoState.context).padding;
-  GlobalKey volumeButtonKey = GlobalKey();
   return buildDragToMoveArea(
     child: Stack(
       children: [
@@ -639,20 +638,6 @@ Widget buildFullControls(
                     ),
                   ),
                   const Expanded(child: Center()),
-                  Visibility(
-                    visible: !Platform.isAndroid && !Platform.isIOS,
-                    child: IconButton(
-                      key: volumeButtonKey,
-                      onPressed: () {
-                        controller.showVolumeSlider(volumeButtonKey.currentContext!);
-                      },
-                      icon: const Icon(
-                        Icons.volume_down,
-                        size: 24,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
                   Tooltip(
                     message: "切换清晰度",
                     child: TextButton(
@@ -812,7 +797,6 @@ Widget buildControls(
   VideoState videoState,
   LiveRoomController controller,
 ) {
-  GlobalKey volumeButtonKey = GlobalKey();
   return Stack(
     children: [
       Container(),
@@ -915,22 +899,6 @@ Widget buildControls(
                   ),
                 ),
                 const Expanded(child: Center()),
-                Visibility(
-                  visible: !Platform.isAndroid && !Platform.isIOS,
-                  child: IconButton(
-                    key: volumeButtonKey,
-                    onPressed: () {
-                      controller.showVolumeSlider(
-                        volumeButtonKey.currentContext!,
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.volume_down,
-                      size: 24,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
                 Offstage(
                   offstage: isPortrait,
                   child: Tooltip(
@@ -964,20 +932,6 @@ Widget buildControls(
                         style:
                             const TextStyle(color: Colors.white, fontSize: 15),
                       ),
-                    ),
-                  ),
-                ),
-                Visibility(
-                  visible: !Platform.isAndroid && !Platform.isIOS,
-                  child: IconButton(
-                    tooltip: "小窗播放",
-                    onPressed: () {
-                      controller.enterSmallWindow();
-                    },
-                    icon: const Icon(
-                      Icons.picture_in_picture,
-                      color: Colors.white,
-                      size: 24,
                     ),
                   ),
                 ),

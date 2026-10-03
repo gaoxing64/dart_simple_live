@@ -962,40 +962,6 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     );
   }
 
-  void showVolumeSlider(BuildContext targetContext) {
-    SmartDialog.showAttach(
-      targetContext: targetContext,
-      alignment: Alignment.topCenter,
-      displayTime: const Duration(seconds: 3),
-      maskColor: const Color(0x00000000),
-      builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: AppStyle.radius12,
-            color: Theme.of(context).cardColor,
-          ),
-          padding: AppStyle.edgeInsetsA4,
-          child: Obx(
-            () => SizedBox(
-              width: 200,
-              child: Slider(
-                min: 0,
-                max: AppSettingsController.instance.playerMaxVolume.value.toDouble(),
-                value: AppSettingsController.instance.playerVolume.value,
-                onChanged: (newValue) {
-                  AppSettingsController.instance.setPlayerVolume(newValue);
-                  // 总音量是唯一的音量权威：开了压低时，非聚焦格按 duck 比例跟着走，
-                  // 所以不能像原来那样只 setVolume 自己这一路。
-                  multiPlay.applyVolumes();
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void showQualitySheet() {
     Utils.showBottomSheet(
       title: "切换清晰度",
