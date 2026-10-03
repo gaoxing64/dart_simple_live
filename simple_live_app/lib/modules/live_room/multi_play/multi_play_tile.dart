@@ -1,25 +1,25 @@
-import 'dart:async';
-
-import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
+import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
+import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
-import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
 
 /// 多开网格里的一格：一路播放 + 它自己的弹幕 + 一条底部信息/控制条。
 ///
 /// 不复用 `playerControls`：那套 OSD 有四十多个控件，摆在 240×135 的格子上既点不中
-/// 也看不清。这里只留小格子上真能用的几件：换台 / 静音 / 全屏 / 刷新·清晰度·线路 / 关闭。
+/// 也看不清。这里只留小格子上真能用的几件，其余收进 `⋮`——清单与桌面条带同源
+/// （`resolvePlayerActions(host: tile)`），渲染也同源（`PlayerActionBar`）：同一个动作
+/// 在格子和在条带里的图标、tooltip、执行路径都是同一份，不会再各写各的分叉。
 /// 完整 OSD 仍然可以从聚焦格双击进全屏后使用。
 ///
 /// 信息与控制分居两角、各用一个**自适应大小的胶囊遮罩**兜住（左下：序号+名字+换台；
-/// 右下：静音/全屏/更多/关闭），中间不画遮罩——早期那版是一条横跨整幅画面的黑条，
+/// 右下：平铺件 + `⋮`），中间不画遮罩——早期那版是一条横跨整幅画面的黑条，
 /// 中间一大段纯装饰，既土又白占画面。整组随网格的显隐一起出现/隐藏，不做常驻。
 class MultiPlayTile extends StatelessWidget {
   const MultiPlayTile({
@@ -98,10 +98,12 @@ class MultiPlayTile extends StatelessWidget {
               },
             ),
           ),
-          // ⚠️ 隐藏时**不能**把这一层从树里摘掉：`PopupMenuButton` 在菜单打开期间若被
-          // unmount，`showButtonMenu` 的 `.then` 里有 `if (!mounted) return null`
-          // （popup_menu.dart），选中的结果会被静默丢弃——表现就是「更多」里的三项和
-          // 换台都点了没反应。所以这里是「常挂 + IgnorePointer + 淡出」，不是条件移除。
+          // ⚠️ 隐藏时**不能**把这一层从树里摘掉：`PopupMenuButton`（信息胶囊里那颗 ▾）
+          // 在菜单打开期间若被 unmount，`showButtonMenu` 的 `.then` 里有
+          // `if (!mounted) return null`（popup_menu.dart），选中的结果会被静默丢弃——
+          // 表现就是换台点了没反应。所以这里是「常挂 + IgnorePointer + 淡出」，
+          // 不是条件移除。音量那颗浮在 Overlay 里的滑条也靠这条活着：胶囊淡掉了，
+          // 它仍在原地可拖（见 `player_volume_action.dart` 的命中测试说明）。
           Positioned(
             left: 8,
             right: 8,
@@ -132,8 +134,11 @@ class MultiPlayTile extends StatelessWidget {
 
   /// 左下角的信息胶囊：`① 主播名 ▾`。
   ///
-  /// 遮罩只包住这一簇；名字用 `Flexible` 兜住（窄格子自动省略号），
-  /// 4×1 那种只有 240 宽的格子也不会溢出。
+  /// 遮罩只包住这一簇；名字用 `Flexible` 兜住（窄格子自动省略号），名字被挤到 0 也还
+  /// 留得住序号牌与 ▾（实测这一簇最小 66 宽）。
+  /// ⚠️ 右下胶囊接 renderer 后实测 184 宽（5 颗 36×36 + 内边距），240 宽的格子
+  /// （`kMultiPlayMinTileWidth`，四路 2×2 把窗口缩到下限正好落在这尺寸）里两条胶囊的
+  /// 最小和已经顶过 Row 的 224——名字会先被挤成 0，再窄就溢出。Task 11 手测盯这条。
   Widget _buildInfoPill(ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.only(left: 6, right: 2),
@@ -160,22 +165,56 @@ class MultiPlayTile extends StatelessWidget {
     );
   }
 
-  /// 右下角的按钮胶囊：静音 / 全屏 / 更多 / 关闭。
+  /// 右下角的按钮胶囊：resolver 给的 tile 切片 + `⋮`，与桌面条带共用 renderer。
+  ///
+  /// `availableWidth` 恒给 infinity：tile 宿主平铺哪几件由 `_tierFor(tile)` 定死
+  /// （core 件平铺、其余恒进 `⋮`），宽度不参与决策。用 `LayoutBuilder` 量实测宽反而是
+  /// 错的——胶囊挂在无界的 Row 里，量到的 `maxWidth` 本来就是 infinity，绕一圈回到同一个
+  /// 值，还多一次布局；换成有界宿主时又会把「按宽度收纳」这条静默打开。
+  ///
+  /// reactive 读取必须落在这个 `Obx` 的同步 builder 里：`qualites`/`playUrls` 是详情
+  /// 加载完才 `assignAll` 的、`isVertical` 也在那时翻转，读在 `Obx` 之外就订阅不上，
+  /// `⋮` 会一直停在「这一路没有清晰度/线路可选」那份旧清单。
   Widget _buildControlsPill() {
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(color: Colors.black54, borderRadius: AppStyle.radius8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _TileVolumeButton(page: page, tile: tile, onInteract: onInteract),
-          _buildFullScreenButton(),
-          _buildMoreButton(),
-          // 主格是页面本身（路由绑定死的那个 controller），销不得：关它等于拆整页
-          if (index > 0) _buildCloseButton(),
-        ],
-      ),
-    );
+    return Obx(() {
+      final layout = resolvePlayerActions(
+        host: PlayerHost.tile,
+        availableWidth: double.infinity,
+        // 能不能关这一格由 resolver 决定（主格是页面本身，销不得），renderer 只接
+        // onCloseTile：closeTile 出现在 bar 里，那颗 ✕ 才会被画出来。
+        canCloseTile: index > 0,
+        hasQuality: tile.qualites.length > 1,
+        hasLine: tile.playUrls.length > 1,
+        isVertical: tile.isVertical.value,
+      );
+      return Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: AppStyle.radius8,
+        ),
+        child: PlayerActionBar(
+          host: PlayerHost.tile,
+          target: tile,
+          page: page,
+          // pick 画在左下信息胶囊里（▾ 紧挨昵称），这里滤掉免得一颗胶囊冒出两颗换台。
+          bar: layout.bar.where((e) => e.id != PlayerActionId.pick).toList(),
+          overflow: layout.overflow,
+          iconSize: 20,
+          // 格子胶囊是无界 Row 的非 flex 孩子：hug 走 MainAxisSize.min，renderer 里
+          // 那颗 `Spacer`（就是 Expanded）在无界宽度下会直接抛错。
+          hug: true,
+          onInteract: onInteract,
+          // renderer 的 closeTile 那条臂只调 onCloseTile、不调 onInteract（它只管画那颗 ✕），
+          // 所以续期在这里补上：旧的格子关闭按钮本来就是「先续期再关」，关掉这一格之后
+          // 指针还在网格里，倒计时得从这次点击重新算。
+          onCloseTile: () {
+            onInteract();
+            page.multiPlay.removeTile(tile);
+          },
+        ),
+      );
+    });
   }
 
   /// 序号圆牌。后面所有「第 N 路」的引用（换台菜单、侧栏跟随提示）都靠它对上号。
@@ -223,67 +262,8 @@ class MultiPlayTile extends StatelessWidget {
       iconSize: 20,
       icon: const Icon(Icons.arrow_drop_down),
       style: _iconStyle,
-      tooltip: "换台",
       // 菜单开着时把网格那几秒倒计时续上，避免底栏（连同这个入口）被隐藏
       onOpened: onInteract,
-    );
-  }
-
-  Widget _buildFullScreenButton() {
-    return IconButton(
-      tooltip: "全屏",
-      style: _iconStyle,
-      iconSize: 20,
-      icon: const Icon(Icons.fullscreen),
-      onPressed: () {
-        onInteract();
-        page.multiPlay.focusSlot(index);
-        if (page.fullScreenState.value) {
-          page.exitFull();
-        } else {
-          page.enterFullScreen();
-        }
-      },
-    );
-  }
-
-  /// 低频动作收进「更多」：刷新 / 切换清晰度 / 切换线路。
-  Widget _buildMoreButton() {
-    return PopupMenuButton<int>(
-      tooltip: "更多",
-      padding: EdgeInsets.zero,
-      iconSize: 20,
-      icon: const Icon(Icons.more_horiz),
-      style: _iconStyle,
-      onOpened: onInteract,
-      itemBuilder: (context) => const [
-        AppPopupMenuItem(value: 1, child: Text("刷新")),
-        AppPopupMenuItem(value: 2, child: Text("切换清晰度")),
-        AppPopupMenuItem(value: 3, child: Text("切换线路")),
-      ],
-      onSelected: (value) {
-        switch (value) {
-          case 1:
-            tile.refreshRoom();
-          case 2:
-            tile.showQualitySheet();
-          case 3:
-            tile.showPlayUrlsSheet();
-        }
-      },
-    );
-  }
-
-  Widget _buildCloseButton() {
-    return IconButton(
-      tooltip: "关闭这一路",
-      style: _iconStyle,
-      iconSize: 20,
-      icon: const Icon(Icons.close),
-      onPressed: () {
-        onInteract();
-        page.multiPlay.removeTile(tile);
-      },
     );
   }
 
@@ -352,108 +332,6 @@ class MultiPlayTile extends StatelessWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// 音量按钮：点一下静音 / 取消静音；**指针悬停在它上面滚动滚轮**可微调这一路的音量。
-///
-/// 只有静音开关是不够用的：静音状态下想「加一点点声音」就无路可走，只能先取消静音再去
-/// 动总音量，而那会连带影响其他路。滚轮改的是这一路自己的音量系数，与可选压低叠加。
-/// 改完在按钮上方浮一个百分比、停 1.2 秒自隐——否则滚轮的改动完全看不见。
-class _TileVolumeButton extends StatefulWidget {
-  const _TileVolumeButton({
-    required this.page,
-    required this.tile,
-    required this.onInteract,
-  });
-
-  final LiveRoomController page;
-  final LiveRoomController tile;
-  final VoidCallback onInteract;
-
-  /// 滚轮一格的步进。
-  static const double _step = 0.05;
-
-  @override
-  State<_TileVolumeButton> createState() => _TileVolumeButtonState();
-}
-
-class _TileVolumeButtonState extends State<_TileVolumeButton> {
-  bool _showingTip = false;
-  Timer? _tipTimer;
-
-  void _showTip() {
-    _tipTimer?.cancel();
-    if (!_showingTip) {
-      setState(() => _showingTip = true);
-    }
-    _tipTimer = Timer(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        setState(() => _showingTip = false);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _tipTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tile = widget.tile;
-    return Listener(
-      // 只在指针停在这个按钮上滚动才动这一路，避免与页面别处的滚轮抢
-      onPointerSignal: (event) {
-        if (event is! PointerScrollEvent) {
-          return;
-        }
-        widget.onInteract();
-        widget.page.multiPlay.nudgeTileVolume(
-          tile,
-          event.scrollDelta.dy > 0 ? -_TileVolumeButton._step : _TileVolumeButton._step,
-        );
-        _showTip();
-      },
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Obx(
-            () => IconButton(
-              tooltip: tile.muted ? "取消静音（悬停滚轮调音量）" : "静音（悬停滚轮调音量）",
-              style: MultiPlayTile._iconStyle,
-              iconSize: 20,
-              icon: Icon(tile.muted ? Icons.volume_off : Icons.volume_up),
-              onPressed: () {
-                widget.onInteract();
-                widget.page.multiPlay.toggleTileMute(tile);
-              },
-            ),
-          ),
-          if (_showingTip)
-            Positioned(
-              right: 0,
-              bottom: 34,
-              child: IgnorePointer(
-                child: Obx(
-                  () => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: AppStyle.radius8,
-                    ),
-                    child: Text(
-                      "${(tile.volumeFactor.value * 100).round()}%",
-                      style: const TextStyle(fontSize: 12, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
