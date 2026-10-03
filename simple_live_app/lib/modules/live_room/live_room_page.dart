@@ -15,6 +15,8 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_grid.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart';
+import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
+import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/services/follow_service.dart';
@@ -1017,10 +1019,40 @@ class LiveRoomPage extends GetView<LiveRoomController> {
 
   /// 房间菜单。
   ///
-  /// 多开时的分工：刷新 / 清晰度 / 线路 / 截图 / 分享 / 链接 / 播放信息都作用于
-  /// 聚焦格（[room]）；定时关闭、小窗、画面尺寸是窗口级或全局设置，恒走页面主格
-  /// （[controller]）——四路各跑一份倒计时或直接 `exit(0)` 是不能接受的。
+  /// 桌面走视频区同一份动作清单（`resolvePlayerActions` + `showActionMenu`），移动端仍
+  /// 是下面那份底部抽屉——移动端不进这套模型，两条分支各管一个平台，内容不再两处各写一份。
+  ///
+  /// 多开时的分工：路由级动作（刷新 / 清晰度 / 线路 / 截图 / 分享 / 链接 / 播放信息，
+  /// 以及可按格独立的画面尺寸）跟着聚焦格（[room]）走；定时关闭、小窗、全屏是窗口级，
+  /// 恒走页面主格（[controller]）——四路各跑一份倒计时或直接 `exit(0)` 是不能接受的。
+  /// 桌面把这条分工交给 `invokePlayerAction` 的 target/page（窗口级只认 page），移动分支
+  /// 逐条写死；多开只在桌面可用（`MultiPlaySession` 按平台门短路），那里 [room] 与
+  /// [controller] 恒为同一个控制器，两支说法一致。
   void showMore() {
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      // 与视频区条带同一份清单：两处内容同源，不再各写一份 ListTile。
+      final layout = resolvePlayerActions(
+        host: PlayerHost.windowed,
+        // 抽屉不受条带宽度约束：给足宽度让全部动作进 overflow 之外的部分也列出来
+        availableWidth: 4000,
+        isVertical: room.isVertical.value,
+        hasQuality: room.qualites.length > 1,
+        hasLine: room.playUrls.length > 1,
+      );
+      showActionMenu(
+        title: "更多",
+        // availableWidth 给足时 bar 里只剩 core 件，页级菜单要的是「条带放不下的那些」，
+        // 所以这里列全集，让用户从一处就能直达。
+        items: [...layout.bar, ...layout.overflow],
+        onSelect: (id) => invokePlayerAction(
+          target: room,
+          page: controller,
+          id: id,
+        ),
+      );
+      return;
+    }
+    // 移动端：原来的底部抽屉清单原样保留（不进模型）。
     showModalBottomSheet(
       context: Get.context!,
       constraints: const BoxConstraints(

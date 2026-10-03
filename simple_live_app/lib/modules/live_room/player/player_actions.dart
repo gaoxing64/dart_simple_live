@@ -7,7 +7,8 @@
 ///
 /// 模型只决定「哪些、在哪」：图标与按下行为归 renderer——弹幕开关用的是 asset
 /// `ImageIcon`、清晰度用的是文字按钮，形态本来就不一律，硬塞进数据类只会更难懂。
-/// 移动端不进这套模型（`playerControls` 与页级「更多」按平台门短路走现有代码）。
+/// 移动端不进这套模型（`playerControls` 恒按平台门短路；页级「更多」只有移动端分支
+/// 短路走原来的底部抽屉，桌面分支与条带共用这份清单）。
 library;
 
 enum PlayerHost { windowed, fullscreen, smallWindow, tile }
@@ -114,13 +115,17 @@ const List<PlayerAction> _kAllActions = [
   ),
   PlayerAction(
     id: PlayerActionId.quality,
-    title: "清晰度",
+    // ⚠️ title 写「切换清晰度」而不是「清晰度」：这个 title 只在 `⋮`／页级「更多」抽屉里
+    // 露出来（条带上这两颗是文字按钮，画的是当前清晰度/线路名，见 buildPlayerActionItem），
+    // 而点开的那两个弹层标题本来就叫「切换清晰度」/「切换线路」。清单同源之后两处共用
+    // 同一个 title，取用户熟悉已久的那份措辞，不让「合流」顺手把菜单文案改短。
+    title: "切换清晰度",
     slotWidth: 56,
     rightSide: true,
   ),
   PlayerAction(
     id: PlayerActionId.line,
-    title: "线路",
+    title: "切换线路",
     slotWidth: 56,
     rightSide: true,
   ),

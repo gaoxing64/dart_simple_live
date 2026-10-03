@@ -230,7 +230,7 @@ Widget _buildDesktopFullControls(
                     if (controller.lockControlsState.value) {
                       return;
                     }
-                    // 长按＝选台：长按没有按钮可锚，所以保留右侧抽屉形态（与顶栏那颗
+                    // 长按＝换台：长按没有按钮可锚，所以保留右侧抽屉形态（与顶栏那颗
                     // 同源的列表，见 showFollowUser）；条带/胶囊里的换台才是锚定浮层。
                     showFollowUser(controller);
                   },

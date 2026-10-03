@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 
 Set<PlayerActionId> _all(PlayerActionLayout l) => {
@@ -20,7 +21,7 @@ void main() {
       expect(_all(w), _all(f));
     });
 
-    test('截图／选台／画面尺寸／小窗在窗口化与全屏都必须在场', () {
+    test('截图／换台／画面尺寸／小窗在窗口化与全屏都必须在场', () {
       for (final host in [PlayerHost.windowed, PlayerHost.fullscreen]) {
         final ids = _all(
           resolvePlayerActions(host: host, availableWidth: 1200),
@@ -82,7 +83,7 @@ void main() {
       );
     });
 
-    test('格子平铺 core 五件（含 ▾ 选台），低频动作全在 ⋮ 里', () {
+    test('格子平铺 core 五件（含 ▾ 换台），低频动作全在 ⋮ 里', () {
       final l = resolvePlayerActions(
         host: PlayerHost.tile,
         availableWidth: 240,
@@ -200,6 +201,60 @@ void main() {
         reason: '右簇为空，该断言失去意义',
       );
       expect(lastLeftIndex, lessThan(firstRightIndex));
+    });
+  });
+
+  group('页级「更多」', () {
+    // `live_room_page.showMore` 的桌面分支把 `[...bar, ...overflow]` 整份递给
+    // `showActionMenu`，抽屉真正列出的行由 `actionableMenuItems` 这一处判定。钉三条：
+    // ① 内容＝全集（页级菜单是直达入口，不受条带宽度约束）；
+    // ② 每个动作只一行——页级菜单原先那颗「小窗播放」包着 `Visibility(Platform.isAndroid)`
+    //    被隐藏、视频区条带另给一份，同源后两份都要来自同一个清单，必须只剩一行；
+    // ③ 抽屉里没有死行（`pick`/`volume` 是锚定控件，进抽屉就是点了没反应）。
+    test('给足宽度时抽屉列出全集，且每个动作只一行', () {
+      final l = resolvePlayerActions(
+        host: PlayerHost.windowed,
+        availableWidth: 4000,
+      );
+      final rows = actionableMenuItems([...l.bar, ...l.overflow]);
+      expect(rows.map((e) => e.id).toList(), [
+        PlayerActionId.refresh,
+        PlayerActionId.danmakuToggle,
+        PlayerActionId.danmakuSettings,
+        PlayerActionId.screenshot,
+        PlayerActionId.quality,
+        PlayerActionId.line,
+        PlayerActionId.smallWindow,
+        PlayerActionId.fullscreenToggle,
+        PlayerActionId.scale,
+        PlayerActionId.debugInfo,
+        PlayerActionId.autoExit,
+        PlayerActionId.share,
+        PlayerActionId.copyUrl,
+        PlayerActionId.openApp,
+      ]);
+      expect(
+        rows.where((e) => e.id == PlayerActionId.smallWindow).length,
+        1,
+        reason: '桌面「小窗播放」只能有一个入口',
+      );
+      // 原页级菜单的措辞一字不改地保留：合流只换清单来源，不换文案。
+      expect(rows.map((e) => e.title).toList(), [
+        "刷新",
+        "弹幕",
+        "弹幕设置",
+        "截图",
+        "切换清晰度",
+        "切换线路",
+        "小窗播放",
+        "全屏",
+        "画面尺寸",
+        "播放信息",
+        "定时关闭",
+        "分享直播间",
+        "复制链接",
+        "APP 中打开",
+      ]);
     });
   });
 
