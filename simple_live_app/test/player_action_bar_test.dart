@@ -14,6 +14,7 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
+import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
 
 /// 跳过本地存储（Hive 在 widget test 的 fake-async 环境下不可用）。
 /// windowed 宿主的音量颗绑的是总音量（`VolumeTarget.master`），构建时要读
@@ -137,6 +138,61 @@ void main() {
     // 断言应当一起变红）。
     expect(find.byType(IconButton), findsNWidgets(5));
     expect(tester.getSize(find.byType(PlayerActionBar)).width, 150);
+  });
+
+  // 条带的结构承诺是「左簇贴左、右簇贴右、余量归中间那道空」（`Spacer` 的语义）。
+  // 清晰度／线路包 `Flexible` 时漏了 `fit`：`Flexible` 默认 **tight**（等价 Expanded），
+  // 于是两颗文字按钮和 `Spacer` 平分余量，右簇被顶到条带中段——作者 2026-10-03 手测
+  // 就是报的这个（截图里音量／原画／线路1／全屏挤在中间，右边空一大片）。
+  // 所以这里钉的是**位置**，不是「没溢出」（溢出由下面那条窄窗口用例钉）。
+  testWidgets('宽窗口化条带：左簇贴左、右簇贴右，文字按钮不吃掉中间余量', (tester) async {
+    final tile = _FakeTile();
+    tile.currentQualityInfo.value = "原画";
+    tile.currentLineInfo.value = "线路1";
+    final layout = resolvePlayerActions(
+      host: PlayerHost.windowed,
+      availableWidth: 900,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 900,
+              child: PlayerActionBar(
+                host: PlayerHost.windowed,
+                target: tile,
+                page: tile,
+                bar: layout.bar,
+                overflow: layout.overflow,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    final barRect = tester.getRect(find.byType(PlayerActionBar));
+    // 右簇最后一颗＝全屏颗（windowed 宿主的 `⋮` 归顶簇，底栏不画）。
+    expect(
+      tester.getRect(find.byTooltip("全屏播放")).right,
+      moreOrLessEquals(barRect.right, epsilon: 0.5),
+      reason: '右簇必须贴到条带右端，余量留在左右簇之间',
+    );
+    expect(
+      tester.getRect(find.byTooltip("刷新")).left,
+      moreOrLessEquals(barRect.left, epsilon: 0.5),
+      reason: '左簇贴左端',
+    );
+    // 左右簇之间那道空是真的空：音量颗（右簇第一颗）离左簇末端远大于按钮间距。
+    expect(
+      tester.getRect(find.byType(VolumeActionWidget)).left -
+          tester.getRect(find.byTooltip("弹幕设置")).right,
+      greaterThan(300),
+    );
   });
 
   // 桌面条带（windowed 宿主）的收纳预算给清晰度／线路各 56px（`player_actions.dart`

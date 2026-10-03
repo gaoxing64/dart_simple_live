@@ -107,15 +107,19 @@ class PlayerActionBar extends StatelessWidget {
   /// false＝窗口化／全屏整幅底栏，保留 `Spacer` 把左右簇推向两端。
   final bool hug;
 
-  /// 底栏那一行：左簇 → `Spacer` → 右簇 → `⋮`（仅无顶栏的宿主）。
+  /// 底栏那一行：左簇 → 余量 → 右簇（末尾是 `⋮`，仅无顶栏的宿主画它）。
   ///
   /// 右上那一簇不由这里渲染：它要跟着返回键与标题排在同一条顶栏里（标题是容器结构
   /// 不是动作，见 spec §8 的建模口径），由 `player_controls.dart` 拿
   /// [playerTopClusterItems] + [PlayerOverflowButton] 自己拼——两处共用同两个部件，
   /// `⋮` 的判定只此一份。
   ///
-  /// `Spacer()` 而不是 `Expanded(child: Center())`：resolver 已经把左右簇分好，
-  /// `Spacer` 吃掉余量即可，且不会像 flex 那样先分掉一半宽度。
+  /// WHY 右簇整体套 `Expanded` 而不是老写法 `[...left, Spacer(), ...right]`：
+  /// 清晰度／线路是**内容驱动宽度**的文字按钮，窄窗口里要能收缩（下面包 `Flexible`），
+  /// 而 `Flexible` 默认 `fit` 是 **tight**（等价 `Expanded`）——它和 `Spacer` 一起
+  /// 平分余量，右簇就被顶到条带中段（作者 2026-10-03 手测报的位置不对，实宽差 290px）。
+  /// 套进 `Expanded` 后余量只由这一道空吃，内层按 `end` 排、收缩发生在内层，
+  /// 两个诉求不再互相挤。
   @override
   Widget build(BuildContext context) {
     // 图标尺寸没显式传时按密度取默认：桌面 24、紧凑胶囊 20（两档的 chrome 是一个
@@ -146,12 +150,13 @@ class PlayerActionBar extends StatelessWidget {
       // 记，可「原画(1080P)」这类标签真实排版远超它——不包 Flexible，窄窗口里
       // 固定的 core 件加超长读数会把 Row 顶出 RenderFlex 溢出（窗口化／全屏条带
       // 的实测错位，回归钉在 test/player_action_bar_test.dart）。
+      // `fit` 必须是 loose：tight 会去抢余量（见 build 的 WHY），只给上限、不占位。
       // hug（格子胶囊）在无界主轴里包 Flexible 会直接抛错，且 tile 宿主的
       // quality/line 恒是 menuOnly、进不了 bar——收缩只给有界宿主。
       if (!hug &&
           (action.id == PlayerActionId.quality ||
               action.id == PlayerActionId.line)) {
-        item = Flexible(child: item);
+        item = Flexible(fit: FlexFit.loose, child: item);
       }
       (action.rightSide ? right : left).add(item);
     }
@@ -159,24 +164,32 @@ class PlayerActionBar extends StatelessWidget {
     // overflow 可能只装着 volume/closeTile 这两类抽屉里点不动的锚定件，
     // 那种时候 showActionMenu 会直接 return，画出来的 ⋮ 就是颗死按钮。
     // 所以两边都用 actionableMenuItems 这同一个判定，不在这儿另抄一份过滤。
+    final overflowButton = PlayerOverflowButton(
+      host: host,
+      target: target,
+      page: page,
+      overflow: overflow,
+      placement: PlayerActionPlacement.bottom,
+      iconSize: effectiveIconSize,
+      buttonStyle: buttonStyle,
+      onInteract: onInteract,
+    );
     return Row(
       mainAxisSize: hug ? MainAxisSize.min : MainAxisSize.max,
       children: [
         ...left,
-        // hug 时主轴无界，Expanded 孩子（Spacer 就是 Expanded）直接抛错：
+        // hug 时主轴无界，Expanded 孩子（Expanded 本身就是）直接抛错：
         // 格子那颗胶囊整条走 MainAxisSize.min，由内容自己定宽。
-        if (!hug) const Spacer(),
-        ...right,
-        PlayerOverflowButton(
-          host: host,
-          target: target,
-          page: page,
-          overflow: overflow,
-          placement: PlayerActionPlacement.bottom,
-          iconSize: effectiveIconSize,
-          buttonStyle: buttonStyle,
-          onInteract: onInteract,
-        ),
+        if (hug) ...[
+          ...right,
+          overflowButton,
+        ] else
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [...right, overflowButton],
+            ),
+          ),
       ],
     );
   }
