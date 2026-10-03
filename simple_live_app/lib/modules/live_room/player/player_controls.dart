@@ -140,7 +140,16 @@ Widget _buildDesktopControls(VideoState videoState, LiveRoomController controlle
                 right: 0,
                 bottom: controller.showControlsState.value ? 0 : -48,
                 duration: const Duration(milliseconds: 200),
-                child: Padding(
+                // 渐变遮罩带（spec §4：条带视觉保持）：没有它，白色图标直接坐在
+                // 亮画面上看不见；也与全屏底栏、移动条带同一形态。
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black87],
+                    ),
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: PlayerActionBar(
                     host: PlayerHost.windowed,
