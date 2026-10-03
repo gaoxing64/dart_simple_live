@@ -954,6 +954,27 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     }
   }
 
+  /// 「弹幕设置」本体：底部抽屉（移动）与右侧抽屉（桌面）共用这一份。
+  ///
+  /// WHY 共用而不是两处各写一份：和 `buildScaleModeRadioList` 同一个理由——两个
+  /// 容器之间该只有容器之差，可「关键词屏蔽」这条入口原先只长在底部抽屉那一份里，
+  /// 桌面改成右侧抽屉后等于把这条入口弄丢了（条带／⋮ 进弹幕设置就再也进不去屏蔽）。
+  /// 清单收在一处，这类分叉才写不出来。
+  ///
+  /// [onDismiss] 由容器各自给：关掉底部抽屉是 `Get.back`，关掉右侧抽屉是
+  /// `Utils.hideRightDialog`，本体只管「先收起当前这层，再开这一路的屏蔽面板」。
+  /// 屏蔽面板跟着 `this` 走，也就是打开这条 surface 的那一路（`target`），不是页面
+  /// 主格——多开里副格设置的是副格自己的主播屏蔽词。
+  Widget buildDanmuSettingsBody({required VoidCallback onDismiss}) {
+    return DanmuSettingsView(
+      danmakuController: danmakuController,
+      onTapDanmuShield: () {
+        onDismiss();
+        showFollowBlockShield();
+      },
+    );
+  }
+
   /// 底部打开播放器设置
   void showDanmuSettingsSheet() {
     Utils.showBottomSheet(
@@ -961,13 +982,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
       child: ListView(
         padding: AppStyle.edgeInsetsA12,
         children: [
-          DanmuSettingsView(
-            danmakuController: danmakuController,
-            onTapDanmuShield: () {
-              Get.back();
-              showFollowBlockShield();
-            },
-          ),
+          buildDanmuSettingsBody(onDismiss: () => Get.back()),
         ],
       ),
     );

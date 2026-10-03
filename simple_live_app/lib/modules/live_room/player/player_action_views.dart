@@ -4,7 +4,7 @@ import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
-import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
+import 'package:simple_live_app/modules/live_room/player/player_action_surfaces.dart';
 import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
 
 /// 动作 id → 真实调用。
