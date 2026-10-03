@@ -47,15 +47,17 @@ class VolumeTarget {
     return _tile!.volumeFactor.value;
   }
 
-  /// 图标只回答一件事：「这一路被我静音了吗」——所以两种宿主都读 `_owner` 的
-  /// `volumeFactor`，与点击写的 [toggleMute] 是同一个量（单播放条带上曾经读的是
-  /// 总音量派生的比值，于是点静音把声音压掉了、图标却仍是 `volume_up`）。
+  /// 图标回答的是「这一路现在听得到吗」：本格被静音（`_owner.volumeFactor`，
+  /// 与点击写的 [toggleMute] 同一个量）**或**当前绑定的比值已拖到 0。
+  ///
+  /// 后者只是显示侧的 `||`：把总音量拖到 0 时用户听到的是无声，图标仍亮
+  /// `volume_up` 就是在撒谎；但这一读**不**引入第二条音量权威——写路径只有
+  /// [toggleMute]（落 `_owner.volumeFactor`）与滑条（落各自绑定的量），
+  /// 拖回总音量>0 图标就自己回来了，临时静音也绝不因此写进设置。
   ///
   /// 滑条回答的是另一个问题：「这一路／总音量现在多大」（master 绑 `playerVolume`、
-  /// tile 绑 `volumeFactor`），所以图标与滑条刻意不对称：把总音量拖到 0，图标仍是
-  /// `volume_up`，因为这路本身并没有被静音。静音也绝不写 0 总音量——那会把一个
-  /// 临时状态持久化进设置。
-  bool get muted => _owner.muted;
+  /// tile 绑 `volumeFactor`）。
+  bool get muted => _owner.muted || ratio <= 0.001;
 
   void setValueRatio(double ratio) {
     final clamped = ratio.clamp(0.0, 1.0);
