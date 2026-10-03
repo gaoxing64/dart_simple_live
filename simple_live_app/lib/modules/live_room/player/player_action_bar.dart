@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
+import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
@@ -41,6 +42,13 @@ ButtonStyle _iconStyleFor({required bool compact}) => _iconStyleBase.merge(
   ),
 );
 
+/// 紧凑密度的按钮样式（30×30／零内边距／白色前景）。
+///
+/// 对外暴露这一份而不是让宿主自己照抄参数：格子信息胶囊的 ▾ 与胶囊里的按钮必须
+/// 同形，`multi_play_tile.dart` 原先手写的那份复制品就是这么来的（30×30/zero/white
+/// 逐字段重写了一遍）。样式来源收在本文件里，两档才不会再各自漂移。
+ButtonStyle playerActionCompactStyle() => _iconStyleFor(compact: true);
+
 /// 底栏按钮（含「多开播放」胶囊）的文字样式。
 ///
 /// ⚠️ 必须自己带上字族：`TextButton.styleFrom(textStyle: …)` 在 Flutter 里的取值是
@@ -71,7 +79,6 @@ class PlayerActionBar extends StatelessWidget {
     required this.overflow,
     this.textStyle,
     this.onInteract,
-    this.trailing,
     this.iconSize,
     this.onCloseTile,
     this.hug = false,
@@ -85,7 +92,6 @@ class PlayerActionBar extends StatelessWidget {
   final List<PlayerAction> overflow;
   final TextStyle? textStyle;
   final VoidCallback? onInteract;
-  final Widget? trailing;
 
   /// 图标尺寸；null＝按密度取默认（桌面条带 24，紧凑胶囊 20）。
   final double? iconSize;
@@ -175,7 +181,6 @@ class PlayerActionBar extends StatelessWidget {
               );
             },
           ),
-        if (trailing != null) trailing!,
       ],
     );
   }
@@ -314,14 +319,18 @@ Widget buildPlayerActionItem({
           final pip = page.smallWindowState.value;
           final full = page.fullScreenState.value;
           final showExit = full && !pip;
+          // 图标按宿主分：桌面条带在接 renderer 前用的是项目图标族（Remix），
+          // Task 8 接线时漂成了 Material——作者没点头这条视觉改动，这里改回原样。
+          // 格子胶囊在 Task 9 接 renderer 之前就是 Material `Icons.fullscreen`，
+          // 维持现状不动它。⋮ 抽屉的图标表（playerActionIcon）不受影响。
+          final iconData = host == PlayerHost.tile
+              ? (showExit ? Icons.fullscreen_exit : Icons.fullscreen)
+              : (showExit ? Remix.fullscreen_exit_fill : Remix.fullscreen_line);
           return IconButton(
             tooltip: showExit ? "退出全屏" : "全屏播放",
             iconSize: iconSize,
             style: buttonStyle,
-            icon: Icon(
-              showExit ? Icons.fullscreen_exit : Icons.fullscreen,
-              color: Colors.white,
-            ),
+            icon: Icon(iconData, color: Colors.white),
             onPressed: () {
               onInteract?.call();
               if (pip) {
@@ -333,12 +342,40 @@ Widget buildPlayerActionItem({
           );
         },
       );
+    case PlayerActionId.danmakuSettings:
+      // 桌面条带里保持项目的 asset 图标（原窗口化/移动条带同形）；漂成 Icons.tune
+      // 是 Task 8 接线时发生的，作者未认可。抽屉里的表格形态仍走 playerActionIcon。
+      // （tile 宿主这颗恒是 menuOnly、进不了平铺 bar，本分支只在桌面条带出现。）
+      return IconButton(
+        tooltip: action.title,
+        iconSize: iconSize,
+        style: buttonStyle,
+        icon: ImageIcon(
+          const AssetImage('assets/icons/icon_danmaku_setting.png'),
+          size: iconSize,
+          color: Colors.white,
+        ),
+        onPressed: () {
+          onInteract?.call();
+          invokePlayerAction(target: target, page: page, id: action.id);
+        },
+      );
     default:
       return IconButton(
         tooltip: action.title,
         iconSize: iconSize,
         style: buttonStyle,
-        icon: Icon(playerActionIcon(action.id), color: Colors.white),
+        // 刷新颗与全屏颗同理：桌面条带回到项目图标族 Remix.refresh_line（Task 8
+        // 接线时漂成 Icons.refresh，作者未认可）；tile 宿主维持 Material 表。
+        icon: Icon(
+          host == PlayerHost.tile
+              ? playerActionIcon(action.id)
+              : switch (action.id) {
+                  PlayerActionId.refresh => Remix.refresh_line,
+                  _ => playerActionIcon(action.id),
+                },
+          color: Colors.white,
+        ),
         onPressed: () {
           onInteract?.call();
           invokePlayerAction(target: target, page: page, id: action.id);

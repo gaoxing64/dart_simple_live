@@ -50,14 +50,6 @@ class MultiPlayTile extends StatelessWidget {
   /// 本格被交互时通知网格——把「自动隐藏」的倒计时续上（打开菜单时尤其需要）。
   final VoidCallback onInteract;
 
-  /// 底部条里的图标按钮统一样式：小尺寸、无内边距、白色前景。
-  static final ButtonStyle _iconStyle = IconButton.styleFrom(
-    minimumSize: const Size(30, 30),
-    padding: EdgeInsets.zero,
-    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    foregroundColor: Colors.white,
-  );
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -265,7 +257,10 @@ class MultiPlayTile extends StatelessWidget {
       target: tile,
       iconSize: 20,
       icon: const Icon(Icons.arrow_drop_down),
-      style: _iconStyle,
+      // 紧凑样式取自 renderer 的同一来源（30×30/零内边距/白前景），不再在本文件
+      // 手写一份复制品——那份手抄与 PlayerActionBar(compact: true) 的内部样式
+      // 逐字段相同，正说明它不该再存在第二份。
+      style: playerActionCompactStyle(),
       // 菜单开着时把网格那几秒倒计时续上，避免底栏（连同这个入口）被隐藏
       onOpened: onInteract,
     );
