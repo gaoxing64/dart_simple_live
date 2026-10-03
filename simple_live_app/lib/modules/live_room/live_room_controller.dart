@@ -103,19 +103,6 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   @override
   bool get allowsWindowOps => !isSecondaryTile;
 
-  /// 桌面全屏条带里那颗 ▾（换台）的锚点：长按画面弹的就是**这一颗**的菜单，
-  /// 不再另开一份关注列表抽屉（spec §3「同一块浮层，只是标题不同」）。
-  ///
-  /// WHY 存在这里而不是全屏宿主函数的局部：`GlobalKey` 得跨 rebuild 保持同一个实例，
-  /// 而 `_buildDesktopFullControls` 每次 rebuild 都会新建一个——键一换，挂在下面的
-  /// `PopupMenuButtonState` 就整个重挂载，`showButtonMenu` 的 `.then` 里那句
-  /// `if (!mounted) return null`（popup_menu.dart）会把选中的那一路静默丢掉，
-  /// 表现就是长按换台点了没反应。
-  /// 全树只有桌面全屏底栏那一颗 ▾ 会拿到它（`player_controls.dart` 显式传下去，
-  /// 窗口化条带与格子胶囊都不传），所以不会同键两处。
-  final GlobalKey<PopupMenuButtonState<FollowUser>> followPickMenuKey =
-      GlobalKey<PopupMenuButtonState<FollowUser>>();
-
   /// 这一路相对基准音量的系数（0~1）。1 = 按焦点（及可选压低）规则算出来的值，0 = 静音。
   ///
   /// 格子底栏的音量按钮改的就是它：点一下在 0 与上次的值之间切换，滚轮悬停微调。

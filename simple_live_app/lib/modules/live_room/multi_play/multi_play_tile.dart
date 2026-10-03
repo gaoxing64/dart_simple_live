@@ -260,7 +260,7 @@ class MultiPlayTile extends StatelessWidget {
       // 紧凑样式取自 renderer 的同一来源（30×30/零内边距/白前景），不再在本文件
       // 手写一份复制品——那份手抄与 PlayerActionBar(compact: true) 的内部样式
       // 逐字段相同，正说明它不该再存在第二份。
-      style: playerActionCompactStyle(),
+      style: playerActionIconStyle(compact: true),
       // 菜单开着时把网格那几秒倒计时续上，避免底栏（连同这个入口）被隐藏
       onOpened: onInteract,
     );

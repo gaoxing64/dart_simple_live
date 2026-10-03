@@ -2,10 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 
-Set<PlayerActionId> _all(PlayerActionLayout l) => {
-      ...l.bar.map((e) => e.id),
-      ...l.overflow.map((e) => e.id),
-    };
+Set<PlayerActionId> _all(PlayerActionLayout l) => l.all.map((e) => e.id).toSet();
+
+/// 平铺件（顶簇 + 底栏）——「沉进 ⋮ 之前有没有位置」问的是这个并集。
+Set<PlayerActionId> _flat(PlayerActionLayout l) => {
+  ...l.topBar.map((e) => e.id),
+  ...l.bar.map((e) => e.id),
+};
 
 void main() {
   group('跨宿主一致性', () {
@@ -19,6 +22,48 @@ void main() {
         availableWidth: 1200,
       );
       expect(_all(w), _all(f));
+    });
+
+    // 作者 2026-10-03：截图／换台／小窗／`⋮` 归右上角那一簇，与改造前一致；
+    // 窗口化以前没有顶栏，现在也有了——两个宿主的顶簇必须一模一样，
+    // 否则「一致」又退化成分形态各排一份。
+    test('右上那一簇：桌面两宿主同为 截图／换台／小窗，且彼此相同', () {
+      const expected = {
+        PlayerActionId.screenshot,
+        PlayerActionId.pick,
+        PlayerActionId.smallWindow,
+      };
+      PlayerActionLayout? previous;
+      for (final host in [PlayerHost.windowed, PlayerHost.fullscreen]) {
+        final l = resolvePlayerActions(host: host, availableWidth: 1200);
+        expect(
+          l.topBar.map((e) => e.id).toSet(),
+          expected,
+          reason: '$host 的右上簇不对',
+        );
+        previous = l;
+      }
+      expect(
+        previous!.topBar.map((e) => e.id).toList(),
+        resolvePlayerActions(
+          host: PlayerHost.fullscreen,
+          availableWidth: 1200,
+        ).topBar.map((e) => e.id).toList(),
+        reason: '两宿主顶簇连顺序都要一致',
+      );
+    });
+
+    test('没有顶栏的宿主（小窗／格子）顶簇恒空，件留在底栏／胶囊', () {
+      for (final host in [PlayerHost.smallWindow, PlayerHost.tile]) {
+        final l = resolvePlayerActions(host: host, availableWidth: 360);
+        expect(l.topBar, isEmpty, reason: '$host 不该有右上簇');
+      }
+      // 小窗里那颗「退出小窗」必须在底栏，不能因带 placeInTopBar 就两头都不在。
+      final pip = resolvePlayerActions(
+        host: PlayerHost.smallWindow,
+        availableWidth: 360,
+      );
+      expect(pip.bar.map((e) => e.id), contains(PlayerActionId.smallWindow));
     });
 
     test('截图／换台／画面尺寸／小窗在窗口化与全屏都必须在场', () {
@@ -46,31 +91,30 @@ void main() {
       );
       final narrow = resolvePlayerActions(
         host: PlayerHost.windowed,
-        availableWidth: 320,
+        availableWidth: 240,
       );
       expect(_all(narrow), _all(wide));
       expect(narrow.bar.length, lessThan(wide.bar.length));
     });
 
-    test('锚定件（换台／音量）任何宽度都不沉进 ⋮', () {
-      // pick/volume 会被 `actionableMenuItems` 滤出抽屉（锚定控件进抽屉＝死行），
-      // 它们若因宽度沉进 overflow，窄窗口里就再也没有换台／静音入口。
+    test('换台与音量任何宽度都保持平铺，不沉进 ⋮', () {
+      // 换台现在点开的是右侧面板（不再是锚定件），理论上能当抽屉行；但它落在右上簇，
+      // 一旦因宽度沉进 overflow，右上角就没有换台入口了——作者明确要求它待在右上。
       for (final host in [PlayerHost.windowed, PlayerHost.fullscreen]) {
-        for (final width in [0.0, 120.0, 320.0, 400.0, 1200.0]) {
+        for (final width in [0.0, 120.0, 240.0, 320.0, 400.0, 1200.0]) {
           final l = resolvePlayerActions(host: host, availableWidth: width);
-          final barIds = l.bar.map((e) => e.id).toSet();
           expect(
-            barIds,
+            _flat(l),
             containsAll(<PlayerActionId>{
               PlayerActionId.pick,
               PlayerActionId.volume,
             }),
-            reason: '$host 宽 $width 时锚定件被收进了 ⋮',
+            reason: '$host 宽 $width 时换台／音量被收进了 ⋮',
           );
           expect(
             l.overflow.map((e) => e.id),
             isNot(contains(PlayerActionId.pick)),
-            reason: '$host 宽 $width 时 pick 落进了抽屉（渲染不出、点了没反应）',
+            reason: '$host 宽 $width 时 pick 落进了抽屉',
           );
         }
       }
@@ -229,28 +273,30 @@ void main() {
   });
 
   group('页级「更多」', () {
-    // `live_room_page.showMore` 的桌面分支把 `[...bar, ...overflow]` 整份递给
-    // `showActionMenu`，抽屉真正列出的行由 `actionableMenuItems` 这一处判定。钉三条：
-    // ① 内容＝全集（页级菜单是直达入口，不受条带宽度约束）；
+    // `live_room_page.showMore` 的桌面分支把 `layout.all` 整份递给 `showActionMenu`，
+    // 抽屉真正列出的行由 `actionableMenuItems` 这一处判定。钉三条：
+    // ① 内容＝全集（页级菜单是直达入口，不受条带宽度与顶簇/底栏拆分的影响）；
     // ② 每个动作只一行——页级菜单原先那颗「小窗播放」包着 `Visibility(Platform.isAndroid)`
     //    被隐藏、视频区条带另给一份，同源后两份都要来自同一个清单，必须只剩一行；
-    // ③ 抽屉里没有死行（`pick`/`volume` 是锚定控件，进抽屉就是点了没反应）。
+    // ③ 抽屉里没有死行（`volume` 是悬停锚定件、`closeTile` 要格子的 index，
+    //    两者在 `invokePlayerAction` 里是 no-op；`pick` 现在点开右侧面板，能当抽屉行）。
     test('给足宽度时抽屉列出全集，且每个动作只一行', () {
       final l = resolvePlayerActions(
         host: PlayerHost.windowed,
         availableWidth: 4000,
       );
-      final rows = actionableMenuItems([...l.bar, ...l.overflow]);
+      final rows = actionableMenuItems(l.all);
       expect(rows.map((e) => e.id).toList(), [
         PlayerActionId.refresh,
         PlayerActionId.danmakuToggle,
         PlayerActionId.danmakuSettings,
         PlayerActionId.screenshot,
+        PlayerActionId.pick,
         PlayerActionId.quality,
         PlayerActionId.line,
+        PlayerActionId.scale,
         PlayerActionId.smallWindow,
         PlayerActionId.fullscreenToggle,
-        PlayerActionId.scale,
         PlayerActionId.debugInfo,
         PlayerActionId.autoExit,
         PlayerActionId.share,
@@ -262,17 +308,23 @@ void main() {
         1,
         reason: '桌面「小窗播放」只能有一个入口',
       );
+      expect(
+        rows.map((e) => e.id),
+        isNot(contains(PlayerActionId.volume)),
+        reason: '音量是悬停锚定件，进抽屉就是点了没反应的死行',
+      );
       // 原页级菜单的措辞一字不改地保留：合流只换清单来源，不换文案。
       expect(rows.map((e) => e.title).toList(), [
         "刷新",
         "弹幕",
         "弹幕设置",
         "截图",
+        "换台",
         "切换清晰度",
         "切换线路",
+        "画面尺寸",
         "小窗播放",
         "全屏",
-        "画面尺寸",
         "播放信息",
         "定时关闭",
         "分享直播间",

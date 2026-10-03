@@ -44,7 +44,7 @@ enum PlayerActionTier {
   menuOnly,
 }
 
-/// 一条动作的「存在性」声明：是什么、占多宽、在哪一簇、全屏放顶栏还是底栏。
+/// 一条动作的「存在性」声明：是什么、占多宽、在哪一簇、放顶栏还是底栏。
 ///
 /// 「此刻平铺还是收进 `⋮`」不写在字段里——那是 `_tierFor` 按宿主现算的内部判断
 /// （见 `resolvePlayerActions`）。刻意不设 `tier` 字段：清单里写死的 `tier` 会被
@@ -64,17 +64,44 @@ class PlayerAction {
   /// 平铺时占的宽度预算：图标按钮 40，文字按钮（清晰度／线路）56。
   final double slotWidth;
 
-  /// 全屏宿主里放顶栏还是底栏（窗口化没有顶栏，这个字段被忽略）。
+  /// 放在视频区**右上角那一簇**还是底栏（作者 2026-10-03 定：截图／换台／小窗／更多
+  /// 在右上，与改造前一致；底栏只留刷新·弹幕·弹幕设置·音量·清晰度·线路·全屏）。
+  /// 只对 [`hasTopCluster`] 为真的宿主有效——小窗几百 px、格子嵌在画面里，
+  /// 两者都没有顶栏可放，这几件照样留在各自的底栏／胶囊里。
   final bool placeInTopBar;
 
   /// 条带内的左右簇：false 跟「刷新／弹幕」同侧，true 跟「音量／全屏」同侧。
   final bool rightSide;
 }
 
-class PlayerActionLayout {
-  const PlayerActionLayout({required this.bar, required this.overflow});
+/// 这个宿主有没有「右上角那一簇」可放。
+///
+/// 一处定义，两处问它：resolver 决定带 `placeInTopBar` 的件落到哪个清单，
+/// renderer 决定 `⋮` 画在哪一簇——两边各判一次就会出现「件在 topBar 里、`⋮`
+/// 却在底栏」这种两头都找不到入口的组合。
+bool hasTopCluster(PlayerHost host) =>
+    host == PlayerHost.windowed || host == PlayerHost.fullscreen;
 
+class PlayerActionLayout {
+  const PlayerActionLayout({
+    required this.topBar,
+    required this.bar,
+    required this.all,
+    required this.overflow,
+  });
+
+  /// 右上角那一簇（`⋮` 也归它，见 [hasTopCluster]）。无顶栏的宿主恒空。
+  final List<PlayerAction> topBar;
+
+  /// 底栏／格子胶囊里平铺的件。
   final List<PlayerAction> bar;
+
+  /// 此刻**在场**的全部动作（顶簇 + 底栏 + 被收纳的），按 `_kAllActions` 的声明顺序。
+  ///
+  /// 页级「更多」要的就是这一份：它是直达入口，不受条带宽度约束。顺序单独存一份而不是
+  /// `[...topBar, ...bar, ...overflow]` 现拼——那样拼出来是「三簇顺序拼接」，
+  /// 与条带里的声明顺序不一致，同一个动作在两个菜单里会换个位置出现。
+  final List<PlayerAction> all;
   final List<PlayerAction> overflow;
 
   /// 有没有被收纳的项。
@@ -113,6 +140,7 @@ const List<PlayerAction> _kAllActions = [
   PlayerAction(
     id: PlayerActionId.pick,
     title: "换台",
+    placeInTopBar: true,
   ),
   PlayerAction(
     id: PlayerActionId.volume,
@@ -142,6 +170,7 @@ const List<PlayerAction> _kAllActions = [
   PlayerAction(
     id: PlayerActionId.smallWindow,
     title: "小窗播放",
+    placeInTopBar: true,
     rightSide: true,
   ),
   PlayerAction(
@@ -233,10 +262,9 @@ PlayerActionTier _tierFor(
           (id == PlayerActionId.quality || id == PlayerActionId.line)) {
         return PlayerActionTier.menuOnly;
       }
-      // pick（换台）是锚定件：renderer 与 `showActionMenu` 都把它滤出抽屉
-      // （actionableMenuItems——进抽屉就是点了没反应的死行），它一旦因宽度沉进
-      // overflow，窄窗口里就再也没有任何换台入口（桌面窗口化没有长按兜底）。
-      // 锚定那颗本来就是 40px 的按钮槽，与音量同类，按常驻处理。
+      // pick（换台）在桌面宿主是常驻平铺：它点开的是右侧面板（与改造前同一块），
+      // 并非锚定件、进得了抽屉；但它一旦因宽度沉下去，右上那一簇就少一件作者明确
+      // 要求待在原位的入口，所以与音量同类按常驻处理。
       return switch (id) {
         PlayerActionId.refresh ||
         PlayerActionId.danmakuToggle ||
@@ -253,11 +281,11 @@ PlayerActionTier _tierFor(
   }
 }
 
-/// 一条候选在「这个宿主此刻」的判定：清单条目 + `_tierFor` 现算出的档。
+/// 一条候选在「这个宿主此刻」的判定：清单条目 + `_tierFor` 现算出的档 + 落哪一簇。
 ///
 /// 私有、且只活在 resolver 内部——`PlayerAction` 不带 tier 正是为了不给下游
 /// （Task 5/6/8/9/10）留一个能读到「过时 tier」的入口。
-typedef _Resolved = ({PlayerAction action, PlayerActionTier tier});
+typedef _Resolved = ({PlayerAction action, PlayerActionTier tier, bool onTop});
 
 PlayerActionLayout resolvePlayerActions({
   required PlayerHost host,
@@ -267,6 +295,7 @@ PlayerActionLayout resolvePlayerActions({
   bool hasQuality = true,
   bool hasLine = true,
 }) {
+  final topHost = hasTopCluster(host);
   final candidates = <_Resolved>[
     for (final action in _kAllActions)
       if (_available(
@@ -279,34 +308,65 @@ PlayerActionLayout resolvePlayerActions({
         (
           action: action,
           tier: _tierFor(action.id, host, isVertical: isVertical),
+          // 没有顶栏的宿主（小窗、格子）把带 `placeInTopBar` 的件留在底栏：
+          // 否则它既不在顶簇也不在底簇，成了谁也渲染不到的孤儿。
+          onTop: topHost && action.placeInTopBar,
         ),
   ];
 
-  // 要不要给 `⋮` 留位：有 menuOnly 的候选，或者非 menuOnly 的候选本身已经超宽。
-  final flexibleTotal = candidates
-      .where((e) => e.tier != PlayerActionTier.menuOnly)
-      .fold<double>(0, (sum, e) => sum + e.action.slotWidth);
-  final needsMenu =
-      candidates.any((e) => e.tier == PlayerActionTier.menuOnly) ||
-      flexibleTotal > availableWidth;
+  // **分簇预算**：右上那一簇与底栏各自量一次宽。共用一个总预算的话，「挪去顶栏那几件」
+  // 仍记在底栏头上，底栏会误判装不下、白白把件收进 ⋮。
+  // `⋮` 归顶簇持有（见 [hasTopCluster]），所以只有顶簇给它留位；底簇装不下的件沉进
+  // 的是同一份 overflow，也就是顶栏那颗 `⋮` 的抽屉。
+  double budgetFor({required bool onTop}) {
+    final inCluster = candidates.where((e) => e.onTop == onTop);
+    final nonMenuTotal = inCluster
+        .where((e) => e.tier != PlayerActionTier.menuOnly)
+        .fold<double>(0, (sum, e) => sum + e.action.slotWidth);
+    final hostsMenu = onTop == topHost;
+    // 「有没有东西可收」问的是整份清单：menuOnly 那几件（画面尺寸／分享…）没有
+    // placeInTopBar，按声明落在底簇，可 `⋮` 是**顶簇**的那颗——所以判据不能只看本簇，
+    // 否则顶簇不留位、底簇白留 40，那颗 ⋮ 挤到顶簇最后一颗按钮的位置上。
+    final hasAnyMenuContent = candidates.any(
+      (e) => e.tier == PlayerActionTier.menuOnly,
+    );
+    final needsMenu =
+        (hostsMenu && hasAnyMenuContent) || nonMenuTotal > availableWidth;
+    return availableWidth - (needsMenu ? kOverflowButtonWidth : 0);
+  }
 
+  final topBar = <PlayerAction>[];
   final bar = <PlayerAction>[];
   final overflow = <PlayerAction>[];
-  var budget = availableWidth - (needsMenu ? kOverflowButtonWidth : 0);
+  var topBudget = budgetFor(onTop: true);
+  var barBudget = budgetFor(onTop: false);
   for (final candidate in candidates) {
     final action = candidate.action;
     if (candidate.tier == PlayerActionTier.menuOnly) {
       overflow.add(action);
       continue;
     }
+    final budget = candidate.onTop ? topBudget : barBudget;
     // core 无条件在场：宽度不够也要留住，这是「常驻至少三件」的底线。
     if (candidate.tier == PlayerActionTier.core ||
         budget >= action.slotWidth) {
-      bar.add(action);
-      budget -= action.slotWidth;
+      if (candidate.onTop) {
+        topBar.add(action);
+        topBudget -= action.slotWidth;
+      } else {
+        bar.add(action);
+        barBudget -= action.slotWidth;
+      }
       continue;
     }
     overflow.add(action);
   }
-  return PlayerActionLayout(bar: bar, overflow: overflow);
+  return PlayerActionLayout(
+    topBar: topBar,
+    bar: bar,
+    // candidates 本身就是 `_kAllActions` 的声明顺序（上面只是往里跳不存在项），
+    // 所以「全集」直接取它，不用再从三个分簇清单现拼一份顺序出来。
+    all: [for (final c in candidates) c.action],
+    overflow: overflow,
+  );
 }

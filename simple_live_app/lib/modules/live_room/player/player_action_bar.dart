@@ -42,12 +42,13 @@ ButtonStyle _iconStyleFor({required bool compact}) => _iconStyleBase.merge(
   ),
 );
 
-/// 紧凑密度的按钮样式（30×30／零内边距／白色前景）。
+/// 条带／顶栏／格子胶囊共用的按钮样式，按密度取档。
 ///
-/// 对外暴露这一份而不是让宿主自己照抄参数：格子信息胶囊的 ▾ 与胶囊里的按钮必须
-/// 同形，`multi_play_tile.dart` 原先手写的那份复制品就是这么来的（30×30/zero/white
-/// 逐字段重写了一遍）。样式来源收在本文件里，两档才不会再各自漂移。
-ButtonStyle playerActionCompactStyle() => _iconStyleFor(compact: true);
+/// 对外暴露这一个而不是让宿主各自照抄参数：格子的信息胶囊 ▾、顶栏的右上簇与底栏
+/// 必须是同一份 chrome。曾经格子那边手写了一份复制品（30×30/zero/white 逐字段重写），
+/// 样式来源就分了两处——收在本文件里，两档才不会再各自漂移。
+ButtonStyle playerActionIconStyle({bool compact = false}) =>
+    _iconStyleFor(compact: compact);
 
 /// 底栏按钮（含「多开播放」胶囊）的文字样式。
 ///
@@ -81,7 +82,6 @@ class PlayerActionBar extends StatelessWidget {
     this.onInteract,
     this.iconSize,
     this.onCloseTile,
-    this.pickMenuKey,
     this.hug = false,
     this.compact = false,
   });
@@ -98,10 +98,6 @@ class PlayerActionBar extends StatelessWidget {
   final double? iconSize;
   final VoidCallback? onCloseTile;
 
-  /// 转给条带里那颗 ▾（换台）的键，宿主用它就能把那颗锚定菜单就地弹出来
-  /// （桌面全屏的长按走的就是这条）。null＝不挂键，窗口化条带与格子胶囊都不传。
-  final Key? pickMenuKey;
-
   /// true＝紧凑密度：按钮最小尺寸压到 30×30、默认图标 20，`⋮` 与音量颗同档，
   /// 整颗胶囊一致；false（桌面窗口化／全屏／小窗都不传）＝现状 36×36／24。
   /// WHY 需要这一档见 [_kCompactButtonSize] 的注释（240 宽的格子）。
@@ -111,10 +107,12 @@ class PlayerActionBar extends StatelessWidget {
   /// false＝窗口化／全屏整幅底栏，保留 `Spacer` 把左右簇推向两端。
   final bool hug;
 
-  /// 底栏那一行：左簇 → `Spacer` → 右簇 → `⋮`。
+  /// 底栏那一行：左簇 → `Spacer` → 右簇 → `⋮`（仅无顶栏的宿主）。
   ///
-  /// 顶栏不由这里渲染：它要插返回键与标题（容器结构，不是动作，见 spec §8 的建模口径），
-  /// 由 `player_controls.dart` 用同一个 `buildPlayerActionItem` 自己排。
+  /// 右上那一簇不由这里渲染：它要跟着返回键与标题排在同一条顶栏里（标题是容器结构
+  /// 不是动作，见 spec §8 的建模口径），由 `player_controls.dart` 拿
+  /// [playerTopClusterItems] + [PlayerOverflowButton] 自己拼——两处共用同两个部件，
+  /// `⋮` 的判定只此一份。
   ///
   /// `Spacer()` 而不是 `Expanded(child: Center())`：resolver 已经把左右簇分好，
   /// `Spacer` 吃掉余量即可，且不会像 flex 那样先分掉一半宽度。
@@ -127,7 +125,10 @@ class PlayerActionBar extends StatelessWidget {
     final left = <Widget>[];
     final right = <Widget>[];
     for (final action in bar) {
-      if (host == PlayerHost.fullscreen && action.placeInTopBar) {
+      // 有顶栏的宿主（窗口化／全屏）里，右上那一簇的件不占底栏；小窗与格子没有顶栏，
+      // resolver 已经把同样的件留在 bar 里，这里再滤一次就会把它变孤儿——所以判据
+      // 与 resolver 完全同一份（hasTopCluster），绝不各判各的。
+      if (hasTopCluster(host) && action.placeInTopBar) {
         continue;
       }
       var item = buildPlayerActionItem(
@@ -140,7 +141,6 @@ class PlayerActionBar extends StatelessWidget {
         compact: compact,
         onInteract: onInteract,
         onCloseTile: onCloseTile,
-        pickMenuKey: pickMenuKey,
       );
       // 文字按钮（清晰度／线路）的实宽是内容驱动的：resolver 的收纳预算按 56px
       // 记，可「原画(1080P)」这类标签真实排版远超它——不包 Flexible，窄窗口里
@@ -156,10 +156,9 @@ class PlayerActionBar extends StatelessWidget {
       (action.rightSide ? right : left).add(item);
     }
     // ⋮ 的可见性问的是「抽屉里到底有几行」，不是「overflow 有几项」：
-    // overflow 可能只装着 pick/volume/closeTile 这三类抽屉里点不动的锚定件，
+    // overflow 可能只装着 volume/closeTile 这两类抽屉里点不动的锚定件，
     // 那种时候 showActionMenu 会直接 return，画出来的 ⋮ 就是颗死按钮。
     // 所以两边都用 actionableMenuItems 这同一个判定，不在这儿另抄一份过滤。
-    final menuItems = actionableMenuItems(overflow);
     return Row(
       mainAxisSize: hug ? MainAxisSize.min : MainAxisSize.max,
       children: [
@@ -168,28 +167,109 @@ class PlayerActionBar extends StatelessWidget {
         // 格子那颗胶囊整条走 MainAxisSize.min，由内容自己定宽。
         if (!hug) const Spacer(),
         ...right,
-        if (menuItems.isNotEmpty)
-          IconButton(
-            tooltip: "更多",
-            iconSize: effectiveIconSize,
-            style: buttonStyle,
-            icon: const Icon(Icons.more_horiz, color: Colors.white),
-            onPressed: () {
-              onInteract?.call();
-              showActionMenu(
-                title: "更多",
-                items: overflow,
-                onSelect: (id) => invokePlayerAction(
-                  target: target,
-                  page: page,
-                  id: id,
-                ),
-              );
-            },
-          ),
+        PlayerOverflowButton(
+          host: host,
+          target: target,
+          page: page,
+          overflow: overflow,
+          placement: PlayerActionPlacement.bottom,
+          iconSize: effectiveIconSize,
+          buttonStyle: buttonStyle,
+          onInteract: onInteract,
+        ),
       ],
     );
   }
+}
+
+/// 一簇的落点：视频区右上角那一簇，还是底栏／格子胶囊。
+enum PlayerActionPlacement { top, bottom }
+
+/// `⋮` 本身，连同「这一簇该不该画它」的判定。
+///
+/// WHY 收成一个 widget 而不是两个宿主各判一次：`⋮` 全应用只有**一个**落点——
+/// 有顶栏的宿主在右上簇，没有的（小窗、格子）在底栏。判在两处就会出现
+/// 「件排在顶簇、`⋮` 画在底栏」这种两头都找不到的组合；判据与 resolver 分簇
+/// 用的是同一个 [hasTopCluster]，两边不可能漂移。
+class PlayerOverflowButton extends StatelessWidget {
+  const PlayerOverflowButton({
+    super.key,
+    required this.host,
+    required this.target,
+    required this.page,
+    required this.overflow,
+    required this.placement,
+    required this.buttonStyle,
+    this.iconSize = 24,
+    this.onInteract,
+  });
+
+  final PlayerHost host;
+  final LiveRoomController target;
+  final LiveRoomController page;
+  final List<PlayerAction> overflow;
+  final PlayerActionPlacement placement;
+  final ButtonStyle buttonStyle;
+  final double? iconSize;
+  final VoidCallback? onInteract;
+
+  @override
+  Widget build(BuildContext context) {
+    if ((placement == PlayerActionPlacement.top) != hasTopCluster(host)) {
+      return const SizedBox.shrink();
+    }
+    final rows = actionableMenuItems(overflow);
+    if (rows.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return IconButton(
+      tooltip: "更多",
+      iconSize: iconSize,
+      style: buttonStyle,
+      icon: const Icon(Icons.more_horiz, color: Colors.white),
+      onPressed: () {
+        onInteract?.call();
+        showActionMenu(
+          title: "更多",
+          items: overflow,
+          onSelect: (id) => invokePlayerAction(
+            target: target,
+            page: page,
+            id: id,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 右上角那一簇的 widget（截图／换台／小窗…），不含 `⋮`（另调 [PlayerOverflowButton]）。
+///
+/// 窗口化顶栏与全屏顶栏都走这里：件、图标、按下行为与底栏同源，两处不可能分叉。
+List<Widget> playerTopClusterItems({
+  required PlayerActionLayout layout,
+  required PlayerHost host,
+  required LiveRoomController target,
+  required LiveRoomController page,
+  TextStyle? textStyle,
+  double? iconSize,
+  bool compact = false,
+  VoidCallback? onInteract,
+}) {
+  final effectiveIconSize = iconSize ?? (compact ? _kCompactIconSize : 24.0);
+  return [
+    for (final action in layout.topBar)
+      buildPlayerActionItem(
+        action: action,
+        host: host,
+        target: target,
+        page: page,
+        textStyle: textStyle,
+        iconSize: effectiveIconSize,
+        compact: compact,
+        onInteract: onInteract,
+      ),
+  ];
 }
 
 /// 单个动作的 widget。**文件级函数**：`PlayerActionBar` 负责组装整行，全屏顶栏要自己插
@@ -208,7 +288,6 @@ Widget buildPlayerActionItem({
   bool compact = false,
   VoidCallback? onInteract,
   VoidCallback? onCloseTile,
-  Key? pickMenuKey,
 }) {
   // 按钮 chrome 只由密度派生一份（底版共用，见 _iconStyleFor）；顶栏调用点不传
   // compact，拿到的就是桌面 36×36，与条带同形。
@@ -274,17 +353,6 @@ Widget buildPlayerActionItem({
             ),
           );
         },
-      );
-    case PlayerActionId.pick:
-      return FollowPickButton(
-        target: target,
-        style: buttonStyle,
-        iconSize: iconSize,
-        icon: const Icon(Icons.arrow_drop_down),
-        onOpened: onInteract,
-        // 宿主传了键才挂（桌面全屏底栏）：长按画面要靠它把这颗的菜单就地弹出来，
-        // 与条带共用同一块浮层。没传就是没传，不影响这颗按钮本身。
-        menuKey: pickMenuKey,
       );
     case PlayerActionId.volume:
       return VolumeActionWidget(
@@ -377,11 +445,14 @@ Widget buildPlayerActionItem({
         style: buttonStyle,
         // 刷新颗与全屏颗同理：桌面条带回到项目图标族 Remix.refresh_line（Task 8
         // 接线时漂成 Icons.refresh，作者未认可）；tile 宿主维持 Material 表。
+        // 换台颗同理回到改造前顶栏那颗 `Remix.play_list_2_line`——作者要求右上这一簇
+        // 与改造前一致，图标也算一致的一部分。
         icon: Icon(
           host == PlayerHost.tile
               ? playerActionIcon(action.id)
               : switch (action.id) {
                   PlayerActionId.refresh => Remix.refresh_line,
+                  PlayerActionId.pick => Remix.play_list_2_line,
                   _ => playerActionIcon(action.id),
                 },
           color: Colors.white,

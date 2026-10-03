@@ -123,6 +123,52 @@ Widget _buildDesktopControls(VideoState videoState, LiveRoomController controlle
                 ),
               ),
             ),
+            // 顶栏：只有右上那一簇（截图／换台／小窗 + `⋮`），没有返回键与标题——
+            // 那两个是全屏容器结构，窗口化里返回走页级 AppBar。
+            // WHY 窗口化也要有这一簇（作者 2026-10-03）：改造前「截图／关注列表／更多」
+            // 就挂在右上角，接线后全被塞进底栏，顶上一片空——同一批动作在两种形态下
+            // 位置不同，正是这轮重构要消灭的东西。滑入时序、渐变方向与全屏顶栏同源。
+            Obx(
+              () => AnimatedPositioned(
+                left: 0,
+                right: 0,
+                top: controller.showControlsState.value ? 0 : -48,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [Colors.transparent, Colors.black87],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Spacer(),
+                      ...playerTopClusterItems(
+                        layout: layout,
+                        host: PlayerHost.windowed,
+                        target: controller,
+                        page: controller,
+                        textStyle: playerToolbarTextStyle(),
+                        onInteract: controller.showControls,
+                      ),
+                      PlayerOverflowButton(
+                        host: PlayerHost.windowed,
+                        target: controller,
+                        page: controller,
+                        overflow: layout.overflow,
+                        placement: PlayerActionPlacement.top,
+                        buttonStyle: playerActionIconStyle(),
+                        onInteract: controller.showControls,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             // 底栏：桌面窗口化此前用一坨硬编码 Row（含安卓可见性门），换成 resolver 驱动。
             // 这里再套一层 Obx：滑入/滑出由 showControlsState 驱动，交互
             // （onInteract→controller.showControls）把自动隐藏计时续上，与原来一致。
@@ -233,19 +279,11 @@ Widget _buildDesktopFullControls(
                     if (controller.lockControlsState.value) {
                       return;
                     }
-                    // 长按＝换台，而且与条带里那颗 ▾ 是**同一块浮层**（spec §3：全屏那颗
-                    // 「关注列表」与 ▾ 合并成同一个动作 pick，「同一块浮层，只是标题不同」）：
-                    // 不再另开一份 400px 右侧抽屉，而是把常挂的那颗 ▾ 的锚定菜单就地弹出来。
-                    // 条目、选中落点、`onOpened` 的续期全同源，两份实现再也没有各自漂移的可能。
-                    // 取不到 currentState 的现实场景只有一个：小窗宿主——那里 pick 是
-                    // menuOnly（`player_actions.dart` 的 `_tierFor`），条带里根本没挂这颗，
-                    // 长按总不能退化成死手势，所以那一路仍落回抽屉（其余宿主里这颗恒常挂）。
-                    final pickButton = controller.followPickMenuKey.currentState;
-                    if (pickButton == null) {
-                      showFollowUser(controller);
-                      return;
-                    }
-                    pickButton.showButtonMenu();
+                    // 长按＝换台，与右上角那颗「换台」同一个去处（右侧面板）。
+                    // 曾经为了「同一块浮层」把长按改成弹条带上那颗锚定菜单的键（GlobalKey +
+                    // showButtonMenu），作者 2026-10-03 否掉了那个形态：锚定小列表只适合
+                    // 多开的格子，单画面要用改造前那块带头像与刷新的右侧面板。
+                    showFollowUser(controller);
                   },
                   onVerticalDragStart: controller.onVerticalDragStart,
                   onVerticalDragUpdate: controller.onVerticalDragUpdate,
@@ -317,17 +355,26 @@ Widget _buildDesktopFullControls(
                               ),
                             ),
                             AppStyle.hGap12,
-                            for (final action in layout.bar.where(
-                              (e) => e.placeInTopBar,
-                            ))
-                              buildPlayerActionItem(
-                                action: action,
-                                host: PlayerHost.fullscreen,
-                                target: controller,
-                                page: controller,
-                                textStyle: playerToolbarTextStyle(),
-                                onInteract: controller.showControls,
-                              ),
+                            // 右上那一簇（截图／换台／小窗…）与窗口化顶栏共用同一个组装函数，
+                            // `⋮` 也在这簇里（hasTopCluster 为真的宿主）——两处若各排一次，
+                            // 「件在顶簇、⋮ 在底栏」这种两头找不到的组合迟早会出现。
+                            ...playerTopClusterItems(
+                              layout: layout,
+                              host: PlayerHost.fullscreen,
+                              target: controller,
+                              page: controller,
+                              textStyle: playerToolbarTextStyle(),
+                              onInteract: controller.showControls,
+                            ),
+                            PlayerOverflowButton(
+                              host: PlayerHost.fullscreen,
+                              target: controller,
+                              page: controller,
+                              overflow: layout.overflow,
+                              placement: PlayerActionPlacement.top,
+                              buttonStyle: playerActionIconStyle(),
+                              onInteract: controller.showControls,
+                            ),
                           ],
                         ),
                       ),
@@ -366,9 +413,6 @@ Widget _buildDesktopFullControls(
                         overflow: layout.overflow,
                         textStyle: playerToolbarTextStyle(),
                         onInteract: controller.showControls,
-                        // 只有这一处（桌面全屏／小窗的底栏）把 ▾ 的键交出去：上面的长按
-                        // 要靠它弹同一块浮层。窗口化条带与格子胶囊不传，全树同键仅一处。
-                        pickMenuKey: controller.followPickMenuKey,
                       ),
                     ),
                   );

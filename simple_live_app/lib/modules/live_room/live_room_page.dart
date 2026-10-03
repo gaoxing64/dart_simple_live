@@ -1054,10 +1054,12 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       );
       showActionMenu(
         title: "更多",
-        // 页级菜单列**全集**（bar + overflow），当直达入口用——它不是「条带放不下的
-        // 那些」那份子集；锚定件（pick/volume）由 showActionMenu 内部的
-        // actionableMenuItems 滤掉（抽屉里点了没反应），其余每项都在。
-        items: [...layout.bar, ...layout.overflow],
+        // 页级菜单列**全集**，当直达入口用——它不是「条带放不下的那些」那份子集。
+        // 用 `layout.all`（= `_kAllActions` 的声明顺序）而不是 bar+overflow 现拼：
+        // 拆簇之后「平铺的」分顶簇与底栏两份，现拼出来的顺序与条带里的不一致。
+        // 抽屉里点了没反应的锚定件（volume）由 showActionMenu 内部的
+        // actionableMenuItems 统一滤掉，这里不再另判一次。
+        items: layout.all,
         onSelect: (id) => invokePlayerAction(
           target: room,
           page: controller,

@@ -81,28 +81,34 @@ void invokePlayerAction({
     case PlayerActionId.openApp:
       target.openNaviteAPP();
     case PlayerActionId.pick:
+      // 换台在桌面条带里点开的是**右侧面板**（作者 2026-10-03 定：这块面板比锚定小列表
+      // 好用，锚定那份只适合多开的格子——格子没有屏幕右侧可用，且要一眼看清在换哪格）。
+      // 竖屏主播在 `showFollowUser` 内部落回底部 sheet，沿用改造前就有的兜底口径。
+      showFollowUser(target);
     case PlayerActionId.volume:
     case PlayerActionId.closeTile:
-      // pick 与 volume 是锚定控件，renderer 直接画对应 widget，不走这里；
-      // closeTile 需要格子的 index，由 renderer 闭包带走。
+      // volume 是悬停锚定件、closeTile 需要格子的 index，两者都由 renderer 直接画，
+      // 不走这里（见 actionableMenuItems：它俩也不会出现在抽屉里）。
       break;
   }
 }
 
 /// `⋮` 抽屉真正会列出来的行。
 ///
-/// **[items] 与抽屉内容之间的唯一判定**：`pick`/`volume` 是锚定控件、`closeTile` 需要
-/// 格子的 index，三类在 `invokePlayerAction` 里刻意是 no-op（见那里的注释），放进抽屉
-/// 就是「看得见、点了没反应」的死行，所以要滤掉。
+/// **[items] 与抽屉内容之间的唯一判定**：`volume` 是悬停锚定件、`closeTile` 需要格子的
+/// index，两类在 `invokePlayerAction` 里刻意是 no-op（见那里的注释），放进抽屉就是
+/// 「看得见、点了没反应」的死行，所以要滤掉。
+///
+/// `pick`（换台）**不在过滤名单里**：它现在是一条普通的「点开右侧面板」动作，
+/// 与清晰度／线路同类，抽屉里那一行点了有真实去处。
 ///
 /// WHY 对外暴露：条带上的 `⋮` 按钮和 `showActionMenu` 必须用同一个问句决定「有没有东西可看」。
-/// 各自判一次就会分叉——窄窗口把 `pick` 挤进 overflow 时，`overflow.isNotEmpty` 为真、
+/// 各自判一次就会分叉——窄窗口把某件挤进 overflow 时，`overflow.isNotEmpty` 为真、
 /// 滤完为空，于是画出一颗点了什么都不发生的 `⋮`。可见性用这个函数算，两处永不打架。
 List<PlayerAction> actionableMenuItems(List<PlayerAction> items) {
   return items
       .where(
         (item) =>
-            item.id != PlayerActionId.pick &&
             item.id != PlayerActionId.volume &&
             item.id != PlayerActionId.closeTile,
       )
@@ -169,7 +175,11 @@ IconData playerActionIcon(PlayerActionId id) {
   };
 }
 
-/// 换台：把这一格／这一路换成关注列表里另一个正在直播的直播间。
+/// 换台：把**多开网格里的某一格**换成关注列表里另一个正在直播的直播间。
+///
+/// 只有格子用它——格子没有「屏幕右侧」可用（一块 400 宽的抽屉从屏幕右边弹出来，
+/// 看不出在换哪一格），锚定在 ▾ 上的小列表才是它该有的形态。单画面与全屏的换台走
+/// 右侧面板（`showFollowUser`，见 `invokePlayerAction` 的 pick 分支）。
 ///
 /// 数据源就是 `MultiPlaySession.buildSwitchEntries()`——非多开时它的 slots 只有页面主格
 /// 自己，所以单画面也能直接用同一个列表，`playingSlot >= 0` 即「已在本会话里播」。
@@ -187,7 +197,6 @@ class FollowPickButton extends StatelessWidget {
     this.iconSize,
     this.tooltip = "换台",
     this.onOpened,
-    this.menuKey,
   });
 
   final LiveRoomController target;
@@ -197,18 +206,9 @@ class FollowPickButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback? onOpened;
 
-  /// 宿主想要的那颗 `PopupMenuButton` 的键（桌面全屏长按用它直接弹这一颗的菜单，
-  /// 见 `LiveRoomController.followPickMenuKey`）。
-  ///
-  /// WHY 单独一个字段而不是用 [super.key]：键必须挂在**内层**那颗 `PopupMenuButton`
-  /// 上才拿得到 `PopupMenuButtonState`——挂在这颗 StatelessWidget 自己身上只能取到
-  /// element，取不到 state。
-  final Key? menuKey;
-
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<FollowUser>(
-      key: menuKey,
       tooltip: tooltip,
       padding: EdgeInsets.zero,
       iconSize: iconSize,
