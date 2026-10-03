@@ -1079,7 +1079,12 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     Utils.showBottomSheet(
       // 多开的格子改的是自己那一格，标题要说清楚作用范围，
       // 否则用户会以为在调整窗。
-      title: isSecondaryTile ? "画面尺寸 · 第${tileSlot + 1}路（仅这一格）" : "画面尺寸",
+      // 标题与作用范围必须用**同一个谓词**（multiPlay.isActive，即下方写入分支的判据）：
+      // 主格在多开期间也是槽位、也只改本格（isSecondaryTile=false 却 isActive=true），
+      // 若按 isSecondaryTile 定标题，主格会显示「全局」字样却做按格的事。
+      title: multiPlay.isActive
+          ? "画面尺寸 · 第${tileSlot + 1}路（仅这一格）"
+          : "画面尺寸",
       child: Obx(
         () => ListView(
           padding: AppStyle.edgeInsetsV12,

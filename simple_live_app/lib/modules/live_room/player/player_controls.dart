@@ -857,8 +857,13 @@ void showPlayerSettings(LiveRoomController controller) {
             ),
           ),
           RadioGroup(
-            groupValue: AppSettingsController.instance.scaleMode.value,
+            // 读本格有效值而非全局：横屏全屏对话框在多开期间可达（双击某格进全屏），
+            // 此时控制器可能带着会话级覆盖值，用全局值会让钮显在旧档、点完画面不动。
+            groupValue: controller.effectiveScaleMode,
             onChanged: (e) {
+              // 这里写的是全局设置：一并清掉本控制器可能残留的会话级覆盖值，
+              // 否则 effectiveScaleMode 仍被覆盖值主导，钮跳回旧档、成为死点击。
+              controller.scaleModeOverride.value = null;
               AppSettingsController.instance.setScaleMode(e ?? 0);
               controller.updateScaleMode();
             },

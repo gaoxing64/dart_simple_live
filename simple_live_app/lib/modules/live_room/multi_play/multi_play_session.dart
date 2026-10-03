@@ -385,7 +385,9 @@ class MultiPlaySession {
 
   /// 喂给布局引擎的显示比例：取各格里**最宽**的那个。
   ///
-  /// 复用 `buildMediaPlayer` 的 scaleMode 语义，保证「画面尺寸」设置在多开下同样生效。
+  /// 每格按**自己的 effectiveScaleMode** 推导（按格覆盖优先，否则读全局），而非统一读全局——
+  /// 现在一格能把画面尺寸单独改掉，窗口下限就得按它真实显示的比例算，否则可能按旧的全局比例
+  /// 定出一个偏低/偏高的下限。自定义比例(5)的宽:高仍是全局值，按格只覆盖模式。
   /// 取最大值而不是「聚焦格的比例」，是为了让窗口下限与焦点无关：否则切到一个竖屏格时
   /// 布局会按新比例重排、而下限还是旧比例算的，窗口可能低于新下限、白折几格。
   double tileAspect() {
@@ -393,7 +395,7 @@ class MultiPlaySession {
     for (final tile in slots) {
       final state = tile.player.state;
       final value = PipAspectCalculator.resolveDisplayAspect(
-        scaleMode: AppSettingsController.instance.scaleMode.value,
+        scaleMode: tile.effectiveScaleMode,
         aspectByUser: AppSettingsController.instance.aspectByUser.value,
         videoWidth: state.width?.toDouble(),
         videoHeight: state.height?.toDouble(),
