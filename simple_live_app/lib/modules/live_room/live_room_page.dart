@@ -14,7 +14,7 @@ import 'package:simple_live_app/modules/live_room/chat_emoticon_span.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_grid.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
-import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
+import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/services/follow_service.dart';
@@ -41,14 +41,11 @@ class LiveRoomPage extends GetView<LiveRoomController> {
 
   /// 底栏按钮（含「多开播放」胶囊）的文字样式。
   ///
-  /// ⚠️ 必须自己带上字族：`TextButton.styleFrom(textStyle: …)` 在 Flutter 里的取值是
-  /// `widgetStyle ?? themeStyle ?? defaultStyle`——**取第一个非空、不做合并**
-  /// （见 `ButtonStyleButton.effectiveValue`）。所以只写 `TextStyle(fontSize: 14)` 会让
-  /// 按钮文字丢掉设置里选的字体、退回系统默认字体，跟同屏其他文字对不上。
-  static TextStyle get _toolbarTextStyle => TextStyle(
-        fontSize: 14,
-        fontFamily: AppStyleSettingController.instance.curFontName.value,
-      );
+  /// 与桌面播放条带／全屏顶栏共用 `player_action_bar.dart` 里那一份来源：
+  /// 这个 getter 原先是本文件的私有实现，跨不到播放器那边，于是条带与页面各写一份、
+  /// 字族逻辑也可能漂移。现在两处都走同一个公共 helper（见 `playerToolbarTextStyle`），
+  /// 包括它带上的 ⚠️ 字族覆盖陷阱说明。
+  static TextStyle get _toolbarTextStyle => playerToolbarTextStyle();
 
   @override
   Widget build(BuildContext context) {
