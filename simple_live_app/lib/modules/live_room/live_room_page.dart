@@ -140,15 +140,34 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   Widget buildPageUI() {
     final page = OrientationBuilder(
       builder: (context, orientation) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Obx(
-              () => Text(room.detail.value?.title ?? "直播间"),
+        return Obx(() {
+          // 移动端多开的横屏＝全屏骨架：不画 AppBar、不画那条 300px 侧栏，画面吃满整屏，
+          // 聊天收进悬浮按钮 + 底部抽屉（作者定「横屏＝全屏骨架，画面吃满」）。
+          // 单画面的横屏仍是原来那套带侧栏的 `buildTabletUI`，一个字不动。
+          if (!AppSettingsController.isDesktop &&
+              controller.multiPlay.isActive &&
+              orientation == Orientation.landscape) {
+            return Scaffold(
+              body: Stack(
+                children: [
+                  Positioned.fill(child: buildLiveRoomVideoArea()),
+                  buildChatFloatingButton(context),
+                ],
+              ),
+            );
+          }
+          return Scaffold(
+            appBar: AppBar(
+              title: Obx(
+                () => Text(room.detail.value?.title ?? "直播间"),
+              ),
+              actions: buildAppbarActions(context),
             ),
-            actions: buildAppbarActions(context),
-          ),
-          body: orientation == Orientation.portrait ? buildPhoneUI(context) : buildTabletUI(context),
-        );
+            body: orientation == Orientation.portrait
+                ? buildPhoneUI(context)
+                : buildTabletUI(context),
+          );
+        });
       },
     );
     // 多开时返回键的第一段只关掉其余几路，再按一次才离开直播间：
@@ -170,17 +189,49 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   Widget buildPhoneUI(BuildContext context) {
-    return Column(
-      children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: buildLiveRoomVideoArea(),
-        ),
-        buildUserProfile(context),
-        buildMessageArea(context),
-        buildBottomActions(context),
-      ],
-    );
+    // 竖屏多开：视频区不能再锁 16/9 条带——360 宽的手机那条只有 ≈202px 高，
+    // 两格上下叠每格剩 ~97px，够不到 `kMultiPlayMinTileHeight`(135)，布局引擎会
+    // 直接把多开折成一格。所以多开时改成按格数定高（每格仍是 16:9），
+    // 主播信息条与聊天区收起，聊天走悬浮按钮 + 底部抽屉。
+    return Obx(() {
+      if (AppSettingsController.isDesktop || !controller.multiPlay.isActive) {
+        return Column(
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: buildLiveRoomVideoArea(),
+            ),
+            buildUserProfile(context),
+            buildMessageArea(context),
+            buildBottomActions(context),
+          ],
+        );
+      }
+      final size = MediaQuery.sizeOf(context);
+      // 夹不出来（屏太矮）就退回 16/9 那一档高度：此时网格会被引擎折成 1 格，
+      // 比硬排两格各自低于下限要好。
+      final videoHeight =
+          resolvePortraitVideoHeight(
+            screenW: size.width,
+            screenH: size.height,
+            rows: 2,
+          ) ??
+          size.width * 9 / 16;
+      return Column(
+        children: [
+          SizedBox(
+            height: videoHeight,
+            child: Stack(
+              children: [
+                Positioned.fill(child: buildLiveRoomVideoArea()),
+                buildChatFloatingButton(context),
+              ],
+            ),
+          ),
+          buildBottomActions(context),
+        ],
+      );
+    });
   }
 
   Widget buildTabletUI(BuildContext context) {
@@ -254,10 +305,13 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                             ),
                     ),
                     const Expanded(child: Center()),
-                    if (!(Platform.isAndroid || Platform.isIOS)) ...[
-                      _buildMultiPlayToggle(context),
-                      const SizedBox(width: 12),
-                    ],
+                    // 移动端单画面的横屏也要有入口（多开横屏走另一套全屏骨架，
+                    // 这条底栏那时根本不画）。竖屏底栏同理，见 `buildBottomActions`。
+                    _buildMultiPlayToggle(
+                      context,
+                      iconOnly: !AppSettingsController.isDesktop,
+                    ),
+                    const SizedBox(width: 12),
                   ],
                 ),
               ),
@@ -306,7 +360,12 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   ///
   /// 横屏挂在底栏**视频区那一段**的右端（与视频区右边距对齐）；竖屏/窄窗挂在底栏最右端。
   /// 不额外占一行——多一条 40px 的窄条是不必要的。
-  Widget _buildMultiPlayToggle(BuildContext context) {
+  /// [iconOnly] 给移动端用：竖屏底栏那三个 `Expanded`（关注/刷新/分享）已经把 360px
+  /// 占满，文字胶囊挤不进去，只留图标。
+  Widget _buildMultiPlayToggle(
+    BuildContext context, {
+    bool iconOnly = false,
+  }) {
     final scheme = Theme.of(context).colorScheme;
     return Obx(() {
       final session = controller.multiPlay;
@@ -316,17 +375,66 @@ class LiveRoomPage extends GetView<LiveRoomController> {
         style: TextButton.styleFrom(
           textStyle: _toolbarTextStyle,
           shape: const StadiumBorder(),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: EdgeInsets.symmetric(horizontal: iconOnly ? 8 : 14),
           foregroundColor: on ? scheme.onPrimary : null,
           backgroundColor: on ? scheme.primary : null,
         ),
         onPressed: () => session.setEnabled(!on),
         icon: const Icon(Remix.play_circle_line, size: 18),
-        label: Text(
-          counting ? "多开播放 · ${session.slots.length}/$kMultiPlayMaxTiles" : "多开播放",
-        ),
+        label: iconOnly
+            ? const SizedBox.shrink()
+            : Text(
+                counting ? "多开播放 · ${session.slots.length}/$kMultiPlayMaxTiles" : "多开播放",
+              ),
       );
     });
+  }
+
+  /// 多开时的聊天入口：画面右下角一颗悬浮按钮，点开底部抽屉看聊天。
+  ///
+  /// 它挂在视频区那层 Stack 上、**不放进格子的 chrome**：格子那层会跟着 4s 淡出，
+  /// 聊天入口淡掉了就成了找不到的功能。
+  Widget buildChatFloatingButton(BuildContext context) {
+    return Positioned(
+      right: 12,
+      bottom: 12,
+      child: Obx(
+        () => controller.multiPlay.isActive
+            ? FloatingActionButton(
+                heroTag: "multiPlayChat",
+                onPressed: () => showMultiPlayChatSheet(context),
+                child: const Icon(Icons.chat_bubble_outline),
+              )
+            : const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  /// 多开时的聊天浮层：底部抽屉里放**同一个** [buildUserProfile] + [buildMessageArea]，
+  /// 内容照旧跟随聚焦格（两处都走 `room` getter）。
+  ///
+  /// 已知取舍：抽屉每次打开重建，所以丢滚动位置、Tab 回到第一个。
+  /// 比常驻的半屏 `DraggableScrollableSheet` 轻，也不会永久占画面。
+  void showMultiPlayChatSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 600),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(12),
+        ),
+      ),
+      builder: (sheetContext) => SizedBox(
+        height: MediaQuery.sizeOf(sheetContext).height * 0.7,
+        child: Column(
+          children: [
+            buildUserProfile(sheetContext),
+            buildMessageArea(sheetContext),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 侧栏跟随提示：聊天/SC 跟着聚焦格走这件事在界面上本来完全无形，
@@ -421,11 +529,12 @@ class LiveRoomPage extends GetView<LiveRoomController> {
 
   /// 视频区：单画面走 [buildMediaPlayer]，多画面换成网格。
   ///
-  /// 移动端一律单画面——多开是桌面功能，`PiPSwitcher` 那条路也只认单画面。
+  /// 2026-10-04 拆掉了原来那道「移动端恒单画面」的平台门：手机上现在也渲染网格
+  /// （竖屏 1×2、横屏 2×2）。放开是安全的——格子的 `controls` 只画弹幕层
+  /// （`multi_play_tile.dart` 的 `_buildVideo`），**不走** `playerControls`，
+  /// 所以移动端单画面那两条老 builder 不会漏进格子里。
+  /// Android 的 `PiPSwitcher` 那条只认单画面，多开下由 `enablePIP` 开头直接拒绝。
   Widget buildLiveRoomVideoArea() {
-    if (Platform.isAndroid || Platform.isIOS) {
-      return buildMediaPlayer();
-    }
     return Obx(
       () => controller.multiPlay.isActive
           ? buildMultiPlayGrid(controller)
@@ -575,12 +684,14 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             ),
           ),
           // 竖屏/窄窗没有视频区下方那条，开关就挂在这条底栏的最右端；
-          // 移动端不显示（多开是桌面功能）。
-          if (!(Platform.isAndroid || Platform.isIOS)) ...[
-            const SizedBox(width: 8),
-            _buildMultiPlayToggle(context),
-            const SizedBox(width: 12),
-          ],
+          // 移动端 2026-10-04 起也显示（多开适配到手机），但只给图标——三个
+          // `Expanded` 已经把 360px 占满。
+          const SizedBox(width: 8),
+          _buildMultiPlayToggle(
+            context,
+            iconOnly: !AppSettingsController.isDesktop,
+          ),
+          const SizedBox(width: 12),
         ],
       ),
     );
@@ -795,12 +906,14 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             ),
           ),
         ),
-        // 多画面只在桌面提供：移动端已有 PiP，且小屏上四路也看不清。
-        // 「多画面」开关已挪到「关注」页签（那里才是它管的行为），这里只留参数旋钮；
+        // 多开参数旋钮。原来整段被「仅桌面」的平台门挡着（当时移动端根本没有多开），
+        // 移动端适配后放开：里面四个旋钮（压低开关与比例、各格弹幕、每路缓存）都是
+        // 纯设置项，没有一个是窗口/平台相关的。
+        // 「多画面」开关在视频区底栏（那里才是它管的行为），这里只留参数旋钮；
         // 没开多画面时整段不渲染（也不加解释性提示）。每个旋钮各自包 Obx —— 它们的
         // 取值要能随点击当场刷新，只订阅 enabled 是不够的。
         Obx(() {
-          if (Platform.isAndroid || Platform.isIOS || !controller.multiPlay.enabled.value) {
+          if (!controller.multiPlay.enabled.value) {
             return const SizedBox.shrink();
           }
           return Column(

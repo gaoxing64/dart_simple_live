@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/app_style.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_tile.dart';
@@ -71,60 +72,80 @@ class _MultiPlayGridState extends State<_MultiPlayGrid> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // 触屏没有 hover 可以「划一下就把四路点亮」，所以进多开的那一刻先亮一次，
+    // 让用户看见格子上的胶囊都在哪儿；之后每点一格续 4s（见下面的 onInteract）。
+    if (!AppSettingsController.isDesktop) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showNames();
+        }
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final session = widget.controller.multiPlay;
-    return MouseRegion(
+    Widget grid = LayoutBuilder(
+      builder: (context, constraints) {
+        return Obx(() {
+          final spec = resolveMultiPlayLayout(
+            maxWidth: constraints.maxWidth,
+            maxHeight: constraints.maxHeight,
+            roomCount: session.slots.length,
+            tileAspect: session.tileAspect(),
+            // 位置不受焦点影响，但折叠时要先保住聚焦格
+            focusedIndex: session.focusedSlot.value,
+          );
+          // 字号要在 build 里算（这里读得到设置 → 订阅），下发排到帧后：build 里不改状态。
+          final danmakuFontSize = session.resolveTileDanmakuFontSize(spec);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            session.applyTileDanmakuFontSize(danmakuFontSize);
+          });
+          final focusedSlot = session.focusedSlot.value;
+          return Stack(
+            children: [
+              for (final slot in spec.slots)
+                Positioned.fromRect(
+                  rect: spec.rectOf(slot),
+                  child: MultiPlayTile(
+                    // key 用每格自己的稳定编号：用 slot.index 的话，删掉靠前的一格
+                    // 会让后面所有格子的 key 前移，导致它们无谓重建（纹理重建、闪一下）
+                    key: ValueKey('multi_play_tile_${session.slots[slot.index].tileId}'),
+                    page: widget.controller,
+                    tile: session.slots[slot.index],
+                    index: slot.index,
+                    focused: slot.index == focusedSlot,
+                    chromeVisible: _namesVisible,
+                    onInteract: _showNames,
+                  ),
+                ),
+              if (spec.degraded)
+                Positioned(
+                  right: kMultiPlaySpacing,
+                  bottom: kMultiPlaySpacing,
+                  child: _FoldedHint(count: spec.hiddenIndexes.length),
+                ),
+            ],
+          );
+        });
+      },
+    );
+    if (AppSettingsController.isDesktop) {
       // onHover 每次指针移动都触发：动鼠标＝续上显示时间，停手 4s 自动隐藏。
       // 只有可见性真的变化时才 setState，避免每次移动都重建整片网格。
-      onEnter: (_) => _showNames(),
-      onHover: (_) => _showNames(),
-      onExit: (_) => _hideNames(),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Obx(() {
-            final spec = resolveMultiPlayLayout(
-              maxWidth: constraints.maxWidth,
-              maxHeight: constraints.maxHeight,
-              roomCount: session.slots.length,
-              tileAspect: session.tileAspect(),
-              // 位置不受焦点影响，但折叠时要先保住聚焦格
-              focusedIndex: session.focusedSlot.value,
-            );
-            // 字号要在 build 里算（这里读得到设置 → 订阅），下发排到帧后：build 里不改状态。
-            final danmakuFontSize = session.resolveTileDanmakuFontSize(spec);
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              session.applyTileDanmakuFontSize(danmakuFontSize);
-            });
-            final focusedSlot = session.focusedSlot.value;
-            return Stack(
-              children: [
-                for (final slot in spec.slots)
-                  Positioned.fromRect(
-                    rect: spec.rectOf(slot),
-                    child: MultiPlayTile(
-                      // key 用每格自己的稳定编号：用 slot.index 的话，删掉靠前的一格
-                      // 会让后面所有格子的 key 前移，导致它们无谓重建（纹理重建、闪一下）
-                      key: ValueKey('multi_play_tile_${session.slots[slot.index].tileId}'),
-                      page: widget.controller,
-                      tile: session.slots[slot.index],
-                      index: slot.index,
-                      focused: slot.index == focusedSlot,
-                      chromeVisible: _namesVisible,
-                      onInteract: _showNames,
-                    ),
-                  ),
-                if (spec.degraded)
-                  Positioned(
-                    right: kMultiPlaySpacing,
-                    bottom: kMultiPlaySpacing,
-                    child: _FoldedHint(count: spec.hiddenIndexes.length),
-                  ),
-              ],
-            );
-          });
-        },
-      ),
-    );
+      // 触屏不挂这层：`MouseRegion` 在纯触摸设备上永不触发，chrome 会永远隐掉，
+      // 而它的淡出是 `IgnorePointer` —— 看不见也点不到（移动端适配前正是这个状态）。
+      grid = MouseRegion(
+        onEnter: (_) => _showNames(),
+        onHover: (_) => _showNames(),
+        onExit: (_) => _hideNames(),
+        child: grid,
+      );
+    }
+    return grid;
   }
 }
 

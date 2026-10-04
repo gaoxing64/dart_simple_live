@@ -62,10 +62,11 @@ class MultiPlaySession {
 
   /// 关注列表点选：多画面模式下占一个空格，否则维持原来的「替换当前房间」。
   void onFollowItemTap(Site site, String roomId) {
-    // 移动端没有多开视图：万一 enabled 被（同步/备份恢复）带成 true，这里也必须
-    // 走换台，否则会建出一个永远不会被渲染、却照旧出声解码的格子。
-    final desktop = !(Platform.isAndroid || Platform.isIOS);
-    if (enabled.value && desktop) {
+    // 原来这里还叠了一道「桌面才有渲染」的判据，防的是 enabled 被同步带成 true
+    // 而界面根本不画网格 → 建出一个永不渲染却照旧出声解码的幽灵格子。
+    // 移动端适配后视频区的平台门已拆（`live_room_page.buildLiveRoomVideoArea`），
+    // enabled 为真就一定有渲染，那道保险成了多余的第二份平台知识。
+    if (enabled.value) {
       addRoom(site, roomId);
     } else {
       page.resetRoom(site, roomId);
@@ -341,26 +342,38 @@ class MultiPlaySession {
     unawaited(refreshWindowFloor());
   }
 
+  /// 退出多开时把弹幕口径交还给单画面：字号交还「按整窗高度缩放」，
+  /// 显隐交还全局「弹幕」设置。
+  ///
+  /// 这条**没有平台门**（2026-10-04 从 [refreshWindowFloor] 里拆出来）：原来它躲在
+  /// 那句桌面守卫后面，于是移动端多开一退出，主格的弹幕会永远停在格子字号，
+  /// 「各格显示弹幕」关着时甚至一直没弹幕。窗口那两段才是真·桌面专属。
+  void restoreTileDanmakuOwnership() {
+    if (isActive) {
+      return;
+    }
+    clearTileDanmakuFonts();
+    // 主格的弹幕显隐也交还给全局「弹幕」设置：不然「各格显示弹幕」关着时
+    // 退出多开，单画面会一直没弹幕。只在「确实退出过多种布局」时写，单画面
+    // 关闭页面这条路径不该顺手动它（保持单画面逐位不变）。
+    if (enabled.value) {
+      page.showDanmakuState.value =
+          AppSettingsController.instance.danmuEnable.value;
+    }
+  }
+
   /// 重算并施加多开态窗口下限（多路时）或恢复常规下限（回到单路时）。
   ///
   /// `setMinimumSize` 不会把已经更小的窗口撑大，所以小于下限时要自己 setSize；
   /// 多开前的尺寸另存一份，退出多开时还原（`WindowService` 在多开期间不落盘窗口尺寸，
   /// 所以还原动作本身不会被记成用户偏好）。
   Future<void> refreshWindowFloor() async {
+    restoreTileDanmakuOwnership();
     if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       return;
     }
     final window = WindowService.instance;
     if (!isActive) {
-      // 退出多开时把各路字号交还给「按整窗高度缩放」的口径，否则单画面下弹幕
-      // 会一直停在格子大小。放在平台守卫之后：多开只有桌面能开。
-      clearTileDanmakuFonts();
-      // 主格的弹幕显隐也交还给全局「弹幕」设置：不然「各格显示弹幕」关着时
-      // 退出多开，单画面会一直没弹幕。只在「确实退出过多种布局」时写，单画面
-      // 关闭页面这条路径不该顺手动它（保持单画面逐位不变）。
-      if (enabled.value) {
-        page.showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
-      }
       await window.setMultiPlayMinimumSize(null);
       final restore = _preMultiPlaySize;
       _preMultiPlaySize = null;

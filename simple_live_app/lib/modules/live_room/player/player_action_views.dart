@@ -5,6 +5,7 @@ import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_session.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_surfaces.dart';
 import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
@@ -241,58 +242,94 @@ class FollowPickButton extends StatelessWidget {
       style: style,
       icon: icon,
       onOpened: onOpened,
-      itemBuilder: (context) {
-        // 在菜单打开时才扫关注列表：放在 build 里，四格每帧都要扫一遍
-        final entries = target.multiPlay.buildSwitchEntries();
-        if (entries.isEmpty) {
-          return const [
-            AppPopupMenuItem<FollowUser>(
-              enabled: false,
-              child: SizedBox(
-                width: 220,
-                child: Text("关注列表里没有正在直播的主播"),
-              ),
-            ),
-          ];
-        }
-        return [
-          for (final entry in entries)
-            AppPopupMenuItem<FollowUser>(
-              value: entry.user,
-              // 定宽：菜单容器宽度可能是无界的，Expanded 撞上无界约束会直接报错
-              child: SizedBox(
-                width: 220,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        entry.user.userName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      entry.platform,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    if (entry.isPlaying) ...[
-                      const SizedBox(width: 6),
-                      const Text("在播", style: TextStyle(fontSize: 12)),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-        ];
-      },
-      onSelected: (user) {
-        final site = Sites.allSites[user.siteId];
-        if (site == null) {
-          return;
-        }
-        target.multiPlay.replaceTileRoom(target, site, user.roomId);
-      },
+      itemBuilder: (context) =>
+          // 在菜单打开时才扫关注列表：放在 build 里，四格每帧都要扫一遍
+          followPickMenuItems(target.multiPlay.buildSwitchEntries()),
+      onSelected: (user) => pickFollowUser(target, user),
     );
   }
+}
+
+/// 换台菜单的行：**内容只此一份**。
+///
+/// 两个开法共用它——格子里那颗 ▾（`PopupMenuButton`，点一下就地展开）与移动端
+/// **长按格子**（`showFollowPickMenu`，长按点当锚点）。后者不走 `showButtonMenu`
+/// 是因为那需要一个跨 rebuild 稳定的 `GlobalKey` 指向那颗按钮，而 `MultiPlayTile`
+/// 是 StatelessWidget：键每次 build 都是新的 → `PopupMenuButtonState` 被重挂载 →
+/// `showButtonMenu().then` 里那句 `if (!mounted) return null` 会把选中结果静默丢掉
+/// （这坑在本仓库踩过，见 `player_controls.dart` 与项目笔记）。
+List<PopupMenuEntry<FollowUser>> followPickMenuItems(
+  List<MultiPlaySwitchEntry> entries,
+) {
+  if (entries.isEmpty) {
+    return const [
+      AppPopupMenuItem<FollowUser>(
+        enabled: false,
+        child: SizedBox(
+          width: 220,
+          child: Text("关注列表里没有正在直播的主播"),
+        ),
+      ),
+    ];
+  }
+  return [
+    for (final entry in entries)
+      AppPopupMenuItem<FollowUser>(
+        value: entry.user,
+        // 定宽：菜单容器宽度可能是无界的，Expanded 撞上无界约束会直接报错
+        child: SizedBox(
+          width: 220,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  entry.user.userName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                entry.platform,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              if (entry.isPlaying) ...[
+                const SizedBox(width: 6),
+                const Text("在播", style: TextStyle(fontSize: 12)),
+              ],
+            ],
+          ),
+        ),
+      ),
+  ];
+}
+
+/// 长按格子开的换台菜单：内容与 ▾ 同一份，锚点就是长按那一点。
+Future<FollowUser?> showFollowPickMenu({
+  required BuildContext context,
+  required Offset position,
+  required List<MultiPlaySwitchEntry> entries,
+}) {
+  return showMenu<FollowUser>(
+    context: context,
+    position: RelativeRect.fromLTRB(
+      position.dx,
+      position.dy,
+      position.dx,
+      position.dy,
+    ),
+    items: followPickMenuItems(entries),
+  );
+}
+
+/// 选中一路之后真正换台。▾ 与长按两条开法共用。
+///
+/// 走 `replaceTileRoom`：单画面下它等价于 `resetRoom`（主格也在自己的 slots 里），
+/// 命中别的格子时只把焦点移过去，不建第二个实例。
+void pickFollowUser(LiveRoomController target, FollowUser user) {
+  final site = Sites.allSites[user.siteId];
+  if (site == null) {
+    return;
+  }
+  target.multiPlay.replaceTileRoom(target, site, user.roomId);
 }

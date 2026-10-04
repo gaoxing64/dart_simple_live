@@ -119,6 +119,7 @@ class VolumeActionWidget extends StatefulWidget {
     required this.target,
     required this.style,
     this.iconSize = 24,
+    this.isTouch = false,
     this.onInteract,
   });
 
@@ -140,6 +141,15 @@ class VolumeActionWidget extends StatefulWidget {
   /// 收起宽限：只要够指针跨过按钮盒与浮层之间那 6px 就行，不该做成可感知的延迟。
   static const Duration _hideGrace = Duration(milliseconds: 150);
 
+  /// 触屏上浮层停留多久后自动收起（没有 hover 可以依赖，也没有点外部就关的遮罩）。
+  /// 每次拖动滑条都会重新计时，所以「拖到一半被收掉」不会发生。
+  static const Duration _touchLinger = Duration(milliseconds: 2500);
+
+  /// true＝触屏（没有 hover）：点击这颗按钮开/关浮层，**不再**是静音。
+  /// 静音在触屏上另有入口——`⋮` 里那行 `muteTile`（见 `player_actions.dart` 的
+  /// [PlayerActionId.muteTile]）。桌面恒 false，保持「点＝静音 / 悬停＝滑条」。
+  final bool isTouch;
+
   @override
   State<VolumeActionWidget> createState() => _VolumeActionWidgetState();
 }
@@ -158,10 +168,14 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
   Timer? _tipTimer;
   Timer? _hideTimer;
 
+  /// 触屏上浮层的停留计时（[_touchLinger]）。桌面恒为 null。
+  Timer? _touchTimer;
+
   @override
   void dispose() {
     _tipTimer?.cancel();
     _hideTimer?.cancel();
+    _touchTimer?.cancel();
     // 浮层是 `OverlayPortal` 的孩子，随本 widget 一起卸载，不必（也不该在 dispose 里）
     // 再调 `_popover.hide()`——那时控制器的 attach 目标已经没了。
     super.dispose();
@@ -193,6 +207,7 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
 
   void _hide() {
     _hideTimer?.cancel();
+    _touchTimer?.cancel();
     if (!mounted) {
       return;
     }
@@ -201,6 +216,23 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
       _popoverHovered = false;
     });
     _syncPopover();
+  }
+
+  /// 触屏：点一下开浮层、再点一下关。没有 hover 可依赖，停留时间只能由计时器给；
+  /// 每次拖动滑条都会重新计时（见 `_buildSlider` 的 onChanged），不会拖到一半被收掉。
+  void _toggleByTouch() {
+    if (_popover.isShowing) {
+      _hide();
+      return;
+    }
+    setState(() => _hovering = true);
+    _syncPopover();
+    _restartTouchLinger();
+  }
+
+  void _restartTouchLinger() {
+    _touchTimer?.cancel();
+    _touchTimer = Timer(VolumeActionWidget._touchLinger, _hide);
   }
 
   /// 可见性由两块区域共同决定：指针在按钮上、或在浮层里，两边都离开才收起。
@@ -252,6 +284,9 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
           onChanged: (value) {
             widget.onInteract?.call();
             widget.target.setValueRatio(value);
+            if (widget.isTouch) {
+              _restartTouchLinger();
+            }
           },
         ),
       );
@@ -338,13 +373,22 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
           }
         },
         child: Obx(() {
+          final muted = widget.target.muted;
           return IconButton(
-            tooltip: widget.target.muted ? "取消静音（悬停可调音量）" : "静音（悬停可调音量）",
+            tooltip: widget.isTouch
+                ? "音量"
+                : muted
+                ? "取消静音（悬停可调音量）"
+                : "静音（悬停可调音量）",
             style: widget.style,
             iconSize: widget.iconSize,
-            icon: Icon(widget.target.muted ? Icons.volume_off : Icons.volume_up),
+            icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
             onPressed: () {
               widget.onInteract?.call();
+              if (widget.isTouch) {
+                _toggleByTouch();
+                return;
+              }
               widget.target.toggleMute();
             },
           );

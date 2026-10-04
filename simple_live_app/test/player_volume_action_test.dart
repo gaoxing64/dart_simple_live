@@ -138,6 +138,62 @@ void main() {
     expect(slider, findsNothing, reason: '按钮与浮层都离开后应当收起');
   });
 
+  testWidgets('触屏：点音量颗弹滑条、再点收起；这颗不再负责静音', (tester) async {
+    final tile = _FakeTile();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.tile(tile),
+              style: const ButtonStyle(),
+              isTouch: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    final button = find.byType(IconButton);
+    expect(
+      find.byType(Slider),
+      findsNothing,
+      reason: '触屏上没点就不该有浮层（桌面是悬停才出）',
+    );
+
+    await tester.tap(button);
+    await tester.pump();
+    expect(find.byType(Slider), findsOneWidget, reason: '点一下就该出滑条');
+    expect(
+      tile.muted,
+      isFalse,
+      reason: '触屏的点击归「开滑条」，静音另有 ⋮ 里那行 muteTile',
+    );
+
+    await tester.tap(button);
+    await tester.pump();
+    expect(find.byType(Slider), findsNothing, reason: '再点一下收起');
+  });
+
+  testWidgets('桌面（isTouch 默认 false）：点音量颗仍是静音、不弹滑条', (tester) async {
+    final tile = _FakeTile();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.tile(tile),
+              style: const ButtonStyle(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(IconButton));
+    await tester.pump();
+    expect(tile.muted, isTrue, reason: '触屏适配不能改动桌面那颗的语义');
+    expect(find.byType(Slider), findsNothing);
+  });
+
   testWidgets('总音量拖到 0：图标显示 volume_off，但写路径一个字不动', (tester) async {
     final page = _FakeMaster();
     final settings = AppSettingsController.instance;

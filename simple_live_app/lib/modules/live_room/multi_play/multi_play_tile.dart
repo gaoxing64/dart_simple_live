@@ -74,6 +74,21 @@ class MultiPlayTile extends StatelessWidget {
                 onInteract();
                 page.multiPlay.focusSlot(index);
               },
+              onLongPressStart: (d) async {
+                // 长按＝换这一格（与格子信息胶囊里那颗 ▾ 同一份菜单内容）。
+                // 走 `showFollowPickMenu`（长按点当锚点的 `showMenu`）而不是给 ▾ 那颗
+                // 按钮加 GlobalKey：本 widget 是 StatelessWidget，键每次 build 都是新的，
+                // `showButtonMenu().then` 会因重挂载把选中结果静默丢掉。
+                onInteract();
+                final user = await showFollowPickMenu(
+                  context: context,
+                  position: d.globalPosition,
+                  entries: tile.multiPlay.buildSwitchEntries(),
+                );
+                if (user != null) {
+                  pickFollowUser(tile, user);
+                }
+              },
               onDoubleTap: () {
                 // 双击切换全屏，与单画面「双击视频」一致：进得去也出得来。
                 // 之前只调 enterFullScreen，进了全屏再双击还是「进全屏」，

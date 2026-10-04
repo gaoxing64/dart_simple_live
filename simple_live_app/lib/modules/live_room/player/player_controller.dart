@@ -943,6 +943,13 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     if (!Platform.isAndroid) {
       return;
     }
+    if (multiPlayActive) {
+      // Android 的 PiP 只认一路纹理（`live_room_page.dart` 的 `PiPSwitcher`
+      // 在启用态直接换成单画面 `buildMediaPlayer()`），多开下进 PiP 等于把另外
+      // 几路悄悄扔掉却还在解码出声。与桌面 `enterSmallWindow` 同一口径拒绝。
+      SmartDialog.showToast("多开播放中不支持小窗，请先关掉其余几路");
+      return;
+    }
     if (await pip.isPipAvailable == false) {
       SmartDialog.showToast("设备不支持小窗播放");
       return;

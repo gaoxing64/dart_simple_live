@@ -386,6 +386,8 @@ Widget buildPlayerActionItem({
             : VolumeTarget.master(page),
         style: buttonStyle,
         iconSize: iconSize,
+        // 触屏没有 hover，滑条只能由点击开；静音改走 `⋮` 里的 muteTile。
+        isTouch: !AppSettingsController.isDesktop,
         onInteract: onInteract,
       );
     case PlayerActionId.closeTile:

@@ -314,8 +314,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     super.onInit();
     // 批量入口预载的其余几路。放在 super.onInit() 之后，避免建格跟主格自己的初始化
     // 抢顺序（此时播放器与弹幕 WS 都已就位）。
-    if (together.isNotEmpty && !(Platform.isAndroid || Platform.isIOS)) {
-      // 移动端不渲染网格，批量格会变成「看不见但在出声、在解码」
+    if (together.isNotEmpty) {
+      // 移动端以前在这里被静默丢掉（关注页那颗按钮没有平台门，选 5 个只开第 1 路、
+      // 还不提示）。视频区的平台门拆掉之后，批量入口在手机上是真的了。
       multiPlay.addRooms(together);
     }
   }
