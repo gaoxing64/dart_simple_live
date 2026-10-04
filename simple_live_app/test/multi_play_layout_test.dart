@@ -330,4 +330,51 @@ void main() {
       }
     });
   });
+
+  // 竖屏多开要突破单画面那条 16/9 条带，视频区高度由这个纯函数定；
+  // 它同时决定「这块屏放不放得下两格」——放不下就整个退回单画面。
+  group('竖屏多开的视频区高度', () {
+    test('360×740 两格：每格正好回到 16:9，且没吃掉 38% 屏高', () {
+      final h = resolvePortraitVideoHeight(
+        screenW: 360,
+        screenH: 740,
+        rows: 2,
+      );
+      // 2 × 360 × 9/16 + 8 = 413
+      expect(h, closeTo(413, 1e-9));
+      // 每格 202.5 高 ≥ 135 下限
+      expect((h! - kMultiPlaySpacing) / 2, greaterThanOrEqualTo(
+        kMultiPlayMinTileHeight,
+      ));
+    });
+
+    test('屏高不够时夹到 62%，仍给得出合法格高就用夹值', () {
+      // 400 宽要 458 高才够两格 16:9；屏高 600×0.62=372 < 458 → 夹到 372，
+      // 每格 (372-8)/2 = 182 ≥ 135，仍然可用。
+      final h = resolvePortraitVideoHeight(
+        screenW: 400,
+        screenH: 600,
+        rows: 2,
+      );
+      expect(h, closeTo(600 * kMultiPlayPortraitMaxFraction, 1e-9));
+      expect((h! - kMultiPlaySpacing) / 2, greaterThanOrEqualTo(
+        kMultiPlayMinTileHeight,
+      ));
+    });
+
+    test('矮屏放不下两格时返回 null，调用方退回单画面', () {
+      expect(
+        resolvePortraitVideoHeight(screenW: 320, screenH: 400, rows: 2),
+        isNull,
+        reason: '上限 400×0.62=248 < 两格最小 2×135+8=278，硬排会把每格压到下限以下',
+      );
+    });
+
+    test('rows<=1 一律 null：单格用不着这套，交给原来的 16/9 条带', () {
+      expect(
+        resolvePortraitVideoHeight(screenW: 360, screenH: 740, rows: 1),
+        isNull,
+      );
+    });
+  });
 }

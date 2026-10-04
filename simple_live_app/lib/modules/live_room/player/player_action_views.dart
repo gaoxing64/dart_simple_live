@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
@@ -23,7 +24,10 @@ void invokePlayerAction({
   required LiveRoomController page,
   required PlayerActionId id,
 }) {
-  final rightPanel = usesRightPanelSurface(host);
+  final rightPanel = usesRightPanelSurface(
+    host,
+    isDesktop: AppSettingsController.isDesktop,
+  );
   switch (id) {
     case PlayerActionId.refresh:
       target.refreshRoom();
@@ -93,9 +97,13 @@ void invokePlayerAction({
       // （`_available` 的 pick 分支），所以这里不需要 [rightPanel] 那条分叉。
       showFollowUser(target);
     case PlayerActionId.volume:
+    case PlayerActionId.muteTile:
+      // volume 那颗是悬停/点击锚定件、closeTile 需要格子的 index，两者都由 renderer
+      // 直接画，不走这里（见 actionableMenuItems：它俩也不会出现在抽屉里）。
+      // muteTile 反过来：它就是给 `⋮` 抽屉用的一行，写的量与桌面那颗点音量完全相同
+      // （`toggleMute` 落 `_owner.volumeFactor`，不落盘），两条入口共用一个权威。
+      target.toggleMute();
     case PlayerActionId.closeTile:
-      // volume 是悬停锚定件、closeTile 需要格子的 index，两者都由 renderer 直接画，
-      // 不走这里（见 actionableMenuItems：它俩也不会出现在抽屉里）。
       break;
   }
 }
@@ -189,6 +197,7 @@ IconData playerActionIcon(PlayerActionId id) {
     PlayerActionId.copyUrl => Icons.copy,
     PlayerActionId.openApp => Icons.open_in_new,
     PlayerActionId.volume => Icons.volume_up,
+    PlayerActionId.muteTile => Icons.volume_off,
   };
 }
 

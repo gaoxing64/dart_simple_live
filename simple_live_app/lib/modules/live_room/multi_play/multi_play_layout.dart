@@ -31,6 +31,41 @@ const double kMultiPlayMinTileHeight = 135;
 const double kMultiPlayChromeWidth = 300;
 const double kMultiPlayChromeHeight = 120;
 
+/// 移动端**竖屏**多开时，视频区最多能吃到屏高的多少。
+///
+/// 竖屏单画面那条 16/9 条带只有「屏宽×9/16」高（360 宽的手机 ≈202px），两格上下叠
+/// 每格只剩 ~97px，够不到 [kMultiPlayMinTileHeight]=135，布局引擎会把多开折叠成 1 格。
+/// 所以竖屏多开必须让视频区自己定高、不再锁 16/9 —— 但再高就要把聊天/底栏挤没了，
+/// 这条上限就是留给它们的下限。
+const double kMultiPlayPortraitMaxFraction = 0.62;
+
+/// 竖屏多开 [rows] 格上下叠时，视频区该给多高；放不下返回 null。
+///
+/// 目标形态是「每格仍然 16:9」：`rows × 屏宽 × 9/16 + 间距×(rows-1)`，
+/// 再夹到 [kMultiPlayPortraitMaxFraction] 屏高以内。夹完连 `rows × kMultiPlayMinTileHeight`
+/// 都给不出来，就说明这块屏放不下这么多格，调用方按单画面渲染（别硬排成小格）。
+///
+/// 纯函数：只吃两个屏幕尺寸与格数，不碰 `MediaQuery`/平台，单测可扫边界
+/// （见 `test/multi_play_layout_test.dart`）。
+double? resolvePortraitVideoHeight({
+  required double screenW,
+  required double screenH,
+  required int rows,
+  double spacing = kMultiPlaySpacing,
+}) {
+  if (rows <= 1) {
+    // 一格用不着这套：16/9 条带本来就够，交给调用方原来的形态。
+    return null;
+  }
+  final min = rows * kMultiPlayMinTileHeight + spacing * (rows - 1);
+  final max = screenH * kMultiPlayPortraitMaxFraction;
+  if (max < min) {
+    return null;
+  }
+  final ideal = rows * screenW * 9 / 16 + spacing * (rows - 1);
+  return math.min(ideal, max);
+}
+
 /// 排布形态。UI 用它决定要不要画分隔线 / 是否需要横竖切换。
 enum MultiPlayArrangement { single, sideBySide, stacked, grid }
 

@@ -179,6 +179,9 @@ class MultiPlayTile extends StatelessWidget {
         hasQuality: tile.hasMultipleQualities,
         hasLine: tile.hasMultipleLines,
         isVertical: tile.isVertical.value,
+        // 触屏上音量颗的点击是「弹滑条」（没 hover），静音这个动作改由 `⋮` 里那行
+        // muteTile 承担——所以清单要多带这一件。桌面不传，产物逐字不变。
+        isTouch: !AppSettingsController.isDesktop,
       );
       return Container(
         padding: const EdgeInsets.all(2),

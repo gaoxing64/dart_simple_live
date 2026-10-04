@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
@@ -245,7 +246,10 @@ class PlayerOverflowButton extends StatelessWidget {
         showActionMenu(
           title: "更多",
           items: overflow,
-          rightPanel: usesRightPanelSurface(host),
+          rightPanel: usesRightPanelSurface(
+            host,
+            isDesktop: AppSettingsController.isDesktop,
+          ),
           onSelect: (id) => invokePlayerAction(
             host: host,
             target: target,

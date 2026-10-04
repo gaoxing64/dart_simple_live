@@ -370,21 +370,98 @@ void main() {
   // 容器判据：作者 2026-10-04 定「右侧面板仅在全屏时使用」——窗口化那条右侧本来就站着
   // 聊天／SC／关注那一栏，再来一块 400 宽的面板会把它整个盖掉；改造前窗口化的清晰度／
   // 线路／弹幕设置落的都是底部抽屉。小窗与格子留右侧面板（小窗复用全屏那一套；格子的
-  // 底部抽屉会横切另外几路的画面）。
+  // 底部抽屉会横切另外几路的画面）。**触屏一律底部抽屉**：手机竖屏只有 ~360 宽。
   group('容器判据', () {
-    test('只有窗口化用底部抽屉，全屏／小窗／格子用右侧面板', () {
-      expect(usesRightPanelSurface(PlayerHost.windowed), isFalse);
+    test('桌面：只有窗口化用底部抽屉，全屏／小窗／格子用右侧面板', () {
+      expect(
+        usesRightPanelSurface(PlayerHost.windowed, isDesktop: true),
+        isFalse,
+      );
       for (final host in [
         PlayerHost.fullscreen,
         PlayerHost.smallWindow,
         PlayerHost.tile,
       ]) {
         expect(
-          usesRightPanelSurface(host),
+          usesRightPanelSurface(host, isDesktop: true),
           isTrue,
           reason: '$host 该用右侧面板',
         );
       }
+    });
+
+    test('触屏：四宿主全落底部抽屉（360 宽放不下 320~400 的面板）', () {
+      for (final host in PlayerHost.values) {
+        expect(
+          usesRightPanelSurface(host, isDesktop: false),
+          isFalse,
+          reason: '$host 在触屏上不该开右侧面板',
+        );
+      }
+    });
+  });
+
+  // 触屏格子的「静音这一路」：音量颗的点击在触屏上是「弹滑条」（没 hover），
+  // 静音需要另一个入口，就收进 ⋮ 这一行。桌面不传 isTouch，清单必须一个字节都没变。
+  group('触屏静音入口', () {
+    test('muteTile 只在 tile + 触屏在场，且恒进 ⋮ 不平铺', () {
+      final touch = resolvePlayerActions(
+        host: PlayerHost.tile,
+        availableWidth: 240,
+        canCloseTile: true,
+        isTouch: true,
+      );
+      expect(touch.overflow.map((e) => e.id), contains(PlayerActionId.muteTile));
+      expect(
+        touch.bar.map((e) => e.id),
+        isNot(contains(PlayerActionId.muteTile)),
+        reason: '胶囊只有 224px 可用，这颗只能待在 ⋮ 里',
+      );
+      // 抽屉里必须真画得出这一行（actionableMenuItems 别把它误滤掉）
+      expect(
+        actionableMenuItems(touch.overflow).map((e) => e.id),
+        contains(PlayerActionId.muteTile),
+      );
+    });
+
+    test('isTouch 默认 false：四宿主的产物与触屏适配前逐字相同', () {
+      for (final host in PlayerHost.values) {
+        final desktop = resolvePlayerActions(
+          host: host,
+          availableWidth: 400,
+          canCloseTile: true,
+        );
+        final explicit = resolvePlayerActions(
+          host: host,
+          availableWidth: 400,
+          canCloseTile: true,
+          isTouch: false,
+        );
+        expect(
+          [...desktop.topBar, ...desktop.bar, ...desktop.overflow].map(
+            (e) => e.id,
+          ),
+          [...explicit.topBar, ...explicit.bar, ...explicit.overflow].map(
+            (e) => e.id,
+          ),
+        );
+        expect(
+          _all(desktop),
+          isNot(contains(PlayerActionId.muteTile)),
+          reason: '$host 在桌面上不该冒出这颗',
+        );
+      }
+      // 非格子的触屏宿主也不给：只有 tile 的音量颗会因触屏改语义
+      expect(
+        _all(
+          resolvePlayerActions(
+            host: PlayerHost.windowed,
+            availableWidth: 400,
+            isTouch: true,
+          ),
+        ),
+        isNot(contains(PlayerActionId.muteTile)),
+      );
     });
   });
 

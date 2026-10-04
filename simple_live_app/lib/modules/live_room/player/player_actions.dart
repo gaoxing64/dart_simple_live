@@ -18,6 +18,9 @@ enum PlayerActionId {
   danmakuToggle,
   danmakuSettings,
   volume,
+  /// 触屏专用的「静音这一路」：桌面音量颗点击＝静音、悬停＝滑条，而触屏没有 hover，
+  /// 那颗只能改成「点击弹滑条」，静音这个动作就没了入口 —— 收进 `⋮` 这一行补回来。
+  muteTile,
   quality,
   line,
   screenshot,
@@ -92,10 +95,13 @@ bool hasTopCluster(PlayerHost host) =>
 ///
 /// 小窗与格子留右侧面板：小窗在改造前复用的正是全屏那一套；格子是浮在画面上的胶囊，
 /// 底部抽屉会横切另外几路的画面。
+/// **触屏（[isDesktop] 为 false）一律底部抽屉**：手机竖屏只有 ~360 逻辑像素宽，
+/// `showRightDialog` 那 320~400 宽的面板根本放不下，多开的格子只能从下面升起来。
 ///
-/// 移动端**不经过这里**（`playerControls` 的平台门短路，两条老 builder 各自直调
+/// 移动端**单画面**不经过这里（`playerControls` 的平台门短路，两条老 builder 各自直调
 /// `showQualitySheet` / `showQualitesInfo`），行为逐字不变。
-bool usesRightPanelSurface(PlayerHost host) => host != PlayerHost.windowed;
+bool usesRightPanelSurface(PlayerHost host, {required bool isDesktop}) =>
+    isDesktop && host != PlayerHost.windowed;
 
 class PlayerActionLayout {
   const PlayerActionLayout({
@@ -162,6 +168,12 @@ const List<PlayerAction> _kAllActions = [
     title: "音量",
     rightSide: true,
   ),
+  // 触屏格子的「静音这一路」。`_available` 让它只在 `tile + 触屏` 在场，`_tierFor` 的
+  // tile 分支默认档就是 menuOnly，所以它永远只出现在 `⋮` 里，不占胶囊那 224px 的宽度预算。
+  PlayerAction(
+    id: PlayerActionId.muteTile,
+    title: "静音这一路",
+  ),
   PlayerAction(
     id: PlayerActionId.quality,
     // ⚠️ title 写「切换清晰度」而不是「清晰度」：这个 title 只在 `⋮`／页级「更多」抽屉里
@@ -223,16 +235,22 @@ const List<PlayerAction> _kAllActions = [
 ];
 
 /// 该动作在这个宿主是否存在（不是「是否平铺」，那由 `_tierFor` 现算）。
+///
+/// [isTouch] 只有格子宿主用得上：触屏上音量颗的点击被改成「弹滑条」（没 hover 可用），
+/// 静音这个动作需要另一个入口，见 [PlayerActionId.muteTile]。
 bool _available(
   PlayerActionId id,
   PlayerHost host, {
   required bool canCloseTile,
   required bool hasQuality,
   required bool hasLine,
+  required bool isTouch,
 }) {
   switch (id) {
     case PlayerActionId.closeTile:
       return host == PlayerHost.tile && canCloseTile;
+    case PlayerActionId.muteTile:
+      return host == PlayerHost.tile && isTouch;
     case PlayerActionId.pick:
       // 换台只在全屏右上那一簇与多开格子的 ▾：改造前的窗口化条带根本没有这颗
       // （要换台先进全屏），作者 2026-10-04 定回这个口径——「右侧面板仅在全屏时使用」，
@@ -307,6 +325,9 @@ PlayerActionTier _tierFor(
 /// （Task 5/6/8/9/10）留一个能读到「过时 tier」的入口。
 typedef _Resolved = ({PlayerAction action, PlayerActionTier tier, bool onTop});
 
+/// [isTouch] 默认 false —— 桌面所有调用点都不传，产出的清单必须与触屏适配之前逐字相同
+/// （回归钉在 `test/player_action_set_test.dart`）。它只影响一件事：触屏格子的
+/// [PlayerActionId.muteTile] 是否在场。
 PlayerActionLayout resolvePlayerActions({
   required PlayerHost host,
   required double availableWidth,
@@ -314,6 +335,7 @@ PlayerActionLayout resolvePlayerActions({
   bool canCloseTile = false,
   bool hasQuality = true,
   bool hasLine = true,
+  bool isTouch = false,
 }) {
   final topHost = hasTopCluster(host);
   final candidates = <_Resolved>[
@@ -324,6 +346,7 @@ PlayerActionLayout resolvePlayerActions({
         canCloseTile: canCloseTile,
         hasQuality: hasQuality,
         hasLine: hasLine,
+        isTouch: isTouch,
       ))
         (
           action: action,
