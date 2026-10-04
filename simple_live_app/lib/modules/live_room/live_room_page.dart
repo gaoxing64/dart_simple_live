@@ -1033,7 +1033,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   /// 房间菜单。
   ///
   /// 桌面走视频区同一份动作清单（`resolvePlayerActions` + `showActionMenu`），移动端仍
-  /// 是下面那份底部抽屉——移动端不进这套模型，两条分支各管一个平台，内容不再两处各写一份。
+  /// 是下面那份底部抽屉清单——移动端不进这套模型，两条分支各管一个平台，内容不再两处各写一份。
+  /// 两支**容器相同**（都是底部抽屉：这页此刻就是窗口化），只是清单同源。
   ///
   /// 多开时的分工：路由级动作（刷新 / 清晰度 / 线路 / 截图 / 分享 / 链接 / 播放信息，
   /// 以及可按格独立的画面尺寸）跟着聚焦格（[room]）走；定时关闭、小窗、全屏是窗口级，
@@ -1054,6 +1055,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       );
       showActionMenu(
         title: "更多",
+        // 页级这颗「更多」本来就挂在窗口化的 AppBar 上，容器跟着窗口化走＝底部抽屉
+        // （改造前它就是 `showModalBottomSheet`，行内再落各自的底部 sheet）。
+        rightPanel: false,
         // 页级菜单列**全集**，当直达入口用——它不是「条带放不下的那些」那份子集。
         // 用 `layout.all`（= `_kAllActions` 的声明顺序）而不是 bar+overflow 现拼：
         // 拆簇之后「平铺的」分顶簇与底栏两份，现拼出来的顺序与条带里的不一致。
@@ -1061,6 +1065,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
         // actionableMenuItems 统一滤掉，这里不再另判一次。
         items: layout.all,
         onSelect: (id) => invokePlayerAction(
+          host: PlayerHost.windowed,
           target: room,
           page: controller,
           id: id,

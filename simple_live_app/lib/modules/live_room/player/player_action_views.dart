@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:get/get.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
@@ -13,33 +14,39 @@ import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
 /// [page] 恒是页面主格：窗口级动作（小窗、全屏、定时关闭）只能由它执行，
 /// 四路各跑一份倒计时或直接 `exit(0)` 是不能接受的。
 /// 窗口级旗标也只有 page 那份会被真正写入，判断状态同样读 page（见 smallWindow 分支）。
+///
+/// [host] 只用来决定**清单类弹层开成哪种容器**（[usesRightPanelSurface]）：动作本身与
+/// 宿主无关，容器有关——改造前就是窗口化底部抽屉、全屏右侧面板两套并存。
 void invokePlayerAction({
+  required PlayerHost host,
   required LiveRoomController target,
   required LiveRoomController page,
   required PlayerActionId id,
 }) {
+  final rightPanel = usesRightPanelSurface(host);
   switch (id) {
     case PlayerActionId.refresh:
       target.refreshRoom();
     case PlayerActionId.danmakuToggle:
       target.showDanmakuState.value = !target.showDanmakuState.value;
     case PlayerActionId.danmakuSettings:
-      // 清单类弹层在桌面统一开成右侧抽屉（spec §3）。`invokePlayerAction` 只有
-      // 桌面宿主会调到（移动端被平台门短路在原有代码路径里，不进这套模型），
-      // 所以这里不必按平台分支。竖屏主播在这些实现内部落回底部抽屉——沿用
-      // `showQualitesInfo` 改造前就有的兜底口径，本次保留：竖屏画面窄，右侧
-      // 抽屉会盖住直播内容。
-      // perStreamerShield 在这条桌面臂上给 true：能走到这里就一定是桌面 surface，
-      // 它要的是这一格主播自己的屏蔽面板（移动端那层不带这条入口）。
-      showDanmakuSettings(target, perStreamerShield: true);
+      // 容器跟着宿主走（见函数头的 [host]）：桌面窗口化落底部抽屉，全屏／小窗／格子
+      // 落右侧面板。竖屏主播在这些实现内部另外还有一条落底部抽屉的兜底。
+      // perStreamerShield 在这条臂上恒 true：调到这里的一定是桌面／格子那几层，
+      // 要的是这一格主播自己的屏蔽面板（移动端横屏全屏那层不走这里，见平台门）。
+      showDanmakuSettings(
+        target,
+        perStreamerShield: true,
+        rightPanel: rightPanel,
+      );
     case PlayerActionId.screenshot:
       target.saveScreenshot();
     case PlayerActionId.quality:
-      showQualitesInfo(target);
+      showQualitesInfo(target, rightPanel: rightPanel);
     case PlayerActionId.line:
-      showLinesInfo(target);
+      showLinesInfo(target, rightPanel: rightPanel);
     case PlayerActionId.scale:
-      showScaleModeInfo(target);
+      showScaleModeInfo(target, rightPanel: rightPanel);
     case PlayerActionId.smallWindow:
       // 小窗态下同一个位置的动作是「退出小窗」，由 renderer 换 title，这里只看状态。
       // WHY 旗标读 page 而不是 target：这两面旗标只被「调用的接收者」写
@@ -81,9 +88,9 @@ void invokePlayerAction({
     case PlayerActionId.openApp:
       target.openNaviteAPP();
     case PlayerActionId.pick:
-      // 换台在桌面条带里点开的是**右侧面板**（作者 2026-10-03 定：这块面板比锚定小列表
-      // 好用，锚定那份只适合多开的格子——格子没有屏幕右侧可用，且要一眼看清在换哪格）。
-      // 竖屏主播在 `showFollowUser` 内部落回底部 sheet，沿用改造前就有的兜底口径。
+      // 换台点开的是**右侧面板**（作者定：这块带头像+刷新+「在播」的面板比锚定小列表好用，
+      // 锚定那份只适合多开的格子）。它现在也只在全屏与格子在场
+      // （`_available` 的 pick 分支），所以这里不需要 [rightPanel] 那条分叉。
       showFollowUser(target);
     case PlayerActionId.volume:
     case PlayerActionId.closeTile:
@@ -115,40 +122,50 @@ List<PlayerAction> actionableMenuItems(List<PlayerAction> items) {
       .toList();
 }
 
-/// `⋮` 的内容：桌面右侧抽屉，按清单顺序列出「图标 + 标题」。
+/// `⋮` 的内容：按清单顺序列出「图标 + 标题」，容器由调用方给。
 ///
-/// 抽屉自带返回按钮（`Utils.showRightDialog` 的头），点外部是否关闭沿用现有行为，
-/// 本次不改。移动端不会走到这里（平台门短路）。
+/// [rightPanel]＝true 开右侧面板（全屏／小窗／格子），false 开底部抽屉（桌面窗口化、
+/// 页级 AppBar 那颗「更多」）。判据与清单类弹层同一份（`usesRightPanelSurface`），
+/// 别在这里再问一次平台。移动端不会走到这里（平台门短路）。
 ///
 /// [items] 允许直接把 resolver 的 `layout.overflow` 递进来，所以行先过
 /// [actionableMenuItems]（滤由它一处定义，与条带那颗 `⋮` 的可见性同源）。
-/// 滤完为空则整颗 `⋮` 不弹，避免只有头的空抽屉。
+/// 滤完为空则整颗 `⋮` 不弹，避免只有头的空容器。
 void showActionMenu({
   required String title,
   required List<PlayerAction> items,
+  required bool rightPanel,
   required void Function(PlayerActionId) onSelect,
 }) {
   final rows = actionableMenuItems(items);
   if (rows.isEmpty) {
     return;
   }
-  Utils.showRightDialog(
-    title: title,
-    child: ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        for (final item in rows)
-          ListTile(
-            leading: Icon(playerActionIcon(item.id)),
-            title: Text(item.title),
-            onTap: () {
+  final list = ListView(
+    padding: EdgeInsets.zero,
+    children: [
+      for (final item in rows)
+        ListTile(
+          leading: Icon(playerActionIcon(item.id)),
+          title: Text(item.title),
+          onTap: () {
+            // 收起的是自己那块容器：右侧面板归 hideRightDialog，
+            // 底部抽屉是模态路由，只能 Get.back（与页级「更多」改造前同一写法）。
+            if (rightPanel) {
               Utils.hideRightDialog();
-              onSelect(item.id);
-            },
-          ),
-      ],
-    ),
+            } else {
+              Get.back();
+            }
+            onSelect(item.id);
+          },
+        ),
+    ],
   );
+  if (rightPanel) {
+    Utils.showRightDialog(title: title, child: list);
+    return;
+  }
+  Utils.showBottomSheet(title: title, child: list);
 }
 
 /// 动作 → 图标表，条带与 `⋮` 抽屉共用同一份：同一个动作在两个宿主里要长一样。
@@ -177,9 +194,9 @@ IconData playerActionIcon(PlayerActionId id) {
 
 /// 换台：把**多开网格里的某一格**换成关注列表里另一个正在直播的直播间。
 ///
-/// 只有格子用它——格子没有「屏幕右侧」可用（一块 400 宽的抽屉从屏幕右边弹出来，
-/// 看不出在换哪一格），锚定在 ▾ 上的小列表才是它该有的形态。单画面与全屏的换台走
-/// 右侧面板（`showFollowUser`，见 `invokePlayerAction` 的 pick 分支）。
+/// 只有格子用它——格子没有「屏幕右侧」可用（一块 400 宽的面板从屏幕右边弹出来，
+/// 看不出在换哪一格），锚定在 ▾ 上的小列表才是它该有的形态。全屏的换台走
+/// 右侧面板（`showFollowUser`，见 `invokePlayerAction` 的 pick 分支）；窗口化没有这颗。
 ///
 /// 数据源就是 `MultiPlaySession.buildSwitchEntries()`——非多开时它的 slots 只有页面主格
 /// 自己，所以单画面也能直接用同一个列表，`playingSlot >= 0` 即「已在本会话里播」。

@@ -12,44 +12,69 @@ Set<PlayerActionId> _flat(PlayerActionLayout l) => {
 
 void main() {
   group('跨宿主一致性', () {
-    test('桌面窗口化与全屏的动作全集相同（顶栏/底栏归 renderer 管）', () {
-      final w = resolvePlayerActions(
-        host: PlayerHost.windowed,
-        availableWidth: 1200,
+    // 作者 2026-10-04：换台只在全屏出现（它点开的是右侧面板，而右侧面板仅全屏使用）。
+    // 所以两宿主的全集**只**差这一颗——其余动作仍必须一模一样，
+    // 否则「按宿主分」又成了各排一份的挡箭牌。
+    test('桌面窗口化与全屏的动作全集只差「换台」，其余相同', () {
+      final w = _all(
+        resolvePlayerActions(host: PlayerHost.windowed, availableWidth: 1200),
       );
-      final f = resolvePlayerActions(
-        host: PlayerHost.fullscreen,
-        availableWidth: 1200,
+      final f = _all(
+        resolvePlayerActions(host: PlayerHost.fullscreen, availableWidth: 1200),
       );
-      expect(_all(w), _all(f));
+      expect(f.difference(w), {PlayerActionId.pick});
+      expect(w.difference(f), isEmpty, reason: '窗口化不该有全屏没有的动作');
+    });
+
+    test('换台只在全屏与格子在场，窗口化／小窗没有这颗', () {
+      expect(
+        _all(
+          resolvePlayerActions(
+            host: PlayerHost.windowed,
+            availableWidth: 4000,
+          ),
+        ),
+        isNot(contains(PlayerActionId.pick)),
+      );
+      expect(
+        _all(
+          resolvePlayerActions(
+            host: PlayerHost.smallWindow,
+            availableWidth: 4000,
+          ),
+        ),
+        isNot(contains(PlayerActionId.pick)),
+      );
+      for (final host in [PlayerHost.fullscreen, PlayerHost.tile]) {
+        expect(
+          _all(resolvePlayerActions(host: host, availableWidth: 4000)),
+          contains(PlayerActionId.pick),
+          reason: '$host 少了换台',
+        );
+      }
     });
 
     // 作者 2026-10-03：截图／换台／小窗／`⋮` 归右上角那一簇，与改造前一致；
-    // 窗口化以前没有顶栏，现在也有了——两个宿主的顶簇必须一模一样，
-    // 否则「一致」又退化成分形态各排一份。
-    test('右上那一簇：桌面两宿主同为 截图／换台／小窗，且彼此相同', () {
-      const expected = {
-        PlayerActionId.screenshot,
-        PlayerActionId.pick,
-        PlayerActionId.smallWindow,
-      };
-      PlayerActionLayout? previous;
-      for (final host in [PlayerHost.windowed, PlayerHost.fullscreen]) {
-        final l = resolvePlayerActions(host: host, availableWidth: 1200);
-        expect(
-          l.topBar.map((e) => e.id).toSet(),
-          expected,
-          reason: '$host 的右上簇不对',
-        );
-        previous = l;
-      }
+    // 窗口化以前没有顶栏，现在也有了。两宿主的顶簇在**共有的件**上顺序一致，
+    // 全屏多出的就是那颗换台。
+    test('右上那一簇：窗口化＝截图／小窗，全屏再多一颗换台', () {
       expect(
-        previous!.topBar.map((e) => e.id).toList(),
+        resolvePlayerActions(
+          host: PlayerHost.windowed,
+          availableWidth: 1200,
+        ).topBar.map((e) => e.id).toList(),
+        [PlayerActionId.screenshot, PlayerActionId.smallWindow],
+      );
+      expect(
         resolvePlayerActions(
           host: PlayerHost.fullscreen,
           availableWidth: 1200,
         ).topBar.map((e) => e.id).toList(),
-        reason: '两宿主顶簇连顺序都要一致',
+        [
+          PlayerActionId.screenshot,
+          PlayerActionId.pick,
+          PlayerActionId.smallWindow,
+        ],
       );
     });
 
@@ -66,7 +91,7 @@ void main() {
       expect(pip.bar.map((e) => e.id), contains(PlayerActionId.smallWindow));
     });
 
-    test('截图／换台／画面尺寸／小窗在窗口化与全屏都必须在场', () {
+    test('截图／画面尺寸／小窗在窗口化与全屏都必须在场', () {
       for (final host in [PlayerHost.windowed, PlayerHost.fullscreen]) {
         final ids = _all(
           resolvePlayerActions(host: host, availableWidth: 1200),
@@ -75,7 +100,6 @@ void main() {
           ids,
           containsAll(<PlayerActionId>{
             PlayerActionId.screenshot,
-            PlayerActionId.pick,
             PlayerActionId.scale,
             PlayerActionId.smallWindow,
           }),
@@ -97,25 +121,29 @@ void main() {
       expect(narrow.bar.length, lessThan(wide.bar.length));
     });
 
-    test('换台与音量任何宽度都保持平铺，不沉进 ⋮', () {
-      // 换台现在点开的是右侧面板（不再是锚定件），理论上能当抽屉行；但它落在右上簇，
-      // 一旦因宽度沉进 overflow，右上角就没有换台入口了——作者明确要求它待在右上。
-      for (final host in [PlayerHost.windowed, PlayerHost.fullscreen]) {
+    test('音量任何宽度、全屏的换台任何宽度都保持平铺，不沉进 ⋮', () {
+      // 音量是悬停锚定件，沉进 ⋮ 就没人画它了；换台同理——它落在右上那一簇，
+      // 一旦因宽度沉下去，右上角就没有换台入口了（作者明确要求它待在右上）。
+      for (final host in PlayerHost.values) {
         for (final width in [0.0, 120.0, 240.0, 320.0, 400.0, 1200.0]) {
           final l = resolvePlayerActions(host: host, availableWidth: width);
           expect(
             _flat(l),
-            containsAll(<PlayerActionId>{
-              PlayerActionId.pick,
-              PlayerActionId.volume,
-            }),
-            reason: '$host 宽 $width 时换台／音量被收进了 ⋮',
+            contains(PlayerActionId.volume),
+            reason: '$host 宽 $width 时音量被收进了 ⋮',
           );
-          expect(
-            l.overflow.map((e) => e.id),
-            isNot(contains(PlayerActionId.pick)),
-            reason: '$host 宽 $width 时 pick 落进了抽屉',
-          );
+          if (host == PlayerHost.fullscreen) {
+            expect(
+              _flat(l),
+              contains(PlayerActionId.pick),
+              reason: '$host 宽 $width 时换台被收进了 ⋮',
+            );
+            expect(
+              l.overflow.map((e) => e.id),
+              isNot(contains(PlayerActionId.pick)),
+              reason: '$host 宽 $width 时 pick 落进了抽屉',
+            );
+          }
         }
       }
     });
@@ -274,12 +302,14 @@ void main() {
 
   group('页级「更多」', () {
     // `live_room_page.showMore` 的桌面分支把 `layout.all` 整份递给 `showActionMenu`，
-    // 抽屉真正列出的行由 `actionableMenuItems` 这一处判定。钉三条：
+    // 抽屉真正列出的行由 `actionableMenuItems` 这一处判定。钉四条：
     // ① 内容＝全集（页级菜单是直达入口，不受条带宽度与顶簇/底栏拆分的影响）；
     // ② 每个动作只一行——页级菜单原先那颗「小窗播放」包着 `Visibility(Platform.isAndroid)`
     //    被隐藏、视频区条带另给一份，同源后两份都要来自同一个清单，必须只剩一行；
     // ③ 抽屉里没有死行（`volume` 是悬停锚定件、`closeTile` 要格子的 index，
-    //    两者在 `invokePlayerAction` 里是 no-op；`pick` 现在点开右侧面板，能当抽屉行）。
+    //    两者在 `invokePlayerAction` 里是 no-op）；
+    // ④ 没有换台——它按宿主只在全屏／格子在场，页级这颗挂在窗口化的 AppBar 上，
+    //    清单取的正是 windowed 那一份（改造前的页级菜单本来也没有这条）。
     test('给足宽度时抽屉列出全集，且每个动作只一行', () {
       final l = resolvePlayerActions(
         host: PlayerHost.windowed,
@@ -291,7 +321,6 @@ void main() {
         PlayerActionId.danmakuToggle,
         PlayerActionId.danmakuSettings,
         PlayerActionId.screenshot,
-        PlayerActionId.pick,
         PlayerActionId.quality,
         PlayerActionId.line,
         PlayerActionId.scale,
@@ -303,6 +332,11 @@ void main() {
         PlayerActionId.copyUrl,
         PlayerActionId.openApp,
       ]);
+      expect(
+        rows.map((e) => e.id),
+        isNot(contains(PlayerActionId.pick)),
+        reason: '页级「更多」是窗口化的入口，换台只在全屏',
+      );
       expect(
         rows.where((e) => e.id == PlayerActionId.smallWindow).length,
         1,
@@ -319,7 +353,6 @@ void main() {
         "弹幕",
         "弹幕设置",
         "截图",
-        "换台",
         "切换清晰度",
         "切换线路",
         "画面尺寸",
@@ -331,6 +364,27 @@ void main() {
         "复制链接",
         "APP 中打开",
       ]);
+    });
+  });
+
+  // 容器判据：作者 2026-10-04 定「右侧面板仅在全屏时使用」——窗口化那条右侧本来就站着
+  // 聊天／SC／关注那一栏，再来一块 400 宽的面板会把它整个盖掉；改造前窗口化的清晰度／
+  // 线路／弹幕设置落的都是底部抽屉。小窗与格子留右侧面板（小窗复用全屏那一套；格子的
+  // 底部抽屉会横切另外几路的画面）。
+  group('容器判据', () {
+    test('只有窗口化用底部抽屉，全屏／小窗／格子用右侧面板', () {
+      expect(usesRightPanelSurface(PlayerHost.windowed), isFalse);
+      for (final host in [
+        PlayerHost.fullscreen,
+        PlayerHost.smallWindow,
+        PlayerHost.tile,
+      ]) {
+        expect(
+          usesRightPanelSurface(host),
+          isTrue,
+          reason: '$host 该用右侧面板',
+        );
+      }
     });
   });
 

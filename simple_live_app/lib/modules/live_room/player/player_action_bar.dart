@@ -245,7 +245,9 @@ class PlayerOverflowButton extends StatelessWidget {
         showActionMenu(
           title: "更多",
           items: overflow,
+          rightPanel: usesRightPanelSurface(host),
           onSelect: (id) => invokePlayerAction(
+            host: host,
             target: target,
             page: page,
             id: id,
@@ -323,6 +325,7 @@ Widget buildPlayerActionItem({
             color: Colors.white,
           ),
           onPressed: () => invokePlayerAction(
+            host: host,
             target: target,
             page: page,
             id: action.id,
@@ -346,7 +349,12 @@ Widget buildPlayerActionItem({
             ),
             onPressed: () {
               onInteract?.call();
-              invokePlayerAction(target: target, page: page, id: action.id);
+              invokePlayerAction(
+                host: host,
+                target: target,
+                page: page,
+                id: action.id,
+              );
             },
             // ⚠️ 子 Text 的 style 是「整体替换」而不是合并 TextButton 的 textStyle：
             // `ButtonStyleButton.effectiveValue` 取 `widgetStyle ?? themeStyle ?? defaultStyle`
@@ -393,6 +401,7 @@ Widget buildPlayerActionItem({
           style: buttonStyle,
           icon: Icon(Icons.picture_in_picture, color: Colors.white),
           onPressed: () => invokePlayerAction(
+            host: host,
             target: target,
             page: page,
             id: action.id,
@@ -427,7 +436,12 @@ Widget buildPlayerActionItem({
               if (pip) {
                 page.enterFullScreen();
               } else {
-                invokePlayerAction(target: target, page: page, id: action.id);
+                invokePlayerAction(
+                  host: host,
+                  target: target,
+                  page: page,
+                  id: action.id,
+                );
               }
             },
           );
@@ -448,7 +462,12 @@ Widget buildPlayerActionItem({
         ),
         onPressed: () {
           onInteract?.call();
-          invokePlayerAction(target: target, page: page, id: action.id);
+          invokePlayerAction(
+            host: host,
+            target: target,
+            page: page,
+            id: action.id,
+          );
         },
       );
     default:
@@ -472,7 +491,12 @@ Widget buildPlayerActionItem({
         ),
         onPressed: () {
           onInteract?.call();
-          invokePlayerAction(target: target, page: page, id: action.id);
+          invokePlayerAction(
+            host: host,
+            target: target,
+            page: page,
+            id: action.id,
+          );
         },
       );
   }

@@ -64,8 +64,9 @@ class PlayerAction {
   /// 平铺时占的宽度预算：图标按钮 40，文字按钮（清晰度／线路）56。
   final double slotWidth;
 
-  /// 放在视频区**右上角那一簇**还是底栏（作者 2026-10-03 定：截图／换台／小窗／更多
-  /// 在右上，与改造前一致；底栏只留刷新·弹幕·弹幕设置·音量·清晰度·线路·全屏）。
+  /// 放在视频区**右上角那一簇**还是底栏（作者 2026-10-03 定：截图／小窗／更多在右上，
+  /// 与改造前一致；换台也在这簇，但它只在全屏在场，见 `_available` 的 pick 分支。
+  /// 底栏只留刷新·弹幕·弹幕设置·音量·清晰度·线路·全屏）。
   /// 只对 [`hasTopCluster`] 为真的宿主有效——小窗几百 px、格子嵌在画面里，
   /// 两者都没有顶栏可放，这几件照样留在各自的底栏／胶囊里。
   final bool placeInTopBar;
@@ -81,6 +82,20 @@ class PlayerAction {
 /// 却在底栏」这种两头都找不到入口的组合。
 bool hasTopCluster(PlayerHost host) =>
     host == PlayerHost.windowed || host == PlayerHost.fullscreen;
+
+/// 这个宿主的清单类弹层用**右侧面板**还是**底部抽屉**。
+///
+/// 判据是宿主，不是「这是不是一份清单」——改造前就是这个口径，作者 2026-10-04 手测后
+/// 定回来：窗口化那条（旧 `buildControls`）的清晰度／线路／弹幕设置全落底部抽屉，
+/// 同名动作在全屏（旧 `buildFullControls`）里开的才是右侧面板。
+/// 窗口化右侧本来就站着聊天／SC／关注那一栏，再来一块 400 宽的面板会把它整个盖掉。
+///
+/// 小窗与格子留右侧面板：小窗在改造前复用的正是全屏那一套；格子是浮在画面上的胶囊，
+/// 底部抽屉会横切另外几路的画面。
+///
+/// 移动端**不经过这里**（`playerControls` 的平台门短路，两条老 builder 各自直调
+/// `showQualitySheet` / `showQualitesInfo`），行为逐字不变。
+bool usesRightPanelSurface(PlayerHost host) => host != PlayerHost.windowed;
 
 class PlayerActionLayout {
   const PlayerActionLayout({
@@ -218,6 +233,11 @@ bool _available(
   switch (id) {
     case PlayerActionId.closeTile:
       return host == PlayerHost.tile && canCloseTile;
+    case PlayerActionId.pick:
+      // 换台只在全屏右上那一簇与多开格子的 ▾：改造前的窗口化条带根本没有这颗
+      // （要换台先进全屏），作者 2026-10-04 定回这个口径——「右侧面板仅在全屏时使用」，
+      // 而换台点开的那块就是右侧面板。小窗也没有这颗（它本来就收成四件）。
+      return host == PlayerHost.fullscreen || host == PlayerHost.tile;
     case PlayerActionId.quality:
       return hasQuality;
     case PlayerActionId.line:

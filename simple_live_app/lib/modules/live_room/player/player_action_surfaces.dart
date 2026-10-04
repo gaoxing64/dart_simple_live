@@ -6,9 +6,11 @@
 /// renderer 与 views 之间再也说不清谁依赖谁）。本体归本体层：这一层只依赖 controller
 /// 和容器 API，渲染层反过来 import 它，环即断开。
 ///
-/// 约定：每个 `show*` 只决定「用哪种容器」（桌面右侧抽屉；竖屏主播与移动端落回底部
-/// 抽屉），容器里的清单一律向 controller 取（`buildScaleModeRadioList`、
-/// `buildDanmuSettingsBody`），同一个动作在两种宿主下才是同一份内容。
+/// 约定：每个 `show*` 只决定「用哪种容器」，本体不猜宿主——调用方（`invokePlayerAction`
+/// 与各条 builder）按 `usesRightPanelSurface(host)` 传 [rightPanel]，竖屏主播另外有一条
+/// 既有兜底：画面又窄又高，右侧面板会盖住直播内容，所以恒落底部抽屉。
+/// 容器里的清单一律向 controller 取（`buildScaleModeRadioList`、`buildDanmuSettingsBody`），
+/// 同一个动作在两种容器下才是同一份内容。
 library;
 
 import 'dart:io';
@@ -23,8 +25,10 @@ import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
 
-void showLinesInfo(LiveRoomController controller) {
-  if (controller.isVertical.value) {
+/// [rightPanel]＝这份清单开成右侧面板还是底部抽屉（判据在调用方，见文件头约定）。
+/// 默认 true：移动横屏全屏与桌面全屏／小窗／格子都吃默认，只有桌面窗口化显式传 false。
+void showLinesInfo(LiveRoomController controller, {bool rightPanel = true}) {
+  if (controller.isVertical.value || !rightPanel) {
     controller.showPlayUrlsSheet();
     return;
   }
@@ -74,8 +78,11 @@ void showLinesInfo(LiveRoomController controller) {
   );
 }
 
-void showQualitesInfo(LiveRoomController controller) {
-  if (controller.isVertical.value) {
+void showQualitesInfo(
+  LiveRoomController controller, {
+  bool rightPanel = true,
+}) {
+  if (controller.isVertical.value || !rightPanel) {
     controller.showQualitySheet();
     return;
   }
@@ -128,11 +135,14 @@ void showQualitesInfo(LiveRoomController controller) {
 /// 要的是「这一格主播」的屏蔽面板，传 true。移动端横屏全屏的底栏（
 /// `player_controls.dart` 的 `buildFullControls`）不传——移动端不进这套模型，那层在本体
 /// 收拢之前就没有这条入口，点了落的是全局屏蔽设置页，行为必须逐位保持原样。
+/// [rightPanel]＝容器（判据在调用方）；false 与竖屏主播同样落 `showDanmuSettingsSheet`，
+/// 那条本体本来就带 perStreamerShield，所以这里不再往下传。
 void showDanmakuSettings(
   LiveRoomController controller, {
   bool perStreamerShield = false,
+  bool rightPanel = true,
 }) {
-  if (controller.isVertical.value) {
+  if (controller.isVertical.value || !rightPanel) {
     controller.showDanmuSettingsSheet();
     return;
   }
@@ -182,13 +192,16 @@ void showPlayerSettings(LiveRoomController controller) {
   );
 }
 
-/// 桌面「画面尺寸」动作的右侧抽屉（spec §3：清单类弹层统一成右侧抽屉）。
+/// 桌面「画面尺寸」动作的弹层。
 ///
-/// 竖屏主播落回底部抽屉——与 `showQualitesInfo` 改造前就有的兜底同一口径：
-/// 竖屏画面又窄又高，右侧抽屉会盖住直播内容，底部抽屉从下方升起来不挡脸。
-/// 这条兜底本次保留，不改成右侧。
-void showScaleModeInfo(LiveRoomController controller) {
-  if (controller.isVertical.value) {
+/// 两条落回底部抽屉的路径同一口径：[rightPanel]＝false（桌面窗口化，右侧面板会盖住
+/// 页面右栏）与竖屏主播（画面又窄又高，右侧面板会盖住直播内容）。改造前窗口化条带
+/// 根本没有这颗，全屏的「更多设置」开的是右侧面板——所以判据在调用方，不在这里。
+void showScaleModeInfo(
+  LiveRoomController controller, {
+  bool rightPanel = true,
+}) {
+  if (controller.isVertical.value || !rightPanel) {
     controller.showPlayerSettingsSheet();
     return;
   }
@@ -202,6 +215,13 @@ void showScaleModeInfo(LiveRoomController controller) {
   );
 }
 
+/// 换台／关注列表：**只有右侧面板这一种容器**，所以它没有 `rightPanel` 参数。
+///
+/// 作者 2026-10-04 定的是「右侧面板仅在全屏时使用」＋「换台仅在全屏出现」
+/// （见 `player_actions.dart` 的 `_available`：pick 只在 fullscreen 与 tile 在场），
+/// 两条合起来＝这颗永远开在这块面板里，窗口化压根没有它。
+/// ⚠️ 别顺手给它加底部抽屉：`showFollowUserSheet` 的行点击走 `multiPlay.onFollowItemTap`
+/// （多开时问的是「加入哪一格」），而这块面板走 `resetRoom`（换掉当前这一路），语义不同。
 void showFollowUser(LiveRoomController controller) {
   if (controller.isVertical.value) {
     controller.showFollowUserSheet();
