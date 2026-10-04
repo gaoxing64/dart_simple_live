@@ -47,7 +47,8 @@
   页级「更多」本来就是 `showModalBottomSheet`；窗口化右侧站着聊天／SC／关注那一栏，再来一块 400 宽的面板会把它整个盖掉。
   判据一处定义：`usesRightPanelSurface(host) => host != PlayerHost.windowed`，**由调用方（宿主）传给弹层本体**，
   本体不猜平台——移动端两条老 builder 从不传这个参数，行为逐字不变。
-- **`▾` 换台与音量滑条是例外，保留贴着按钮的锚定浮层**；~~全屏顶栏那颗「关注列表」因此也改成锚定浮层~~
+- **音量滑条是锚定浮层**（2026-10-04 起四宿主同一种形态，见 §5 末条），`▾` 换台在格子里也是锚定小列表；
+  ~~全屏顶栏那颗「关注列表」因此也改成锚定浮层~~
   （这条 2026-10-03 已被推翻，见 §8：换台按宿主分形态）。
 - **画面尺寸做按格独立**。
 - **小窗（PiP）态平铺收敛成四件**：退出小窗／全屏播放／弹幕开关／音量，其余全收进 `⋮`；
@@ -162,11 +163,15 @@ double resolveTileVolume({
   滑条在单播放宿主绑 `playerVolume`/`playerMaxVolume`，在格子宿主绑 `volumeFactor`。
   **修订（实现期定）：静音在两种宿主下都问同一件事——「这一路被我静音了吗」，一律读/写 `volumeFactor`**；
   滑条才各自绑总音量与该格系数。所以把总音量拖到 0 时图标仍是 `volume_up`，这是对的。
-- 悬停滑条与 chrome 自动隐藏的打架，**按宿主分两种解法（实现期推翻了我原来「都不能用 overlay」的判断）**：
-  条带（窗口化／全屏／小窗）里滑条**行内展开在同一个 `MouseRegion` 内**，向左长、右侧那一簇不动，零位移；
-  格子里必须走 `Overlay`（`OverlayPortal.overlayChildLayoutBuilder`，即 `RawTooltip` 那套）——
+- 悬停滑条与 chrome 自动隐藏的打架，实现期先按宿主分了两种解法（条带行内展开 / 格子走 `Overlay`），
+  格子那条必须用 `Overlay`（`OverlayPortal.overlayChildLayoutBuilder`，即 `RawTooltip` 那套）——
   `Positioned` 画出盒子之外的东西不参与命中测试（`RenderBox.hitTest` 先按自身尺寸筛，`clipBehavior: none` 只管绘制），
-  指针一移到滑条上就 `onExit`、滑条既会消失也拖不动。格子那条用 150ms 宽限期 + 滑条自带 `MouseRegion` 续命。
+  指针一移到滑条上就 `onExit`、滑条既会消失也拖不动；收起走 150ms 宽限期 + 滑条自带 `MouseRegion` 续命。
+  **修订（2026-10-04 手测后）：四宿主统一成格子那一种浮层**，行内展开删掉——他判「条带行内那根细白轨不像
+  Material，格子那块又偏在 icon 右上方」。定稿：面板锚在 icon **正上方居中**（对齐改造前
+  `SmartDialog.showAttach` 的 `Alignment.topCenter`，并按 Overlay 宽度夹取，贴窗边不被裁）、
+  样式回到改造前那条 `showVolumeSlider`（`Theme.cardColor` + 圆角 12 + 内边距 4 + **默认 Material `Slider`**，宽 200），
+  **面板里只放滑条**——「总音量／第 N 路」标题去掉（上下文由锚点给），滚轮的百分比读数只在滚完 1.2s 内出现在滑条上方。
 
 ## 6. 按格独立画面尺寸
 
