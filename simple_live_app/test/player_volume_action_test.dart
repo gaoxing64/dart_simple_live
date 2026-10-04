@@ -66,7 +66,6 @@ void main() {
             child: VolumeActionWidget(
               target: VolumeTarget.tile(tile),
               style: const ButtonStyle(),
-              overlayPopover: true,
             ),
           ),
         ),
@@ -83,6 +82,20 @@ void main() {
     expect(slider, findsOneWidget, reason: '悬停按钮应当展开滑条');
 
     final sliderCenter = tester.getCenter(slider);
+    // 浮层必须正压在按钮**上方居中**（改造前 `SmartDialog.showAttach` 的
+    // `Alignment.topCenter`）。上一版锚在按钮右上角再向左展开，多开时浮层明显偏在
+    // icon 右上方——作者 2026-10-04 手测报的「图体偏移」。
+    expect(
+      sliderCenter.dx,
+      moreOrLessEquals(buttonRect.center.dx, epsilon: 0.5),
+      reason: '浮层水平中心必须对齐 icon，不能偏左偏右',
+    );
+    // 面板里只有滑条：不画「第 N 路」标题，也不重复一颗音量图标。
+    expect(
+      find.text("第2路"),
+      findsNothing,
+      reason: '浮层标题已按作者定的形态去掉',
+    );
     // 浮层浮在按钮上方：目标点必须落在按钮盒**之外**，否则整条用例只是在原地踏步，
     // 证不到「浮层自己接住了指针」这件事。
     expect(

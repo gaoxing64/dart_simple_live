@@ -382,7 +382,6 @@ Widget buildPlayerActionItem({
             : VolumeTarget.master(page),
         style: buttonStyle,
         iconSize: iconSize,
-        overlayPopover: host == PlayerHost.tile,
         onInteract: onInteract,
       );
     case PlayerActionId.closeTile:
