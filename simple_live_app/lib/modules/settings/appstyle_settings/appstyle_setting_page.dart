@@ -110,52 +110,14 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
           SettingsCard(
             child: Obx(() {
               final settings = AppSettingsController.instance;
-              final useFloating = settings.navBarStyle.value == 1;
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SettingsSwitch(
-                    title: "悬浮胶囊导航栏",
-                    subtitle: "开启后导航栏浮在内容之上（仅竖屏生效）",
-                    value: useFloating,
-                    onChanged: (e) => settings.setNavBarStyle(e ? 1 : 0),
-                  ),
-                  AppStyle.divider,
-                  SettingsSwitch(
-                    title: "Liquid Glass 效果（实验性）",
-                    subtitle: useFloating
-                        ? "为悬浮胶囊叠加透明折射玻璃效果，可能与部分设备/主题不兼容"
-                        : "该效果依附于悬浮胶囊，开启上方开关后可用",
-                    value: settings.liquidGlassEffect.value,
-                    // 与悬浮胶囊强绑定：样式为「标准」时锁定，避免出现
-                    // 「开了玻璃却看不到任何变化」的困惑
-                    locked: !useFloating,
-                    lockedHint: "Liquid Glass 只能叠加在悬浮胶囊上，请先开启「悬浮胶囊导航栏」",
-                    onChanged: settings.setLiquidGlassEffect,
-                  ),
-                ],
+              return SettingsSwitch(
+                title: "悬浮 dock 导航栏",
+                subtitle: "开启后导航栏浮在内容之上，选中标记可拖动（仅竖屏生效）",
+                value: settings.navBarStyle.value == 1,
+                onChanged: (e) => settings.setNavBarStyle(e ? 1 : 0),
               );
             }),
           ),
-          if (kDebugMode) ...[
-            AppStyle.vGap12,
-            Padding(
-              padding: AppStyle.edgeInsetsA12,
-              child: Text(
-                "开发者选项",
-                style: context.textTheme.titleSmall,
-              ),
-            ),
-            SettingsCard(
-              child: ListTile(
-                title: const Text("Liquid Glass 调试"),
-                subtitle: const Text("滑动调节玻璃参数，实时预览浅色模式可读性"),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Get.toNamed(RoutePath.kLiquidGlassDebug),
-              ),
-            ),
-          ],
           AppStyle.vGap12,
           Padding(
             padding: AppStyle.edgeInsetsA12,

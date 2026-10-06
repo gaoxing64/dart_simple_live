@@ -6,9 +6,8 @@ import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/system_ui_inset.dart';
-import 'package:simple_live_app/modules/debug/glass_debug/glass_debug_controller.dart';
 import 'package:simple_live_app/widgets/bar_collapse.dart';
-import 'package:simple_live_app/widgets/floating_navigation_bar.dart';
+import 'package:simple_live_app/widgets/navigation_dock.dart';
 
 import 'indexed_controller.dart';
 
@@ -18,39 +17,24 @@ class IndexedPage extends GetView<IndexedController> {
   /// 切换时的视差幅度（占页面宽/高的比例）
   static const double _parallaxFraction = 0.08;
 
-  /// 悬浮胶囊导航栏（移植自 PiliPlus）
+  /// 悬浮 dock 导航栏（移植自 FlClash 的 `NavigationDock`）
   ///
-  /// 开启 Liquid Glass 后整条底栏（胶囊 + 图标文字 + 选中药丸）改由
-  /// liquid_glass_easy 绘制（见 [FloatingNavigationBar.liquidGlass]）。
+  /// 选中位置是一枚可以在各格之间拖动的透镜，配色走 M3 的
+  /// `secondaryContainer` / `surfaceContainer`，观感与手势详见
+  /// [NavigationDock]。
   Widget _buildFloatingNavBar(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Obx(() {
-      final settings = AppSettingsController.instance;
-      final useGlass = settings.liquidGlassEffect.value;
-      // Debug 构建下接入调试页参数，供浅色模式可读性调优
-      final debug = useGlass && GlassDebugController.enabled
-          ? GlassDebugController.instance
-          : null;
       return Center(
-        // heightFactor: 1 防止 Center 占满 Scaffold 底栏槽位高度；
-        // Center 同时让胶囊按内容宽度居中，不被槽位的紧约束拉成整屏宽
+        // Center 不占满槽位高度（heightFactor: 1）；dock 自己按 itemExtent
+        // 定死宽度、不需要靠父级约束松紧，所以这里只解决垂直居中。
         heightFactor: 1,
-        child: FloatingNavigationBar(
+        child: NavigationDock(
           selectedIndex: controller.index.value,
           onDestinationSelected: controller.setIndex,
-          liquidGlass: useGlass,
-          liquidGlassItemPadding: debug?.itemPadding.value ??
-              kFloatingNavBarLiquidGlassItemPadding,
-          liquidGlassStyle: debug?.buildBarStyle(),
-          liquidGlassItemStyle: debug?.buildItemStyle(
-            selectedColor: colors.primary,
-            unselectedColor: colors.onSurfaceVariant,
-          ),
-          liquidGlassPillStyle: debug?.buildPillStyle(colors.brightness),
           destinations: controller.items
               .map(
-                (item) => FloatingNavigationDestination(
-                  icon: Icon(item.iconData),
+                (item) => NavigationDockDestination(
+                  icon: item.iconData,
                   label: item.title,
                 ),
               )

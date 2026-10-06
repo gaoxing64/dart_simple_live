@@ -28,16 +28,13 @@ class LocalStorageService extends GetxService {
 
   /// 底部导航栏样式
   /// * [0] 标准
-  /// * [1] 悬浮胶囊（PiliPlus 移植）
-  /// * [2] 旧版「悬浮玻璃」样式；整合后迁移为 [1] + [kLiquidGlassEffect]
+  /// * [1] 悬浮 dock
+  /// * [2] 旧版「悬浮玻璃」样式；Liquid Glass 已整体移除，存量值迁移为 [1]
   static const String kNavBarStyle = "NavBarStyle";
 
-  /// 悬浮胶囊的 Liquid Glass 透明折射效果（实验性）
-  static const String kLiquidGlassEffect = "LiquidGlassEffect";
-
-  /// 悬浮玻璃导航栏（Liquid Glass）
-  /// * 更早版本的开关，已由 [kNavBarStyle] + [kLiquidGlassEffect] 取代，
-  ///   仅用于读取旧值迁移
+  /// 悬浮玻璃导航栏（更早版本的开关，已由 [kNavBarStyle] 取代）
+  ///
+  /// 仅用于读取旧值迁移，不再写入。
   static const String kFloatingGlassNavBar = "FloatingGlassNavBar";
 
   /// 首页顶栏收起
@@ -173,6 +170,13 @@ class LocalStorageService extends GetxService {
 
   /// 多开播放：记住上次的布局模式（单画面 / 多画面）
   static const String kMultiPlayEnable = "MultiPlayEnable";
+
+  /// 多开播放：批量入口一次预载几路（2~4）。
+  ///
+  /// 落盘而不是每次按平台重算：用户在桌面上试过「三路」之后到手机上开，
+  /// 拿到的默认值理应还是他上次自己选的那个，而不是被平台偏好覆盖掉。
+  /// 首次读到null 时由 [AppSettingsController] 按平台预填。
+  static const String kMultiPlayDefaultTiles = "MultiPlayDefaultTiles";
 
   /// 多开播放：非聚焦格的音量比例（0~1，乘在总音量上）
   static const String kMultiPlayDuckVolume = "MultiPlayDuckVolume";

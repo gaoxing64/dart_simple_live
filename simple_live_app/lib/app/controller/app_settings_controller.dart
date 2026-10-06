@@ -9,6 +9,7 @@ import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_snapshot.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 
 class AppSettingsController extends GetxController {
@@ -78,21 +79,17 @@ class AppSettingsController extends GetxController {
       LocalStorageService.instance.getValue(LocalStorageService.kThemeMode, 0),
     );
     // 旧版本只有「悬浮玻璃导航栏」开关，再往后是 0/1/2 的样式枚举。
-    // 整合后悬浮玻璃不再是独立样式，而是悬浮胶囊上的实验性效果，
-    // 因此旧值 2（悬浮玻璃）迁移为样式 1（悬浮胶囊）+ Liquid Glass 开关。
+    // 整合后悬浮玻璃不再是独立样式，旧值 2（悬浮玻璃）与早期开关一律迁移为
+    // 样式 1（悬浮 dock）。
     final legacyGlassNavBar = LocalStorageService.instance
         .getValue(LocalStorageService.kFloatingGlassNavBar, false);
     final storedNavBarStyle = LocalStorageService.instance
         .getNullValue<int>(LocalStorageService.kNavBarStyle, null);
-    final legacyGlassStyle = storedNavBarStyle == 2;
-    final resolvedNavBarStyle = legacyGlassStyle
+    final resolvedNavBarStyle =
+        (storedNavBarStyle == null && legacyGlassNavBar) || storedNavBarStyle == 2
         ? 1
-        : (storedNavBarStyle ?? (legacyGlassNavBar ? 1 : 0));
+        : (storedNavBarStyle ?? 0);
     navBarStyle.value = resolvedNavBarStyle >= 1 ? 1 : 0;
-    liquidGlassEffect.value = LocalStorageService.instance.getValue(
-      LocalStorageService.kLiquidGlassEffect,
-      legacyGlassNavBar || legacyGlassStyle,
-    );
     hideTopBar.value = LocalStorageService.instance
         .getValue(LocalStorageService.kHideTopBar, hideTopBar.value);
     hideBottomBar.value = LocalStorageService.instance
@@ -271,6 +268,18 @@ class AppSettingsController extends GetxController {
       true,
     );
 
+    // 「默认路数」不给存储层的默认值，而是先读成 null 交给
+    // `resolveDefaultMultiPlayTiles` 按平台预填：桌面 4、移动 2。
+    // 直接在这里写死一个数会让移动端也拿到 4（然后被布局引擎折格），
+    // 写死成 2 又会让桌面端永远只能开两路。
+    multiPlayDefaultTiles.value = resolveDefaultMultiPlayTiles(
+      isDesktop: isDesktop,
+      stored: LocalStorageService.instance.getValue<int?>(
+        LocalStorageService.kMultiPlayDefaultTiles,
+        null,
+      ),
+    );
+
     enableRtxVsr.value = LocalStorageService.instance.getValue(
       LocalStorageService.kEnableRtxVsr,
       false,
@@ -401,22 +410,13 @@ class AppSettingsController extends GetxController {
 
   /// 底部导航栏样式（见 [LocalStorageService.kNavBarStyle]）
   /// * [0] 标准
-  /// * [1] 悬浮胶囊
+  /// * [1] 悬浮 dock
   var navBarStyle = 0.obs;
-
-  /// 悬浮胶囊的 Liquid Glass 透明折射效果（实验性）
-  var liquidGlassEffect = false.obs;
 
   void setNavBarStyle(int e) {
     navBarStyle.value = e >= 1 ? 1 : 0;
     LocalStorageService.instance
         .setValue(LocalStorageService.kNavBarStyle, navBarStyle.value);
-  }
-
-  void setLiquidGlassEffect(bool e) {
-    liquidGlassEffect.value = e;
-    LocalStorageService.instance
-        .setValue(LocalStorageService.kLiquidGlassEffect, e);
   }
 
   /// 首页顶栏收起（移动端默认开启）
@@ -779,6 +779,21 @@ class AppSettingsController extends GetxController {
     LocalStorageService.instance.setValue(
       LocalStorageService.kMultiPlayTileDanmaku,
       e,
+    );
+  }
+
+  /// 多开播放：批量入口默认预载几路（2~4）。
+  ///
+  /// 只影响「关注页勾选后批量多开」的入口；手动一路路加（[MultiPlaySession.addRoom]）
+  /// 上限仍是 [kMultiPlayMaxTiles]，不受这个值约束。
+  var multiPlayDefaultTiles = 4.obs;
+
+  void setMultiPlayDefaultTiles(int e) {
+    final clamped = e.clamp(kMultiPlayMinTiles, kMultiPlayMaxTiles);
+    multiPlayDefaultTiles.value = clamped;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kMultiPlayDefaultTiles,
+      clamped,
     );
   }
 

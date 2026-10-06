@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/system_ui_inset.dart';
-import 'package:simple_live_app/widgets/floating_navigation_bar.dart';
+import 'package:simple_live_app/widgets/navigation_dock.dart';
 
 class _Host extends StatefulWidget {
   const _Host();
@@ -17,12 +17,18 @@ class _HostState extends State<_Host> {
       body: const SizedBox.expand(),
       bottomNavigationBar: Center(
         heightFactor: 1,
-        child: FloatingNavigationBar(
+        child: NavigationDock(
           selectedIndex: 0,
           onDestinationSelected: (_) {},
           destinations: const [
-            FloatingNavigationDestination(icon: Icon(Icons.home), label: "首页"),
-            FloatingNavigationDestination(icon: Icon(Icons.star), label: "关注"),
+            NavigationDockDestination(
+              icon: Icons.home,
+              label: "首页",
+            ),
+            NavigationDockDestination(
+              icon: Icons.star,
+              label: "关注",
+            ),
           ],
         ),
       ),
@@ -140,7 +146,7 @@ void main() {
         0);
   });
 
-  testWidgets('悬浮胶囊导航栏：退出全屏后 inset 丢失仍避让小白条', (tester) async {
+  testWidgets('悬浮 dock 导航栏：退出全屏后 inset 丢失仍避让小白条', (tester) async {
     tester.view.physicalSize = const Size(390 * 3, 844 * 3);
     tester.view.devicePixelRatio = 3.0;
     // 系统栏可见：底部 24dp（手势小白条）
@@ -150,9 +156,13 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: _Host()));
     await tester.pumpAndSettle();
 
-    final barFinder = find.byType(FloatingNavigationBar);
+    final barFinder = find.byType(NavigationDock);
+    // dock 自身的 Padding 之外还有 kNavigationDockShadowRoom 的阴影预留。
     final double expected =
-        kFloatingNavBarHeight + kFloatingNavBarBottomPadding + 24;
+        kNavigationDockShadowRoom +
+        kNavigationDockHeight +
+        kNavigationDockBottomPadding +
+        24;
     expect(tester.getSize(barFinder).height, expected);
 
     // 进全屏 → 系统栏隐藏；退出全屏 → 平台不再上报恢复后的 inset

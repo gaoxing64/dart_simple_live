@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:liquid_glass_easy/liquid_glass_easy.dart' as liquid_glass;
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -85,14 +84,6 @@ void main(List<String> arguments) async {
     systemNavigationBarColor: Colors.transparent,
   );
   SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
-  //Liquid Glass 着色器预热：预编译好片段着色器，避免第一帧玻璃渲染不出来。
-  //预热失败不拦启动 —— 它只是优化，玻璃本身在 Skia/Web 上就会退化成磨砂，
-  //而这里抛出去会直接中断 main()，App 连退化渲染的机会都没有。
-  try {
-    await liquid_glass.LiquidGlassShaders.ensureLoaded();
-  } catch (e) {
-    debugPrint("Liquid Glass 着色器预热失败：$e");
-  }
   runApp(const MyApp());
 }
 
