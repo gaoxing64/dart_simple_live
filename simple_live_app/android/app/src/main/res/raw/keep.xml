@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  资源收缩（isShrinkResources = true）白名单。
+
+  媒体通知的小图标是 Dart 侧以字符串 `drawable/ic_stat_slive` 交给
+  audio_service 去 `getIdentifier()` 查的，AAPT 看不到这条引用边，
+  收缩阶段会当没人用给剥掉 —— 表现是 release 包通知只剩文字、没有图标。
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_slive" />
