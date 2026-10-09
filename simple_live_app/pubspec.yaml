@@ -110,6 +110,21 @@ dependencies:
       ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
       path: ./libs/universal/media_kit_libs_video
 
+  # 后台播放：切后台/锁屏继续出声，并把播放控制送到通知栏、锁屏与耳机媒体键。
+  #
+  # 钉死精确版本、不用 ^：本功能有几处前提是逐条读 0.18.19 的包源码定下来的——
+  #   1. AudioHandler 跑在**主 isolate**（才敢在这里直接持有 media_kit 的播放器）；
+  #   2. 包里没有任何 requestAudioFocus，也从不 AudioSession.configure()；
+  #   3. AudioHandler.stop() 只把 processingState 落 idle、**不动** playing，
+  #      所以我们自写 _publishIdle 而不是 super.stop()；
+  #   4. assert(!androidNotificationOngoing || androidStopForegroundOnPause)。
+  # bump 版本必须把这四条重新验一遍。细节与取证见仓库根的 notes 文档。
+  audio_service: 0.18.19
+  # 音频会话：iOS 要把 AVAudioSession 切到 playback 类别（否则切后台被系统掐掉），
+  # Android 的音频焦点、以及两个平台的「中断/耳机拔出」也只有这里能拿到
+  # （audio_service 不管这些）。
+  audio_session: 0.2.4
+
 dependency_overrides:
   get:
     git:
