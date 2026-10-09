@@ -180,7 +180,7 @@ class MultiPlayTile extends StatelessWidget {
   /// 错的——胶囊挂在无界的 Row 里，量到的 `maxWidth` 本来就是 infinity，绕一圈回到同一个
   /// 值，还多一次布局；换成有界宿主时又会把「按宽度收纳」这条静默打开。
   ///
-  /// reactive 读取必须落在这个 `Obx` 的同步 builder 里：`qualites`/`playUrls` 是详情
+  /// reactive 读取必须落在这个 `Obx` 的同步 builder 里：`qualities`/`playUrls` 是详情
   /// 加载完才 `assignAll` 的、`isVertical` 也在那时翻转，读在 `Obx` 之外就订阅不上，
   /// `⋮` 会一直停在「这一路没有清晰度/线路可选」那份旧清单。
   Widget _buildControlsPill() {

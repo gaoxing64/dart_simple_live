@@ -58,8 +58,10 @@ class PlatformService extends GetxService {
   }
 
   void setDouyinCookie(String cookie) {
+    if(cookie.isEmpty) return;
     douyinCookie = cookie;
     LocalStorageService.instance.setValue(LocalStorageService.kDouyinCookie, cookie);
+    _updateDouyinAttr();
   }
 
   void douyinLogout() async {
@@ -122,22 +124,58 @@ class PlatformService extends GetxService {
   // ==================== 斗鱼 ====================
 
   var douyuCookie = ''.obs;
+  var dyLtp0 = '';
+  var dy_did = '';
   final _douyuSite = (Sites.allSites[Constant.kDouyu]!.liveSite as DouyuSite);
+
   void _initDouyu() {
     douyuCookie.value = LocalStorageService.instance.getValue(LocalStorageService.kDouyuCookie, "");
+    dy_did = LocalStorageService.instance.getValue(LocalStorageService.kDouyuDyDid, "");
+    dyLtp0 = LocalStorageService.instance.getValue(LocalStorageService.kDouyuLTP0, "");
+    // set and refresh
     _updateDouyuAttr();
+    _refreshDouyuCookie();
   }
 
   // 本地存储-> update Core-Site attrs
-  void setDouyuCookie(String cookie){
-    douyuCookie.value = cookie;
-    LocalStorageService.instance.setValue(LocalStorageService.kDouyuCookie, cookie);
-    _updateDouyuAttr(); // don't check cookie temp
+  void setDouyuCookie(String cookie) {
+    if(cookie.isNotEmpty){
+      douyuCookie.value = cookie;
+      LocalStorageService.instance.setValue(LocalStorageService.kDouyuCookie, douyuCookie.value);
+    }
+  }
+
+  // for douyu cookie
+  Future<void> setDouyuDidAndLtp0(String did, String ltp0) async {
+    if(did.isNotEmpty){
+      dy_did = did;
+      LocalStorageService.instance.setValue(LocalStorageService.kDouyuDyDid, dy_did);
+    }
+    if(ltp0.isNotEmpty){
+      dyLtp0 = ltp0;
+      LocalStorageService.instance.setValue(LocalStorageService.kDouyuLTP0, ltp0);
+    }
+    // set and refresh
+    _updateDouyuAttr();
+    _refreshDouyuCookie();
+  }
+  // 无论如何 都应检查cookie有效性后再保存
+  // logic: 有效则不变，无效且配置did&ltp0并保存
+  Future<void> _refreshDouyuCookie() async {
+    var cookie = await _douyuSite.refreshCookie(dy_did, dyLtp0);
+    if(cookie.isEmpty){
+      SmartDialog.showToast("斗鱼登录已失效，请重新登录");
+    }
+    setDouyuCookie(cookie);
   }
 
   void douyuLogout() async {
     douyuCookie.value = "";
     LocalStorageService.instance.setValue(LocalStorageService.kDouyuCookie, "");
+    dy_did = "";
+    LocalStorageService.instance.setValue(LocalStorageService.kDouyuDyDid, "");
+    dyLtp0 = "";
+    LocalStorageService.instance.setValue(LocalStorageService.kDouyuLTP0, "");
     _updateDouyuAttr();
     if (Platform.isAndroid || Platform.isIOS) {
       CookieManager cookieManager = CookieManager.instance();

@@ -1,6 +1,7 @@
 ﻿import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:simple_live_core/simple_live_core.dart';
+import 'package:simple_live_core/src/platforms/huya/common/huya_vip_room_id.dart';
 import 'package:simple_live_core/src/platforms/huya/tars/get_game_event_message_board_req.dart';
 import 'package:simple_live_core/src/platforms/huya/tars/get_game_event_message_board_rsp.dart';
 import 'package:simple_live_core/src/platforms/huya/tars/huya_danmaku.dart';
@@ -11,7 +12,7 @@ import 'package:tars_dart/tars/net/base_tars_http.dart';
 import 'package:tars_dart/tars/tup/request_packet.dart';
 import 'package:tars_dart/tars/tup/tars_message.dart';
 
-import 'huya_request_params.dart';
+import 'common/huya_request_params.dart';
 
 int rotl64(int t) {
   final low = t & 0xFFFFFFFF;
@@ -84,8 +85,11 @@ Future<List<LiveSuperChatMessage>> getHuyaSuperChatMessageList(
   messages.sort((a, b) => b.startTime.compareTo(a.startTime));
   if (first) {
     return messages.length > 10 ? messages.sublist(0,10) : messages;
-  } else {
+  } else if(messages.isNotEmpty) {
+    // 当响应时必不可能为empty，测试安全
     return [messages.first];
+  } else {
+    return messages;
   }
 }
 class RequestIdGenerator {
@@ -142,4 +146,10 @@ String getTraceId() {
     final value = match.group(0) == 'x' ? t : (t & 0x3) | 0x8;
     return value.toRadixString(16);
   });
+}
+
+bool isVipRoom(String roomId){
+  bool res = false;
+  res = vipRoomIds.contains(roomId);
+  return res;
 }

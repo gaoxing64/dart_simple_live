@@ -71,7 +71,7 @@ Widget _gestureTip(LiveRoomController controller) {
 /// WHY 外层用 `Obx` 而不是直接把 reactive 读取塞进 `LayoutBuilder.builder`：
 /// `Obx` 的自动订阅发生在它 builder 的**同步执行期**；`LayoutBuilder` 的 builder
 /// 是布局阶段才跑的，那时订阅窗口早就关了，塞进去的读取一个都订不上。于是清晰度列表
-/// 加载完（`qualites.assignAll`）、竖屏判定翻转都不会重算 layout，条带停在初始那份。
+/// 加载完（`qualities.assignAll`）、竖屏判定翻转都不会重算 layout，条带停在初始那份。
 /// 所以这里同步读 reactive 值，返回 `LayoutBuilder` 只做量宽这件非 reactive 的事。
 Widget _buildDesktopControls(VideoState videoState, LiveRoomController controller) {
   return Obx(() {

@@ -154,10 +154,10 @@ jobs:
           fetch-depth: 0
       # 设置 Flutter 环境
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2.16.0
+        uses: subosito/flutter-action@v2
         with:
           flutter-version-file: simple_live_app/pubspec.yaml
-          channel: stable
+          channel: master
       # 安装依赖
       - name: Update apt-get
         run: sudo apt-get update
@@ -281,7 +281,7 @@ jobs:
           fetch-depth: 0
       # 设置 Flutter 环境
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2.16.0
+        uses: subosito/flutter-action@v2
         with:
           flutter-version-file: simple_live_app/pubspec.yaml
           cache: true

@@ -93,6 +93,9 @@ class LocalStorageService extends GetxService {
   /// 弹幕去重
   static const String kDanmakuMaskEnable = "DanmakuMaskEnable";
 
+  /// 弹幕表情包（目前仅 B 站）
+  static const String kDanmuEmoticonEnable = "DanmuEmoticonEnable";
+
   /// 弹幕字重
   static const String kDanmuFontWeight = "DanmuFontWeight";
 
@@ -213,6 +216,12 @@ class LocalStorageService extends GetxService {
 
   /// 斗鱼cookie
   static const String kDouyuCookie = "DouyuCookie";
+
+  /// 斗鱼dy_did
+  static const String kDouyuDyDid = "DouyuDyDid";
+
+  /// 斗鱼ltp0
+  static const String kDouyuLTP0 = "DouyuLTP0";
 
   ///主题色
   static const String kStyleColor = "kStyleColor";

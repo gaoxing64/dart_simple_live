@@ -109,6 +109,80 @@ class DanmakuEmoticonBitmap {
   });
 }
 
+/// 缓存世代：[DanmakuEmoticonRenderer.clearCache] 时自增。
+///
+/// 在途的取图 / 合成在写回缓存前核对世代，否则「退出直播间清空缓存之后，
+/// 在途结果又落回静态缓存」，要等到下一次进/出房间才被清掉。
+int _cacheGeneration = 0;
+
+/// 表情宽高比的安全区间，挡极端比例的载荷把消息行 / 弹幕位图撑爆
+const double kMinEmoteAspectRatio = 0.25;
+const double kMaxEmoteAspectRatio = 4.0;
+
+/// 大表情（`info[0][13]` 单独下发）里 upower 系的固定物理像素边长——服务端不给尺寸。
+/// 口径与 PiliNara 一致。
+const double kUpowerEmotePhysicalPx = 162.0;
+
+/// 表情显示高度的绝对兜底上限（逻辑像素）。
+///
+/// 正常情况下限由调用方按「最多占两个轨道 / 两行」给（见 [emoteDisplayHeight] 的
+/// `maxHeight`），这里只防异常载荷把位图撑到几百像素。
+const double kMaxEmoteLogicalHeight = 240.0;
+
+/// 表情最多占多少个轨道 / 多少行。
+///
+/// 上游的要求：大表情再大也不许超过两行，否则弹幕密集时会把画面挡得太多。
+const double kMaxEmoteLines = 2.0;
+
+/// 表情的显示高度，聊天区与弹幕渲染器共用这一份**大表情**口径。
+///
+/// 行内小表情不经过这里：聊天区是 `fontSize * 1.2`、弹幕区是
+/// `min(fontSize * 1.25, 行高)`，两处历来就不同，各自保留。
+/// 大表情服务端下发的是**物理像素**，换回逻辑像素后大于单行行高：official 系再放大
+/// 1.25，upower 系用固定边长，服务端没给尺寸时兜底两行。
+///
+/// [maxHeight] 是这一处允许占多少行/轨道（弹幕区传两个轨道高、聊天区传两行高），
+/// 上游明确要求大表情最多占 [kMaxEmoteLines] 行，不许霸屏；没传时只用
+/// [kMaxEmoteLogicalHeight] 这个绝对兜底。
+double emoteDisplayHeight(
+  LiveMessageEmoticon emoticon, {
+  required double fontSize,
+  required double dpr,
+  double? maxHeight,
+}) {
+  if (!emoticon.large) {
+    return fontSize * 1.2;
+  }
+  final double raw;
+  if (emoticon.isUpower) {
+    raw = kUpowerEmotePhysicalPx / dpr;
+  } else {
+    final serverHeight = emoticon.height?.toDouble();
+    if (serverHeight == null || serverHeight <= 0) {
+      raw = fontSize * 1.2 * kMaxEmoteLines;
+    } else {
+      raw = serverHeight / dpr * (emoticon.isOfficial ? 1.25 : 1.0);
+    }
+  }
+  // 下界也要夹进上界内：fontSize 来自持久化设置，脏数据把它撑到极大时下界会
+  // 反超上界，`num.clamp` 直接抛 ArgumentError；聊天区是在 build 里同步调它，
+  // 异常会打断整帧渲染。
+  final ceiling = maxHeight == null
+      ? kMaxEmoteLogicalHeight
+      : math.min(maxHeight, kMaxEmoteLogicalHeight);
+  return raw.clamp(math.min(fontSize * 1.2, ceiling), ceiling);
+}
+
+/// 表情的宽高比，夹在安全区间内（服务端比例极端时不撑爆行宽）
+double emoteAspectRatio(LiveMessageEmoticon emoticon, double fallbackRatio) {
+  final width = emoticon.width?.toDouble();
+  final height = emoticon.height?.toDouble();
+  if (width == null || height == null || width <= 0 || height <= 0) {
+    return fallbackRatio.clamp(kMinEmoteAspectRatio, kMaxEmoteAspectRatio);
+  }
+  return (width / height).clamp(kMinEmoteAspectRatio, kMaxEmoteAspectRatio);
+}
+
 /// 弹幕表情包的图片加载与位图合成。
 ///
 /// 设计取舍（对应用户在 Issue #153 里提的三个顾虑）：
@@ -121,9 +195,13 @@ class DanmakuEmoticonBitmap {
 /// 命中时用 [ui.Image.clone] 分发独立句柄。这样同一条表情弹幕重复出现时
 /// 不需要重新栅格化，而每个 [DanmakuItem] 各自持有的句柄仍能被单独释放。
 ///
-/// **尺寸与透明度**：表情高度跟随弹幕字号（`fontSize * 1.25`，不超过行高），
-/// 因此调大弹幕字号时表情同步变大；透明度不用单独处理 —— 弹幕库把整层包在
-/// `Opacity(option.opacity)` 里，表情天然跟着一起变透明。
+/// **尺寸与透明度**：行内小表情的高度跟随弹幕字号（`fontSize * 1.25`，不超过
+/// 行高），调大弹幕字号时表情同步变大；大表情（[LiveMessageEmoticon.large]）按
+/// 服务端物理像素换回逻辑像素，最多占 [kMaxEmoteLines] 个轨道高（见
+/// [emoteDisplayHeight]）。弹幕库的滚动轨道是等高网格、排轨不认单条 `item.height`，
+/// 所以超过一行的大表情会与相邻轨道重叠，这是上游确认接受的取舍。
+/// 透明度不用单独处理 —— 弹幕库把整层包在 `Opacity(option.opacity)` 里，
+/// 表情天然跟着一起变透明。
 class DanmakuEmoticonRenderer {
   DanmakuEmoticonRenderer._();
 
@@ -158,7 +236,8 @@ class DanmakuEmoticonRenderer {
     required DanmakuContentItem content,
     required List<LiveMessageEmoticon> emoticons,
   }) async {
-    final DanmakuEmoticonBitmap? bitmap;
+    DanmakuEmoticonBitmap? bitmap;
+    var handedOver = false;
     try {
       bitmap = await render(
         text: content.text,
@@ -166,28 +245,36 @@ class DanmakuEmoticonRenderer {
         option: controller.option,
         color: content.color,
       );
+      if (bitmap == null) {
+        return;
+      }
+
+      final item = _findItem(controller, content);
+      if (item == null) {
+        return;
+      }
+
+      // 库为这条弹幕生成的纯文本位图已经没用了，先释放再换上表情位图。
+      // 等图的这几百毫秒里该条可能已被库回收并 dispose 过位图，这一句会抛，
+      // 所以整段都要在 try 里（见下方注释）。
+      item.image?.dispose();
+      item.image = bitmap.image;
+      handedOver = true;
+      item.width = bitmap.width;
+      item.height = bitmap.height;
     } catch (e, stackTrace) {
       // 调用方是 fire-and-forget 的 unawaited(...)，异常冒出去会被
-      // PlatformDispatcher.onError 当成 fatal 上报。这里直接放弃替换，
-      // 让弹幕库渲染的占位符文本兜底，与「取不到图就退回文本」保持一致。
+      // PlatformDispatcher.onError 当成 fatal 上报（Crashlytics 记 fatal）。
+      // 这里直接放弃替换，让弹幕库渲染的占位符文本兜底，与「取不到图就退回
+      // 文本」保持一致。
       Log.e("表情弹幕渲染失败，退回占位符文本：$e", stackTrace);
-      return;
+    } finally {
+      // 没交接给弹幕项的一律由我们回收：含「找不到弹幕项」与「dispose 旧位图
+      // 时抛异常」两条路径，否则这张合成位图就永久泄漏。
+      if (!handedOver) {
+        bitmap?.image.dispose();
+      }
     }
-    if (bitmap == null) {
-      return;
-    }
-
-    final item = _findItem(controller, content);
-    if (item == null) {
-      bitmap.image.dispose();
-      return;
-    }
-
-    // 库为这条弹幕生成的纯文本位图已经没用了，先释放再换上表情位图
-    item.image?.dispose();
-    item.image = bitmap.image;
-    item.width = bitmap.width;
-    item.height = bitmap.height;
   }
 
   /// 栅格化表情弹幕位图；返回 null 表示应退回纯文本渲染。
@@ -204,13 +291,36 @@ class DanmakuEmoticonRenderer {
 
     final emoteSegments =
         segments.whereType<DanmakuEmoticonSegment>().toList(growable: false);
+    final generation = _cacheGeneration;
+    final dpr = _devicePixelRatio();
     // 每个句柄都由调用方负责归还（见 [_ImageHandleCache.load]）：栅格化一结束
     // 就释放自己这一份，缓存本体与其它并发中的渲染都不受影响。
+    // 单个 url 取图失败不能让整个 Future.wait 抛出去：那样其余已 clone 出来的
+    // 句柄拿不到引用、永远无法 dispose，是 ui.Image 句柄泄漏。用 async 闭包包
+    // 一层，连「load 在返回 Future 之前就同步抛出」也一并收敛成 null。
     final images = await Future.wait(
-      emoteSegments.map((e) => _ImageHandleCache.load(e.emoticon.url)),
+      emoteSegments.map((e) async {
+        try {
+          return await _ImageHandleCache.load(
+            e.emoticon.url,
+            _decodeTargetPx(
+              e.emoticon,
+              fontSize: option.fontSize,
+              dpr: dpr,
+            ),
+          );
+        } catch (_) {
+          return null;
+        }
+      }),
     );
 
     try {
+      // 等图期间缓存被清过（换房间 / 退出直播间）：这批结果已经没人要了，
+      // 合成位图也不该再落回缓存，直接放弃
+      if (generation != _cacheGeneration) {
+        return null;
+      }
       // 图片没取到的表情退回显示占位符文本，保证弹幕本身不丢
       final resolved = <DanmakuSegment>[];
       var imageIndex = 0;
@@ -281,18 +391,25 @@ class DanmakuEmoticonRenderer {
     final lineBox = probe.height;
     probe.dispose();
 
-    final emoteHeight = math.min(fontSize * _emoteScale, lineBox);
     final emoteGap = fontSize * _emoteGapScale;
-    final textOffsetY = strokeWidth / 2;
-    final emoteOffsetY = strokeWidth / 2 + (lineBox - emoteHeight) / 2;
 
     final paragraphs = <ui.Paragraph>[];
     final emotes = <_PlacedEmoticon>[];
-    var width = strokeWidth;
+    // 左右各留 strokeWidth / 2：描边会向字形外扩 strokeWidth / 2，只留一侧会把
+    // 最右侧字形的描边裁掉，还会让内容相对预留框整体偏移
+    var width = strokeWidth / 2;
+    var maxEmoteHeight = 0.0;
+    var placedAny = false;
+    var lastWasEmote = false;
 
     for (final segment in segments) {
       switch (segment) {
         case DanmakuTextSegment(:final text):
+          // 表情与文字之间两侧都要有间隙：只在表情前插会让 `[doge]你好` 紧贴，
+          // 与聊天区左右对称的 Padding 口径不一致
+          if (placedAny && lastWasEmote) {
+            width += emoteGap;
+          }
           final paragraph = _buildParagraph(
             text,
             fontSize: fontSize,
@@ -307,25 +424,46 @@ class DanmakuEmoticonRenderer {
             x: width,
           ));
           width += paragraph.maxIntrinsicWidth;
+          placedAny = true;
+          lastWasEmote = false;
         case _ResolvedEmoticonSegment(:final emoticon, :final image):
-          if (width > strokeWidth) {
+          if (placedAny) {
             width += emoteGap;
           }
-          final emoteWidth = emoteHeight * _aspectRatio(emoticon, image.image);
+          // 大表情按物理像素换回逻辑像素，会比单行高出一截，最多允许占两个轨道。
+          // 弹幕库的轨道是等高网格、不认单条高度，所以哪怕只占两轨也会与相邻轨道
+          // 重叠，这是上游确认过的取舍。
+          final h = emoticon.large
+              ? emoteDisplayHeight(
+                  emoticon,
+                  fontSize: fontSize,
+                  dpr: devicePixelRatio,
+                  maxHeight: (lineBox + strokeWidth) * kMaxEmoteLines,
+                )
+              : math.min(fontSize * _emoteScale, lineBox);
+          if (h > maxEmoteHeight) {
+            maxEmoteHeight = h;
+          }
+          final emoteWidth = h * _aspectRatio(emoticon, image.image);
           emotes.add(_PlacedEmoticon(
             image: image.image,
             x: width,
             width: emoteWidth,
+            height: h,
           ));
           width += emoteWidth;
+          placedAny = true;
+          lastWasEmote = true;
         case DanmakuEmoticonSegment():
           // 取不到图的表情在 render() 里已经转成了文本片段，这里不会出现
           break;
       }
     }
 
-    final totalWidth = width;
-    final totalHeight = lineBox + strokeWidth;
+    final totalWidth = width + strokeWidth / 2;
+    final contentHeight = math.max(lineBox, maxEmoteHeight);
+    final totalHeight = contentHeight + strokeWidth;
+    final textOffsetY = strokeWidth / 2 + (contentHeight - lineBox) / 2;
 
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder)..scale(devicePixelRatio);
@@ -360,9 +498,9 @@ class DanmakuEmoticonRenderer {
         Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
         Rect.fromLTWH(
           placed.x,
-          emoteOffsetY,
+          strokeWidth / 2 + (contentHeight - placed.height) / 2,
           placed.width,
-          emoteHeight,
+          placed.height,
         ),
         imagePaint,
       );
@@ -407,6 +545,8 @@ class DanmakuEmoticonRenderer {
   /// 多开时不要直接调它——缓存是进程级共享的，四路里任何一格换房间都会清掉别人
   /// 正在用的位图。用 [acquireCache]/[releaseCache] 表达「最后一个持有者才清」。
   static void clearCache() {
+    // 在途的取图 / 合成写回缓存前会核对世代，见 [_cacheGeneration]
+    _cacheGeneration++;
     _ImageHandleCache.clear();
     _CompositeCache.clear();
   }
@@ -433,12 +573,12 @@ class DanmakuEmoticonRenderer {
     final width = emoticon.width;
     final height = emoticon.height;
     if (width != null && height != null && width > 0 && height > 0) {
-      return width / height;
+      return emoteAspectRatio(emoticon, 1);
     }
     if (image.height == 0) {
       return 1;
     }
-    return image.width / image.height;
+    return emoteAspectRatio(emoticon, image.width / image.height);
   }
 
   static ui.Paragraph _buildParagraph(
@@ -474,11 +614,14 @@ class DanmakuEmoticonRenderer {
     Color color,
     double devicePixelRatio,
   ) {
+    // 弹幕文本用户可控，可能恰好包含分隔符；带长度前缀后内容与分隔符不会混淆，
+    // 避免两条不同弹幕拼出同一个 key 而命中彼此的合成位图
     final content = segments.map((segment) {
       return switch (segment) {
-        DanmakuTextSegment(:final text) => 't:$text',
-        DanmakuEmoticonSegment(:final emoticon) => 'e:${emoticon.url}',
-        _ResolvedEmoticonSegment(:final emoticon) => 'e:${emoticon.url}',
+        DanmakuTextSegment(:final text) => 't:${text.length}:$text',
+        // 同一个 url 可能以大表情 / 行内小表情两种口径出现，尺寸不同不能共用缓存
+        DanmakuEmoticonSegment(:final emoticon) => _emoteKey(emoticon),
+        _ResolvedEmoticonSegment(:final emoticon) => _emoteKey(emoticon),
       };
     }).join('\u0001');
     return [
@@ -491,6 +634,32 @@ class DanmakuEmoticonRenderer {
       color.toARGB32(),
       devicePixelRatio,
     ].join('|');
+  }
+
+  static String _emoteKey(LiveMessageEmoticon emoticon) {
+    // 与文本片段一样带长度前缀：url 与 emoticon_unique 都来自服务端，只用 `:`
+    // 拼接会让字段边界被挪动（url 尾部含 "true" 之类），拼出同一个 key 命中
+    // 彼此的合成位图
+    final url = emoticon.url;
+    final unique = emoticon.emoticonUnique ?? '';
+    return 'e:${url.length}:$url:${emoticon.large}:${unique.length}:$unique:'
+        '${emoticon.width ?? 0}x${emoticon.height ?? 0}';
+  }
+
+  /// 源图的期望解码尺寸（物理像素），按「显示尺寸 × dpr」推导。
+  ///
+  /// 只为把高 dpr 下的大表情往上抬（显示高度可到 [kMaxEmoteLogicalHeight]，
+  /// 解码尺寸跟不上会欠采样）。这里只给期望值，夹取在 [_ImageHandleCache.load]
+  /// 里做，下限与历史一致——解码期缩放的质量比绘制期差，不能按小尺寸提前缩。
+  static double _decodeTargetPx(
+    LiveMessageEmoticon emoticon, {
+    required double fontSize,
+    required double dpr,
+  }) {
+    final display = emoticon.large
+        ? emoteDisplayHeight(emoticon, fontSize: fontSize, dpr: dpr)
+        : fontSize * _emoteScale;
+    return display * dpr;
   }
 
   static double _devicePixelRatio() {
@@ -544,12 +713,16 @@ class _PlacedEmoticon {
   final double x;
   final double width;
 
+  /// 表情自己的显示高度，大表情会比单行行高高，绘制时按它垂直居中
+  final double height;
+
   const _PlacedEmoticon({
     this.paragraph,
     this.text,
     this.image,
     required this.x,
     this.width = 0,
+    this.height = 0,
   });
 }
 
@@ -567,56 +740,76 @@ class _PlacedEmoticon {
 class _ImageHandleCache {
   static const int _maxEntries = 128;
 
-  /// 解码尺寸上限（像素）。表情在实际显示时高度只有 `字号 × 1.25`，
-  /// 这个上限足够宽松，同时挡住异常大的图。
-  static const int _maxDecodeSize = 256;
+  /// 解码尺寸的区间（物理像素）。期望值由「显示尺寸 × dpr」推导
+  /// （见 [DanmakuEmoticonRenderer._decodeTargetPx]），这里只做夹取。
+  ///
+  /// 下限必须留在 256：`ResizeImage` 是在**解码阶段**缩放的，用的是解码器的
+  /// 廉价降采样，比「按较大尺寸解码 + 绘制时 `filterQuality.medium` 缩放」明显
+  /// 更糊（实测大表情按显示尺寸解码后反而糊了）。所以只在高 dpr + 大表情真的
+  /// 需要更多像素时才往上调，绝不低于原来的 256。
+  static const int _baselineDecodeSize = 256;
+  static const int _maxDecodeSize = 512;
 
   static final LinkedHashMap<String, ImageInfo> _cache = LinkedHashMap();
 
+  /// 同一张表情会按不同显示尺寸解码（字号 / dpr 不同，大表情与行内小表情也不同），
+  /// key 带上尺寸，避免后算出来的小尺寸把大尺寸那份覆盖掉、大表情发糊。
+  static String _key(String url, int target) => '$url@$target';
+
   /// 命中时返回一份新句柄，由调用方负责 `dispose`。
-  static ImageInfo? _get(String url) {
-    final info = _cache.remove(url);
+  static ImageInfo? _get(String key) {
+    final info = _cache.remove(key);
     if (info == null) {
       return null;
     }
-    _cache[url] = info;
+    _cache[key] = info;
     return info.clone();
   }
 
-  static void _put(String url, ImageInfo info) {
-    _cache.remove(url)?.dispose();
-    _cache[url] = info;
+  static void _put(String key, ImageInfo info) {
+    _cache.remove(key)?.dispose();
+    _cache[key] = info;
     while (_cache.length > _maxEntries) {
       _cache.remove(_cache.keys.first)?.dispose();
     }
   }
 
-  static Future<ImageInfo?> load(String url) {
-    final cached = _get(url);
+  static Future<ImageInfo?> load(String url, double desiredPhysicalPx) {
+    final target = desiredPhysicalPx.ceil().clamp(_baselineDecodeSize, _maxDecodeSize);
+    final key = _key(url, target);
+    final cached = _get(key);
     if (cached != null) {
       return Future.value(cached);
     }
+    final generation = _cacheGeneration;
 
-    // 按显示尺寸解码：弹幕表情最大也只有几十逻辑像素，这里给一个宽松上限
-    // （覆盖高 dpr + 大字号），避免异常大的图按原尺寸解码后长期占内存。
-    // 配合 fit 策略与默认的 allowUpscaling: false，小图不会被放大。
+    // 按实际显示尺寸解码：配合 fit 策略与默认的 allowUpscaling: false，
+    // 小图不会被放大，大图也只解到用得到的尺寸。
     final provider = DanmakuEmoticonRenderer.debugImageProviderFactory?.call(url) ??
         ResizeImage(
           NetworkImage(url),
-          width: _maxDecodeSize,
-          height: _maxDecodeSize,
+          width: target,
+          height: target,
           policy: ResizeImagePolicy.fit,
         );
 
-    // 同 URL 的并发请求由 Flutter 的 ImageCache 合并，这里不重复去重
+    // 同 URL + 同尺寸的并发请求由 Flutter 的 ImageCache 合并，这里不重复去重
     final completer = Completer<ImageInfo?>();
     final stream = provider.resolve(ImageConfiguration.empty);
     late final ImageStreamListener listener;
     listener = ImageStreamListener(
       (info, _) {
         stream.removeListener(listener);
+        // 等图期间缓存被清过：这份结果已经没人要，直接释放，不落缓存也不分发
+        if (generation != _cacheGeneration) {
+          info.dispose();
+          if (!completer.isCompleted) {
+            completer.complete(null);
+          }
+          return;
+        }
         // 缓存留一份，调用方拿另一份，各自独立释放
-        _put(url, info);
+        _put(key, info);
         if (!completer.isCompleted) {
           completer.complete(info.clone());
         }

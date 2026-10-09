@@ -4,7 +4,7 @@
 // `webcast.amemv.com/douyin/webcast/reflow/<roomId>` → webRid → 再请求
 // `live.douyin.com/webcast/room/web/enter/`。对连麦类房间，web/enter 会返回
 // **降级房间**：只剩 22 个字段的骨架，`status != 2`、没有 `stream_url`，
-// 于是 `detail.data` 变成空 Map，紧接着 `getPlayQualites` 里
+// 于是 `detail.data` 变成空 Map，紧接着 `getPlayQualities` 里
 // `detail.data["live_core_sdk_data"]["pull_data"]` 抛
 // `NoSuchMethodError: The method '[]' was called on null`，直播间直接「加载失败」。
 // 网页兜底路径同样会炸在 `roomStore.roomInfo.room["id_str"]`。
@@ -158,7 +158,7 @@ void main() {
     expect(detail.roomId, kWebRid);
     expect(detail.title, '黑白-（一字斩）正在直播');
 
-    final qualities = await site.getPlayQualites(detail: detail);
+    final qualities = await site.getPlayQualities(detail: detail);
     expect(qualities.length, 2);
     // 画质按档位从高到低
     expect(qualities.first.quality, '超清');
@@ -202,7 +202,7 @@ void main() {
     // 拿不到在播状态就是 false，不能崩
     expect(detail.status, isFalse);
     expect(detail.data, isA<Map>());
-    expect(await site.getPlayQualites(detail: detail), isEmpty);
+    expect(await site.getPlayQualities(detail: detail), isEmpty);
   });
 
   test('进房接口被风控拦下且网页兜底也拿不到房间时抛 CoreError', () async {
@@ -267,7 +267,7 @@ void main() {
     expect(detail.status, isTrue);
     expect(detail.title, '连麦房间');
     expect(detail.roomId, kWebRid);
-    final qualities = await site.getPlayQualites(detail: detail);
+    final qualities = await site.getPlayQualities(detail: detail);
     expect(qualities.length, 2);
     expect(qualities.first.quality, '超清');
     expect(
@@ -303,7 +303,7 @@ void main() {
       },
     );
 
-    final qualities = await site.getPlayQualites(detail: detail);
+    final qualities = await site.getPlayQualities(detail: detail);
     expect(qualities.length, 3);
     expect(qualities.first.quality, 'FULL_HD1');
     expect(qualities.first.data, contains('http://flv/uhd'));
@@ -326,7 +326,7 @@ void main() {
         url: '',
         data: data,
       );
-      expect(await site.getPlayQualites(detail: detail), isEmpty);
+      expect(await site.getPlayQualities(detail: detail), isEmpty);
     }
   });
 }

@@ -17,7 +17,7 @@ import 'package:simple_live_app/app/system_ui_inset.dart';
 import 'package:simple_live_app/services/window_service.dart';
 import 'package:simple_live_app/modules/live_room/player/pip_aspect.dart';
 import 'package:volume_controller/volume_controller.dart';
-import 'package:screen_brightness/screen_brightness.dart';
+import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/custom_throttle.dart';
@@ -545,8 +545,13 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
   /// 表情包弹幕的渲染接管。
   ///
   /// 弹幕库只认纯文本，这里用它公开的 [DanmakuController] 接口做后置替换：
-  /// 先让库按占位符文本正常入轨（占位符文本比表情图片更宽，轨道判定偏保守、
-  /// 不会重叠），等图片取回后再把该条的位图换成「文本 + 表情」的行内混排版本。
+  /// 先让库按占位符文本入轨，等图片取回后再把该条的位图换成「文本 + 表情」的
+  /// 行内混排版本，并把该 [DanmakuItem] 的宽高改写成位图尺寸。
+  ///
+  /// 已知限制：库的滚动轨道是等高网格、排轨只看入轨时的文本宽高，改写尺寸后
+  /// 不会重排。行内小表情与占位符文本尺寸接近、看不出来；大表情
+  /// （[LiveMessageEmoticon.large]）比占位符文本宽高都大，会与同轨 / 相邻轨的
+  /// 弹幕重叠——这是接受了的取舍，真要让位得改 canvas_danmaku 的排轨。
   ///
   /// 取图失败 / 弹幕已过期时直接放弃替换 —— 库渲染的占位符文本就是兜底表现，
   /// 不会出现空白弹幕。
@@ -568,7 +573,6 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
 }
 mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-  final screenBrightness = ScreenBrightness();
   final VolumeController volumeController = VolumeController.instance;
   final pip = Floating();
   StreamSubscription<PiPStatus>? _pipSubscription;
@@ -603,7 +607,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
       // 亮度重置,桌面平台可能会报错,暂时不处理桌面平台的亮度
       try {
-        await screenBrightness.resetApplicationScreenBrightness();
+        await ScreenBrightnessPlatform.instance.resetApplicationScreenBrightness();
       } catch (e) {
         Log.logPrint(e);
       }
@@ -1081,7 +1085,7 @@ mixin PlayerGestureControlMixin on PlayerStateMixin, PlayerMixin, PlayerSystemMi
       _currentVolume = await volumeController.getVolume();
     }
     if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-      _currentBrightness = await screenBrightness.application;
+      _currentBrightness = await ScreenBrightnessPlatform.instance.application;
     }
   }
 
@@ -1158,7 +1162,7 @@ mixin PlayerGestureControlMixin on PlayerStateMixin, PlayerMixin, PlayerSystemMi
       if (seek < 0) {
         seek = 0;
       }
-      screenBrightness.setApplicationScreenBrightness(seek);
+      ScreenBrightnessPlatform.instance.setApplicationScreenBrightness(seek);
 
       gestureTipText.value = "亮度 ${(seek * 100).toInt()}%";
       Log.logPrint(value);
@@ -1169,7 +1173,7 @@ mixin PlayerGestureControlMixin on PlayerStateMixin, PlayerMixin, PlayerSystemMi
         seek = 1;
       }
 
-      screenBrightness.setApplicationScreenBrightness(seek);
+      ScreenBrightnessPlatform.instance.setApplicationScreenBrightness(seek);
       gestureTipText.value = "亮度 ${(seek * 100).toInt()}%";
       Log.logPrint(value);
     }

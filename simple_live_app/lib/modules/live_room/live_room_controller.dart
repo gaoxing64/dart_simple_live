@@ -226,7 +226,7 @@ class LiveRoomController extends PlayerController
   Rx<FollowUserBlock?> followUserBlock = Rx<FollowUserBlock?>(null);
 
   /// 清晰度数据
-  RxList<LivePlayQuality> qualites = RxList<LivePlayQuality>();
+  RxList<LivePlayQuality> qualities = RxList<LivePlayQuality>();
 
   /// 当前清晰度
   var currentQuality = -1;
@@ -237,12 +237,12 @@ class LiveRoomController extends PlayerController
 
   /// 清晰度/线路动作「是否存在」的谓词：多于一路可选项才提供入口。
   ///
-  /// WHY 收在 controller：`qualites.length > 1` 此前在桌面两条宿主、格子胶囊与页级
+  /// WHY 收在 controller：`qualities.length > 1` 此前在桌面两条宿主、格子胶囊与页级
   /// 「更多」四个调用点各写一遍，改一处漏一处就会让「同一动作在不同宿主有的有、
   /// 有的没有」这个本次要消灭的问题重新长回来。注意这比 spec §9 的
   /// 「无数据」措辞更严——只有一档也算「无可切换」，行/按钮同样不提供，
   /// 这是既有出货行为，保持不变。
-  bool get hasMultipleQualities => qualites.length > 1;
+  bool get hasMultipleQualities => qualities.length > 1;
 
   bool get hasMultipleLines => playUrls.length > 1;
 
@@ -278,6 +278,8 @@ class LiveRoomController extends PlayerController
   Error? error;
 
   int _count = 0;
+
+  final int _kMaxChatMessageCount = 150;
 
   @override
   void onInit() {
@@ -375,8 +377,8 @@ class LiveRoomController extends PlayerController
       if (filteredBatch.isEmpty) return;
 
       messages.addAll(filteredBatch);
-      if (messages.length > 200 && !disableAutoScroll.value) {
-        messages.removeRange(0, messages.length - 200);
+      if (messages.length > _kMaxChatMessageCount && !disableAutoScroll.value) {
+        messages.removeRange(0, messages.length - _kMaxChatMessageCount);
       }
 
       WidgetsBinding.instance.addPostFrameCallback(
@@ -534,7 +536,7 @@ class LiveRoomController extends PlayerController
       if (AppSettingsController.instance.danmakuMaskEnable.value && messages.length > 50) {
         danmakuBuffer.add(msg);
       } else {
-        if (messages.length > 200 && !disableAutoScroll.value) {
+        if (messages.length > _kMaxChatMessageCount && !disableAutoScroll.value) {
           messages.removeAt(0);
         }
         messages.add(msg);
@@ -563,7 +565,18 @@ class LiveRoomController extends PlayerController
       online.value = msg.data;
     } else if (msg.type == LiveMessageType.superChat) {
       // set newest sc at the top， limit 20 better I think
-      superChats.insert(0, msg.data);
+      // unique ensures from front
+      // 没想到 huya-data居然会有时间戳不准的问题
+      LiveSuperChatMessage scData = msg.data;
+      bool contain = superChats.any(
+        (s) => s.price == scData.price && s.userName == scData.userName && s.message == scData.message,
+      );
+      if(!contain){
+        superChats.insert(0, msg.data);
+        if (superChats.length > 20) {
+          superChats.removeRange(20, superChats.length);
+        }
+      }
     }
   }
 
@@ -689,7 +702,7 @@ class LiveRoomController extends PlayerController
       syncBackgroundPlayback();
       if (liveStatus.value) {
         getSuperChatMessage();
-        getPlayQualites();
+        getPlayQualities();
         addSysMsg("开始连接弹幕服务器");
         initDanmau();
         liveDanmaku.start(detail.value?.danmakuData);
@@ -712,27 +725,27 @@ class LiveRoomController extends PlayerController
   }
 
   /// 初始化播放器
-  void getPlayQualites() async {
+  void getPlayQualities() async {
     currentQuality = -1;
 
     try {
-      var playQualites = await site.liveSite.getPlayQualites(detail: detail.value!);
+      var playQualities = await site.liveSite.getPlayQualities(detail: detail.value!);
 
-      if (playQualites.isEmpty) {
+      if (playQualities.isEmpty) {
         SmartDialog.showToast("无法读取播放清晰度");
         return;
       }
-      qualites.assignAll(playQualites);
+      qualities.assignAll(playQualities);
       var qualityLevel = await getQualityLevel();
       if (qualityLevel == 2) {
         //最高
         currentQuality = 0;
       } else if (qualityLevel == 0) {
         //最低
-        currentQuality = playQualites.length - 1;
+        currentQuality = playQualities.length - 1;
       } else {
         //中间值
-        int middle = (playQualites.length / 2).floor();
+        int middle = (playQualities.length / 2).floor();
         currentQuality = middle;
       }
       await getPlayUrl();
@@ -756,10 +769,10 @@ class LiveRoomController extends PlayerController
   }
 
   Future<void> getPlayUrl() async {
-    currentQualityInfo.value = qualites[currentQuality].quality;
+    currentQualityInfo.value = qualities[currentQuality].quality;
     currentLineInfo.value = "";
     currentLineIndex = -1;
-    var playUrl = await site.liveSite.getPlayUrls(detail: detail.value!, quality: qualites[currentQuality]);
+    var playUrl = await site.liveSite.getPlayUrls(detail: detail.value!, quality: qualities[currentQuality]);
     if (playUrl.urls.isEmpty) {
       SmartDialog.showToast("无法读取播放地址");
       return;
@@ -1035,9 +1048,9 @@ class LiveRoomController extends PlayerController
           await getPlayUrl();
         },
         child: ListView.builder(
-          itemCount: qualites.length,
+          itemCount: qualities.length,
           itemBuilder: (_, i) {
-            var item = qualites[i];
+            var item = qualities[i];
             return ListTile(
               leading: Radio<int>(
                 // 选中值/回调由外层 `RadioGroup` 统一提供（新 API）。

@@ -15,6 +15,8 @@ class UserAccountCookieSyncResource implements SyncResource<Map<String, String?>
       'cookie': LocalStorageService.instance.getNullValue(LocalStorageService.kBilibiliCookie, null),
       'douyin_cookie': LocalStorageService.instance.getNullValue(LocalStorageService.kDouyinCookie, null),
       'douyu_cookie': LocalStorageService.instance.getNullValue(LocalStorageService.kDouyuCookie, null),
+      'douyu_did': LocalStorageService.instance.getNullValue(LocalStorageService.kDouyuDyDid, null),
+      'douyu_ltp0': LocalStorageService.instance.getNullValue(LocalStorageService.kDouyuLTP0, null),
     };
   }
 
@@ -27,6 +29,8 @@ class UserAccountCookieSyncResource implements SyncResource<Map<String, String?>
       'cookie': jsonData['cookie'],
       'douyin_cookie': jsonData['douyin_cookie'],
       'douyu_cookie': jsonData['douyu_cookie'],
+      'douyu_did': jsonData['douyu_did'],
+      'douyu_ltp0': jsonData['douyu_ltp0'],
     };
   }
 
@@ -37,10 +41,15 @@ class UserAccountCookieSyncResource implements SyncResource<Map<String, String?>
       BiliBiliAccountService.instance.loadUserInfo();
     }
     if (data['douyin_cookie'] != null) {
-      PlatformService.instance.setDouyuCookie(data['douyin_cookie']!);
+      PlatformService.instance.setDouyinCookie(data['douyin_cookie']!);
     }
     if (data['douyu_cookie'] != null) {
       PlatformService.instance.setDouyuCookie(data['douyu_cookie']!);
+    }
+    if (data['douyu_did'] != null && data['douyu_ltp0'] != null) {
+      var did = data['douyu_did']!;
+      var ltp0 = data['douyu_ltp0']!;
+      PlatformService.instance.setDouyuDidAndLtp0(did, ltp0);
     }
   }
 
@@ -56,6 +65,14 @@ class UserAccountCookieSyncResource implements SyncResource<Map<String, String?>
 
   @override
   Map<String, String?> merge(Map<String, String?> local, Map<String, String?> remote) {
-    return {...local, ...remote};
+    final result = <String, String?>{};
+    final keys = {...local.keys, ...remote.keys};
+    for (final key in keys) {
+      final localValue = local[key];
+      final remoteValue = remote[key];
+      // 本地有值就用本地，否则用远程
+      result[key] = (localValue != null && localValue.isNotEmpty) ? localValue : remoteValue;
+    }
+    return result;
   }
 }

@@ -16,11 +16,15 @@ class DouyuSite implements LiveSite {
 
   String _cookie = '';
 
+  String _dy_did = '';
+
+  String _ltp0 = '';
+
   @override
   LiveDanmaku getDanmaku() => DouyuDanmaku();
 
   @override
-  Future<List<LiveCategory>> getCategores() async {
+  Future<List<LiveCategory>> getCategories() async {
     List<LiveCategory> categories = [];
     var result =
         await HttpClient.instance.getJson("https://m.douyu.com/api/cate/list");
@@ -80,7 +84,7 @@ class DouyuSite implements LiveSite {
   }
 
   @override
-  Future<List<LivePlayQuality>> getPlayQualites({required LiveRoomDetail detail}) async {
+  Future<List<LivePlayQuality>> getPlayQualities({required LiveRoomDetail detail}) async {
     var data = await DouyuUtils.sign(detail.roomId, cookie: _cookie);
     List<LivePlayQuality> qualities = [];
     var result = await HttpClient.instance.postJson(
@@ -343,10 +347,17 @@ class DouyuSite implements LiveSite {
     return Future.value([]);
   }
 
+  Future<String> refreshCookie(String dy_did, String ltp0) async {
+    var newCookie = await DouyuUtils.refreshCookie(did: dy_did, ltp0: ltp0, cookie: _cookie);
+    _cookie = newCookie;
+    return newCookie;
+  }
+
   @override
   Future<void> setSiteAttrs(Map<String, dynamic> data) async {
     if(data.containsKey('cookie')){
       _cookie = data['cookie'] as String;
+      DouyuUtils.setDyDid(_cookie);
     }
   }
 }

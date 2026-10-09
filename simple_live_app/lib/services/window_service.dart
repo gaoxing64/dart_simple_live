@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:ffi/ffi.dart' show calloc, Utf16;
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
-import 'package:screen_brightness/screen_brightness.dart';
+import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/event_bus.dart';
@@ -162,7 +162,7 @@ class WindowService extends GetxService implements WindowListener {
   /// 过程对 `WM_SIZE` 立即返回，拖动窗口不再触发任何 DDC/CI 调用。
   Future<void> _disableScreenBrightnessAutoReset() async {
     try {
-      await ScreenBrightness.instance.setAutoReset(false);
+      await ScreenBrightnessPlatform.instance.setAutoReset(false);
     } catch (e) {
       // 关闭失败不影响功能，只是会保留插件的默认行为
       Log.logPrint(e);

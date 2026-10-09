@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:simple_live_core/src/common/http_client.dart';
-import 'package:simple_live_core/src/platforms/huya/huya_request_params.dart';
+import 'package:simple_live_core/src/platforms/huya/common/huya_request_params.dart';
 import 'package:simple_live_core/src/platforms/huya/huya_utils.dart';
 import 'package:simple_live_core/src/platforms/huya/tars/get_cdn_token_ex_req.dart';
 import 'package:simple_live_core/src/platforms/huya/tars/get_cdn_token_ex_resp.dart';
@@ -31,6 +31,8 @@ class HuyaSite implements LiveSite {
 
   final BaseTarsHttp tupClient = BaseTarsHttp("http://wup.huya.com", "liveui", headers: HuyaRequestParams.requestHeaders);
 
+  // 是否是vip房间 详见：https://diy-assets.msstatic.com/lzlfilefolder/huya-vip-scope.html?halfscreen=1&hidebar=1
+  bool _isVipRoom = false; // getRoomDetail update;only 4k needs, temp set
 
   @override
   String id = "huya";
@@ -42,7 +44,7 @@ class HuyaSite implements LiveSite {
   LiveDanmaku getDanmaku() => HuyaDanmaku();
 
   @override
-  Future<List<LiveCategory>> getCategores() async {
+  Future<List<LiveCategory>> getCategories() async {
     List<LiveCategory> categories = [
       LiveCategory(id: "1", name: "网游", children: []),
       LiveCategory(id: "2", name: "单机", children: []),
@@ -51,13 +53,13 @@ class HuyaSite implements LiveSite {
     ];
 
     for (var item in categories) {
-      var items = await getSubCategores(item.id);
+      var items = await getSubCategories(item.id);
       item.children.addAll(items);
     }
     return categories;
   }
 
-  Future<List<LiveSubCategory>> getSubCategores(String id) async {
+  Future<List<LiveSubCategory>> getSubCategories(String id) async {
     var result = await HttpClient.instance.getJson(
       "https://live.cdn.huya.com/liveconfig/game/bussLive",
       queryParameters: {
@@ -132,7 +134,7 @@ class HuyaSite implements LiveSite {
   }
 
   @override
-  Future<List<LivePlayQuality>> getPlayQualites(
+  Future<List<LivePlayQuality>> getPlayQualities(
       {required LiveRoomDetail detail}) {
     List<LivePlayQuality> qualities = <LivePlayQuality>[];
     var urlData = detail.data as HuyaUrlDataModel;
@@ -147,6 +149,10 @@ class HuyaSite implements LiveSite {
     }
 
     for (var item in urlData.bitRates) {
+      // huya 4K needs vip
+      if(item.name == '4K'){
+        continue;
+      }
       qualities.add(LivePlayQuality(
         data: {
           "urls": urlData.lines,
@@ -166,8 +172,13 @@ class HuyaSite implements LiveSite {
     var ls = <String>[];
     for (var element in quality.data["urls"]) {
       var line = element as HuyaLineModel;
-      var url = await getPlayUrl(line, quality.data["bitRate"]);
-      ls.add(url);
+      try {
+        var url = await getPlayUrl(line, quality.data["bitRate"]);
+        ls.add(url);
+      } catch (e, s) {
+        // if 403,skip
+        CoreLog.e('huya-getPlayUrl error: $e', s);
+      }
     }
     return LivePlayUrl(
       urls: ls,
@@ -227,6 +238,7 @@ class HuyaSite implements LiveSite {
   Future<LiveRoomDetail> getRoomDetail({required String roomId}) async {
     // late result is dangerous, many uncertainties pose significant null-safety risks
     late LiveRoomDetail result;
+    _isVipRoom = isVipRoom(roomId);
     var resultText = await HttpClient.instance.getText(
       "$baseUrl/$roomId",
       queryParameters: {},
@@ -414,7 +426,7 @@ class HuyaSite implements LiveSite {
   Future<String> getCndTokenInfoEx(String stream) async {
     var func = "getCdnTokenInfoEx";
     var tid = HuyaUserId();
-    tid.sHuYaUA = "pc_exe&7060000&official";
+    tid.sHuYaUA = HuyaRequestParams.requestHuyaUA;
     var tReq = GetCdnTokenExReq();
     tReq.tId = tid;
     tReq.sStreamName = stream;

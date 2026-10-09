@@ -323,6 +323,120 @@ void main() {
       );
     });
   });
+
+  group('大表情的位图高度', () {
+    late Uint8List png;
+
+    setUpAll(() async {
+      png = await _makePng();
+    });
+
+    tearDown(() {
+      DanmakuEmoticonRenderer.debugImageProviderFactory = null;
+      DanmakuEmoticonRenderer.clearCache();
+    });
+
+    Future<DanmakuEmoticonBitmap?> renderOf(LiveMessageEmoticon emoticon) {
+      return DanmakuEmoticonRenderer.render(
+        text: emoticon.name!,
+        emoticons: [emoticon],
+        option: const DanmakuOption(),
+        color: const Color(0xFFFFFFFF),
+      );
+    }
+
+    const small = LiveMessageEmoticon(
+      name: '[doge]',
+      url: 'https://i0.hdslb.com/bfs/live/doge.png',
+      width: 20,
+      height: 20,
+    );
+
+    test('大表情位图高于单行，但最多只占两个轨道', () async {
+      DanmakuEmoticonRenderer.debugImageProviderFactory = (_) => MemoryImage(png);
+      const option = DanmakuOption();
+
+      const big = LiveMessageEmoticon(
+        name: '冲鸭',
+        url: 'https://i0.hdslb.com/bfs/live/chongya.png',
+        width: 300,
+        height: 300,
+        large: true,
+      );
+
+      final bigBitmap = await renderOf(big);
+      // 行内小表情不超过行高，所以它那条的总高就是「一个轨道」的高度
+      final oneTrack = (await renderOf(small))!.height;
+
+      // 上游要求：大表情最多占两个轨道，不许霸屏。
+      // 总高 = 两轨内容高 + 描边
+      expect(
+        bigBitmap!.height,
+        closeTo(oneTrack * kMaxEmoteLines + option.strokeWidth, 0.01),
+      );
+      expect(bigBitmap.height, greaterThan(oneTrack));
+    });
+
+    test('异常大的服务端尺寸与极端宽高比都被夹住', () async {
+      DanmakuEmoticonRenderer.debugImageProviderFactory = (_) => MemoryImage(png);
+      const option = DanmakuOption();
+
+      const absurd = LiveMessageEmoticon(
+        name: '冲鸭',
+        url: 'https://i0.hdslb.com/bfs/live/absurd.png',
+        width: 1000000,
+        height: 100000,
+        large: true,
+      );
+      final bitmap = await renderOf(absurd);
+      final oneTrack = (await renderOf(small))!.height;
+
+      // 服务端给 10 万物理像素也只占两轨，不会一次申请超大位图
+      expect(
+        bitmap!.height,
+        closeTo(oneTrack * kMaxEmoteLines + option.strokeWidth, 0.01),
+      );
+      // 宽高比 10 被夹到 4:1；总宽 = 表情宽 + 左右各半个描边
+      expect(
+        bitmap.width,
+        closeTo(
+          (bitmap.height - option.strokeWidth) * kMaxEmoteAspectRatio +
+              option.strokeWidth,
+          0.01,
+        ),
+      );
+    });
+
+    test('在途渲染遇到 clearCache 时放弃，不把脏数据写回静态缓存', () async {
+      DanmakuEmoticonRenderer.debugImageProviderFactory = (_) => MemoryImage(png);
+
+      // 不 await：让 render 先走到「等图」，中途清缓存（换房间 / 退出直播间），
+      // 再把结果交付。没有 generation 兜底的话，这份迟到的句柄会重新落回
+      // 静态缓存，要等到下一次进/出房间才清得掉
+      final pending = DanmakuEmoticonRenderer.render(
+        text: '[doge]',
+        emoticons: const [
+          LiveMessageEmoticon(
+            name: '[doge]',
+            url: 'https://i0.hdslb.com/bfs/live/doge.png',
+            width: 20,
+            height: 20,
+          ),
+        ],
+        option: const DanmakuOption(),
+        color: const Color(0xFFFFFFFF),
+      );
+      DanmakuEmoticonRenderer.clearCache();
+      final bitmap = await pending;
+
+      expect(bitmap, isNull);
+      expect(
+        DanmakuEmoticonRenderer.debugCachedSourceImages,
+        isEmpty,
+        reason: '过期的一代不该往缓存里留源图句柄',
+      );
+    });
+  });
 }
 
 /// 造一张最小的 ui.Image，用来模拟弹幕库为纯文本弹幕生成的占位符位图。

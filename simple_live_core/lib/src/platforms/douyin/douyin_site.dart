@@ -84,7 +84,7 @@ class DouyinSite implements LiveSite {
   }
 
   @override
-  Future<List<LiveCategory>> getCategores() async {
+  Future<List<LiveCategory>> getCategories() async {
     List<LiveCategory> categories = [];
     var result = await HttpClient.instance.getText(
       "https://live.douyin.com/",
@@ -832,7 +832,7 @@ class DouyinSite implements LiveSite {
   /// 解析 JSON 字符串，解析失败返回 null（不抛 [FormatException]）。
   ///
   /// 抖音的 `stream_data` 等字段可能被风控截断成半截 JSON，一旦在这里抛
-  /// FormatException 就会逃出 `getPlayQualites`，直播间被判成「加载失败」。
+  /// FormatException 就会逃出 `getPlayQualities`，直播间被判成「加载失败」。
   dynamic _safeJsonDecode(String? source) {
     if (source == null || source.isEmpty) {
       return null;
@@ -973,8 +973,7 @@ class DouyinSite implements LiveSite {
   }
 
   @override
-  Future<List<LivePlayQuality>> getPlayQualites(
-      {required LiveRoomDetail detail}) async {
+  Future<List<LivePlayQuality>> getPlayQualities({required LiveRoomDetail detail}) async {
     List<LivePlayQuality> qualities = [];
 
     // 房间已下播、或进房接口被降级时 detail.data 是空 Map / 缺字段，
