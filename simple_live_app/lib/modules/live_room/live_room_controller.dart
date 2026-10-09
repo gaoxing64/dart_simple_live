@@ -30,6 +30,8 @@ import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_block_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/history_service.dart';
+import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
+import 'package:simple_live_app/services/playback/live_playback_target.dart';
 import 'package:simple_live_app/src/rust/api/danmaku_mask.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
@@ -39,7 +41,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
-class LiveRoomController extends PlayerController with WidgetsBindingObserver {
+class LiveRoomController extends PlayerController
+    with WidgetsBindingObserver
+    implements LivePlaybackTarget {
   StreamSubscription<dynamic>? subscription;
   final Site pSite;
   final String pRoomId;
@@ -278,6 +282,8 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   @override
   void onInit() {
     WidgetsBinding.instance.addObserver(this);
+    // 播放事件 → 系统媒体控制（通知栏/锁屏/耳机键）的那条订阅。
+    initBackgroundPlayback();
     if (FollowService.instance.followList.isEmpty) {
       FollowService.instance.loadData();
     }
@@ -678,6 +684,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
       online.value = detail.value!.online;
       liveStatus.value = detail.value!.status || detail.value!.isRecord;
       followUserBlock.value = FollowBlockService.instance.getBlock(siteId: site.id, roomId: roomId);
+      // 标题/封面/主播名刚就位，马上刷一次通知：直播流稳定时 playing/buffering
+      // 可以很久不跳，等事件的话用户看到的会一直是上一路的元数据。
+      syncBackgroundPlayback();
       if (liveStatus.value) {
         getSuperChatMessage();
         getPlayQualites();
@@ -787,6 +796,10 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     await initializePlayer();
 
     await player.open(Playlist(mediaList));
+    // 换台抑制位在这里解开（流的起点 = 新房间元数据的起点），并把通知重新挂上。
+    // 此刻 playing 还是 false，所以只会发布元数据，不会去拉前台服务。
+    _bgSuppressed = false;
+    syncBackgroundPlayback();
   }
 
   void setPlayer() async {
@@ -1487,6 +1500,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
     liveDanmaku = site.liveSite.getDanmaku();
     rustDanmakuMask.reset();
 
+    // 换台：先摘掉通知并抑制重挂。`player.stop()` 会推一次 playing=false 的事件，
+    // 不压住的话那一瞬间会用**旧房间**的标题与封面重新挂上去，而新房间的详情还在路上。
+    _bgSuppressed = true;
+    await _bgHandler?.detach(this);
+
     // 停止播放
     await player.stop();
 
@@ -1505,9 +1523,151 @@ ${error?.stackTrace}''');
     SmartDialog.showToast("已复制错误信息");
   }
 
+  // ------------------------------------------------------------------ 后台播放
+
+  StreamSubscription<bool>? _bgPlayingSubscription;
+  StreamSubscription<bool>? _bgBufferingSubscription;
+  StreamSubscription<bool>? _bgCompletedSubscription;
+  StreamSubscription<dynamic>? _bgSettingSubscription;
+
+  /// 播放器已释放/正在收尾：此期间任何事件都不许再往通知上写。
+  ///
+  /// `onClose` 里先置它再 `player.dispose()`——通知的寿命和播放器的寿命并不同步，
+  /// 少了这个位就会读到已释放的 platform。
+  bool _bgReleased = false;
+
+  /// 换台抑制位：见 [resetRoom]。
+  bool _bgSuppressed = false;
+
+  /// 桌面端与「audio_service 初始化失败」两种情况下都是 null，下面整套逻辑随之空转。
+  LivePlaybackAudioHandler? get _bgHandler =>
+      LivePlaybackAudioHandler.maybeInstance;
+
+  void initBackgroundPlayback() {
+    // 副格不挂通知：多开时四路争同一条通知只会互相顶掉。
+    if (isSecondaryTile) {
+      return;
+    }
+    _bgPlayingSubscription =
+        player.stream.playing.listen((_) => syncBackgroundPlayback());
+    _bgBufferingSubscription =
+        player.stream.buffering.listen((_) => syncBackgroundPlayback());
+    // 直播结束（EOS）时 mpv 只报 completed，`playing` 仍是 true：不接这一路的话
+    // 通知会停在「正在播放」上，而声音早就没了。
+    _bgCompletedSubscription =
+        player.stream.completed.listen((_) => syncBackgroundPlayback());
+    _bgSettingSubscription =
+        EventBus.instance.listen(EventBus.kBackgroundPlayChanged, (event) {
+      // 开与关都要立刻处理：流稳定时 playing/buffering 可以很久不跳，等下一次事件的
+      // 话，用户在设置页关了开关、通知还挂在屏幕上。
+      syncBackgroundPlayback();
+    });
+  }
+
+  /// 「此刻通知栏该不该显示这一路、显示成什么样」的唯一入口。幂等。
+  void syncBackgroundPlayback() {
+    if (_bgReleased || _bgSuppressed || isSecondaryTile) {
+      return;
+    }
+    final handler = _bgHandler;
+    if (handler == null) {
+      return;
+    }
+    if (!AppSettingsController.instance.backgroundPlay.value) {
+      unawaited(handler.detach(this));
+      return;
+    }
+    // attach 内部幂等：同一个实例重复挂载只等价于一次重推。
+    handler.attach(this);
+  }
+
+  /// 必须在 `player.dispose()` 之前调用（见 [onClose]）。
+  Future<void> releaseBackgroundPlayback() async {
+    _bgReleased = true;
+    await _bgPlayingSubscription?.cancel();
+    await _bgBufferingSubscription?.cancel();
+    await _bgCompletedSubscription?.cancel();
+    await _bgSettingSubscription?.cancel();
+    await _bgHandler?.detach(this);
+  }
+
+  // ------------------------------------------------------ LivePlaybackTarget
+
+  /// 房间的稳定身份，与历史记录/关注记录用的是同一个口径。
+  @override
+  String get playbackMediaId => historyId;
+
+  @override
+  String get playbackTitle => detail.value?.title ?? roomId;
+
+  @override
+  String get playbackArtist => detail.value?.userName ?? site.name;
+
+  @override
+  String get playbackAlbum => site.name;
+
+  @override
+  Uri? get playbackArtUri {
+    final cover = detail.value?.cover ?? '';
+    if (cover.isEmpty) {
+      return null;
+    }
+    return Uri.tryParse(cover);
+  }
+
+  /// 未开播时在轮播的那段录像按点播处理。
+  /// 详情还没拿到时按直播算——这是个直播 app，默认值该站在「直播」这边。
+  @override
+  bool get playbackIsLive => !(detail.value?.isRecord ?? false);
+
+  @override
+  bool get playbackPlaying =>
+      !_bgReleased && player.state.playing && !player.state.completed;
+
+  @override
+  bool get playbackBuffering => !_bgReleased && player.state.buffering;
+
+  @override
+  Future<void> playbackPlay() async {
+    if (_bgReleased) {
+      return;
+    }
+    await player.play();
+    // 从前台以外的入口（通知/锁屏/耳机键）起播时，常亮状态也得接回来，
+    // 否则回到 app 会发现屏幕常亮早就掉了。
+    WakelockPlus.enable();
+  }
+
+  @override
+  Future<void> playbackPause() async {
+    if (_bgReleased) {
+      return;
+    }
+    await player.pause();
+    WakelockPlus.disable();
+  }
+
+  /// 通知里的「停止」= 暂停出声 + 撤掉通知与前台服务。
+  ///
+  /// 不是 `player.stop()`：EOS 会把 completed 推给 [mediaEnd]，那套「播放结束就重连
+  /// /换线路」的自愈逻辑会把「停止」当成一次意外断流，立刻又把流拉起来。
+  @override
+  Future<void> playbackStop() async {
+    if (_bgReleased) {
+      return;
+    }
+    await player.pause();
+    WakelockPlus.disable();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+
+    // Android 12+ 在后台起前台服务会抛异常，而 audio_service 那边没兜（原因见
+    // LivePlaybackAudioHandler.appInForeground）。把这个状态递给 handler，
+    // 由它决定这一刻敢不敢把 playing 报成 true。
+    _bgHandler?.appInForeground = state == AppLifecycleState.resumed;
 
     if (state == AppLifecycleState.paused) {
       var height = MediaQuery.of(Get.context!).padding.top;
@@ -1525,12 +1685,17 @@ ${error?.stackTrace}''');
       Log.d("返回前台");
       danmakuController?.resume();
       isBackground = false;
+      // 回前台补一次：在后台被那道闸压住的 playing=true 现在可以正常发出去了。
+      syncBackgroundPlayback();
     }
   }
 
   @override
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);
+    // 离开直播间必须让通知与前台服务一起消失。必须排在 super.onClose() 之前——
+    // 那边会 `player.dispose()`，晚一步 handler 就会读到已释放的播放器。
+    unawaited(releaseBackgroundPlayback());
     scrollController.removeListener(scrollListener);
     autoExitTimer?.cancel();
     danmakuTimer?.cancel();
