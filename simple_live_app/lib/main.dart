@@ -37,6 +37,7 @@ import 'package:simple_live_app/services/history_service.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:simple_live_app/services/migration_service.dart';
 import 'package:simple_live_app/services/platform_service.dart';
+import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
 import 'package:simple_live_app/services/sync_service.dart';
 import 'package:simple_live_app/services/window_service.dart';
 import 'package:simple_live_app/src/rust/frb_generated.dart';
@@ -73,6 +74,9 @@ void main(List<String> arguments) async {
   );
   //初始化服务
   await initServices();
+  // 后台播放：AudioService.init 必须在 runApp 之前，且要等 Get.put 那批服务就位。
+  // 函数内部自己判平台，桌面端是纯 no-op；失败也只降级成「没有通知栏控制」，不挡启动。
+  await initLivePlaybackAudioHandler();
   await initWindow();
 
   await MigrationService.migrateDataByVersion();
