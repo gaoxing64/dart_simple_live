@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/app/log.dart';
+import 'package:simple_live_app/app/utils/permission_handler.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
 import 'package:simple_live_app/widgets/settings/settings_menu.dart';
 import 'package:simple_live_app/widgets/settings/settings_number.dart';
@@ -76,11 +79,33 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                   () => SettingsSwitch(
                     title: "进入后台自动暂停",
                     value: controller.playerAutoPause.value,
+                    // 与「后台播放」互斥：开着后台播放时这一项按不动，
+                    // 因为它的效果（切后台即暂停）会把后台播放整个抵消掉。
+                    locked: controller.backgroundPlay.value,
+                    lockedHint: "已开启「后台播放」，后台播放需要保持出声",
                     onChanged: (e) {
                       controller.setPlayerAutoPause(e);
                     },
                   ),
                 ),
+                // 后台播放只有移动端有意义：桌面没有前台服务这一层，
+                // 而且整块用平台门包住，桌面那一列的分隔线数量与改前完全一致。
+                if (Platform.isAndroid || Platform.isIOS) ...[
+                  AppStyle.divider,
+                  Obx(
+                    () => SettingsSwitch(
+                      title: "后台播放",
+                      subtitle:
+                          "切到后台或锁屏后继续播放，并在通知栏与锁屏提供播放控制",
+                      value: controller.backgroundPlay.value,
+                      locked: controller.playerAutoPause.value,
+                      lockedHint: "已开启「进入后台自动暂停」，请先关闭该项",
+                      onChanged: (e) {
+                        onBackgroundPlayChanged(e);
+                      },
+                    ),
+                  ),
+                ],
                 AppStyle.divider,
                 Obx(
                   () => SettingsMenu<int>(
@@ -332,5 +357,26 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
         ],
       ),
     );
+  }
+
+  /// 打开「后台播放」时补一次通知权限（Android 13+ 缺它就看不见那条媒体通知）。
+  ///
+  /// 被拒不把开关打回去：切后台继续出声并不依赖通知权限（前台服务与音频焦点是
+  /// 另一回事），缺的只是通知栏里那个控制入口。为此回滚开关反而让人以为没生效。
+  Future<void> onBackgroundPlayChanged(bool e) async {
+    controller.setBackgroundPlay(e);
+    if (!e || !Platform.isAndroid) {
+      return;
+    }
+    try {
+      final result = await Permission.notification.request();
+      if (result.isPermanentlyDenied) {
+        SmartDialog.showToast("通知权限已被拒绝，请在系统设置里为 Slive 打开通知");
+      } else if (!result.isGranted) {
+        SmartDialog.showToast("未授予通知权限：后台播放继续，但通知栏里没有控制入口");
+      }
+    } catch (error) {
+      Log.logPrint(error);
+    }
   }
 }

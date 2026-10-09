@@ -150,6 +150,20 @@ class AppSettingsController extends GetxController {
 
     playerAutoPause.value = LocalStorageService.instance.getValue(LocalStorageService.kPlayerAutoPause, false);
 
+    backgroundPlay.value = LocalStorageService.instance.getValue(LocalStorageService.kBackgroundPlay, false);
+    // 桌面端恒按「关」处理：这一行在桌面的设置页上根本不显示，而设置是会经 WebDAV
+    // 从手机同步过来的——真值落到桌面就会悄悄关掉「进入后台自动暂停」，且界面上没有
+    // 任何地方能改回来。只压内存值、不动磁盘：同一份存储回到手机上时那个选择还算数。
+    if (isDesktop && backgroundPlay.value) {
+      backgroundPlay.value = false;
+    }
+    // 正常路径下两者不会同时为真（两个 setter 互斥）。存储被外部改过就以后台播放为准：
+    // 留着自动暂停的话切后台那一刻就被暂停，「后台播放」等于没开。
+    if (backgroundPlay.value && playerAutoPause.value) {
+      playerAutoPause.value = false;
+      LocalStorageService.instance.setValue(LocalStorageService.kPlayerAutoPause, false);
+    }
+
     playerForceHttps.value = LocalStorageService.instance.getValue(LocalStorageService.kPlayerForceHttps, false);
 
     douyinHlsFirst.value = LocalStorageService.instance.getValue(LocalStorageService.kDouyinHlsFirst, false);
@@ -604,6 +618,36 @@ class AppSettingsController extends GetxController {
   void setPlayerAutoPause(bool e) {
     playerAutoPause.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kPlayerAutoPause, e);
+    // 互斥：自动暂停一开，后台播放就名存实亡（切后台那一刻播放已被暂停），必须顶掉它。
+    if (e && backgroundPlay.value) {
+      _writeBackgroundPlay(false);
+    }
+    EventBus.instance.emit(EventBus.kBackgroundPlayChanged, backgroundPlay.value);
+  }
+
+  /// 后台播放：切后台/锁屏继续出声，并在通知栏与锁屏提供播放控制。
+  ///
+  /// 只在 Android/iOS 有意义——桌面没有前台服务这一层，设置页也不显示这一行。
+  /// 与 [playerAutoPause] 互斥，两个 setter 各自负责把对方关掉（UI 只负责把被顶掉
+  /// 的那一项锁上并给出原因）。
+  ///
+  /// 默认关：打开它会在 Android 上要求通知权限、并留下一条常驻媒体通知，
+  /// 不该由一次升级替用户决定。
+  var backgroundPlay = false.obs;
+
+  void setBackgroundPlay(bool e) {
+    _writeBackgroundPlay(e);
+    if (e && playerAutoPause.value) {
+      playerAutoPause.value = false;
+      LocalStorageService.instance.setValue(LocalStorageService.kPlayerAutoPause, false);
+    }
+    EventBus.instance.emit(EventBus.kBackgroundPlayChanged, e);
+  }
+
+  /// [backgroundPlay] 唯一的落盘写入点，保证「内存值 == 磁盘值」这条不变式不被绕开。
+  void _writeBackgroundPlay(bool e) {
+    backgroundPlay.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kBackgroundPlay, e);
   }
 
   var autoFullScreen = false.obs;

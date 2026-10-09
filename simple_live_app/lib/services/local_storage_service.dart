@@ -150,6 +150,12 @@ class LocalStorageService extends GetxService {
   /// 播放器后台自动暂停
   static const String kPlayerAutoPause = "PlayerAutoPause";
 
+  /// 后台播放：切后台/锁屏继续出声，并在通知栏与锁屏提供播放控制。
+  ///
+  /// 与 [kPlayerAutoPause] 互斥（两个同时开等于「后台播放」被自动暂停顶掉），
+  /// 互斥由 `AppSettingsController` 的两个 setter 强制。
+  static const String kBackgroundPlay = "BackgroundPlay";
+
   /// 播放器缓冲区大小
   static const String kPlayerBufferSize = "PlayerBufferSize";
 
