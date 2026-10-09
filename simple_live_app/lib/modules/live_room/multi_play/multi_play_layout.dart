@@ -13,6 +13,12 @@ import 'package:flutter/foundation.dart' show immutable;
 /// 多开路数上限。想降到 3 路只需改这一个常量，下游（布局、最小窗口、设置项）全自适应。
 const int kMultiPlayMaxTiles = 4;
 
+/// 「默认路数」这个**设置项**的下限（与 [kMultiPlayMaxTiles] 成对）。
+///
+/// 只约束设置项，不约束布局引擎：[resolveMultiPlayLayout] 仍然接受 1 路，因为单画面
+/// 是多开的天然退化态。而「批量入口默认预载几路」至少要两路，否则它就不是多开。
+const int kMultiPlayMinTiles = 2;
+
 /// 格子之间的间距（逻辑像素）。
 const double kMultiPlaySpacing = 8;
 
@@ -64,6 +70,24 @@ double? resolvePortraitVideoHeight({
   }
   final ideal = rows * screenW * 9 / 16 + spacing * (rows - 1);
   return math.min(ideal, max);
+}
+
+/// 「默认路数」设置项该显示成几路（纯函数，平台由调用方以 [isDesktop] 传进来）。
+///
+/// 语义与 `LocalStorageService.kMultiPlayDefaultTiles` 上的注释一致：这个值是**落盘**的，
+/// 不是每次按平台重算——用户在桌面上试过「三路」之后到手机上开，理应还是他上次自己选的那个。
+/// 所以只有 `stored == null`（第一次用）才走平台默认：桌面 [kMultiPlayMaxTiles]、
+/// 移动 [kMultiPlayMinTiles]。直接写死一个数会让移动端也拿到 4（再被布局引擎折格），
+/// 写死成 2 又会让桌面端永远只能开两路。
+///
+/// 两条路径的结果都夹进 `[kMultiPlayMinTiles, kMultiPlayMaxTiles]`：历史上存过更小的值、
+/// 或上限被调低过，都不能让设置项把布局引擎推进它不接受的区间。
+int resolveDefaultMultiPlayTiles({
+  required bool isDesktop,
+  required int? stored,
+}) {
+  final fallback = isDesktop ? kMultiPlayMaxTiles : kMultiPlayMinTiles;
+  return (stored ?? fallback).clamp(kMultiPlayMinTiles, kMultiPlayMaxTiles);
 }
 
 /// 排布形态。UI 用它决定要不要画分隔线 / 是否需要横竖切换。
