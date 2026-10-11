@@ -13,6 +13,25 @@ import 'package:flutter/foundation.dart' show immutable;
 /// 多开路数上限。想降到 3 路只需改这一个常量，下游（布局、最小窗口、设置项）全自适应。
 const int kMultiPlayMaxTiles = 4;
 
+/// 多开路数下限。低于 2 路不叫多开。
+const int kMultiPlayMinTiles = 2;
+
+/// 「默认几路」的平台预填值：桌面 4、移动 2。
+///
+/// WHY 分平台而不是全局一个数：360 宽的手机上竖屏 2×2 每格不到 180×101，
+/// 弹幕与格子控件全都点不中（`kMultiPlayMinTileWidth` 是 240，两格并排根本放不下，
+/// 引擎只能竖着叠，竖着叠四格又超屏高被折叠）。桌面宽窗 2×2 才是真能用的。
+const int kMultiPlayDefaultTilesDesktop = 4;
+const int kMultiPlayDefaultTilesMobile = 2;
+
+/// 批量入口「用户没存过默认值」时该给几路。纯函数便于单测。
+int resolveDefaultMultiPlayTiles({required bool isDesktop, int? stored}) {
+  if (stored != null && stored >= kMultiPlayMinTiles && stored <= kMultiPlayMaxTiles) {
+    return stored;
+  }
+  return isDesktop ? kMultiPlayDefaultTilesDesktop : kMultiPlayDefaultTilesMobile;
+}
+
 /// 格子之间的间距（逻辑像素）。
 const double kMultiPlaySpacing = 8;
 

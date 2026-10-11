@@ -115,4 +115,33 @@ void main() {
       expect(next(0, 0, 5), 0);
     });
   });
+
+  group('关注行那颗「加入多开」', () {
+    test('不在多开里 → 显示加入', () {
+      expect(
+        shouldShowMultiPlayAddAction(-1),
+        isTrue,
+        reason: '没在多开里的行，行尾那颗icon 才有意义',
+      );
+    });
+
+    test('已经在多开里 → 什么都不显示（主格与副格一律如此）', () {
+      // 序号与 ✕ 都被否掉了：序号在列表里答不出问题，✕ 与网格里那颗重复、
+      // 且在主格上是死的。关格子去网格里点那颗 ✕。
+      for (final slot in [0, 1, 2, 3]) {
+        expect(
+          shouldShowMultiPlayAddAction(slot),
+          isFalse,
+          reason: '第 ${slot + 1} 路已在多开里，行尾不该再有任何 icon',
+        );
+      }
+    });
+
+    test('主格与副格不再有别：判据只剩「在不在多开里」', () {
+      // 钉住这次简化：原先 0 与非 0 走不同分支（focusMain / remove），
+      // 现在两者一律不显示。哪天有人又想给主格单独加回什么，这里会先炸。
+      expect(shouldShowMultiPlayAddAction(0), shouldShowMultiPlayAddAction(1));
+      expect(shouldShowMultiPlayAddAction(-1), isNot(shouldShowMultiPlayAddAction(0)));
+    });
+  });
 }

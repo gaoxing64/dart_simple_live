@@ -377,4 +377,34 @@ void main() {
       );
     });
   });
+
+  group('默认路数', () {
+    test('没存过时按平台预填：桌面 4、移动 2', () {
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true), 4);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false), 2);
+    });
+
+    test('存过的值盖过平台预填：桌面选了 2，到手机上仍然是 2', () {
+      // 落盘而不是每次按平台重算——用户在桌面上试过两路之后换到手机上，
+      // 拿到的理应还是他自己选的那个。
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: 2), 2);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: 2), 2);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: 4), 4);
+    });
+
+    test('越界的存量值退回平台预填，不把上限当默认', () {
+      // 上限被改小时（4→3）旧存档会留5；直接采信会让批量入口开出一屏放不下的路数。
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: 5), 4);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: 0), 4);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: 1), 4);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: 5), 2);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: 1), 2);
+    });
+
+    test('范围常量自洽：下限 2 ≤ 移动预填 2 ≤ 桌面预填 4 ≤ 上限 4', () {
+      expect(kMultiPlayMinTiles, lessThanOrEqualTo(kMultiPlayDefaultTilesMobile));
+      expect(kMultiPlayDefaultTilesMobile, lessThanOrEqualTo(kMultiPlayDefaultTilesDesktop));
+      expect(kMultiPlayDefaultTilesDesktop, lessThanOrEqualTo(kMultiPlayMaxTiles));
+    });
+  });
 }

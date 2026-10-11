@@ -419,6 +419,13 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   }
 
   void setAutoExit() {
+    // 定时关闭是**会话级**：倒计时归页面主格一份，退出时 exit(0) 收整个 app。
+    // 副格碰它就是第二份倒计时 + 第二个 exit(0)，而且用户看到的「还剩几分钟」
+    // 会和主格那份对不上。这道门与 [onInit] 里 `!isSecondaryTile` 那道同源，
+    // 放在这里是因为 [showAutoExitSheet] 也可能被副格的入口触发。
+    if (isSecondaryTile) {
+      return;
+    }
     if (!autoExitEnable.value) {
       autoExitTimer?.cancel();
       return;
@@ -433,8 +440,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
           exit(0);
         });
         autoExitTimer?.cancel();
-        var delay = await Utils.showAlertDialog("定时关闭已到时,是否延迟关闭?",
-            title: "延迟关闭", confirm: "延迟", cancel: "关闭", selectable: true);
+        // 多开时把「关的是几路」讲清楚：到点退的是整个 app，不只是当前这一格。
+        final routes = multiPlay.isActive ? multiPlay.slots.length : 0;
+        var delay = await Utils.showAlertDialog(
+          routes > 1 ? "定时关闭已到时，将关闭全部 $routes 路播放，是否延迟关闭?" : "定时关闭已到时,是否延迟关闭?",
+          title: "延迟关闭", confirm: "延迟", cancel: "关闭", selectable: true);
         if (delay) {
           timer.cancel();
           delayAutoExit.value = true;
@@ -442,6 +452,9 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
           setAutoExit();
         } else {
           delayAutoExit.value = false;
+          // 到点直接退 app：先把会话收干净，否则 exit(0) 之前那几路解码器
+          // 还占着资源，也会让「关掉之后播放器仍在响」这种观测混进崩溃日志。
+          multiPlay.dispose();
           await WakelockPlus.disable();
           exit(0);
         }
@@ -1367,6 +1380,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   }
 
   void showAutoExitSheet() {
+    // 定时关闭是会话级（见 [setAutoExit]）：副格点进来一律转到主格那份，
+    // 不能让它开第二份倒计时。
+    if (isSecondaryTile) {
+      return;
+    }
     if (AppSettingsController.instance.autoExitEnable.value && !delayAutoExit.value) {
       SmartDialog.showToast("已设置了全局定时关闭");
       return;

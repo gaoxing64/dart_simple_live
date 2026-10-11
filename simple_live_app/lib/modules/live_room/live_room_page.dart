@@ -10,10 +10,12 @@ import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
+import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/live_room/chat_emoticon_span.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_grid.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/modules/live_room/multi_play/multi_play_selection.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
@@ -137,37 +139,31 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   /// 视频区不用它——单画面的 `Video` 恒绑页面主格自己的控制器，多开时视频区是网格。
   LiveRoomController get room => controller.focused;
 
+  /// 页面骨架。**只有这一套**，多开不在这里另开分支。
+  ///
+  /// 形态沿用上游master 的两分支（portrait→Column、landscape→Row），多开只影响
+  /// 两件事，别的都与单画面逐字同源：
+  /// ① 视频区内容换成网格（见 [buildLiveRoomVideoArea]，与平台无关）；
+  /// ② 侧栏/竖屏正文区**不画资料表**（见 [buildChatColumn]）。
+  ///
+  /// WHY 不再保留「多开横屏＝全屏骨架」那条独立分支：它与 [buildTabletUI] 长得
+  /// 几乎一样，只是砍掉了 AppBar 与侧栏，代价却是一整条重复的容器代码。加上
+  /// 悬浮聊天按钮 + 底部抽屉那套容器，页面净增 300 余行、同一份「资料表 + 四
+  /// 个Tab」被写了两遍。移动端本来就有侧栏内容的可复用形态，抽屉是重复发明。
   Widget buildPageUI() {
     final page = OrientationBuilder(
       builder: (context, orientation) {
-        return Obx(() {
-          // 移动端多开的横屏＝全屏骨架：不画 AppBar、不画那条 300px 侧栏，画面吃满整屏，
-          // 聊天收进悬浮按钮 + 底部抽屉（作者定「横屏＝全屏骨架，画面吃满」）。
-          // 单画面的横屏仍是原来那套带侧栏的 `buildTabletUI`，一个字不动。
-          if (!AppSettingsController.isDesktop &&
-              controller.multiPlay.isActive &&
-              orientation == Orientation.landscape) {
-            return Scaffold(
-              body: Stack(
-                children: [
-                  Positioned.fill(child: buildLiveRoomVideoArea()),
-                  buildChatFloatingButton(context),
-                ],
-              ),
-            );
-          }
-          return Scaffold(
-            appBar: AppBar(
-              title: Obx(
-                () => Text(room.detail.value?.title ?? "直播间"),
-              ),
-              actions: buildAppbarActions(context),
+        return Scaffold(
+          appBar: AppBar(
+            title: Obx(
+              () => Text(room.detail.value?.title ?? "直播间"),
             ),
-            body: orientation == Orientation.portrait
-                ? buildPhoneUI(context)
-                : buildTabletUI(context),
-          );
-        });
+            actions: buildAppbarActions(context),
+          ),
+          body: orientation == Orientation.portrait
+              ? buildPhoneUI(context)
+              : buildTabletUI(context),
+        );
       },
     );
     // 多开时返回键的第一段只关掉其余几路，再按一次才离开直播间：
@@ -188,46 +184,45 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
+  /// 竖屏骨架：`视频区 → 资料表 → 聊天区 → 底栏`。多开只改两处，且都与单画面同源：
+  /// 视频区换成按格数定高的网格、去掉资料表。
+  ///
+  /// WHY 竖屏多开要让视频区自己定高、不再锁 16/9：360 宽的手机那条 16/9 只有
+  /// ≈202px 高，两格上下叠每格剩 ~97px，够不到 `kMultiPlayMinTileHeight`(135)，
+  /// 布局引擎会把多开直接折成一格。行数传**实际路数**而不是写死 2——写死时
+  /// 三、四路会按两格的高度硬排，每格都低于下限而被折叠。
   Widget buildPhoneUI(BuildContext context) {
-    // 竖屏多开：视频区不能再锁 16/9 条带——360 宽的手机那条只有 ≈202px 高，
-    // 两格上下叠每格剩 ~97px，够不到 `kMultiPlayMinTileHeight`(135)，布局引擎会
-    // 直接把多开折成一格。所以多开时改成按格数定高（每格仍是 16:9），
-    // 主播信息条与聊天区收起，聊天走悬浮按钮 + 底部抽屉。
+    final multiPlay = controller.multiPlay;
     return Obx(() {
-      if (AppSettingsController.isDesktop || !controller.multiPlay.isActive) {
-        return Column(
-          children: [
-            AspectRatio(
+      final active = multiPlay.isActive;
+      final size = MediaQuery.sizeOf(context);
+      // 单画面：16/9 条带。多开：按格数定高，夹不出来（屏太矮）时退回 16/9 ——
+      // 此时网格会被引擎折成 1 格，比硬排几格各自低于下限要好。
+      final videoHeight = !active
+          ? null
+          : (resolvePortraitVideoHeight(
+                screenW: size.width,
+                screenH: size.height,
+                rows: multiPlay.slots.length,
+              ) ??
+              size.width * 9 / 16);
+
+      final video = videoHeight == null
+          ? AspectRatio(
               aspectRatio: 16 / 9,
               child: buildLiveRoomVideoArea(),
-            ),
-            buildUserProfile(context),
-            buildMessageArea(context),
-            buildBottomActions(context),
-          ],
-        );
-      }
-      final size = MediaQuery.sizeOf(context);
-      // 夹不出来（屏太矮）就退回 16/9 那一档高度：此时网格会被引擎折成 1 格，
-      // 比硬排两格各自低于下限要好。
-      final videoHeight =
-          resolvePortraitVideoHeight(
-            screenW: size.width,
-            screenH: size.height,
-            rows: 2,
-          ) ??
-          size.width * 9 / 16;
+            )
+          : SizedBox(
+              height: videoHeight,
+              child: buildLiveRoomVideoArea(),
+            );
+
       return Column(
         children: [
-          SizedBox(
-            height: videoHeight,
-            child: Stack(
-              children: [
-                Positioned.fill(child: buildLiveRoomVideoArea()),
-                buildChatFloatingButton(context),
-              ],
-            ),
-          ),
+          video,
+          // 侧栏与竖屏共用同一列（`Expanded` 给它有界高度——`buildMessageArea`
+          // 内部是Expanded，套进无界高度会直接抛错）。
+          Expanded(child: buildChatColumn(context)),
           buildBottomActions(context),
         ],
       );
@@ -245,13 +240,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               ),
               SizedBox(
                 width: _kSidebarWidth,
-                child: Column(
-                  children: [
-                    buildSidebarFollowHint(context),
-                    buildUserProfile(context),
-                    buildMessageArea(context),
-                  ],
-                ),
+                child: buildChatColumn(context),
               ),
             ],
           ),
@@ -305,8 +294,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                             ),
                     ),
                     const Expanded(child: Center()),
-                    // 移动端单画面的横屏也要有入口（多开横屏走另一套全屏骨架，
-                    // 这条底栏那时根本不画）。竖屏底栏同理，见 `buildBottomActions`。
+                    // 横屏侧栏底栏（桌面）与竖屏底栏（移动端）各有一份入口，
+                    // 两处都要有：横屏不是只有桌面能用。
                     _buildMultiPlayToggle(
                       context,
                       iconOnly: !AppSettingsController.isDesktop,
@@ -388,53 +377,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               ),
       );
     });
-  }
-
-  /// 多开时的聊天入口：画面右下角一颗悬浮按钮，点开底部抽屉看聊天。
-  ///
-  /// 它挂在视频区那层 Stack 上、**不放进格子的 chrome**：格子那层会跟着 4s 淡出，
-  /// 聊天入口淡掉了就成了找不到的功能。
-  Widget buildChatFloatingButton(BuildContext context) {
-    return Positioned(
-      right: 12,
-      bottom: 12,
-      child: Obx(
-        () => controller.multiPlay.isActive
-            ? FloatingActionButton(
-                heroTag: "multiPlayChat",
-                onPressed: () => showMultiPlayChatSheet(context),
-                child: const Icon(Icons.chat_bubble_outline),
-              )
-            : const SizedBox.shrink(),
-      ),
-    );
-  }
-
-  /// 多开时的聊天浮层：底部抽屉里放**同一个** [buildUserProfile] + [buildMessageArea]，
-  /// 内容照旧跟随聚焦格（两处都走 `room` getter）。
-  ///
-  /// 已知取舍：抽屉每次打开重建，所以丢滚动位置、Tab 回到第一个。
-  /// 比常驻的半屏 `DraggableScrollableSheet` 轻，也不会永久占画面。
-  void showMultiPlayChatSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      constraints: const BoxConstraints(maxWidth: 600),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(12),
-        ),
-      ),
-      builder: (sheetContext) => SizedBox(
-        height: MediaQuery.sizeOf(sheetContext).height * 0.7,
-        child: Column(
-          children: [
-            buildUserProfile(sheetContext),
-            buildMessageArea(sheetContext),
-          ],
-        ),
-      ),
-    );
   }
 
   /// 侧栏跟随提示：聊天/SC 跟着聚焦格走这件事在界面上本来完全无形，
@@ -540,6 +482,30 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           ? buildMultiPlayGrid(controller)
           : buildMediaPlayer(),
     );
+  }
+
+  /// 侧栏／竖屏正文区那一列：`跟随提示 → 资料表 → 聊天区（四Tab）`。
+  ///
+  /// 侧栏（[buildTabletUI]）与竖屏（[buildPhoneUI]）**共用这一个方法**，这是
+  /// 「只有一套骨架」的关键：两处的差别只剩资料表在不在，聊天那四个 Tab 永远
+  /// 走同一份 [buildMessageArea]、同样跟随聚焦格（`room` getter）。
+  ///
+  /// 多开时去掉资料表：那一份信息（头像/昵称/平台/人气）在每格的信息胶囊里
+  /// 已经有了，纵向再摆一张是重复，还会把聊天区往下挤。跟随提示保留——多开
+  /// 下面板跟着哪一路走是整个多开最不容易在界面上看出来的行为。
+  Widget buildChatColumn(BuildContext context) {
+    return Obx(() {
+      final active = controller.multiPlay.isActive;
+      return Column(
+        children: [
+          if (!active) ...[
+            buildSidebarFollowHint(context),
+            buildUserProfile(context),
+          ],
+          buildMessageArea(context),
+        ],
+      );
+    });
   }
 
   Widget buildUserProfile(BuildContext context) {
@@ -893,6 +859,11 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   /// 屏蔽项跟着聊天区走聚焦格（[room]），因为聊天显示的就是那一路的消息；
   /// 其余（弹幕设置、定时关闭、画面尺寸）都是全局或窗口级设置，走 [controller]。
   Widget buildSettings(BuildContext context) {
+    // 平台建议路数：给「默认路数」旋钮当 subtitle 用。算一次就够，不订阅——
+    // 它只随平台变，平台不会在一次会话里变。
+    final defaultTilesSuggestion = AppSettingsController.isDesktop
+        ? kMultiPlayDefaultTilesDesktop
+        : kMultiPlayDefaultTilesMobile;
     return ListView(
       padding: AppStyle.edgeInsetsA12,
       children: [
@@ -907,8 +878,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           ),
         ),
         // 多开参数旋钮。原来整段被「仅桌面」的平台门挡着（当时移动端根本没有多开），
-        // 移动端适配后放开：里面四个旋钮（压低开关与比例、各格弹幕、每路缓存）都是
-        // 纯设置项，没有一个是窗口/平台相关的。
+        // 移动端适配后放开：里面几个旋钮（默认路数、压低开关与比例、各格弹幕、
+        // 每路缓存）都是纯设置项，没有一个是窗口/平台相关的。
         // 「多画面」开关在视频区底栏（那里才是它管的行为），这里只留参数旋钮；
         // 没开多画面时整段不渲染（也不加解释性提示）。每个旋钮各自包 Obx —— 它们的
         // 取值要能随点击当场刷新，只订阅 enabled 是不够的。
@@ -968,9 +939,22 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                     }),
                     AppStyle.divider,
                     Obx(
+                      () => SettingsNumber(
+                        title: "默认路数",
+                        subtitle: "关注页批量多开一次开几路（${AppSettingsController.isDesktop ? "桌面" : "移动"}建议 $defaultTilesSuggestion）",
+                        value: AppSettingsController.instance.multiPlayDefaultTiles.value,
+                        min: kMultiPlayMinTiles,
+                        max: kMultiPlayMaxTiles,
+                        step: 1,
+                        unit: "路",
+                        onChanged: (e) => AppSettingsController.instance.setMultiPlayDefaultTiles(e),
+                      ),
+                    ),
+                    AppStyle.divider,
+                    Obx(
                       () => SettingsSwitch(
                         title: "各格显示弹幕",
-                        subtitle: "关掉后四路都不画弹幕，CPU 会明显下来",
+                        subtitle: "关掉后各路都不画弹幕，CPU 会明显下来",
                         value: AppSettingsController.instance.multiPlayTileDanmaku.value,
                         onChanged: controller.multiPlay.setTileDanmakuVisible,
                       ),
@@ -979,7 +963,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                     Obx(
                       () => SettingsNumber(
                         title: "每路缓存",
-                        subtitle: "四路各占一份，重进直播间生效",
+                        subtitle: "每路各占一份，重进直播间生效",
                         value: AppSettingsController.instance.multiPlayTileBufferSize.value,
                         min: 8,
                         max: 32,
@@ -1098,19 +1082,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               itemBuilder: (_, i) {
                 var item = FollowService.instance.liveList[i];
                 return Obx(
-                  () => FollowUserItem(
-                    item: item,
-                    // 多开时可能好几路同时在播，命中任意一格都算「在播」
-                    playing: controller.multiPlay.slots.any(
-                      (t) => t.site.id == item.siteId && t.roomId == item.roomId,
-                    ),
-                    onTap: () {
-                      controller.multiPlay.onFollowItemTap(
-                        Sites.allSites[item.siteId]!,
-                        item.roomId,
-                      );
-                    },
-                  ),
+                  () => _buildFollowRow(item),
                 );
               },
             ),
@@ -1128,6 +1100,57 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             ),
         ],
       ),
+    );
+  }
+
+  /// 关注面板的一行：**点行＝看这一路，行尾那颗＝加入多开**。
+  ///
+  /// 这条拆分是「多开从模式改成动作」的核心：加入不再依赖底栏那颗模式开关
+  /// （[MultiPlaySession.enabled]），而是行尾一颗 icon 直接表达的意图。
+  ///
+  /// 行点击的语义随之变干净了：**永远是「看这一路」**——
+  /// 已在多开里就切焦点过去，不在就替换当前房间。原来行点击要靠 `enabled` 分流
+  /// （[MultiPlaySession.onFollowItemTap]），模式一开，「点行」就变成了「加一路」，
+  /// 想换台看都得先去关掉那一格。`onFollowItemTap` 保留给别处/旧入口。
+  Widget _buildFollowRow(FollowUser item) {
+    final site = Sites.allSites[item.siteId]!;
+    final session = controller.multiPlay;
+    // 多开时可能好几路同时在播，命中任意一格都算「在播」
+    final playing = session.slots.any(
+      (t) => t.site.id == item.siteId && t.roomId == item.roomId,
+    );
+    final slot = session.slotIndexOf(site, item.roomId);
+    return FollowUserItem(
+      item: item,
+      playing: playing,
+      onTap: () {
+        if (slot >= 0) {
+          // 已在多开里：切过去看它，别新建一路。
+          session.focusSlot(slot);
+          return;
+        }
+        controller.resetRoom(site, item.roomId);
+      },
+      trailing: _buildMultiPlayAddAction(site, item, slot),
+    );
+  }
+
+  /// 行尾那颗「加入多开」icon。**已经在多开里的行返回 null**（整块不画）。
+  ///
+  /// 那里原先摆过路号徽章 + ✕，两条都已否掉（见 [shouldShowMultiPlayAddAction]
+  /// 的理由）：序号在列表里答不出任何问题，✕ 与网格里那颗重复、且在主格上是死的。
+  /// 关格子去网格里点那颗 ✕，那里能直接看到关掉的是哪一格。
+  ///
+  /// 不给 `size`：用 `IconButton` 的默认值（24），与同列的在播指示、取消关注
+  /// **同一号字**。原先写死 20，三者并排时这颗会明显小一圈。
+  Widget? _buildMultiPlayAddAction(Site site, FollowUser item, int slot) {
+    if (!shouldShowMultiPlayAddAction(slot)) {
+      return null;
+    }
+    return IconButton(
+      tooltip: "加入多开播放",
+      onPressed: () => controller.multiPlay.addRoomFromList(site, item.roomId),
+      icon: const Icon(Icons.playlist_add),
     );
   }
 

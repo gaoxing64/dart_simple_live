@@ -73,6 +73,32 @@ class MultiPlaySession {
     }
   }
 
+  /// 关注列表那颗「加入多开」icon 的语义：**只负责加入**。
+  ///
+  /// 这是把多开从「模式」改成「动作」后的入口——原先只有 [onFollowItemTap] 一条
+  /// 路径，它按 [enabled] 分流（开着就加入、关着就替换当前房间），用户得先切模式
+  /// 才谈得上「加一路」。现在加入是行内一颗 icon 直接表达的意图。
+  ///
+  /// **移出刻意不在这条路径上**：面板里已经在播的那些行不再显示任何 icon
+  /// （见 [shouldShowMultiPlayAddAction]），关格子一律去网格里点那颗 ✕ ——
+  /// 那里能直接看到「关掉的是哪一格」，不必在列表里隔着一层焦点关系去推。
+  ///
+  /// 已经在多开里时点不动（那颗 icon 压根不画），所以这里只需处理「不在多开」这一种；
+  /// 仍以 [addRoom] 为准而不是直接写实现，是为了让「已存在则切焦点」这条既有语义
+  /// 继续生效（面板行点击也走它）。
+  void addRoomFromList(Site site, String roomId) => addRoom(site, roomId);
+
+  /// 这一路在会话里的槽位下标；不在多开里返回 -1。
+  ///
+  /// 给界面判「这一行还要不要显示加入 icon」用（[shouldShowMultiPlayAddAction]）。
+  /// 取不到（不是 [Site] + roomId 的组合）时返回 -1，调用方按「不在多开」渲染即可，
+  /// 不必自己再判一遍相等。
+  int slotIndexOf(Site site, String roomId) {
+    return slots.indexWhere(
+      (t) => t.site.id == site.id && t.roomId == roomId,
+    );
+  }
+
   /// 开关多画面模式。
   void setEnabled(bool value) {
     if (enabled.value == value) {
@@ -119,10 +145,15 @@ class MultiPlaySession {
   /// 与 [addRoom] 的区别：不在路上逐个跳焦点、不重复算窗口下限，结束后焦点留在
   /// 第 0 格——批量开的语义是「都看着」，没有哪一路更该抢声音，也让
   /// 「第 0 格＝你点开的那一路」这个直觉成立。
-  void addRooms(List<LiveRoomTarget> targets) {
+  ///
+  /// [limit] 给 None 时取设置里的「默认路数」（桌面 4 / 移动 2，见
+  /// [resolveDefaultMultiPlayTiles]）——移动端一次塞四路会因放不下而折叠。
+  void addRooms(List<LiveRoomTarget> targets, {int? limit}) {
+    final max = (limit ?? AppSettingsController.instance.multiPlayDefaultTiles.value)
+        .clamp(kMultiPlayMinTiles, kMultiPlayMaxTiles);
     var added = 0;
     for (final target in targets) {
-      if (slots.length >= kMultiPlayMaxTiles) {
+      if (slots.length >= max) {
         break;
       }
       final exist = slots.indexWhere(
