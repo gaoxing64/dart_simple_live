@@ -319,14 +319,18 @@ class FollowUserController extends BasePageController<FollowUser>
   ///
   /// 顺序按**关注列表顺序**（`selectedUsers` 的顺序），不是点击顺序：第 0 路会成为
   /// 直播间页自带的那一格，其余几路预载成棋盘里的格子。
+  ///
+  /// 上限取设置里的「默认路数」而不是写死 [kMultiPlayMaxTiles]：移动端一次塞四路
+  /// 会因放不下而白折叠两格（见 [resolveDefaultMultiPlayTiles]）。
   void openMultiPlayFromSelection() {
-    final result = selectForMultiPlay(selectedUsers);
+    final max = AppSettingsController.instance.multiPlayDefaultTiles.value;
+    final result = selectForMultiPlay(selectedUsers, max: max);
     switch (result.problem) {
       case MultiPlaySelectionProblem.empty:
         SmartDialog.showToast("选中的主播都不在直播中");
         return;
       case MultiPlaySelectionProblem.tooMany:
-        SmartDialog.showToast("最多同时播放 $kMultiPlayMaxTiles 个直播间");
+        SmartDialog.showToast("最多同时播放 $max 个直播间");
         return;
       case MultiPlaySelectionProblem.none:
         break;

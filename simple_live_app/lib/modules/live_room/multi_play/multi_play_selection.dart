@@ -4,6 +4,19 @@ library;
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
 
+/// 关注列表里那颗「加入多开」icon 只在一种情况下出现：**这一路还没在多开里**。
+///
+/// 已经在多开里的行**什么都不显示**——原先那里摆过路号徽章 + ✕，两条都被否了：
+/// - 序号（「第 N 路」）在关注列表里没有信息量。它回答不了「我在看哪一路」（面板不显示
+///   聚焦格），也回答不了「这一格多大了」（格子的大小得看网格）。真要看位置，网格里
+///   每格左下角本来就有同一颗序号牌。
+/// - ✕ 与网格里那颗重复，且**主格上是死的**：主格是页面本身，销不得。关格子在网格里
+///   点那颗 ✕ 更直观——那里能直接看到「关掉的是哪一格」，而在列表里隔着一层焦点关系。
+///
+/// 于是只剩「加入」一个动作，判定退化成一句话，不必再抽成三分支的枚举。
+/// 纯函数留在这里是为了让「已在多开 → 不显示」这条判据可单测。
+bool shouldShowMultiPlayAddAction(int slot) => slot < 0;
+
 /// 批量多开时，选中的关注里有没有可用的直播。
 enum MultiPlaySelectionProblem { none, empty, tooMany }
 

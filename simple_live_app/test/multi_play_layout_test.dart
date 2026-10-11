@@ -377,4 +377,44 @@ void main() {
       );
     });
   });
+
+  group('默认路数', () {
+    test('没存过时按平台预填：桌面 4、移动 2', () {
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: null), 4);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: null), 2);
+    });
+
+    test('存过的值盖过平台预填：桌面选了 2，到手机上仍然是 2', () {
+      // 落盘而不是每次按平台重算——用户在桌面上试过两路之后换到手机上，
+      // 拿到的理应还是他自己选的那个。
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: 2), 2);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: 2), 2);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: 4), 4);
+    });
+
+    test('越界的存量值夹进 [下限, 上限]，绝不原样采信', () {
+      // 上限被改小时（4→3）旧存档会留 5；历史上也可能存过 1/0。
+      // 关键是返回值**永远是合法路数**：既不采信 5，也不会像「越界就退回平台预填」
+      // 那样把桌面端从 1 直接弹回 4。
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: 5), kMultiPlayMaxTiles);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: 5), kMultiPlayMaxTiles);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: 0), kMultiPlayMinTiles);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: true, stored: 1), kMultiPlayMinTiles);
+      expect(resolveDefaultMultiPlayTiles(isDesktop: false, stored: 1), kMultiPlayMinTiles);
+    });
+
+    test('返回值恒落在 [下限, 上限] 内——扫一遍越界输入', () {
+      // 这条钉的是「不变量」而不是某个具体数：无论平台与存量值怎么组合，
+      // 设置项都拿不到一个布局引擎不接受的区间外的值。
+      for (final desktop in [true, false]) {
+        for (final stored in [null, -1, 0, 1, 2, 3, 4, 5, 99]) {
+          final value =
+              resolveDefaultMultiPlayTiles(isDesktop: desktop, stored: stored);
+          final why = 'isDesktop=$desktop stored=$stored';
+          expect(value, greaterThanOrEqualTo(kMultiPlayMinTiles), reason: why);
+          expect(value, lessThanOrEqualTo(kMultiPlayMaxTiles), reason: why);
+        }
+      }
+    });
+  });
 }

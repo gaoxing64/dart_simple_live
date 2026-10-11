@@ -117,8 +117,8 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 「已选择 N 位」、排序按钮换成「编辑」主色胶囊；此时不给搜索入口。
   /// 分组管理入口按设计稿收进右侧 ⋮ 弹层，不再占一个独立图标；
   /// 刷新按钮保留（设计稿没画，但去掉是功能倒退）。
-  /// 玻璃胶囊不做：本页顶栏是随滚动收起的 `CollapsibleTopBarScaffold` AppBar，
-  /// 玻璃机制（`liquid_glass_nav_defaults.dart`）只服务悬浮导航栏。
+  /// 顶栏随滚动收起，顶栏不做玻璃/形变效果：底部 dock 的那套形变只服务
+  /// 底栏自身（见 [NavigationDock]），套到会随滚动改变高度的 AppBar 上会打架。
   PreferredSizeWidget _buildAppBar(ButtonStyle iconButtonStyle) {
     return AppBar(
       // 普通态 leading 要并排放两个图标（刷新 + 一键展开/折叠全部分组），

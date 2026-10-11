@@ -75,9 +75,34 @@ class VolumeTarget {
 
   void nudge(double deltaRatio) => setValueRatio(ratio + deltaRatio);
 
-  /// 点一下静音／取消静音这一路：写的是 `_owner.volumeFactor`，与 [muted] 读的
-  /// 同一个量（两种宿主都一样），并由它记住静音前的系数。
-  void toggleMute() => _owner.toggleMute();
+  /// 点一下静音／取消静音。
+  ///
+  /// 写路径必须与 [muted] 的读路径**对称**——这是它先前单向的根因：[muted] 读的是
+  /// `_owner.muted || ratio <= 0.001`（两处任意为0 即静音），而旧的 [LiveRoomController
+  /// .toggleMute] 只写 `volumeFactor` 这一套量。于是「总音量被滑条拖到 0」这种静音，
+  /// 点图标只会去动 `volumeFactor`（它本来还是 1.0），总音量仍是 0 —— 听感上毫无变化，
+  /// 图标也永远回不到 `volume_up`，控件就成了单向的。
+  ///
+  /// 现在按「是哪一处把它按成静音的」分别还原，两处都归零就两处都还原：
+  /// - `volumeFactor == 0`（点图标静音造成的）：交给 [LiveRoomController.toggleMute]
+  ///   还原到静音前的系数，与格子宿主同一套语义。
+  /// - 总音量 `== 0`（滑条拖到 0 造成的）：写回全量。**不**去还原「拖到 0 之前的值」
+  ///   —— 拖动是连续过程，那个值没有 well-defined 的定义（多半是拖动最后一个小步，
+  ///   还原回去只有 5% 音量、仍然几乎听不见）。点图标是明确的「把声音还给我」，
+  ///   给全量才是明确且一定听得见的答案；这与格子宿主 `_factorBeforeMute` 的初值
+  ///   同为 1.0 是一致的。
+  void toggleMute() {
+    if (muted) {
+      if (_owner.muted) {
+        _owner.toggleMute();
+      }
+      if (isMaster && ratio <= 0.001) {
+        setValueRatio(1.0);
+      }
+      return;
+    }
+    _owner.toggleMute();
+  }
 }
 
 /// 音量按钮的三态：点击＝静音这一路，悬停＝出滑条浮层，滚轮＝±5%。
@@ -284,6 +309,11 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
           onChanged: (value) {
             widget.onInteract?.call();
             widget.target.setValueRatio(value);
+            // 拖动也要浮一下读数：与滚轮同一条规则。之前只有 `_onPointerSignal`
+            // 调 `_showTip`，于是「滚着调有百分比、拖着调没有」——而拖动恰恰是
+            // 眼睛盯着滑条的时候，那一刻最需要读数确认拖到了哪儿。
+            // 每次拖动都重新计时，持续拖动期间读数会一直挂着。
+            _showTip();
             if (widget.isTouch) {
               _restartTouchLinger();
             }

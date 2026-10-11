@@ -12,6 +12,7 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
+import 'package:simple_live_app/services/local_storage_service.dart';
 
 /// 被测的那一格：音量逻辑（`volumeFactor` / `muted` / `toggleMute` /
 /// `nudgeVolumeFactor`）用真实现，只把「下发给 mpv」这一步空掉——
@@ -27,6 +28,34 @@ class _FakeTile extends LiveRoomController {
 
   @override
   Future<void> applyTargetVolume() async {}
+}
+
+/// 假本地存储：内存实现（与 `follow_test_harness.dart` 那份同形）。
+///
+/// 为什么必须有它：单播放宿主的写路径经`AppSettingsController.setPlayerVolume`
+/// 落到 `LocalStorageService`，而 widget test 里没开任何 Hive box，不注册就直接
+/// GetFindCanceled。原先这批用例只直接给 `playerVolume.value` 赋值、从没走过
+/// 写路径，所以一直没暴露这个依赖——直到补了「点图标恢复音量」那条，它第一次
+/// 真的去写盘。
+class _FakeLocalStorage extends LocalStorageService {
+  final _mem = <dynamic, dynamic>{};
+
+  @override
+  Future init() async {}
+
+  @override
+  T getValue<T>(dynamic key, T defaultValue) =>
+      _mem.containsKey(key) ? _mem[key] as T : defaultValue;
+
+  @override
+  Future setValue<T>(dynamic key, T value) async {
+    _mem[key] = value;
+  }
+
+  @override
+  Future removeValue<T>(dynamic key) async {
+    _mem.remove(key);
+  }
 }
 
 /// 跳过本地存储（Hive 在 widget test 的 fake-async 环境下不可用）。
@@ -48,6 +77,7 @@ class _FakeMaster extends LiveRoomController {
 void main() {
   setUp(() {
     Get.testMode = true;
+    Get.put<LocalStorageService>(_FakeLocalStorage());
     Get.put<AppSettingsController>(_FakeSettings());
   });
 
@@ -225,5 +255,136 @@ void main() {
     settings.playerVolume.value = 100.0;
     await tester.pump();
     expect(find.byIcon(Icons.volume_up), findsOneWidget);
+  });
+
+  testWidgets('总音量拖到 0 后点图标：双向恢复（这是先前单向的回归）', (tester) async {
+    final page = _FakeMaster();
+    final settings = AppSettingsController.instance;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.master(page),
+              style: const ButtonStyle(),
+            ),
+          ),
+        ),
+      ),
+    );
+    final button = find.byType(IconButton);
+    expect(find.byIcon(Icons.volume_up), findsOneWidget);
+
+    // 用户把总音量滑条拖到 0：图标如实变成静音态。
+    settings.playerVolume.value = 0.0;
+    await tester.pump();
+    expect(find.byIcon(Icons.volume_off), findsOneWidget);
+
+    // 此时点图标必须把声音还回来 —— 修复前这里点下去毫无变化：
+    // toggleMute 只写 volumeFactor（它还是 1.0），总音量仍是 0。
+    await tester.tap(button);
+    await tester.pump();
+    expect(
+      settings.playerVolume.value,
+      greaterThan(0.0),
+      reason: '点图标必须把总音量带回来，否则控件是单向的',
+    );
+    expect(
+      find.byIcon(Icons.volume_up),
+      findsOneWidget,
+      reason: '总音量恢复后图标必须回到 volume_up',
+    );
+
+    // 反方向也要成立：点图标静音 → 再点恢复（这一段是旧有行为，别改坏）。
+    await tester.tap(button);
+    await tester.pump();
+    expect(page.muted, isTrue, reason: '点一下应当静音');
+    expect(find.byIcon(Icons.volume_off), findsOneWidget);
+    await tester.tap(button);
+    await tester.pump();
+    expect(page.muted, isFalse, reason: '再点一下应当取消静音');
+    expect(find.byIcon(Icons.volume_up), findsOneWidget);
+  });
+
+  testWidgets('两处同时为 0（系数与总音量）时点图标：两处都恢复', (tester) async {
+    final page = _FakeMaster();
+    final settings = AppSettingsController.instance;
+    page.volumeFactor.value = 0.0;
+    settings.playerVolume.value = 0.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.master(page),
+              style: const ButtonStyle(),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.byIcon(Icons.volume_off), findsOneWidget);
+    await tester.tap(find.byType(IconButton));
+    await tester.pump();
+    expect(page.muted, isFalse, reason: '系数那一份也要被还原');
+    expect(settings.playerVolume.value, greaterThan(0.0),
+        reason: '总音量那一份也要被还原');
+    expect(find.byIcon(Icons.volume_up), findsOneWidget);
+  });
+
+  testWidgets('拖动滑条也会显示百分比读数（滚轮之外的那条路径）', (tester) async {
+    final tile = _FakeTile();
+    tile.volumeFactor.value = 0.4;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.tile(tile),
+              style: const ButtonStyle(),
+            ),
+          ),
+        ),
+      ),
+    );
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    final button = find.byType(IconButton);
+    final buttonRect = tester.getRect(button);
+    await gesture.addPointer(location: buttonRect.center);
+    await tester.pump();
+
+    final slider = find.byType(Slider);
+    expect(slider, findsOneWidget, reason: '悬停应当展开滑条');
+    // 还没动：没有读数。
+    expect(find.textContaining('%'), findsNothing);
+
+    final sliderCenter = tester.getCenter(slider);
+    await gesture.moveTo(Offset(sliderCenter.dx, buttonRect.top - 2));
+    await tester.pump();
+    await gesture.moveTo(sliderCenter);
+    await tester.pump();
+    // 真拖一把：先前只有滚轮路径调 `_showTip`，这里读数是不出来的。
+    await gesture.down(sliderCenter);
+    await tester.pump();
+    await gesture.moveTo(sliderCenter + const Offset(25, 0));
+    await tester.pump();
+    expect(
+      find.textContaining('%'),
+      findsOneWidget,
+      reason: '拖动滑条必须浮出百分比读数',
+    );
+    await gesture.up();
+    await tester.pump();
+
+    // 读数应当与这一路当时的实际系数一致。
+    final shown = tester
+        .widget<Text>(find.textContaining('%'))
+        .data!;
+    expect(
+      shown.trim(),
+      '${(tile.volumeFactor.value * 100).round()}%',
+      reason: '读数必须反映拖动后的真实值',
+    );
   });
 }
