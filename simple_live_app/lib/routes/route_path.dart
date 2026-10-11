@@ -21,6 +21,9 @@ class RoutePath {
   /// 直播间设置
   static const kSettingsPlay = "/settings/play";
 
+  /// 播放器快捷键设置
+  static const kSettingsShortcuts = "/settings/shortcuts";
+
   /// 弹幕关键词屏蔽
   static const kSettingsDanmuShield = "/settings/danmu/shield";
 

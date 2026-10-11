@@ -19,6 +19,7 @@ import 'package:simple_live_app/modules/live_room/player/player_action_views.dar
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
+import 'package:simple_live_app/modules/live_room/player/player_shortcuts.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/context_menu.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
@@ -534,11 +535,19 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   /// （`multi_play_tile.dart` 的 `_buildVideo`），**不走** `playerControls`，
   /// 所以移动端单画面那两条老 builder 不会漏进格子里。
   /// Android 的 `PiPSwitcher` 那条只认单画面，多开下由 `enablePIP` 开头直接拒绝。
+  ///
+  /// 键盘快捷键挂在这一层：五个视频区调用点（窗口化／全屏／平板／移动横屏／
+  /// 竖屏多开）走的都是本方法，包一次就全覆盖；网格与单画面也能共用同一个焦点节点，
+  /// 多开时按 1–4 切聚焦格才不需要另铺一套。`PiPSwitcher` 里那份 `buildMediaPlayer()`
+  /// 不经过这里——Android 小窗本就不接收页面焦点。
   Widget buildLiveRoomVideoArea() {
-    return Obx(
-      () => controller.multiPlay.isActive
-          ? buildMultiPlayGrid(controller)
-          : buildMediaPlayer(),
+    return PlayerShortcuts(
+      controller: controller,
+      child: Obx(
+        () => controller.multiPlay.isActive
+            ? buildMultiPlayGrid(controller)
+            : buildMediaPlayer(),
+      ),
     );
   }
 
@@ -699,80 +708,73 @@ class LiveRoomPage extends GetView<LiveRoomController> {
 
   Widget buildMessageArea(BuildContext context) {
     return Expanded(
-      child: DefaultTabController(
-        length: 4,
-        child: Column(
-          children: [
-            TabBar(
-              indicatorSize: TabBarIndicatorSize.tab,
-              labelPadding: EdgeInsets.zero,
-              indicatorWeight: 1.0,
-              tabs: [
-                const Tab(
-                  text: "聊天",
-                ),
-                Tab(
-                  child: Obx(
-                    () => Text(
-                      room.superChats.isNotEmpty ? "SC(${room.superChats.length})" : "SC",
+      // 原先这里是 DefaultTabController：够用，但外部**切不动页**。快捷键 G 在
+      // 非全屏下要做的正是「跳到关注」，而 Default 作用域只读不写，所以改成
+      // 自己持有 TabController，TabBar / TabBarView 显式传 controller。
+      // `page` 传本页主格（不是聚焦格）：切页入口登记在它身上，与快捷键
+      // 读的 `PlayerShortcuts.controller` 是同一个对象；四个 Tab 的**内容**
+      // 照旧跟着 `room`（聚焦格）走。
+      child: _ChatTabs(
+        page: controller,
+        tabs: [
+          const Tab(
+            text: "聊天",
+          ),
+          Tab(
+            child: Obx(
+              () => Text(
+                room.superChats.isNotEmpty ? "SC(${room.superChats.length})" : "SC",
+              ),
+            ),
+          ),
+          const Tab(
+            text: "关注",
+          ),
+          const Tab(
+            text: "设置",
+          ),
+        ],
+        views: [
+          Obx(
+            () => Stack(
+              children: [
+                ListView.separated(
+                  controller: room.scrollController,
+                  separatorBuilder: (_, i) => Obx(
+                    () => SizedBox(
+                      // *2与原来的EdgeInsets.symmetric(vertical: )做兼容
+                      height: AppSettingsController.instance.chatTextGap.value * 2,
                     ),
                   ),
+                  padding: AppStyle.edgeInsetsA12,
+                  itemCount: room.messages.length,
+                  itemBuilder: (context, i) {
+                    var item = room.messages[i];
+                    return buildMessageItem(item, context);
+                  },
                 ),
-                const Tab(
-                  text: "关注",
-                ),
-                const Tab(
-                  text: "设置",
+                Visibility(
+                  visible: room.disableAutoScroll.value,
+                  child: Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        room.disableAutoScroll.value = false;
+                        room.chatScrollToBottom();
+                      },
+                      icon: const Icon(Icons.expand_more),
+                      label: const Text("最新"),
+                    ),
+                  ),
                 ),
               ],
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  Obx(
-                    () => Stack(
-                      children: [
-                        ListView.separated(
-                          controller: room.scrollController,
-                          separatorBuilder: (_, i) => Obx(
-                            () => SizedBox(
-                              // *2与原来的EdgeInsets.symmetric(vertical: )做兼容
-                              height: AppSettingsController.instance.chatTextGap.value * 2,
-                            ),
-                          ),
-                          padding: AppStyle.edgeInsetsA12,
-                          itemCount: room.messages.length,
-                          itemBuilder: (context, i) {
-                            var item = room.messages[i];
-                            return buildMessageItem(item, context);
-                          },
-                        ),
-                        Visibility(
-                          visible: room.disableAutoScroll.value,
-                          child: Positioned(
-                            right: 12,
-                            bottom: 12,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                room.disableAutoScroll.value = false;
-                                room.chatScrollToBottom();
-                              },
-                              icon: const Icon(Icons.expand_more),
-                              label: const Text("最新"),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  buildSuperChats(),
-                  buildFollowList(),
-                  buildSettings(context),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+          buildSuperChats(),
+          buildFollowList(),
+          buildSettings(context),
+        ],
       ),
     );
   }
@@ -1366,5 +1368,113 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       return "${m.toString().padLeft(2, '0')}分钟${s.toString().padLeft(2, '0')}秒";
     }
     return "${s.toString().padLeft(2, '0')}秒";
+  }
+}
+
+/// 聊天区那一排 Tab（聊天 / SC / 关注 / 设置）。
+///
+/// 换成自己持有 [TabController] 而不是 `DefaultTabController`，是为了让**页外**
+/// 也能切页：快捷键 G 在非全屏下没有「换台」那块右侧面板（它只有右侧面板一种
+/// 容器，窗口化下会盖住右栏），改成把这里切到「关注」Tab——同一个功能，
+/// 用这个宿主本来就有的一种形态呈现。
+///
+/// 目标页码存在 [LiveRoomController.chatTab] 上，双向同步而不是单向命令：
+/// - 用户手点 Tab → 写回 Rx；
+/// - 快捷键写 Rx → 本组件 `animateTo`。
+///
+/// 之所以不登记「当前由哪个实例负责切页」：多开时移动端那个聊天抽屉与本侧栏
+/// 是**两个**实例，登记式要处理挂载/卸载顺序（后开的关掉后得把指针还给前者），
+/// 而共享一个页码让两边一起跟着走，既没有生命周期问题也更符合直觉。
+class _ChatTabs extends StatefulWidget {
+  const _ChatTabs({
+    required this.page,
+    required this.tabs,
+    required this.views,
+  });
+
+  /// 页主格：Tab 页码挂它身上（与快捷键读的同一个对象）。
+  final LiveRoomController page;
+
+  final List<Widget> tabs;
+  final List<Widget> views;
+
+  @override
+  State<_ChatTabs> createState() => _ChatTabsState();
+}
+
+class _ChatTabsState extends State<_ChatTabs>
+    with SingleTickerProviderStateMixin {
+  late final TabController _controller;
+
+  /// 观察共享页码的 worker。
+  ///
+  /// 用 `ever()` 而不是 `chatTab.addListener`：GetX 的 `Rx.addListener` 收的是
+  /// `GetStream`（它自己的流对象），不是 Flutter 的 `VoidCallback`——Rx 不是
+  /// `Listenable`，硬套会编译不过。`ever` 正是「值每次变化都回调」这个语义，
+  /// 且返回的 Worker 必须在本组件 dispose 时收掉，否则抽屉反复开关会攒出
+  /// 一串指向已销毁 State 的回调。
+  Worker? _tabSync;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TabController(
+      length: widget.tabs.length,
+      vsync: this,
+      // 从共享页码起建：聊天抽屉每次打开都重建，不读它就只能回到「聊天」。
+      initialIndex: widget.page.chatTab.value.clamp(0, widget.tabs.length - 1),
+    );
+    _controller.addListener(_onTabChanged);
+    _tabSync = ever<int>(widget.page.chatTab, (_) => _onRequestedTab());
+  }
+
+  @override
+  void dispose() {
+    _tabSync?.dispose();
+    _controller
+      ..removeListener(_onTabChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  /// 手点/滑动切页 → 写回共享页码。
+  ///
+  /// 不需要「是不是我们自己 animateTo 触发的」那种标志位：`_onRequestedTab` 只在
+  /// 页码与本实例不同时才 animateTo，animateTo 之后本回调里的相等检查必然成立，
+  /// 回写被这一个等式挡掉——单向传播已经闭环，加标志位只会多一处要对齐的状态。
+  void _onTabChanged() {
+    if (widget.page.chatTab.value != _controller.index) {
+      widget.page.chatTab.value = _controller.index;
+    }
+  }
+
+  /// 外部（快捷键）改了页码 → 切过去。
+  void _onRequestedTab() {
+    final target = widget.page.chatTab.value;
+    if (!mounted || target == _controller.index) {
+      return;
+    }
+    _controller.animateTo(target);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TabBar(
+          controller: _controller,
+          indicatorSize: TabBarIndicatorSize.tab,
+          labelPadding: EdgeInsets.zero,
+          indicatorWeight: 1.0,
+          tabs: widget.tabs,
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _controller,
+            children: widget.views,
+          ),
+        ),
+      ],
+    );
   }
 }

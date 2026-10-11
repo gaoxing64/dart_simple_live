@@ -10,6 +10,7 @@ import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_snapshot.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 
 class AppSettingsController extends GetxController {
@@ -171,6 +172,10 @@ class AppSettingsController extends GetxController {
     autoFullScreen.value = LocalStorageService.instance.getValue(LocalStorageService.kAutoFullScreen, false);
 
     verticalDragLock.value = LocalStorageService.instance.getValue(LocalStorageService.kVerticalDragLock, false);
+
+    keyboardControl.value = LocalStorageService.instance.getValue(LocalStorageService.kKeyboardControl, true);
+
+    loadShortcuts();
 
     // ignore: invalid_use_of_protected_member
     shieldList.value = LocalStorageService.instance.shieldBox.values.toSet();
@@ -664,6 +669,84 @@ class AppSettingsController extends GetxController {
   void setVerticalDragLock(bool e) {
     verticalDragLock.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kVerticalDragLock, e);
+  }
+
+  /// 直播间键盘快捷键。关掉后视频区不再消费任何按键（Tab 导航等默认行为不受影响）。
+  var keyboardControl = true.obs;
+
+  void setKeyboardControl(bool e) {
+    keyboardControl.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kKeyboardControl, e);
+  }
+
+  /// 播放器快捷键的**用户覆盖表**（不是生效表——生效表见 [effectiveShortcuts]）。
+  ///
+  /// 只存用户动过的项，所以「恢复默认」是把键删掉而不是写回默认值。
+  /// 每次变更都换成一个**新 map 实例**再写回：`Rx` 的 setter 会在 `_value == val`
+  /// 时直接不通知，而 Map 的 `==` 是同一性比较——原地改内容就永远刷不到订阅者，
+  /// 设置页与播放器都会停在旧的那份上。
+  ///
+  /// 用 `Rx<Map<...>>` 而不是 `<...>{}.obs`：后者返回 `RxMap`，它不是 `Rx` 的子类型
+  /// （是 `MapMixin + RxObjectMixin`），既接不住整体替换的写法，值类型也没法是可空的。
+  final Rx<Map<PlayerShortcut, ShortcutBinding?>> shortcutOverrides =
+      Rx<Map<PlayerShortcut, ShortcutBinding?>>({});
+
+  /// 当前生效的完整键位表（每个动作一项；值为 null 表示该动作被「不设置」禁用）。
+  ///
+  /// 读它要在 `Obx` 里（会订阅 [shortcutOverrides]）。播放器挂件是在按键发生时
+  /// 现读，不建订阅——它不需要「键位变了就重建」，只需要「按下的那一刻按最新配置解释」。
+  Map<PlayerShortcut, ShortcutBinding?> get effectiveShortcuts =>
+      resolveEffectiveShortcuts(shortcutOverrides.value);
+
+  /// 某个动作此刻的绑定（含「不设置」＝null）。
+  ShortcutBinding? bindingFor(PlayerShortcut action) =>
+      effectiveShortcuts[action];
+
+  void loadShortcuts() {
+    shortcutOverrides.value = decodeShortcuts(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kPlayerShortcuts,
+        "",
+      ),
+    );
+  }
+
+  void _saveShortcutOverrides() {
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kPlayerShortcuts,
+      encodeShortcuts(shortcutOverrides.value),
+    );
+  }
+
+  /// 给某个动作设一个绑定（含传 null 表示「不设置」）。
+  void setShortcut(PlayerShortcut action, ShortcutBinding? binding) {
+    final next = Map<PlayerShortcut, ShortcutBinding?>.of(
+      shortcutOverrides.value,
+    );
+    next[action] = binding;
+    shortcutOverrides.value = next;
+    _saveShortcutOverrides();
+  }
+
+  /// 单个动作恢复默认：删掉覆盖项，而不是写回一份默认值快照。
+  void resetShortcut(PlayerShortcut action) {
+    if (!shortcutOverrides.value.containsKey(action)) {
+      return;
+    }
+    final next = Map<PlayerShortcut, ShortcutBinding?>.of(
+      shortcutOverrides.value,
+    )..remove(action);
+    shortcutOverrides.value = next;
+    _saveShortcutOverrides();
+  }
+
+  /// 全部动作恢复默认（设置页右上角那颗 ↺）。
+  void resetAllShortcuts() {
+    if (shortcutOverrides.value.isEmpty) {
+      return;
+    }
+    shortcutOverrides.value = <PlayerShortcut, ShortcutBinding?>{};
+    _saveShortcutOverrides();
   }
 
   RxSet<String> shieldList = <String>{}.obs;

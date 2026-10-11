@@ -202,6 +202,16 @@ class LocalStorageService extends GetxService {
   /// 播放器音量
   static const String kVerticalDragLock = "VerticalDragLock";
 
+  /// 直播间键盘快捷键（默认开启）
+  static const String kKeyboardControl = "KeyboardControl";
+
+  /// 播放器快捷键的**用户覆盖表**（JSON 字符串，见 `shortcut_binding.dart`）。
+  ///
+  /// 只存用户动过的项，空串＝全部用默认值。存字符串而不是 Map 是因为 Hive 里
+  /// 嵌套 Map 的读回类型不稳（`dynamic` 取值时容易拿到 `Map<dynamic,dynamic>`），
+  /// 而这份数据本来就要按动作名做增删。
+  static const String kPlayerShortcuts = "PlayerShortcuts";
+
   /// 小窗隐藏弹幕
   static const String kPIPHideDanmu = "PIPHideDanmu";
 

@@ -7,6 +7,8 @@ import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils/permission_handler.dart';
+import 'package:simple_live_app/routes/route_path.dart';
+import 'package:simple_live_app/widgets/settings/settings_action.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
 import 'package:simple_live_app/widgets/settings/settings_menu.dart';
 import 'package:simple_live_app/widgets/settings/settings_number.dart';
@@ -152,6 +154,14 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                       onChanged: (e) {
                         controller.setVerticalDragLock(e);
                       }),
+                ),
+                AppStyle.divider,
+                // 快捷键的总开关与逐条改键都收进了独立页：这里十几行动作塞进
+                // 播放设置会把整页撑得没法用，而且改键要弹录制框，本身就该有自己的家。
+                SettingsAction(
+                  title: "播放器快捷键",
+                  subtitle: "改键 / 禁用 / 恢复默认",
+                  onTap: () => Get.toNamed(RoutePath.kSettingsShortcuts),
                 ),
                 AppStyle.divider,
                 Obx(

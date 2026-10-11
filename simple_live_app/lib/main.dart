@@ -23,6 +23,7 @@ import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/app/utils/listen_fourth_button.dart';
 import 'package:simple_live_app/firebase_options.dart';
 import 'package:simple_live_app/hive_registrar.g.dart';
+import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 import 'package:simple_live_app/modules/other/debug_log_page.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 import 'package:simple_live_app/routes/app_analytics_observer.dart';
@@ -177,16 +178,10 @@ class MyApp extends StatelessWidget {
   /// 桌面端返回：优先关闭 SmartDialog 弹窗
   /// SmartDialog 的 useSystem 弹窗由 Navigator 路由承载，
   /// 若被 Get.back() 直接弹出，后续 dismiss 会再次 pop 导致 Navigator 状态异常
-  static void appBack() {
-    if (SmartDialog.checkExist()) {
-      SmartDialog.dismiss(status: SmartStatus.smart);
-      return;
-    }
-    // 用 maybePop 而不是 back：PopScope 只对 maybePop 生效，裸 pop 会绕过它。
-    // 直播间页多开时靠 PopScope 拦下第一下返回（只收起其余几路），用 back 会
-    // 直接把整页弹掉、四路一起销毁。
-    Get.key.currentState?.maybePop();
-  }
+  ///
+  /// 实现已搬到 `Utils.appBack`（直播间快捷键挂件也要用它，而它不能 import 本文件，
+  /// 见那边的注释）。这里留一层委托：两处调用点（侧键手势、Esc 链）的写法不变。
+  static void appBack() => Utils.appBack();
 
   @override
   Widget build(BuildContext context) {
@@ -290,22 +285,47 @@ class MyApp extends StatelessWidget {
                     child: KeyboardListener(
                       focusNode: FocusNode(),
                       onKeyEvent: (KeyEvent event) async {
-                        if (event is KeyDownEvent &&
-                            event.logicalKey == LogicalKeyboardKey.escape) {
-                          //优先关闭 SmartDialog 弹窗
-                          if (SmartDialog.checkExist()) {
-                            MyApp.appBack();
+                        // 「退出/关闭播放器」这一行的**全局兜底**：键位可自定义，
+                        // 默认仍是 Escape。行为链本身与改前逐字一致。
+                        //
+                        // 直播间视频区拿到焦点时，这条链不会走到这里——那里的
+                        // `PlayerShortcuts` 更深一层，会先消费掉同一个键并加上
+                        // 「离开直播间」这第三级。焦点在别处（设置页、聊天输入框、
+                        // 首页）时，本处仍是唯一入口，所以「Esc 关弹窗」在全 app
+                        // 范围内照旧可用，且不受「播放器快捷键」总开关影响：
+                        // 那个开关管的是播放器动作，不是应用级的弹窗/全屏收口。
+                        if (event is! KeyDownEvent) {
+                          return;
+                        }
+                        final exitBinding = AppSettingsController.instance
+                            .bindingFor(PlayerShortcut.exitPlayer);
+                        if (exitBinding == null) {
+                          return;
+                        }
+                        final hk = HardwareKeyboard.instance;
+                        if (!shortcutBindingMatches(
+                          exitBinding,
+                          event.logicalKey,
+                          shift: hk.isShiftPressed,
+                          ctrl: hk.isControlPressed,
+                          alt: hk.isAltPressed,
+                          meta: hk.isMetaPressed,
+                        )) {
+                          return;
+                        }
+                        //优先关闭 SmartDialog 弹窗
+                        if (SmartDialog.checkExist()) {
+                          MyApp.appBack();
+                          return;
+                        }
+                        // ESC退出全屏
+                        // 如果处于全屏状态，退出全屏
+                        if (!Platform.isAndroid && !Platform.isIOS) {
+                          if (await windowManager.isFullScreen()) {
+                            await windowManager.setFullScreen(false);
+                            EventBus.instance
+                                .emit(EventBus.kEscapePressed, 0);
                             return;
-                          }
-                          // ESC退出全屏
-                          // 如果处于全屏状态，退出全屏
-                          if (!Platform.isAndroid && !Platform.isIOS) {
-                            if (await windowManager.isFullScreen()) {
-                              await windowManager.setFullScreen(false);
-                              EventBus.instance
-                                  .emit(EventBus.kEscapePressed, 0);
-                              return;
-                            }
                           }
                         }
                       },

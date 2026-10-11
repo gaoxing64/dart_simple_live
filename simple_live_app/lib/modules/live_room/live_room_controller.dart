@@ -724,6 +724,17 @@ class LiveRoomController extends PlayerController
     }
   }
 
+  /// 聊天区当前页码（0 聊天 / 1 SC / 2 关注 / 3 设置）。
+  ///
+  /// 挂在**页面主格**而不是聚焦格上：`_ChatTabs` 是页面级 UI，快捷键也认这个对象，
+  /// 两边共用一份才不会各读各的。放在这里而不是页面 state 里，是因为直播间页的
+  /// 聊天区会被多开的悬浮抽屉重建，重建时要能从这儿接回上次停在哪个 Tab。
+  final chatTab = 0.obs;
+
+  /// [chatTab] 里「关注」那一页的下标。快捷键 G 与 `_ChatTabs` 都引用它，
+  /// 免得两处各自数 Tab 顺序。
+  static const int kChatTabFollow = 2;
+
   /// 初始化播放器
   void getPlayQualities() async {
     currentQuality = -1;

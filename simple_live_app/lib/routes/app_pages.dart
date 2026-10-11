@@ -34,6 +34,7 @@ import 'package:simple_live_app/modules/settings/indexed_settings/indexed_settin
 import 'package:simple_live_app/modules/settings/other/other_settings_controller.dart';
 import 'package:simple_live_app/modules/settings/other/other_settings_page.dart';
 import 'package:simple_live_app/modules/settings/play_settings_page.dart';
+import 'package:simple_live_app/modules/settings/shortcut_settings_page.dart';
 import 'package:simple_live_app/modules/sync/local_sync/device/sync_device_controller.dart';
 import 'package:simple_live_app/modules/sync/local_sync/device/sync_device_page.dart';
 import 'package:simple_live_app/modules/sync/local_sync/local_sync_controller.dart';
@@ -133,6 +134,11 @@ class AppPages {
     GetPage(
       name: RoutePath.kSettingsPlay,
       page: () => const PlaySettingsPage(),
+    ),
+    //播放器快捷键
+    GetPage(
+      name: RoutePath.kSettingsShortcuts,
+      page: () => const ShortcutSettingsPage(),
     ),
     //自动关闭
     GetPage(

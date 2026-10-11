@@ -118,6 +118,18 @@ class Utils {
   }) {
     SmartDialog.show(
       alignment: Alignment.topRight,
+      // keepSingle：这块面板在语义上**只有一个**（`hideRightDialog` 收的就是
+      // allCustom 全部），但没设 keepSingle 之前每次调用都往队列里追加一份，
+      // 于是连点同一个入口（快捷键、或鼠标狂点条带上的清晰度/换台）会把面板
+      // 一层层叠起来。设了之后重复调用改成**原地换内容**：已经开着「清晰度」
+      // 时再按「换台」，是同一块面板换成换台列表，而不是盖第二块。
+      // continueKeepSingle 让这种原地替换不再重放滑入动画——否则狂点时面板
+      // 会反复抽动。
+      keepSingle: useSystem ? null : true,
+      nonAnimationTypes: const [
+        SmartNonAnimationType.routeClose_nonAnimation,
+        SmartNonAnimationType.continueKeepSingle,
+      ],
       animationBuilder: (controller, child, animationParam) {
         //从右到左
         return SlideTransition(
@@ -408,6 +420,26 @@ class Utils {
       ),
     );
     return result;
+  }
+
+  /// 桌面端「返回」：优先关闭 SmartDialog 弹窗，否则收起当前页。
+  ///
+  /// 原先这份逻辑长在 `main.dart` 的 `MyApp.appBack`，现在搬到这里、`MyApp` 改成
+  /// 委托一行。搬的原因是直播间快捷键挂件也要用它（「退出/关闭播放器」的最后一级），
+  /// 而它绝不能 import `main.dart`：`main → app_pages → live_room_page → 挂件`
+  /// 已经是一条 import 链，反向再指回去就是循环。
+  ///
+  /// SmartDialog 的 useSystem 弹窗由 Navigator 路由承载，若被 `Get.back()` 直接
+  /// 弹出，后续 dismiss 会再次 pop 导致 Navigator 状态异常——所以弹窗必须先自己关。
+  static void appBack() {
+    if (SmartDialog.checkExist()) {
+      SmartDialog.dismiss(status: SmartStatus.smart);
+      return;
+    }
+    // 用 maybePop 而不是 back：PopScope 只对 maybePop 生效，裸 pop 会绕过它。
+    // 直播间页多开时靠 PopScope 拦下第一下返回（只收起其余几路），用 back 会
+    // 直接把整页弹掉、四路一起销毁。
+    Get.key.currentState?.maybePop();
   }
 
   static Future showStatement() async {
