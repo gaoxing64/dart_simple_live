@@ -272,6 +272,19 @@ class MyApp extends StatelessWidget {
                             if (!Platform.isAndroid && !Platform.isIOS) {
                               if (await windowManager.isFullScreen()) {
                                 await windowManager.setFullScreen(false);
+                                // 必须像下面 Esc 那条链一样补发事件，把退出交回
+                                // exitFull：只裸调 setFullScreen(false) 就 return，
+                                // 控制器的 fullScreenState / smallWindowState 会停在
+                                // true（「幽灵全屏」：OS 已回窗口，UI 还画全屏那套）。
+                                // 更要命的是还原点——_captureNormalGeometry 的守卫
+                                // 见标志为真就不重采，于是这次改的窗口尺寸记不进去，
+                                // 下一次退全屏仍落回旧矩形。
+                                // 复用 kEscapePressed 而不另立名字：它的订阅者
+                                // （player_controller 里 allowsWindowOps 那一个）就是
+                                // exitFull，语义正是「退出全屏」，且天然避开
+                                // main → live_room_controller 这条循环 import。
+                                EventBus.instance.emit(
+                                    EventBus.kEscapePressed, 0);
                                 return;
                               }
                             }

@@ -671,13 +671,34 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     } else {
       // 退回原来的大小
       if (windowMaxState.value) {
+        // 最大化这条臂的次序与改造前逐字一致（maximize → 不 await 的退全屏）：
+        // C++ 的退全屏在 IsZoomed 为真时只刷新边框、按 g_maximized_before_fullscreen
+        // 补一次 SC_MAXIMIZE，不回弹摆放，所以没有下面那条竞态。
         await windowManager.maximize();
+        windowManager.setFullScreen(false);
       } else {
-        // WHY 只在非最大化时显式还原：还原点如今「进全屏」也采，于是每次退全屏
-        // 都会走到这段（原先只有进过小窗才有值）。进全屏前若是最大化态，上面刚
-        // maximize()，紧跟 setSize 会把最大化顶掉；而 Windows 上
-        // setFullScreen(false) 自己就会回弹到全屏前的摆放，那条路不用多事。
-        // 非最大化这段留着是兜底：「小窗→全屏→退出」靠它落回窗口态。
+        // 退 OS 全屏必须排在还原**之前**（原先是反的，正是「小窗→全屏→双击退出」
+        // 掉进一块小窗尺寸的窗口态、既不在小窗也不在全屏的原因）：
+        //
+        // window_manager 0.5.2 的 Windows 实现里，`setFullScreen(false)` 自己就会把
+        // 窗口摆回「进全屏那一刻」的外框（C++ 的 `g_frame_before_fullscreen`）。而
+        // 从小窗进全屏时 OS 窗口一直停在小窗外框——`enterFullScreen` 只把 Dart 侧的
+        // `smallWindowState` 翻成 false，没碰几何——所以那份「全屏前外框」就是小窗
+        // 矩形。还原点若抢在它前面落，就被这次回弹整个顶掉：两个旗标都已是 false
+        // （UI 已经是窗口化），窗口却停在几百 px 的小框里。
+        //
+        // 这里必须 await：不 await 它就排到后面几笔之后才落地，等于什么都没改。
+        await windowManager.setFullScreen(false);
+        // 只在非最大化时显式还原（进全屏前若是最大化态，上面那条臂才是正解，
+        // 那时紧跟 setSize 反而会把最大化顶掉）。
+        //
+        // 落在这段时 OS 已退出全屏，setSize/setPosition 是本臂最后一笔摆窗，不
+        // 会被谁顶掉。口径也对得上：`getSize`/`setPosition` 走 GetWindowRect、
+        // `setSize` 走 SetWindowPos，两边都是**外框**，所以还原点原样落回；
+        // 随后 setTitleBarStyle(normal) 只带 SWP_NOSIZE|SWP_FRAMECHANGED，外框
+        // 不变、让出去的是客户区，与「没进过小窗的正常窗口态」完全一致。
+        // （反过来把退全屏放后面就是原来的 bug：那笔不 await 的回弹排在还原之后
+        // 落地，外框被改回小窗矩形。）
         if (_lastWindowSize != null) {
           await windowManager.setSize(_lastWindowSize!);
         }
@@ -687,7 +708,6 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       }
       Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
       Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
-      windowManager.setFullScreen(false);
       windowManager.setTitleBarStyle(TitleBarStyle.normal);
       _consumeNormalGeometry();
       await WindowService.instance.danmakuFontClamped();
@@ -708,12 +728,14 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
 
   Future<void> _captureNormalGeometry() async {
     // 只有「控制器认为自己已经回到窗口态」时才允许重采。
-    // 单看标志不够：存在绕过 exitFull 的 OS 退全屏（main.dart 的鼠标第四键直接
-    // setFullScreen(false) 就 return，不通知控制器），那时标志与 fullScreenState
-    // 都停在 true——暴露的是**一代过期**：ghost 全屏期间若改过窗口大小，下一次
-    // 进全屏的 re-capture 会被这道守卫挡掉，还原点仍是改大小之前那份。
+    // 这道守卫仍是必要的：OS 侧还有一条不经过本控制器的退全屏（用户在窗口管理器
+    // 层面退掉，或系统栏/任务栏那类外部动作），那时标志与 fullScreenState 都停在
+    // true——暴露的是**一代过期**：ghost 全屏期间若改过窗口大小，下一次进全屏的
+    // re-capture 会被这道守卫挡掉，还原点仍是改大小之前那份。
     // 不会永久卡死：exitFull 与 exitSmallWindow 两个消费点都会把标志清回 false，
     // 走过任意一条正常退出路径后重采就恢复。
+    // （鼠标第四键原先正是这条绕过路径；现已与 Esc 同源，补发 kEscapePressed 交回
+    // exitFull，见 main.dart。）
     if (_normalGeometryCaptured &&
         (fullScreenState.value || smallWindowState.value)) {
       return;
