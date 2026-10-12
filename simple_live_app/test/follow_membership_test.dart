@@ -6,6 +6,7 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/models/db/history.dart';
+import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/migration_service.dart';
@@ -85,6 +86,13 @@ class FakeSettings extends AppSettingsController {
   @override
   // ignore: must_call_super
   Future<void> onInit() async {}
+}
+
+/// 只测 getter，不触发 onInit 的订阅与本地存储。
+class _Probe extends FollowUserController {
+  @override
+  // ignore: must_call_super
+  void onInit() {}
 }
 
 void main() {
@@ -248,6 +256,71 @@ void main() {
       expect(FollowService.instance.userTagNamesOf(u.id), isEmpty);
       expect(db.tags['a0']!.userId, isEmpty);
       expect(db.tags['a1']!.userId, isEmpty);
+    });
+  });
+
+  group('groupedView 按 userId 分桶', () {
+    FollowUser user(String id, {String tag = '全部'}) => FollowUser(
+          id: id,
+          roomId: id,
+          siteId: 'huya',
+          userName: id,
+          face: '',
+          addTime: DateTime(2024),
+          tag: tag,
+        )..liveStatus.value = 1;
+
+    late _Probe c;
+    setUp(() {
+      c = _Probe();
+    });
+
+    test('同一关注出现在它的每个所属分组里', () {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: '我的喜爱', userId: ['u1', 'u2']),
+        FollowUserTag(id: 'a1', tag: '常看', userId: ['u1']),
+      ]);
+      FollowService.instance.followList.assignAll([user('u1'), user('u2')]);
+      c.list.assignAll([user('u1'), user('u2')]);
+      c.updateTagList();
+
+      final v = c.groupedView;
+      expect(v.groups.map((g) => g.tag.tag), ['我的喜爱', '常看']);
+      expect(v.groups[0].members.map((u) => u.id), ['u1', 'u2']);
+      expect(v.groups[1].members.map((u) => u.id), ['u1']);
+      expect(v.ungrouped, isEmpty);
+    });
+
+    test('不属于任何分组的落未分组段', () {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: '我的喜爱', userId: ['u1']),
+      ]);
+      c.list.assignAll([user('u1'), user('u2')]);
+      c.updateTagList();
+
+      final v = c.groupedView;
+      expect(v.groups[0].members.map((u) => u.id), ['u1']);
+      expect(v.ungrouped.map((u) => u.id), ['u2']);
+    });
+
+    test('组内顺序继承 list 顺序，不是 userId 顺序', () {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: 'G', userId: ['u2', 'u1']),
+      ]);
+      c.list.assignAll([user('u1'), user('u2')]);
+      c.updateTagList();
+
+      expect(c.groupedView.groups[0].members.map((u) => u.id), ['u1', 'u2']);
+    });
+
+    test('userId 里的幽灵 id（已取关）被忽略', () {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: 'G', userId: ['u1', 'gone']),
+      ]);
+      c.list.assignAll([user('u1')]);
+      c.updateTagList();
+
+      expect(c.groupedView.groups[0].members.map((u) => u.id), ['u1']);
     });
   });
 }

@@ -134,8 +134,8 @@ void main() {
   group('groupedView（「全部」分组视图）', () {
     void seedTags() {
       FollowService.instance.followTagList.assignAll([
-        FollowUserTag(id: 'a0', tag: 'CS解说', userId: []),
-        FollowUserTag(id: 'a1', tag: 'LOL解说', userId: []),
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: ['douyu_a', 'douyu_b']),
+        FollowUserTag(id: 'a1', tag: 'LOL解说', userId: ['douyu_c']),
       ]);
     }
 

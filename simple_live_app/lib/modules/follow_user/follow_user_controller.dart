@@ -133,11 +133,12 @@ class FollowUserController extends BasePageController<FollowUser>
 
   /// 「全部」视图的分组模型：每个自定义标签一组 + 未分组一桶。
   ///
-  /// 按**标签名**分桶：`FollowUser.tag` 存的是名字（改名会同步重写成员名字）；
-  /// 「全部」以及孤儿名字（标签被删、旧备份遗留 —— `followUserAllDataCheck`
-  /// 负责修的那类）落进未分组桶而不是丢失。
+  /// 归属唯一真源是 `FollowUserTag.userId`（多分组归属）：一个关注属于 N 个分组，
+  /// 就出现在 N 张卡片里；不属于任何分组的落未分组桶。
+  /// 组内顺序**继承 `list` 顺序**（`liveListSort` 已按 sortMethod 排好，直播优先），
+  /// 不是 `userId` 的插入顺序 —— 否则拖拽调序、切排序方式都会失效。
+  /// `userId` 里指向已取关主播的幽灵 id 直接忽略（`followUserAllDataCheck` 负责清）。
   ///
-  /// 组内成员顺序继承 `list`（`liveListSort` 已按 sortMethod 排好，直播优先）。
   /// 搜索时空组不产出；不搜索时空组保留（它是拖拽归组的落点，也得让用户
   /// 看得见组存在）。
   ///
@@ -145,26 +146,34 @@ class FollowUserController extends BasePageController<FollowUser>
   /// 三者任一变化都会自动重切。
   FollowGroupedView get groupedView {
     final tags = customTags;
-    final names = {for (final t in tags) t.tag: t};
-    final byName = <String, List<FollowUser>>{};
+    // userId -> 它所属的分组 id 集合
+    final membership = <String, List<String>>{};
+    for (final t in tags) {
+      for (final uid in t.userId) {
+        (membership[uid] ??= <String>[]).add(t.id);
+      }
+    }
+    final byTagId = <String, List<FollowUser>>{for (final t in tags) t.id: []};
     final ungrouped = <FollowUser>[];
     for (final u in visibleList) {
-      if (names.containsKey(u.tag)) {
-        (byName[u.tag] ??= []).add(u);
-      } else {
+      final tagIds = membership[u.id];
+      if (tagIds == null || tagIds.isEmpty) {
         ungrouped.add(u);
+        continue;
+      }
+      for (final id in tagIds) {
+        byTagId[id]!.add(u);
       }
     }
     final searching = searchQuery.value.trim().isNotEmpty;
     final groups = [
       for (final t in tags)
-        if (!searching || (byName[t.tag]?.isNotEmpty ?? false))
+        if (!searching || byTagId[t.id]!.isNotEmpty)
           FollowGroup(
             tag: t,
-            members: byName[t.tag] ?? const [],
-            liveCount: (byName[t.tag] ?? const [])
-                .where((u) => u.liveStatus.value == 2)
-                .length,
+            members: byTagId[t.id]!,
+            liveCount:
+                byTagId[t.id]!.where((u) => u.liveStatus.value == 2).length,
           ),
     ];
     return (groups: groups, ungrouped: ungrouped);

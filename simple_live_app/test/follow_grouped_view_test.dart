@@ -400,9 +400,14 @@ void main() {
         for (var i = 0; i < 12; i++) _u('散人$i'),
       ],
       tags: [
-        FollowUserTag(id: 'a0', tag: '组0', userId: []),
-        FollowUserTag(id: 'a1', tag: '组1', userId: []),
-        FollowUserTag(id: 'a2', tag: '组2', userId: []),
+        // userId 是归属唯一真源（groupedView 按 userId 分桶），必须填成员 id，
+        // 否则组卡片为空、成员全落未分组 —— 与 seedGrouped 同一口径。
+        FollowUserTag(
+            id: 'a0', tag: '组0', userId: ['huya_组0·甲', 'huya_组0·乙']),
+        FollowUserTag(
+            id: 'a1', tag: '组1', userId: ['huya_组1·甲', 'huya_组1·乙']),
+        FollowUserTag(
+            id: 'a2', tag: '组2', userId: ['huya_组2·甲', 'huya_组2·乙']),
       ],
     );
     final indexed = await pumpIndexed(tester, followService: svc);
