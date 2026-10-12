@@ -45,12 +45,7 @@ class FollowAppSettingsController extends FollowTagManagerController {
     }
     SmartDialog.showLoading(msg: "清理中");
     for (var follow in cleanPool) {
-      // 取消关注同时删除标签内的 userId
-      if (follow.tag != "全部") {
-        var tag = userTagList.firstWhere((tag) => tag.tag == follow.tag);
-        tag.userId.remove(follow.id);
-        await updateTag(tag);
-      }
+      // 归属清理由 `FollowService.removeFollowUser` 统一负责
       await FollowService.instance.removeFollowUser(follow.id);
     }
     SmartDialog.dismiss();

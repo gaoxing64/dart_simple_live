@@ -512,4 +512,33 @@ void main() {
     expect(find.byType(FollowGroupCard), findsNWidgets(2));
     await settleEnd(tester);
   });
+
+  testWidgets('多分组：拖头像进别的组 = 加入，原分组里仍然可见', (tester) async {
+    final svc = await seedGrouped(tester);
+
+    await tester.dragFrom(const Offset(200, 560), const Offset(0, -200));
+    await settle(tester);
+
+    // 甲 原本在 CS解说；把它拖进 LOL解说
+    final avatar =
+        find.descendant(of: rowOf('甲'), matching: find.byType(NetImage));
+    final gesture = await tester.startGesture(tester.getCenter(avatar));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    await gesture.moveTo(tester.getCenter(cardOf('LOL解说')));
+    await tester.pump();
+    await gesture.up();
+    await settle(tester);
+
+    expect(
+        find.descendant(of: cardOf('LOL解说'), matching: find.text('甲')),
+        findsOneWidget);
+    expect(
+        find.descendant(of: cardOf('CS解说'), matching: find.text('甲')),
+        findsOneWidget,
+        reason: '多分组归属：加入新组不该把它从原组踢出去');
+    expect(svc.followTagList.firstWhere((t) => t.tag == 'CS解说').userId,
+        contains('huya_甲'));
+    await settleEnd(tester);
+  });
 }

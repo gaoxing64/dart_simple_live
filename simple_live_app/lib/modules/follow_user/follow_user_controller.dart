@@ -303,7 +303,7 @@ class FollowUserController extends BasePageController<FollowUser>
     );
   }
 
-  /// 把全部勾选中的主播移入 [target]（单组模型：自动从原分组移出）。
+  /// 把全部勾选中的主播**加入** [target]（多归属：原分组里的成员身份保留）。
   Future<void> reassignSelected(FollowUserTag target) async {
     final ids = selectedIds.toList();
     if (ids.isEmpty) {
@@ -316,12 +316,14 @@ class FollowUserController extends BasePageController<FollowUser>
       if (user == null) {
         continue; // 已被取关的幽灵 id，跳过
       }
-      await FollowService.instance.setFollowTag(user, target);
+      await FollowService.instance.addUserToTag(user, target.tag);
       moved++;
     }
+    // 一批操作结束后只重排一次（addUserToTag 内部不排，见其注释）
+    FollowService.instance.liveListSort();
     clearSelection();
     filterData();
-    SmartDialog.showToast("已将 $moved 位主播移入「${target.tag}」");
+    SmartDialog.showToast("已将 $moved 位主播加入「${target.tag}」");
   }
 
   /// 把勾选中的、正在直播的主播一次性开成多开（选择态 ⋮ 菜单里的「多开」）。
@@ -486,14 +488,7 @@ class FollowUserController extends BasePageController<FollowUser>
     if (!result) {
       return;
     }
-    // 取消关注同时删除标签内的 userId
-    if (follow.tag != "全部") {
-      var tag = tagList.firstWhereOrNull((tag) => tag.tag == follow.tag);
-      if (tag != null) {
-        tag.userId.remove(follow.id);
-        updateTag(tag);
-      }
-    }
+    // 归属清理由 `FollowService.removeFollowUser` 统一负责
     await FollowService.instance.removeFollowUser(follow.id);
     selectedIds.remove(follow.id);
     filterData();
@@ -503,8 +498,13 @@ class FollowUserController extends BasePageController<FollowUser>
     await FollowService.instance.addFollow(follow);
   }
 
-  void setFollowTag(FollowUser follow, FollowUserTag targetTag) {
-    FollowService.instance.setFollowTag(follow, targetTag);
+  /// 拖拽 / 菜单归组：加入目标分组（多归属，不动它已在的组）。
+  /// 目标是内置「全部」= 移出所有分组。
+  ///
+  /// 归属变了要重排一次：按「自定义分组」排序时顺序取决于归属。
+  Future<void> setFollowTag(FollowUser follow, FollowUserTag targetTag) async {
+    await FollowService.instance.addUserToTag(follow, targetTag.tag);
+    FollowService.instance.liveListSort();
     filterData();
   }
 
@@ -541,20 +541,14 @@ class FollowUserController extends BasePageController<FollowUser>
     );
   }
 
+  /// 设置分组：多选（一个关注可以同时属于多个分组）。
+  ///
+  /// 打开时勾上它当前所属的组；点 ✓ 才落库 —— 按「新增 / 移除」两个差集执行，
+  /// 不做「先清空再全量写」，避免把 fractional id 顺序之外的数据抖一遍。
   void setFollowTagDialog(FollowUser follow) {
-    /// 控制单选ui
-    List<FollowUserTag> copiedList = [
-      tagList.first,
-      ...tagList.skip(3),
-    ];
-    // 初值取该项自己的标签（chips 移除后没有 filterMode 可参考了）；
-    // 孤儿名字（标签已删）落到第一项「全部」。
-    Rx<FollowUserTag> checkTag = (copiedList.firstWhereOrNull(
-              (t) => t.tag == follow.tag,
-            ) ??
-            copiedList.first)
-        .obs;
-    final ScrollController scrollController = ScrollController();
+    final copiedList = [...tagList.skip(3)];
+    final checked = <String>{...FollowService.instance.userTagNamesOf(follow.id)}.obs;
+
     Get.dialog(
       AlertDialog(
         contentPadding: const EdgeInsets.all(16.0),
@@ -564,72 +558,68 @@ class FollowUserController extends BasePageController<FollowUser>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 标题栏
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  '设置分组',
-                  style: TextStyle(
-                    fontSize: 18,
-                  ),
-                ),
+                const Text('设置分组', style: TextStyle(fontSize: 18)),
                 IconButton(
                   tooltip: "保存",
-                  icon: const Icon(
-                    Icons.check,
-                  ),
-                  onPressed: () {
-                    setFollowTag(follow, checkTag.value);
+                  icon: const Icon(Icons.check),
+                  onPressed: () async {
+                    final before =
+                        FollowService.instance.userTagNamesOf(follow.id).toSet();
+                    for (final name in checked.difference(before)) {
+                      await FollowService.instance.addUserToTag(follow, name);
+                    }
+                    for (final name in before.difference(checked)) {
+                      await FollowService.instance
+                          .removeUserFromTag(follow, name);
+                    }
+                    FollowService.instance.liveListSort();
+                    filterData();
                     Get.back();
                   },
                 ),
               ],
             ),
             const Divider(),
-            Obx(
-              () {
-                int selectedIndex = copiedList.indexOf(checkTag.value);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (selectedIndex >= 0) {
-                    scrollController.animateTo(
-                      selectedIndex * 60.0, // 假设每项高度为 60
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                });
-                return SizedBox(
-                  height: 300,
-                  width: 300,
-                  child: RadioGroup<FollowUserTag>(
-                    groupValue: checkTag.value,
-                    onChanged: (value) {
-                      checkTag.value = value!;
+            if (copiedList.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('还没有分组，先去「分组管理」新建'),
+              )
+            else
+              SizedBox(
+                height: 300,
+                width: 300,
+                child: Obx(
+                  () => ListView.builder(
+                    itemCount: copiedList.length,
+                    itemBuilder: (context, index) {
+                      final tagItem = copiedList[index];
+                      return Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                                color: Colors.grey.shade300, width: 1.0),
+                          ),
+                        ),
+                        child: CheckboxListTile(
+                          title: Text(tagItem.tag),
+                          value: checked.contains(tagItem.tag),
+                          onChanged: (v) {
+                            if (v == true) {
+                              checked.add(tagItem.tag);
+                            } else {
+                              checked.remove(tagItem.tag);
+                            }
+                          },
+                        ),
+                      );
                     },
-                    child: ListView.builder(
-                      controller: scrollController,
-                      itemCount: copiedList.length,
-                      itemBuilder: (context, index) {
-                        var tagItem = copiedList[index];
-                        return Container(
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                  color: Colors.grey.shade300, width: 1.0),
-                            ),
-                          ),
-                          child: RadioListTile<FollowUserTag>(
-                            title: Text(tagItem.tag),
-                            value: tagItem,
-                          ),
-                        );
-                      },
-                    ),
                   ),
-                );
-              },
-            ),
+                ),
+              ),
           ],
         ),
       ),

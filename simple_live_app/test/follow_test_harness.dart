@@ -113,6 +113,42 @@ class FakeFollowService extends FollowService {
   }
 
   @override
+  Future<void> addUserToTag(FollowUser user, String tagName) async {
+    if (tagName == '全部') {
+      return removeAllTagsFromUser(user);
+    }
+    final tag = followTagList.where((t) => t.tag == tagName).firstOrNull;
+    if (tag == null || !tag.addMember(user.id)) {
+      return;
+    }
+    if (user.tag == '全部' || user.tag.isEmpty) {
+      user.tag = tagName;
+    }
+  }
+
+  @override
+  Future<void> removeUserFromTag(FollowUser user, String tagName) async {
+    if (tagName == '全部') {
+      return removeAllTagsFromUser(user);
+    }
+    final tag = followTagList.where((t) => t.tag == tagName).firstOrNull;
+    if (tag == null || !tag.userId.remove(user.id)) {
+      return;
+    }
+    if (user.tag == tagName) {
+      user.tag = userTagNamesOf(user.id).firstOrNull ?? '全部';
+    }
+  }
+
+  @override
+  Future<void> removeAllTagsFromUser(FollowUser user) async {
+    for (final tag in followTagList) {
+      tag.userId.remove(user.id);
+    }
+    user.tag = '全部';
+  }
+
+  @override
   Future<void> addFollowUserTag(String tag) async {
     if (followTagList.any((item) => item.tag == tag)) {
       return;

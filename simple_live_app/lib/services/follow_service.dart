@@ -84,15 +84,15 @@ class FollowService extends GetxService {
     super.onInit();
   }
 
-  Future<void> updateTagName(FollowUserTag followUserTag, String newTagName) async {
+  Future<void> updateTagName(
+      FollowUserTag followUserTag, String newTagName) async {
     final FollowUserTag newTag = followUserTag.copyWith(tag: newTagName);
-    updateFollowUserTag(newTag);
-    // update item's tag when update tagName
-    for (var i in newTag.userId) {
-      var follow = DBService.instance.followBox.get(i);
-      if (follow != null) {
+    await updateFollowUserTag(newTag);
+    for (final id in newTag.userId) {
+      final follow = DBService.instance.getFollow(id);
+      if (follow != null && follow.tag == followUserTag.tag) {
         follow.tag = newTagName;
-        await addFollow(follow);
+        await DBService.instance.addFollow(follow);
       }
     }
   }
@@ -118,16 +118,19 @@ class FollowService extends GetxService {
   }
 
   Future removeFollowUserTag(FollowUserTag tag) async {
-    // 将tag下的所有follow设置为全部
-    for (var i in tag.userId) {
-      var follow = DBService.instance.followBox.get(i);
-      if (follow != null) {
-        follow.tag = "全部";
-        await FollowService.instance.addFollow(follow);
-      }
-    }
+    final memberIds = tag.userId.toList();
     followTagList.remove(tag);
     await DBService.instance.deleteFollowTag(tag.id);
+    // 主分组缓存要跟着落地，否则行副标题会显示一个已经不存在的分组名。
+    // 注意写 `DBService.instance.addFollow`（裸落库），不要用 FollowService.addFollow：
+    // 后者会把 `deleted` 复位成 false，万一成员表里残留了墓碑 id 就等于复活了取关的人。
+    for (final id in memberIds) {
+      final follow = DBService.instance.getFollow(id);
+      if (follow != null && follow.tag == tag.tag) {
+        follow.tag = userTagNamesOf(id).firstOrNull ?? '全部';
+        await DBService.instance.addFollow(follow);
+      }
+    }
   }
 
   // 获取用户自定义标签列表
@@ -218,44 +221,10 @@ class FollowService extends GetxService {
     }
   }
 
-  /// 为关注项设置标签（统一逻辑）
+  /// 过渡壳：关注详情页（`FollowInfoController.changeTag`）还在用「一个分组对象」
+  /// 的旧语义，先转发到多归属 API。Task 5 把详情页改成多选后，本方法随之删除。
   Future<void> setFollowTag(FollowUser item, FollowUserTag targetTag) async {
-    // 当前标签对象（可能为“全部”且不在 followTagList 中）
-    FollowUserTag? currentTag;
-    if (item.tag != '全部') {
-      for (final t in followTagList) {
-        if (t.tag == item.tag) {
-          currentTag = t;
-          break;
-        }
-      }
-    }
-
-    // 从旧标签移除
-    if (currentTag != null) {
-      currentTag.userId.remove(item.id);
-      DBService.instance.updateFollowTag(currentTag);
-    }
-
-    // 添加到新标签（跳过“全部”）
-    if (targetTag.tag != '全部') {
-      // targetTag来源于UI选项，需定位真实对象
-      FollowUserTag? tar;
-      for (final t in followTagList) {
-        if (t.tag == targetTag.tag) {
-          tar = t;
-          break;
-        }
-      }
-      if (tar != null) {
-        tar.userId.addIf(!tar.userId.contains(item.id), item.id);
-        DBService.instance.updateFollowTag(tar);
-      }
-    }
-
-    // 更新FollowUser本身
-    item.tag = targetTag.tag;
-    await addFollow(item);
+    await addUserToTag(item, targetTag.tag);
   }
 
   void updateFollowTagOrder(FollowUserTag oldTag, FollowUserTag newTag) {
@@ -308,16 +277,7 @@ class FollowService extends GetxService {
     follow.deleted = false;
     follow.updateTime = 0;
 
-    // 更新标签归属
-    if (follow.tag != '全部') {
-      FollowUserTag? tagObj = followTagList.firstWhereOrNull((t) => t.tag == follow.tag);
-      if (tagObj != null) {
-        // 自刷新和迁移逻辑一致：删旧增新
-        tagObj.userId.remove(follow.id);
-        tagObj.userId.add(follow.id);
-        await updateFollowUserTag(tagObj);
-      }
-    }
+    // 归属由 FollowUserTag.userId 单向持有，这里不反向同步（历史双写正是错乱之源）。
 
     // live_room_controller.add 已同步history
     // db.add 其实是update会直接更新数据，所以外表也应该实现此功能：有则更，无则添加
@@ -338,13 +298,10 @@ class FollowService extends GetxService {
     // 从而规避业务逻辑直读数据库导致的数据混乱
     FollowUser follow = followList.firstWhere((x) => x.id == id);
     followList.removeWhere((x) => x.id == id);
-    // 取消关注同时删除用户自定义tag中的关注id
-    if (follow.tag != "全部") {
-      // 对象引用会直接修改数据无需额外操作
-      var tag = followTagList.firstWhereOrNull((tag) => tag.tag == follow.tag);
-      if (tag != null) {
-        tag.userId.remove(follow.id);
-        await FollowService.instance.updateFollowUserTag(tag);
+    // 取消关注 = 从所有分组的成员表里消失（只写真的少了人的那个组）
+    for (final tag in followTagList) {
+      if (tag.userId.remove(id)) {
+        await updateFollowUserTag(tag);
       }
     }
     liveListSort();
@@ -644,9 +601,11 @@ class FollowService extends GetxService {
     );
     var tagCondition = SortCondition<FollowUser>(
       valueGetter: (item) {
-        return followTagList.indexWhere((followTag) {
-          return followTag.tag == item.tag;
-        });
+        final names = userTagNamesOf(item.id);
+        if (names.isEmpty) {
+          return followTagList.length; // 未分组排最后
+        }
+        return followTagList.indexWhere((t) => t.tag == names.first);
       },
     );
     switch (sortMethod) {
@@ -845,19 +804,19 @@ class FollowService extends GetxService {
 
   // 数据校对
   // 核心关注数据有几种错乱情况，需要进行校对，需要一定时间复核代码
-  // 1：未关注，但标签包含关注
-  // 2: 已关注，且设置标签，但标签不包含
-  // 3: 已关注，且设置标签，但标签不存在
-  // 4: 标签重复
-  // 5: webdav同步导致的数据错乱
-  // 校对思路，followList是基础数据源，tagList为索引数据，重建数据即可
+  // 1：分组里含已取关的幽灵 id
+  // 2: 分组名重复
+  // 3: webdav 同步导致的数据错乱
+  // 校对思路：followList 是存在性基础，tagList 是归属唯一真源，按前者过滤后者的成员表
   // 根据此思路，可以重写文件导入导出以及webdav恢复逻辑
   Future<void> followUserAllDataCheck() async {
     var followUserListTemp = DBService.instance.getFollowList();
     var historyListTemp = DBService.instance.getHistories();
     var oldTagList = DBService.instance.getFollowTagList();
+    final aliveIds = followUserListTemp.map((f) => f.id).toSet();
     final Map<String, List<String>> tagMap = {
-      for (var tag in oldTagList) tag.tag: <String>[],
+      for (var tag in oldTagList)
+        tag.tag: tag.userId.where(aliveIds.contains).toList(),
     };
 
     for (FollowUser follow in followUserListTemp) {
@@ -877,11 +836,6 @@ class FollowService extends GetxService {
       await DBService.instance.addFollow(follow);
     }
     Log.i("transfer follow.name to roman is down!");
-    for (var follow in followUserListTemp) {
-      if (follow.tag != "全部") {
-        tagMap.putIfAbsent(follow.tag, () => <String>[]).add(follow.id);
-      }
-    }
     // 落库
     final Map<String, FollowUserTag> res = {};
     String? lastKey;
@@ -894,8 +848,7 @@ class FollowService extends GetxService {
       );
       res[followUserTag.id] = followUserTag;
     }
-    await DBService.instance.tagBox.clear();
-    await DBService.instance.tagBox.putAll(res);
+    await DBService.instance.replaceAllFollowTags(res);
     // 重建的是 tagBox；内存里的 followTagList 必须同步重载，
     // 否则分组管理 sheet 不重启就一直显示校准前的旧列表
     getAllTagList();
