@@ -261,7 +261,7 @@ class OtherSettingsController extends BaseController {
 
   Future<void> setWindowMaxAuto(bool e) async {
     AppSettingsController.instance.setWindowMaxAuto(e);
-    if(e){
+    if (e) {
       var maxState = await windowManager.isMaximized();
       AppSettingsController.instance.setWindowMaxState(maxState);
     }

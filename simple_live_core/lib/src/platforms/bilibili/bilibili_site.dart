@@ -1,20 +1,12 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
+import 'package:simple_live_core/simple_live_core.dart';
 import 'package:simple_live_core/src/common/convert_helper.dart';
 import 'package:simple_live_core/src/common/http_client.dart';
-import 'package:simple_live_core/src/platforms/bilibili/bilibili_danmaku.dart';
-import 'package:simple_live_core/src/interface/live_danmaku.dart';
-import 'package:simple_live_core/src/interface/live_site.dart';
-import 'package:simple_live_core/src/model/live_anchor_item.dart';
-import 'package:simple_live_core/src/model/live_category.dart';
-import 'package:simple_live_core/src/model/live_message.dart';
-import 'package:simple_live_core/src/model/live_play_url.dart';
-import 'package:simple_live_core/src/model/live_room_item.dart';
-import 'package:simple_live_core/src/model/live_search_result.dart';
-import 'package:simple_live_core/src/model/live_room_detail.dart';
-import 'package:simple_live_core/src/model/live_play_quality.dart';
-import 'package:simple_live_core/src/model/live_category_result.dart';
+
+import 'model/bilibili_user_info.dart';
 
 class BiliBiliSite implements LiveSite {
   @override
@@ -49,9 +41,7 @@ class BiliBiliSite implements LiveSite {
             "cookie": 'buvid3=$buvid3;buvid4=$buvid4;',
           }
         : {
-            "cookie": cookie.contains("buvid3")
-                ? cookie
-                : "$cookie;buvid3=$buvid3;buvid4=$buvid4;",
+            "cookie": cookie.contains("buvid3") ? cookie : "$cookie;buvid3=$buvid3;buvid4=$buvid4;",
             "user-agent": kDefaultUserAgent,
             "referer": kDefaultReferer,
           };
@@ -124,8 +114,7 @@ class BiliBiliSite implements LiveSite {
   }
 
   @override
-  Future<List<LivePlayQuality>> getPlayQualities(
-      {required LiveRoomDetail detail}) async {
+  Future<List<LivePlayQuality>> getPlayQualities({required LiveRoomDetail detail}) async {
     List<LivePlayQuality> qualities = [];
     var result = await HttpClient.instance.getJson(
       "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
@@ -140,12 +129,10 @@ class BiliBiliSite implements LiveSite {
     );
     var qualitiesMap = <int, String>{};
     for (var item in result["data"]["playurl_info"]["playurl"]["g_qn_desc"]) {
-      qualitiesMap[int.tryParse(item["qn"].toString()) ?? 0] =
-          item["desc"].toString();
+      qualitiesMap[int.tryParse(item["qn"].toString()) ?? 0] = item["desc"].toString();
     }
 
-    for (var item in result["data"]["playurl_info"]["playurl"]["stream"][0]
-        ["format"][0]["codec"][0]["accept_qn"]) {
+    for (var item in result["data"]["playurl_info"]["playurl"]["stream"][0]["format"][0]["codec"][0]["accept_qn"]) {
       var qualityItem = LivePlayQuality(
         quality: qualitiesMap[item] ?? "未知清晰度",
         data: item,
@@ -156,9 +143,7 @@ class BiliBiliSite implements LiveSite {
   }
 
   @override
-  Future<LivePlayUrl> getPlayUrls(
-      {required LiveRoomDetail detail,
-      required LivePlayQuality quality}) async {
+  Future<LivePlayUrl> getPlayUrls({required LiveRoomDetail detail, required LivePlayQuality quality}) async {
     List<String> urls = [];
     var result = await HttpClient.instance.getJson(
       "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
@@ -240,17 +225,15 @@ class BiliBiliSite implements LiveSite {
   Future<LiveRoomDetail> getRoomDetail({required String roomId}) async {
     var roomInfo = await getRoomInfo(roomId: roomId);
     var realRoomId = roomInfo["room_info"]["room_id"].toString();
-    var url =
-        "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=$realRoomId";
+    var url = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=$realRoomId";
     var queryParams = await getWbiSign(url);
     var roomDanmakuResult = await HttpClient.instance.getJson(
       "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo",
       queryParameters: queryParams,
       header: await getHeader(),
     );
-    List<String> serverHosts = (roomDanmakuResult["data"]["host_list"] as List)
-        .map<String>((e) => e["host"].toString())
-        .toList();
+    List<String> serverHosts =
+        (roomDanmakuResult["data"]["host_list"] as List).map<String>((e) => e["host"].toString()).toList();
 
     //var buvid = await getBuvid();
     return LiveRoomDetail(
@@ -268,9 +251,7 @@ class BiliBiliSite implements LiveSite {
         roomId: int.tryParse(realRoomId) ?? 0,
         uid: userId,
         token: roomDanmakuResult["data"]["token"].toString(),
-        serverHost: serverHosts.isNotEmpty
-            ? serverHosts.first
-            : "broadcastlv.chat.bilibili.com",
+        serverHost: serverHosts.isNotEmpty ? serverHosts.first : "broadcastlv.chat.bilibili.com",
         buvid: buvid3,
         cookie: cookie,
       ),
@@ -278,8 +259,7 @@ class BiliBiliSite implements LiveSite {
   }
 
   Future<Map<String, dynamic>> getRoomInfo({required String roomId}) async {
-    var url =
-        "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$roomId";
+    var url = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$roomId";
     var queryParams = await getWbiSign(url);
     var result = await HttpClient.instance.getJson(
       "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom",
@@ -290,8 +270,7 @@ class BiliBiliSite implements LiveSite {
   }
 
   @override
-  Future<LiveSearchRoomResult> searchRooms(String keyword,
-      {int page = 1}) async {
+  Future<LiveSearchRoomResult> searchRooms(String keyword, {int page = 1}) async {
     var result = await HttpClient.instance.getJson(
       "https://api.bilibili.com/x/web-interface/search/type?context=&search_type=live&cover_type=user_cover",
       queryParameters: {
@@ -325,8 +304,7 @@ class BiliBiliSite implements LiveSite {
   }
 
   @override
-  Future<LiveSearchAnchorResult> searchAnchors(String keyword,
-      {int page = 1}) async {
+  Future<LiveSearchAnchorResult> searchAnchors(String keyword, {int page = 1}) async {
     var result = await HttpClient.instance.getJson(
       "https://api.bilibili.com/x/web-interface/search/type?context=&search_type=live_user&cover_type=user_cover",
       queryParameters: {
@@ -371,8 +349,7 @@ class BiliBiliSite implements LiveSite {
   }
 
   @override
-  Future<List<LiveSuperChatMessage>> getSuperChatMessage(
-      {required String roomId}) async {
+  Future<List<LiveSuperChatMessage>> getSuperChatMessage({required String roomId}) async {
     var result = await HttpClient.instance.getJson(
       "https://api.live.bilibili.com/av/v1/SuperChat/getMessageList",
       queryParameters: {
@@ -547,16 +524,10 @@ class BiliBiliSite implements LiveSite {
     for (var key in sortedKeys) {
       var value = queryParams[key]!;
       // 过滤 value 中的 "!'()*" 字符
-      map[key] = value
-          .toString()
-          .split('')
-          .where((c) => "!'()*".contains(c) == false)
-          .join('');
+      map[key] = value.toString().split('').where((c) => "!'()*".contains(c) == false).join('');
     }
 
-    var query = map.keys
-        .map((key) => "$key=${Uri.encodeQueryComponent(map[key]!)}")
-        .join("&");
+    var query = map.keys.map((key) => "$key=${Uri.encodeQueryComponent(map[key]!)}").join("&");
     var wbiSign = md5.convert(utf8.encode("$query$mixinKey")).toString();
     queryParams["w_rid"] = wbiSign;
     return queryParams;
@@ -573,16 +544,89 @@ class BiliBiliSite implements LiveSite {
       queryParameters: {},
       header: await getHeader(),
     );
-    var id = RegExp(r'"access_id":"(.*?)"')
-        .firstMatch(resp)
-        ?.group(1)
-        ?.replaceAll("\\", "");
+    var id = RegExp(r'"access_id":"(.*?)"').firstMatch(resp)?.group(1)?.replaceAll("\\", "");
     accessId = id ?? "";
     return accessId;
   }
 
   @override
-  void setSiteAttrs(Map<String, dynamic> data) {
-    // TODO: implement setSiteAttrs
+  void setSiteAttrs(String data) {
+    cookie = data;
+  }
+
+  @override
+  Future<QRCode> getQRCode() async {
+    var result = await HttpClient.instance.getJson(
+      "https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
+    );
+    if (result["code"] != 0) {
+      throw result["message"];
+    }
+    QRCode qrCode = QRCode(
+      key: result["data"]["qrcode_key"],
+      url: result["data"]["url"],
+    );
+    return qrCode;
+  }
+
+  @override
+  Future<QRPollResult> getQRPollResult({required String qrcodeKey}) async {
+    QRPollResult qrPollResult = QRPollResult(status: QRStatus.unscanned);
+    var response = await HttpClient.instance.getResponse(
+      "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
+      queryParameters: {
+        "qrcode_key": qrcodeKey,
+      },
+      responseType: ResponseType.json,
+    );
+    if (response.data["code"] != 0) {
+      throw response.data["message"];
+    }
+    var data = response.data["data"];
+    var code = data["code"];
+    if (code == 0) {
+      var cookies = <String>[];
+      response.headers["set-cookie"]?.forEach((element) {
+        var cookie = element.split(";")[0];
+        cookies.add(cookie);
+      });
+      if (cookies.isNotEmpty) {
+        var cookieStr = cookies.join(";");
+        CoreLog.i(cookieStr);
+        // 统一封装
+        String credential = jsonEncode({'cookie': cookieStr});
+        qrPollResult.credential = credential;
+        qrPollResult.status = QRStatus.scanned;
+      }
+    } else if (code == 86038) {
+      qrPollResult.status = QRStatus.expired;
+    } else if (code == 86090) {
+      qrPollResult.status = QRStatus.scanned;
+    }
+    return qrPollResult;
+  }
+
+  @override
+  Future<AccountInfo> getAccountInfo({required String credential}) async {
+    AccountInfo res = AccountInfo();
+    try {
+      var result = await HttpClient.instance.getJson(
+        "https://api.bilibili.com/x/member/web/account",
+        header: jsonDecode(credential),
+      );
+      if (result["code"] == 0) {
+        BiliBiliUserInfoModel info = BiliBiliUserInfoModel.fromJson(result["data"]);
+        res = res.copyWith(
+          name: info.uname,
+          avatar: info.face,
+          uid: info.userid,
+          credential: credential,
+          isValid: true,
+        );
+      }
+    } catch (e, s) {
+      CoreLog.e(e.toString(), s);
+    }
+    return res;
   }
 }

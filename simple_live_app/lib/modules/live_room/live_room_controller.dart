@@ -584,7 +584,7 @@ class LiveRoomController extends PlayerController
       bool contain = superChats.any(
         (s) => s.price == scData.price && s.userName == scData.userName && s.message == scData.message,
       );
-      if(!contain){
+      if (!contain) {
         superChats.insert(0, msg.data);
         if (superChats.length > 20) {
           superChats.removeRange(20, superChats.length);

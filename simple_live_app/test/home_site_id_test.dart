@@ -17,7 +17,7 @@ class _FakeSettings extends AppSettingsController {
 
   @override
   // ignore: must_call_super
-  void onInit() {}
+  Future<void> onInit() async {}
 }
 
 void main() {

@@ -32,7 +32,7 @@ class _FakeSettings extends AppSettingsController {
 
   @override
   // ignore: must_call_super
-  void onInit() {}
+  Future<void> onInit() async {}
 }
 
 /// `FollowService.onInit` 会读 Hive 并起定时器，测试里不需要。

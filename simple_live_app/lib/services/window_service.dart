@@ -296,7 +296,7 @@ class WindowService extends GetxService implements WindowListener {
 
   @override
   Future<void> onWindowMaximize() async {
-    if(AppSettingsController.instance.windowMaxAuto.value){
+    if (AppSettingsController.instance.windowMaxAuto.value) {
       AppSettingsController.instance.setWindowMaxState(true);
     }
     await danmakuFontClamped();
@@ -704,7 +704,7 @@ class WindowService extends GetxService implements WindowListener {
       var windowH = size.height;
       Log.i('player_danmaku_size_h: $windowH');
       // 窗口设计分辨率默认 1280x720
-      var reSizeFont =  Utils.scaleValue(
+      var reSizeFont = Utils.scaleValue(
         value: AppSettingsController.instance.danmuSize.value,
         playerH: windowH,
         designH: 720.0,

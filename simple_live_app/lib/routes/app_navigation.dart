@@ -1,19 +1,20 @@
 import 'dart:io';
 
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
+import 'package:simple_live_app/models/db/account.dart';
+import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/sync_client_info_model.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/routes/route_path.dart';
-import 'package:simple_live_app/services/bilibili_account_service.dart';
+import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
 import 'package:simple_live_core/simple_live_core.dart';
-import 'package:simple_live_app/models/db/follow_user.dart';
 
 /// APP页面跳转封装
 /// * 需要参数的页面都应使用此类
@@ -34,7 +35,7 @@ class AppNavigator {
     List<LiveRoomTarget> together = const [],
   }) async {
     if (site.id == Constant.kBiliBili &&
-        !BiliBiliAccountService.instance.logined.value &&
+        !_biliBiliLogined() &&
         AppSettingsController.instance.bilibiliLoginTip.value) {
       var result = await Utils.showAlertDialog(
         "哔哩哔哩需要登录才能观看高清直播，是否前往登录？",
@@ -51,7 +52,7 @@ class AppNavigator {
       );
       if (result == true) {
         await toBiliBiliLogin();
-        if (!BiliBiliAccountService.instance.logined.value) {
+        if (!_biliBiliLogined()) {
           SmartDialog.showToast("未完成登录");
         }
       }
@@ -61,6 +62,25 @@ class AppNavigator {
       RoutePath.kLiveRoomDetail,
       arguments: LiveRoomRouteArgs(site: site, roomId: roomId, together: together),
     );
+  }
+
+  /// B 站是否已有激活账号。
+  ///
+  /// 账号体系迁移后旧的 `BiliBiliAccountService` 已移除，登录态统一从
+  /// `DBService` 的 account 箱读取（siteId + isActive）。
+  static bool _biliBiliLogined() {
+    return DBService.instance.getAllAccounts().any(
+          (account) => account.siteId == Constant.kBiliBili && account.isActive,
+        );
+  }
+
+  static Future toQRCoreLogin({required Account account}) async {
+    Get.toNamed(RoutePath.kAccountQRLogin, arguments: account);
+  }
+
+  /// 跳转至哔哩哔哩网页登录
+  static Future toBiliBiliWebLogin({required Account account}) async {
+    Get.toNamed(RoutePath.kBiliBiliWebLogin, arguments: account);
   }
 
   /// 跳转至哔哩哔哩登录

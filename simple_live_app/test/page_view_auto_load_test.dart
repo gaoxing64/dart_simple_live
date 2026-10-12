@@ -36,7 +36,7 @@ class FakeSettings extends AppSettingsController {
   @override
   // 不读取本地存储（Hive 在 widget test 的 fake-async 环境下不可用）
   // ignore: must_call_super
-  void onInit() {}
+  Future<void> onInit() async {}
 }
 
 /// 假数据源：共 3 页数据，之后返回空表示没有更多。
