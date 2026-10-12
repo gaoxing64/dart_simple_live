@@ -199,4 +199,33 @@ void main() {
     final again = await SmartGroupService.instance.execute();
     expect(again.didNothing, isTrue);
   });
+
+  test('preview/execute：siteSort 不全时，缺掉的已知平台照常归组、不算「未知平台」', () async {
+    // siteSort 是首页排序的持久化结果，只在 initSiteSort() 里补全过一次；
+    // 换设备恢复 / 版本加站点后它可能不全。缺掉的已知平台既不能漏归组，
+    // 也不能被算进 skippedUnknownSite —— 那个数字是给「站点已被移除」看的。
+    Get.delete<AppSettingsController>();
+    Get.put<AppSettingsController>(_FakeSettings()..siteSort.assignAll(['huya']));
+
+    FollowService.instance.followList.assignAll([
+      u('a', 'bilibili'),
+      u('b', 'huya'),
+      u('c', 'twitch'),
+      u('d', 'nowhere'), // 真·未知平台，只有它该被跳过
+    ]);
+
+    final p = SmartGroupService.instance.preview();
+
+    expect(p.skippedUnknownSite, 1);
+    // siteSort 里有的排最前，剩下的按 Sites.allSites 声明顺序补在后面
+    expect(p.items.map((e) => e.siteId), ['huya', 'bilibili', 'twitch']);
+    expect(p.totalMembers, 3);
+
+    final r = await SmartGroupService.instance.execute();
+
+    expect(r.tagsCreated, 3);
+    expect(r.membersAdded, 3);
+    expect(FollowService.instance.followTagList.map((t) => t.tag),
+        ['虎牙直播', '哔哩哔哩', 'Twitch']);
+  });
 }

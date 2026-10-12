@@ -95,15 +95,28 @@ class SmartGroupService extends GetxService {
   FollowUserTag? _tagByName(String name) =>
       FollowService.instance.followTagList.firstWhereOrNull((t) => t.tag == name);
 
-  /// 平台顺序：优先用户在首页排好的 `siteSort`，没注册（纯逻辑测试）时退回声明顺序。
+  /// 平台顺序：优先用户在首页排好的 `siteSort`，再按 `Sites.allSites` 声明顺序补全。
+  ///
+  /// 必须补全而不是直接返回 `siteSort`：它是首页排序的持久化结果，只在
+  /// `initSiteSort()` 里补过一次，换设备恢复 / 版本新增站点之后可能不全。
+  /// 直接用会把缺掉的已知平台整个漏掉 —— 不但不归组，还会被误算进
+  /// `skippedUnknownSite`（那个数字只该是「站点已被移除」的关注）。
   List<String> get _orderedSiteIds {
+    final seen = <String>{};
+    final ordered = <String>[];
     if (Get.isRegistered<AppSettingsController>()) {
-      final sort = AppSettingsController.instance.siteSort;
-      if (sort.isNotEmpty) {
-        return sort.toList();
+      for (final id in AppSettingsController.instance.siteSort) {
+        if (Sites.allSites.containsKey(id) && seen.add(id)) {
+          ordered.add(id);
+        }
       }
     }
-    return Sites.allSites.keys.toList();
+    for (final id in Sites.allSites.keys) {
+      if (seen.add(id)) {
+        ordered.add(id);
+      }
+    }
+    return ordered;
   }
 }
 
