@@ -784,7 +784,10 @@ class FollowService extends GetxService {
             "addTime": item.addTime.toString(),
             "remark": item.remark,
             "romanName": item.romanName,
-            "tag": item.tag
+            // tag 是「主分组」展示缓存，保留给旧版本读取；
+            // tags 是归属真源（多分组），新版本读取以它为准。
+            "tag": item.tag,
+            "tags": userTagNamesOf(item.id),
           },
         )
         .toList();
@@ -797,6 +800,22 @@ class FollowService extends GetxService {
     for (var item in data) {
       var follow = FollowUser.fromJson(item);
       await DBService.instance.addFollow(follow);
+      // 新版带 tags 数组；旧备份只有单个 tag 字段，两者都认。
+      final names = <String>[];
+      if (item['tags'] is List) {
+        names.addAll((item['tags'] as List).whereType<String>());
+      } else if (item['tag'] is String) {
+        names.add(item['tag'] as String);
+      }
+      for (final name in names) {
+        if (name.isEmpty || name == '全部') {
+          continue;
+        }
+        if (!followTagList.any((t) => t.tag == name)) {
+          await addFollowUserTag(name);
+        }
+        await addUserToTag(follow, name);
+      }
     }
 
     await followUserAllDataCheck();

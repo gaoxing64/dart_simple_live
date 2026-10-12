@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:collection/collection.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -7,12 +9,15 @@ import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/models/db/history.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
+import 'package:simple_live_app/modules/sync/remote_sync/webdav/resources/follow_sync_resource.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
+import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:simple_live_app/services/migration_service.dart';
 
 // Task 1 的迁移用例见本文件 `migrateTagMembership` 组。
 // Task 2 的归属 API 用例追加在同一个 main() 里（共用下面的内存替身）。
+// Task 6 的导入导出 / WebDAV 合并用例见 `JSON 导出导入`、`备份向后兼容`、`WebDAV 合并` 组。
 
 /// 内存版 DB：只覆盖归属链路用到的方法，不碰 Hive。
 class FakeDBService extends DBService {
@@ -86,6 +91,13 @@ class FakeSettings extends AppSettingsController {
   @override
   // ignore: must_call_super
   Future<void> onInit() async {}
+}
+
+/// 跳过 Hive：`FollowSyncResource.merge` 只读「上次恢复时间」，
+/// 测试里没有本地存储，一律回落到默认值（2026-01-01）。
+class FakeLocalStorage extends LocalStorageService {
+  @override
+  T getValue<T>(dynamic key, T defaultValue) => defaultValue;
 }
 
 /// 只测 getter，不触发 onInit 的订阅与本地存储。
@@ -321,6 +333,220 @@ void main() {
       c.updateTagList();
 
       expect(c.groupedView.groups[0].members.map((u) => u.id), ['u1']);
+    });
+  });
+
+  group('JSON 导出导入', () {
+    FollowUser user(String id, {String tag = '全部'}) => FollowUser(
+          id: id,
+          roomId: id,
+          siteId: 'huya',
+          userName: id,
+          face: '',
+          addTime: DateTime(2024),
+          tag: tag,
+        );
+
+    setUp(() {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: '我的喜爱', userId: ['u1', 'u2']),
+        FollowUserTag(id: 'a1', tag: '常看', userId: ['u1']),
+      ]);
+      FollowService.instance.followList.assignAll([
+        user('u1', tag: '我的喜爱'),
+        user('u2', tag: '我的喜爱'),
+      ]);
+    });
+
+    test('generateJson 带 tags 数组', () {
+      final json = FollowService.instance.generateJson();
+      expect(json, contains('"tags":["我的喜爱","常看"]'));
+      expect(json, contains('"tags":["我的喜爱"]'));
+    });
+
+    test('inputJson 认 tags，也认旧版单个 tag', () async {
+      final payload = jsonEncode([
+        {
+          "siteId": "huya", "id": "n1", "roomId": "n1", "userName": "n1",
+          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "tags": ["A", "B"],
+        },
+        {
+          "siteId": "huya", "id": "n2", "roomId": "n2", "userName": "n2",
+          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "tag": "旧版单分组",
+        },
+      ]);
+
+      await FollowService.instance.inputJson(payload);
+
+      expect(FollowService.instance.userTagNamesOf('n1'), ['A', 'B']);
+      expect(FollowService.instance.userTagNamesOf('n2'), ['旧版单分组']);
+    });
+  });
+
+  group('备份向后兼容', () {
+    FollowUser user(String id, {String tag = '全部'}) => FollowUser(
+          id: id,
+          roomId: id,
+          siteId: 'huya',
+          userName: id,
+          face: '',
+          addTime: DateTime(2024),
+          tag: tag,
+        );
+
+    setUp(() {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: '我的喜爱', userId: ['u1', 'u2']),
+        FollowUserTag(id: 'a1', tag: '常看', userId: ['u1']),
+      ]);
+      FollowService.instance.followList.assignAll([
+        user('u1', tag: '我的喜爱'),
+        user('u2', tag: '我的喜爱'),
+      ]);
+    });
+
+    test('旧备份→新版本：只带 tag 字段的旧备份还原出正确归属', () async {
+      final payload = jsonEncode([
+        {
+          "siteId": "huya", "id": "o1", "roomId": "o1", "userName": "o1",
+          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "tag": "旧版A",
+        },
+        {
+          "siteId": "huya", "id": "o2", "roomId": "o2", "userName": "o2",
+          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "tag": "旧版B",
+        },
+        {
+          "siteId": "huya", "id": "o3", "roomId": "o3", "userName": "o3",
+          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "tag": "全部",
+        },
+      ]);
+
+      await FollowService.instance.inputJson(payload);
+
+      expect(FollowService.instance.userTagNamesOf('o1'), ['旧版A']);
+      expect(FollowService.instance.userTagNamesOf('o2'), ['旧版B']);
+      expect(FollowService.instance.userTagNamesOf('o3'), isEmpty);
+    });
+
+    test('新备份→旧版本：旧版只认 tag 字段也能安全读取新备份', () {
+      final json = FollowService.instance.generateJson();
+
+      // 新格式必须同时带 tags（归属真源），旧字段 tag 保留给旧版本
+      expect(json, contains('"tags":'));
+
+      // 旧版解析器只读自己认识的字段，多余的 tags 直接忽略，不能崩
+      final legacyItems =
+          (jsonDecode(json) as List).cast<Map<String, dynamic>>();
+      for (final item in legacyItems) {
+        expect(item['tag'], isA<String>());
+        final legacy = FollowUser.fromJson(item);
+        expect(legacy.tag, isNotEmpty);
+      }
+      // 旧版按 tag 单字段重建分组时，主分组（首个所属分组）保持不变
+      expect(legacyItems.firstWhere((e) => e['id'] == 'u1')['tag'], '我的喜爱');
+      expect(legacyItems.firstWhere((e) => e['id'] == 'u2')['tag'], '我的喜爱');
+    });
+
+    test('导出→导入往返：多分组归属不丢', () async {
+      final payload = FollowService.instance.generateJson();
+
+      // 清空后重新导入，模拟「卸载重装后从备份恢复」
+      FollowService.instance.followList.clear();
+      FollowService.instance.followTagList.clear();
+      db.follows.clear();
+      db.tags.clear();
+
+      await FollowService.instance.inputJson(payload);
+
+      expect(FollowService.instance.userTagNamesOf('u1'), ['我的喜爱', '常看']);
+      expect(FollowService.instance.userTagNamesOf('u2'), ['我的喜爱']);
+    });
+  });
+
+  group('WebDAV 合并', () {
+    FollowUser user(
+      String id, {
+      String tag = '全部',
+      bool deleted = false,
+      int updateTime = 0,
+    }) =>
+        FollowUser(
+          id: id,
+          roomId: id,
+          siteId: 'huya',
+          userName: id,
+          face: '',
+          addTime: DateTime(2026, 2, 1),
+          tag: tag,
+          deleted: deleted,
+          updateTime: updateTime,
+        );
+
+    setUp(() {
+      Get.put<LocalStorageService>(FakeLocalStorage());
+    });
+
+    test('merge 按分组名并集合并成员表，保住多归属', () {
+      final local = FollowBundle(
+        follows: [
+          user('u1', tag: '我的喜爱'),
+          user('u2', tag: '我的喜爱'),
+        ],
+        tags: [
+          FollowUserTag(id: 'l0', tag: '我的喜爱', userId: ['u1', 'u2']),
+          FollowUserTag(id: 'l1', tag: '常看', userId: ['u1']),
+        ],
+      );
+      final remote = FollowBundle(
+        follows: [
+          user('u1', tag: '我的喜爱'),
+          user('u3', tag: '常看'),
+        ],
+        tags: [
+          FollowUserTag(id: 'r0', tag: '常看', userId: ['u1', 'u3']),
+        ],
+      );
+
+      final merged = FollowSyncResource().merge(local, remote);
+
+      final members = {for (final t in merged.tags) t.tag: t.userId.toSet()};
+      expect(members['我的喜爱'], {'u1', 'u2'});
+      expect(members['常看'], {'u1', 'u3'});
+    });
+
+    test('merge 剔除成员表里的幽灵 id 与墓碑', () {
+      final local = FollowBundle(
+        follows: [
+          user('u1', tag: 'G'),
+          // 墓碑：已取关，同步后仍在 resFollows 里，但不能算分组成员
+          user(
+            'u9',
+            tag: 'G',
+            deleted: true,
+            updateTime: DateTime(2026, 3, 1).millisecondsSinceEpoch ~/ 1000,
+          ),
+        ],
+        tags: [
+          FollowUserTag(id: 'l0', tag: 'G', userId: ['u1', 'u9', 'gone']),
+        ],
+      );
+      final remote = FollowBundle(
+        follows: [user('u3', tag: '远组')],
+        tags: [
+          FollowUserTag(id: 'r0', tag: '远组', userId: ['u3', 'gone']),
+        ],
+      );
+
+      final merged = FollowSyncResource().merge(local, remote);
+
+      final members = {for (final t in merged.tags) t.tag: t.userId.toSet()};
+      expect(members['G'], {'u1'});
+      expect(members['远组'], {'u3'});
     });
   });
 }

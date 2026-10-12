@@ -108,26 +108,26 @@ class FollowSyncResource implements SyncResource<FollowBundle> {
     );
     var resFollows = _mergeFollowList(localList: local.follows, remoteList: remote.follows, curLast: curLast);
 
-    // tags after merge, logic from data_check
-    final Map<String, List<String>> tagMap = {
-      for (var tag in local.tags) tag.tag: <String>[],
+    // tags 合并：归属唯一真源是 userId 成员表，按分组名取并集，
+    // 再剔除已经不存在（或已是墓碑）的关注，避免把幽灵成员同步回来。
+    final aliveIds = resFollows.where((f) => !f.deleted).map((f) => f.id).toSet();
+    final Map<String, Set<String>> merged = {
+      for (var tag in local.tags) tag.tag: tag.userId.where(aliveIds.contains).toSet(),
     };
-
-    for (var follow in resFollows) {
-      if (follow.tag != "全部") {
-        tagMap.putIfAbsent(follow.tag, () => <String>[]).add(follow.id);
-      }
+    for (var tag in remote.tags) {
+      merged.putIfAbsent(tag.tag, () => <String>{}).addAll(
+            tag.userId.where(aliveIds.contains),
+          );
     }
     final resTags = <FollowUserTag>[];
     String? lastKey;
-    for (var entry in tagMap.entries) {
+    for (var entry in merged.entries) {
       lastKey = FractionalIndexing.generateKeyBetween(lastKey, null);
-      final followUserTag = FollowUserTag(
+      resTags.add(FollowUserTag(
         id: lastKey,
         tag: entry.key,
-        userId: entry.value,
-      );
-      resTags.add(followUserTag);
+        userId: entry.value.toList(),
+      ));
     }
     return FollowBundle(follows: resFollows, tags: resTags);
   }
