@@ -2575,3 +2575,107 @@ git commit -m "chore(follow): 多分组归属 + 一键按平台分组 验收收�
 2. Task 7 删字段后，旧版本 app 读新记录会把归属看成「全部」；成员表在 `tagBox` 里，重新升级后自动回来。要在 PR 描述写明。
 3. `groupedView` 每次重建都遍历所有成员表；几百关注 + 几十分组时要在 profile 里看一眼，必要时把 `membership` 缓存到 service 层（本计划不做）。
 4. 智能分组一次写 N 个分组、M 条成员，`addUserToTag` 每条都落一次库。若明显卡顿，改为批量 `putAll`（本计划不做，先保证正确）。
+
+---
+
+# 附录：实施偏离记录（实现完成后回写）
+
+> 计划 10 个 Task 全部完成。下面是实现期发现计划写错了、或按真实代码做了调整的地方，
+> 逐条记录因果，便于回看时知道「计划 ≠ 代码」的地方不是漏做。
+> 提交序列见 `git log --oneline 7c895e6d^..3b86b496`（10 个提交，对应 Task 1/2/3/8/4/6/5/7/9 + 一次修缺陷）。
+
+## A. 计划照抄就会出错的地方（必须改）
+
+### A1. Task 5 `_migrateTo`：归属要在「删除前」捕获，不是删除后
+计划写「`removeFollowUser` 之后读归属」。但真实的 `removeFollowUser(id)` 会把该 id
+从**所有** `FollowUserTag.userId` 里摘掉，照抄就会静默丢掉主播的全部分组归属。
+实现改为：删之前 `userTagNamesOf(current.id)` 记下分组名 → `addFollow(newFollow)` 之后
+逐个 `addUserToTag(newFollow, name)` 带回来。
+
+### A2. Task 5 `liveListSort()` 返回 `void`，不能 `await`
+计划写的 `await FollowService.instance.liveListSort();` 不编译。去掉 `await`，
+与 `follow_user_controller.dart` 既有调用风格一致。
+
+### A3. Task 7 Step 3a：`generateJson` **不能**删 `"tag": item.tag,`
+计划写「删掉这行（`tags` 已在）」。但 Task 6 刚立下一条硬性兼容承诺：
+**新版本导出的备份必须能被旧版本 app 读取**，旧版本只认 `tag`。照删就打破它。
+实现改为保留 `"tag"` 键，值由归属真源派生：
+```dart
+"tag": userTagNamesOf(item.id).firstOrNull ?? '全部',
+"tags": userTagNamesOf(item.id),
+```
+由 `follow_membership_test.dart` 的「备份向后兼容」用例钉住（断言两个 key 都在，
+且 `tag` 的值 = `userTagNamesOf(...).firstOrNull ?? '全部'`）。
+`fromJson`/`toJson` 里的 `tag` 仍按计划删除 —— 导出路径走的是 `generateJson` 自拼的 map。
+
+### A4. Task 3/5 的拖拽测试种子：按「主分组缓存」造数据会让旧谓词也拒绝 → 假绿
+计划的 `seedGrouped` 把甲的主分组缓存设成 'CS解说'，这样旧拖入谓词（看主分组缓存）
+本来就拒绝，测试只会假通过。改成真实多归属状态（甲同时在 CS解说 + LOL解说，
+主分组缓存 'LOL解说'）后，旧代码确实误高亮（真 RED），新谓词按成员表拒绝（真 GREEN）。
+
+### A5. Task 9 Step 8 的测试照做不了（调 `FollowUserController.shared`）
+见 B4。测试改为真正点击设置页的 `SettingsAction`（这才是「入口 2」本身）。
+另：测试里 `Get.put(SmartGroupService())` 必须放在 `pumpIndexed()` **之后**
+（计划样例写在它前面，会被 `pumpIndexed` 内部的 `Get.reset()` 清掉）。
+
+## B. 按真实代码做的最小调整
+
+### B1. `follow_user_item.dart` 加了计划没写的 `Get.isRegistered<FollowService>()` 兜底
+该组件被直播间关注面板、以及写范围外的 `follow_user_item_trailing_test.dart`（基线全绿）
+在**未注册 FollowService 的宿主**里复用，直接 `Get.find` 会炸基线绿测试。
+未注册时退回显示「全部」，保持「不崩、不拉数据」的原意图。
+
+### B2. Task 5 Step 6 页面骨架：计划描述的 `DropdownButton`+Row 与实际不符
+实际是 `SettingsMenu` 下拉。保留 Padding+Obx 外壳、内部换成 `FilterButton` 多选 chips
+（需补 `widgets/filter_button.dart` import，计划 1389 行已注明）+ 空态文案
+「还没有分组，先去「关注设置 → 分组管理」新建」。
+
+### B3. Task 9 未加 `FollowUserController.shared`，走计划自己写的退路
+那个控制器 `onInit` 要 `TabController(length: 3, vsync: this)` 并订阅 `updatedListStream`，
+用户从未进过关注页时（`IndexedPage` 的 `PageView` 懒加载）只能 `Get.put` 一份空壳实例 ——
+正是「已知风险」第 1 条。改为两处入口共用顶层函数
+`startSmartGrouping({void Function()? afterExecute})`
+（`SmartGroupService.execute()` → `EventBus.emit(kUpdateFollow, 0)` → toast），
+**设置页完全不碰 `FollowUserController`**。由测试
+`expect(Get.isRegistered<FollowUserController>(), isFalse)` 钉死。
+`FollowUserController.runSmartGrouping()` 一行委托 `startSmartGrouping(afterExecute: filterData)`。
+
+### B4. Task 9 Step 4 的 `runSmartGrouping` 提成顶层共享函数
+否则两个入口会复制同一份 toast 文案。顶层函数同名会自递归，故名 `startSmartGrouping`。
+
+### B5. Task 7 顺手删了 `getTagOptionsWithAll()`
+计划只让它保持不动，但它在 Task 5 之后已无任何调用方（只剩一句文档注释提到它），
+留着就是死代码。一并删除，并按 Task 7 Step 3d 措辞重写那句注释。
+
+### B6. Task 5 顺手修好 3 条既有失败
+顶栏「编辑」文案在前序任务已换成图标，3 条测试还 `find.text('编辑')`，
+改为 `find.byTooltip('移入分组')`；其中「勾选→编辑」的 `expect(乙.tag, '新观赛组')`
+与已合入的多归属语义冲突（`reassignSelected` = 加入、原分组保留），改为成员表断言。
+**用例名全部未改。** `follow_grouped_view_test.dart` 失败数 4 → 1。
+
+### B7. Task 3 发现的真 bug（Task 5 修）
+`follow_group_card.dart` 计数 `Obx` 在**空分组 + 选择态**下一次 Rx 都读不到，
+触发 `[Get] the improper use of a GetX` 与布局异常。
+修法：Obx 里无条件读一次 `selectedIds!.length` 登记订阅。覆盖用例：
+「空分组 + 选择态：计数 Obx 不再抛『没有可观察变量』」。
+
+### B8. Task 8 修缺陷：智能分组按 `siteSort` 优先 + 补全缺失平台
+`AppSettingsController.initSiteSort()` 只在 `sort.length != Sites.allSites.length`
+时补全，所以 `siteSort` 可能陈旧/不全，原实现把缺失平台当「未知平台」跳过。
+改为「`siteSort` 里合法的 id 优先（去重），再补 `Sites.allSites` 里其余的」，
+`skippedUnknownSite` 于是只剩真正被下架的平台。
+（提交 `3c8a34c4`，独立 TDD 循环：RED `Expected: <1> Actual: <3>` → GREEN `+9 All tests passed!`）
+
+## C. 测试口径
+
+- 用例名一律未改（B6 例外的是 `follow_user_sections_test.dart` 一条：
+  「按标签名分桶；「全部」与孤儿名字落未分组」→「按成员表分桶；不在任何成员表里的落未分组」，
+  因为「孤儿 tag 名」概念随字段消失，原名会误导；行为断言未变）。
+- **最终全量回归：507 通过 / 15 失败**，失败集合是基线 18 个的**严格子集**（少掉 B6 修好的 3 个），
+  零新增失败。15 个遗留失败全部与本计划无关：
+  `search_initial_site_test.dart` ×8、`theme_mode_test.dart` ×2、
+  `page_view_auto_load_test.dart`、`widget_test.dart`、
+  `follow_grouped_view_test.dart: tab 变视图切换…`、`viewpager_drag_test.dart: 关注页：鼠标左键横拖切换视图 Tab…`
+  （后两条同因：`live_room_card.dart:75` 的 Column 有 1px `RenderFlex` 溢出，写范围外的既有布局问题）。
+- `flutter analyze` 87 条既有问题；本次改动/新增文件 0 新增告警。
+  `rust_builder/cargokit/build_tool/**` 的 error 是缺依赖的既有问题，按约定忽略。
