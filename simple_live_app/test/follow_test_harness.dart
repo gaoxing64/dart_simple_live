@@ -68,8 +68,8 @@ class FakeHomeListController extends HomeListController {
 ///
 /// * 默认预置 30 个未开播（status 0）关注，让列表足够长、可以滚动；
 ///   分组用例传自定义 `users`/`tags`。
-/// * `setFollowTag` / `reorderFollowTag` 走内存 —— 真实现经 DBService 写
-///   Hive，widget test 里没注册 DBService。
+/// * 归组（`addUserToTag` 一族）/ `reorderFollowTag` 走内存 —— 真实现经
+///   DBService 写 Hive，widget test 里没注册 DBService。
 class FakeFollowService extends FollowService {
   FakeFollowService({List<FollowUser>? users, List<FollowUserTag>? tags}) {
     followList.addAll(users ?? _defaultUsers());
@@ -99,20 +99,6 @@ class FakeFollowService extends FollowService {
   Future<void> loadData({bool updateStatus = true, int? cycle}) async {}
 
   @override
-  Future<void> setFollowTag(FollowUser item, FollowUserTag targetTag) async {
-    for (final t in followTagList) {
-      t.userId.remove(item.id);
-    }
-    if (targetTag.tag != '全部') {
-      final tar = followTagList.where((t) => t.tag == targetTag.tag).firstOrNull;
-      if (tar != null && !tar.userId.contains(item.id)) {
-        tar.userId.add(item.id);
-      }
-    }
-    item.tag = targetTag.tag;
-  }
-
-  @override
   Future<void> addUserToTag(FollowUser user, String tagName) async {
     if (tagName == '全部') {
       return removeAllTagsFromUser(user);
@@ -120,9 +106,6 @@ class FakeFollowService extends FollowService {
     final tag = followTagList.where((t) => t.tag == tagName).firstOrNull;
     if (tag == null || !tag.addMember(user.id)) {
       return;
-    }
-    if (user.tag == '全部' || user.tag.isEmpty) {
-      user.tag = tagName;
     }
   }
 
@@ -135,9 +118,6 @@ class FakeFollowService extends FollowService {
     if (tag == null || !tag.userId.remove(user.id)) {
       return;
     }
-    if (user.tag == tagName) {
-      user.tag = userTagNamesOf(user.id).firstOrNull ?? '全部';
-    }
   }
 
   @override
@@ -145,7 +125,6 @@ class FakeFollowService extends FollowService {
     for (final tag in followTagList) {
       tag.userId.remove(user.id);
     }
-    user.tag = '全部';
   }
 
   @override

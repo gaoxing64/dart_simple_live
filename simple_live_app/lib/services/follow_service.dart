@@ -86,15 +86,8 @@ class FollowService extends GetxService {
 
   Future<void> updateTagName(
       FollowUserTag followUserTag, String newTagName) async {
-    final FollowUserTag newTag = followUserTag.copyWith(tag: newTagName);
-    await updateFollowUserTag(newTag);
-    for (final id in newTag.userId) {
-      final follow = DBService.instance.getFollow(id);
-      if (follow != null && follow.tag == followUserTag.tag) {
-        follow.tag = newTagName;
-        await DBService.instance.addFollow(follow);
-      }
-    }
+    // 成员靠 id 关联，改名只是换个显示名，不需要碰任何关注记录。
+    await updateFollowUserTag(followUserTag.copyWith(tag: newTagName));
   }
 
   Future<void> updateFollowUserTag(FollowUserTag tag) async {
@@ -118,19 +111,8 @@ class FollowService extends GetxService {
   }
 
   Future removeFollowUserTag(FollowUserTag tag) async {
-    final memberIds = tag.userId.toList();
     followTagList.remove(tag);
     await DBService.instance.deleteFollowTag(tag.id);
-    // 主分组缓存要跟着落地，否则行副标题会显示一个已经不存在的分组名。
-    // 注意写 `DBService.instance.addFollow`（裸落库），不要用 FollowService.addFollow：
-    // 后者会把 `deleted` 复位成 false，万一成员表里残留了墓碑 id 就等于复活了取关的人。
-    for (final id in memberIds) {
-      final follow = DBService.instance.getFollow(id);
-      if (follow != null && follow.tag == tag.tag) {
-        follow.tag = userTagNamesOf(id).firstOrNull ?? '全部';
-        await DBService.instance.addFollow(follow);
-      }
-    }
   }
 
   // 获取用户自定义标签列表
@@ -139,18 +121,9 @@ class FollowService extends GetxService {
     followTagList.assignAll(list);
   }
 
-  /// 获取包含“全部”的标签选项列表
-  List<FollowUserTag> getTagOptionsWithAll() {
-    return [
-      FollowUserTag(id: '0', tag: '全部', userId: []),
-      ...followTagList,
-    ];
-  }
-
   /// 某关注所属的分组名（按 `followTagList` 顺序）。
   ///
-  /// 归属唯一真源是 `FollowUserTag.userId`；`FollowUser.tag` 只是「主分组」缓存，
-  /// 二者由 `addUserToTag` / `removeUserFromTag` 一起维护。
+  /// 归属唯一真源是 `FollowUserTag.userId`（多分组归属），本方法是它的读取口。
   List<String> userTagNamesOf(String followId) => [
         for (final t in followTagList)
           if (t.contains(followId)) t.tag,
@@ -184,15 +157,9 @@ class FollowService extends GetxService {
       return;
     }
     await updateFollowUserTag(tag);
-    // 主分组缓存：没有主分组时，把新加入的组记为主分组，供行副标题展示。
-    if (user.tag == '全部' || user.tag.isEmpty) {
-      user.tag = tagName;
-      await DBService.instance.addFollow(user);
-    }
   }
 
-  /// 把关注移出某个分组。移出的是主分组时，主分组顺延到剩余第一个，没有则回 `'全部'`。
-  /// 同样不在此重排，理由见 [addUserToTag]。
+  /// 把关注移出某个分组。同样不在此重排，理由见 [addUserToTag]。
   Future<void> removeUserFromTag(FollowUser user, String tagName) async {
     if (tagName == '全部') {
       return removeAllTagsFromUser(user);
@@ -202,10 +169,6 @@ class FollowService extends GetxService {
       return;
     }
     await updateFollowUserTag(tag);
-    if (user.tag == tagName) {
-      user.tag = userTagNamesOf(user.id).firstOrNull ?? '全部';
-      await DBService.instance.addFollow(user);
-    }
   }
 
   /// 清空某关注的全部归属（回到「未分组」）。只写真的变了的分组。
@@ -215,16 +178,6 @@ class FollowService extends GetxService {
         await updateFollowUserTag(tag);
       }
     }
-    if (user.tag != '全部') {
-      user.tag = '全部';
-      await DBService.instance.addFollow(user);
-    }
-  }
-
-  /// 过渡壳：关注详情页（`FollowInfoController.changeTag`）还在用「一个分组对象」
-  /// 的旧语义，先转发到多归属 API。Task 5 把详情页改成多选后，本方法随之删除。
-  Future<void> setFollowTag(FollowUser item, FollowUserTag targetTag) async {
-    await addUserToTag(item, targetTag.tag);
   }
 
   void updateFollowTagOrder(FollowUserTag oldTag, FollowUserTag newTag) {
@@ -784,9 +737,9 @@ class FollowService extends GetxService {
             "addTime": item.addTime.toString(),
             "remark": item.remark,
             "romanName": item.romanName,
-            // tag 是「主分组」展示缓存，保留给旧版本读取；
+            // tag 是「主分组」展示缓存，保留给旧版本读取（旧版本只认这个字段）；
             // tags 是归属真源（多分组），新版本读取以它为准。
-            "tag": item.tag,
+            "tag": userTagNamesOf(item.id).firstOrNull ?? '全部',
             "tags": userTagNamesOf(item.id),
           },
         )

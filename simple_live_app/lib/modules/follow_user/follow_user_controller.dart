@@ -50,9 +50,8 @@ class FollowUserController extends BasePageController<FollowUser>
 
   /// 名字是内置标签的保留字时拒绝占用（add / rename 都会调到）。
   ///
-  /// 内置 tab 只活在 [tagList] 前三项、不入库，但 `FollowUser.tag` 与
-  /// `getTagOptionsWithAll` 都按名字判「全部」哨兵、分组又按名字分桶：
-  /// 自定义标签撞名会让界面与语义打架，所以直接禁止。
+  /// 内置 tab 只活在 [tagList] 前三项、不入库，但 `'全部'` 是「不属于任何分组」
+  /// 的哨兵名：自定义分组撞名会让界面与语义打架，所以直接禁止。
   /// 同步导入的旧备份里万一有同名标签，最多是显示重名，不会让分组失效。
   static bool isReservedTagName(String name) =>
       builtinTags.contains(name.trim());

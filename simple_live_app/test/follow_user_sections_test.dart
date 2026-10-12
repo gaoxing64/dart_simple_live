@@ -47,7 +47,6 @@ FollowUser _user(
   int liveStatus = 0,
   String remark = '',
   String title = '',
-  String tag = '全部',
 }) {
   return FollowUser(
     id: 'douyu_$name',
@@ -56,7 +55,6 @@ FollowUser _user(
     userName: name,
     face: '',
     addTime: DateTime(2024),
-    tag: tag,
   )..liveStatus.value = liveStatus
       ..title.value = title
       ..remark = remark;
@@ -139,16 +137,16 @@ void main() {
       ]);
     }
 
-    test('按标签名分桶；「全部」与孤儿名字落未分组', () {
+    test('按成员表分桶；不在任何成员表里的落未分组', () {
       seedTags();
       final c = _SectionProbe();
       c.updateTagList();
       c.list.assignAll([
-        _user('a', tag: 'CS解说', liveStatus: 2),
-        _user('b', tag: 'CS解说'),
-        _user('c', tag: 'LOL解说'),
-        _user('d'), // 「全部」
-        _user('e', tag: '已删标签'), // 标签被删/旧备份遗留的孤儿名
+        _user('a', liveStatus: 2),
+        _user('b'),
+        _user('c'),
+        _user('d'), // 不属于任何分组（「全部」哨兵语义）
+        _user('e'), // 旧备份遗留的孤儿归属：等价于「不在任何成员表里」
       ]);
 
       final v = c.groupedView;
@@ -166,7 +164,7 @@ void main() {
       final c = _SectionProbe();
       c.updateTagList();
       c.list.assignAll([
-        _user('a', tag: 'CS解说'),
+        _user('a'),
         _user('d'),
       ]);
 
@@ -184,8 +182,8 @@ void main() {
       c.updateTagList();
       expect(c.customTags.map((t) => t.id), ['a0', 'a1']);
       c.list.assignAll([
-        _user('c', tag: 'LOL解说'),
-        _user('a', tag: 'CS解说'),
+        _user('c'),
+        _user('a'),
       ]);
       expect(c.groupedView.groups.map((g) => g.tag.tag), ['CS解说', 'LOL解说']);
     });

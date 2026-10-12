@@ -24,7 +24,6 @@ class FollowUserAdapter extends TypeAdapter<FollowUser> {
       face: fields[4] as String,
       addTime: fields[5] as DateTime,
       watchDuration: fields[6] == null ? "00:00:00" : fields[6] as String?,
-      tag: fields[7] == null ? "全部" : fields[7] as String,
       remark: fields[8] == null ? "" : fields[8] as String?,
       romanName: fields[9] == null ? "" : fields[9] as String?,
       syncDuration: fields[10] == null ? 0 : (fields[10] as num).toInt(),
@@ -38,7 +37,7 @@ class FollowUserAdapter extends TypeAdapter<FollowUser> {
   @override
   void write(BinaryWriter writer, FollowUser obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,8 +52,6 @@ class FollowUserAdapter extends TypeAdapter<FollowUser> {
       ..write(obj.addTime)
       ..writeByte(6)
       ..write(obj.watchDuration)
-      ..writeByte(7)
-      ..write(obj.tag)
       ..writeByte(8)
       ..write(obj.remark)
       ..writeByte(9)
@@ -77,5 +74,7 @@ class FollowUserAdapter extends TypeAdapter<FollowUser> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FollowUserAdapter && runtimeType == other.runtimeType && typeId == other.typeId;
+      other is FollowUserAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
 }

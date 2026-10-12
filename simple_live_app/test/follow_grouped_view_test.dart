@@ -2,8 +2,8 @@
 // 分组卡片渲染 / 计数 pill / 折叠，拖头像换组，拖头部把手调序，视图切换。
 //
 // 假数据源用 `follow_test_harness.dart` 的 FakeFollowService：
-// setFollowTag / reorderFollowTag 是内存实现（真实现经 DBService 写 Hive，
-// widget test 里没注册 DBService）。
+// 归组（addUserToTag 一族）/ reorderFollowTag 是内存实现（真实现经 DBService
+// 写 Hive，widget test 里没注册 DBService）。
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/gestures.dart' show kSecondaryButton;
@@ -28,22 +28,21 @@ import 'package:simple_live_app/widgets/live_room_card.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'follow_test_harness.dart';
 
-FollowUser _u(String name, {String tag = '全部', int live = 1}) => FollowUser(
+FollowUser _u(String name, {int live = 1}) => FollowUser(
       id: 'huya_$name',
       roomId: 'r-$name',
       siteId: 'huya',
       userName: name,
       face: '',
       addTime: DateTime(2024),
-      tag: tag,
     )..liveStatus.value = live;
 
 Future<FakeFollowService> seedGrouped(WidgetTester tester) async {
   final svc = FakeFollowService(
     users: [
-      _u('甲', tag: 'CS解说', live: 2),
-      _u('乙', tag: 'CS解说'),
-      _u('丙', tag: 'LOL解说'),
+      _u('甲', live: 2),
+      _u('乙'),
+      _u('丙'),
       _u('丁'),
     ],
     tags: [
@@ -213,8 +212,8 @@ void main() {
     await gesture.up();
     await settle(tester);
 
-    final user = svc.followList.firstWhere((u) => u.userName == '丁');
-    expect(user.tag, 'LOL解说');
+    // 丁 被拖进 LOL解说：归属以成员表为准
+    expect(svc.userTagNamesOf('huya_丁'), contains('LOL解说'));
     expect(
         find.descendant(of: cardOf('LOL解说'), matching: find.text('丁')),
         findsOneWidget);
@@ -244,7 +243,7 @@ void main() {
     await gesture.up();
     await settle(tester);
 
-    expect(svc.followList.firstWhere((u) => u.userName == '丙').tag, '全部',
+    expect(svc.userTagNamesOf('huya_丙'), isEmpty,
         reason: '拖到未分组成员行上也要能移出分组（落点应覆盖整块，不只是段头）');
     await settleEnd(tester);
   });
@@ -320,8 +319,8 @@ void main() {
     expect(created.userId, containsAll(['huya_丁', 'huya_乙']));
     expect(svc.followTagList.firstWhere((t) => t.tag == 'CS解说').userId,
         contains('huya_乙'));
-    // 丁 原来没分组，加入后主分组缓存落到「新观赛组」
-    expect(svc.followList.firstWhere((u) => u.userName == '丁').tag, '新观赛组');
+    // 丁 原来没分组，加入后归属落到「新观赛组」
+    expect(svc.userTagNamesOf('huya_丁'), contains('新观赛组'));
     expect(c.selectedIds, isEmpty);
     expect(find.text('已选择 1 位'), findsNothing);
     expect(find.text('新观赛组'), findsOneWidget);
@@ -347,7 +346,7 @@ void main() {
         of: find.byType(FollowQuickGroupSheet), matching: find.text('LOL解说')));
     await settle(tester);
 
-    expect(svc.followList.firstWhere((u) => u.userName == '丁').tag, 'LOL解说');
+    expect(svc.userTagNamesOf('huya_丁'), contains('LOL解说'));
     await settleEnd(tester);
     await tester.pump(const Duration(seconds: 3));
   });
@@ -407,8 +406,8 @@ void main() {
     final svc = FakeFollowService(
       users: [
         for (var g = 0; g < 3; g++) ...[
-          _u('组$g·甲', tag: '组$g', live: 2),
-          _u('组$g·乙', tag: '组$g'),
+          _u('组$g·甲', live: 2),
+          _u('组$g·乙'),
         ],
         for (var i = 0; i < 12; i++) _u('散人$i'),
       ],
@@ -557,14 +556,14 @@ void main() {
 
   testWidgets('已在组内的成员拖回本组：不高亮（同组拖回不该像发生了移动）',
       (tester) async {
-    // 甲 同时属于 CS解说 + LOL解说，主分组缓存（`FollowUser.tag`）是 LOL解说 ——
-    // 「已在组内」只能按成员表判断，看主分组缓存就会把「拖回已加入的 CS解说」
-    // 误判成一次跨组移动而亮起高亮。
+    // 甲 同时属于 CS解说 + LOL解说（多归属）——「已在组内」只能按成员表判断：
+    // 拿任何单一「主分组」当依据，就会把「拖回已加入的 CS解说」误判成一次
+    // 跨组移动而亮起高亮。
     final svc = FakeFollowService(
       users: [
-        _u('甲', tag: 'LOL解说', live: 2),
-        _u('乙', tag: 'CS解说'),
-        _u('丙', tag: 'LOL解说'),
+        _u('甲', live: 2),
+        _u('乙'),
+        _u('丙'),
         _u('丁'),
       ],
       tags: [

@@ -45,8 +45,8 @@ class FollowInfoController extends BasePageController<FollowUser> {
   void _initTagOptions() {
     tagOptions.assignAll(FollowService.instance.followTagList);
 
-    // 勾选态直接取归属真源（成员表 `FollowUserTag.userId`），
-    // `FollowUser.tag` 只是主分组缓存，不能拿来当勾选依据。
+    // 勾选态直接取归属真源（成员表 `FollowUserTag.userId`），不能拿任何
+    // 单一分组的「主归属」当勾选依据（多归属下一个人可以同时在多个分组）。
     final current = followUser.value;
     checkedTags.assignAll(
       current == null ? const <String>[] : FollowService.instance.userTagNamesOf(current.id),
@@ -173,7 +173,6 @@ class FollowInfoController extends BasePageController<FollowUser> {
         addTime: current.addTime,
         watchDuration: current.watchDuration,
         watchDurationSec: current.watchDurationSec,
-        tag: current.tag,
         remark: current.remark,
         romanName: current.romanName)
       ..liveStatus.value = current.liveStatus.value;

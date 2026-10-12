@@ -13,11 +13,9 @@ import 'package:simple_live_app/modules/sync/remote_sync/webdav/resources/follow
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
-import 'package:simple_live_app/services/migration_service.dart';
 
-// Task 1 的迁移用例见本文件 `migrateTagMembership` 组。
-// Task 2 的归属 API 用例追加在同一个 main() 里（共用下面的内存替身）。
 // Task 6 的导入导出 / WebDAV 合并用例见 `JSON 导出导入`、`备份向后兼容`、`WebDAV 合并` 组。
+// （Task 1 的 `migrateTagMembership` 用例随该迁移一起删除，见 migration_service.dart。）
 
 /// 内存版 DB：只覆盖归属链路用到的方法，不碰 Hive。
 class FakeDBService extends DBService {
@@ -121,86 +119,14 @@ void main() {
 
   tearDown(() => Get.reset());
 
-  group('migrateTagMembership', () {
-    test('把 follow.tag 指向的分组成员补进 userId', () async {
-      db.follows['a'] = FollowUser(
-        id: 'a',
-        roomId: 'a',
-        siteId: 'huya',
-        userName: 'a',
-        face: '',
-        addTime: DateTime(2024),
-        tag: '我的喜爱',
-      );
-      db.tags['t0'] = FollowUserTag(id: 't0', tag: '我的喜爱', userId: []);
-
-      await MigrationService.migrateTagMembership();
-
-      expect(db.tags['t0']!.userId, ['a']);
-    });
-
-    test('follow.tag 指向不存在的分组时自动建组', () async {
-      db.follows['b'] = FollowUser(
-        id: 'b',
-        roomId: 'b',
-        siteId: 'huya',
-        userName: 'b',
-        face: '',
-        addTime: DateTime(2024),
-        tag: '孤儿组',
-      );
-
-      await MigrationService.migrateTagMembership();
-
-      expect(db.tags.values.map((t) => t.tag), contains('孤儿组'));
-      expect(
-        db.tags.values.firstWhere((t) => t.tag == '孤儿组').userId,
-        ['b'],
-      );
-    });
-
-    test('tag=全部 的关注不进任何分组', () async {
-      db.follows['c'] = FollowUser(
-        id: 'c',
-        roomId: 'c',
-        siteId: 'huya',
-        userName: 'c',
-        face: '',
-        addTime: DateTime(2024),
-      );
-
-      await MigrationService.migrateTagMembership();
-
-      expect(db.tags, isEmpty);
-    });
-
-    test('已在 userId 里的不重复添加（幂等）', () async {
-      db.follows['d'] = FollowUser(
-        id: 'd',
-        roomId: 'd',
-        siteId: 'huya',
-        userName: 'd',
-        face: '',
-        addTime: DateTime(2024),
-        tag: 'X',
-      );
-      db.tags['t0'] = FollowUserTag(id: 't0', tag: 'X', userId: ['d']);
-
-      await MigrationService.migrateTagMembership();
-
-      expect(db.tags['t0']!.userId, ['d']);
-    });
-  });
-
   group('FollowService 归属 API', () {
-    FollowUser user(String id, {String tag = '全部'}) => FollowUser(
+    FollowUser user(String id) => FollowUser(
           id: id,
           roomId: id,
           siteId: 'huya',
           userName: id,
           face: '',
           addTime: DateTime(2024),
-          tag: tag,
         );
 
     void seedTags() {
@@ -272,14 +198,13 @@ void main() {
   });
 
   group('groupedView 按 userId 分桶', () {
-    FollowUser user(String id, {String tag = '全部'}) => FollowUser(
+    FollowUser user(String id) => FollowUser(
           id: id,
           roomId: id,
           siteId: 'huya',
           userName: id,
           face: '',
           addTime: DateTime(2024),
-          tag: tag,
         )..liveStatus.value = 1;
 
     late _Probe c;
@@ -337,14 +262,13 @@ void main() {
   });
 
   group('JSON 导出导入', () {
-    FollowUser user(String id, {String tag = '全部'}) => FollowUser(
+    FollowUser user(String id) => FollowUser(
           id: id,
           roomId: id,
           siteId: 'huya',
           userName: id,
           face: '',
           addTime: DateTime(2024),
-          tag: tag,
         );
 
     setUp(() {
@@ -353,8 +277,8 @@ void main() {
         FollowUserTag(id: 'a1', tag: '常看', userId: ['u1']),
       ]);
       FollowService.instance.followList.assignAll([
-        user('u1', tag: '我的喜爱'),
-        user('u2', tag: '我的喜爱'),
+        user('u1'),
+        user('u2'),
       ]);
     });
 
@@ -386,14 +310,13 @@ void main() {
   });
 
   group('备份向后兼容', () {
-    FollowUser user(String id, {String tag = '全部'}) => FollowUser(
+    FollowUser user(String id) => FollowUser(
           id: id,
           roomId: id,
           siteId: 'huya',
           userName: id,
           face: '',
           addTime: DateTime(2024),
-          tag: tag,
         );
 
     setUp(() {
@@ -402,8 +325,8 @@ void main() {
         FollowUserTag(id: 'a1', tag: '常看', userId: ['u1']),
       ]);
       FollowService.instance.followList.assignAll([
-        user('u1', tag: '我的喜爱'),
-        user('u2', tag: '我的喜爱'),
+        user('u1'),
+        user('u2'),
       ]);
     });
 
@@ -436,16 +359,31 @@ void main() {
     test('新备份→旧版本：旧版只认 tag 字段也能安全读取新备份', () {
       final json = FollowService.instance.generateJson();
 
-      // 新格式必须同时带 tags（归属真源），旧字段 tag 保留给旧版本
+      // 新格式必须同时带 tags（归属真源）与旧字段 tag（旧版本只认它）
       expect(json, contains('"tags":'));
+      expect(json, contains('"tag":'));
 
       // 旧版解析器只读自己认识的字段，多余的 tags 直接忽略，不能崩
       final legacyItems =
           (jsonDecode(json) as List).cast<Map<String, dynamic>>();
       for (final item in legacyItems) {
+        // 两个 key 必须同时在：tags 给新版本、tag 给旧版本
+        expect(item.containsKey('tag'), isTrue,
+            reason: '导出必须保留旧字段 tag，否则旧版本读新备份会丢分组');
+        expect(item.containsKey('tags'), isTrue);
+        // tag 的值 = 归属真源派生的「主分组」（首个所属分组），无归属回退「全部」
+        expect(
+          item['tag'],
+          FollowService.instance
+                  .userTagNamesOf(item['id'] as String)
+                  .firstOrNull ??
+              '全部',
+        );
         expect(item['tag'], isA<String>());
+        expect(item['tag'], isNotEmpty);
+        // 旧版 fromJson 只取自己认识的字段，读新备份不能崩
         final legacy = FollowUser.fromJson(item);
-        expect(legacy.tag, isNotEmpty);
+        expect(legacy.id, item['id']);
       }
       // 旧版按 tag 单字段重建分组时，主分组（首个所属分组）保持不变
       expect(legacyItems.firstWhere((e) => e['id'] == 'u1')['tag'], '我的喜爱');
@@ -471,7 +409,6 @@ void main() {
   group('WebDAV 合并', () {
     FollowUser user(
       String id, {
-      String tag = '全部',
       bool deleted = false,
       int updateTime = 0,
     }) =>
@@ -482,7 +419,6 @@ void main() {
           userName: id,
           face: '',
           addTime: DateTime(2026, 2, 1),
-          tag: tag,
           deleted: deleted,
           updateTime: updateTime,
         );
@@ -494,8 +430,8 @@ void main() {
     test('merge 按分组名并集合并成员表，保住多归属', () {
       final local = FollowBundle(
         follows: [
-          user('u1', tag: '我的喜爱'),
-          user('u2', tag: '我的喜爱'),
+          user('u1'),
+          user('u2'),
         ],
         tags: [
           FollowUserTag(id: 'l0', tag: '我的喜爱', userId: ['u1', 'u2']),
@@ -504,8 +440,8 @@ void main() {
       );
       final remote = FollowBundle(
         follows: [
-          user('u1', tag: '我的喜爱'),
-          user('u3', tag: '常看'),
+          user('u1'),
+          user('u3'),
         ],
         tags: [
           FollowUserTag(id: 'r0', tag: '常看', userId: ['u1', 'u3']),
@@ -522,11 +458,10 @@ void main() {
     test('merge 剔除成员表里的幽灵 id 与墓碑', () {
       final local = FollowBundle(
         follows: [
-          user('u1', tag: 'G'),
+          user('u1'),
           // 墓碑：已取关，同步后仍在 resFollows 里，但不能算分组成员
           user(
             'u9',
-            tag: 'G',
             deleted: true,
             updateTime: DateTime(2026, 3, 1).millisecondsSinceEpoch ~/ 1000,
           ),
@@ -536,7 +471,7 @@ void main() {
         ],
       );
       final remote = FollowBundle(
-        follows: [user('u3', tag: '远组')],
+        follows: [user('u3')],
         tags: [
           FollowUserTag(id: 'r0', tag: '远组', userId: ['u3', 'gone']),
         ],

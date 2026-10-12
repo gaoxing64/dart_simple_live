@@ -52,8 +52,8 @@ void main() {
   testWidgets('关注页：鼠标左键横拖切换视图 Tab（全部→直播中）', (tester) async {
     final svc = FakeFollowService(
       users: [
-        _u('甲', tag: 'CS解说', live: 2),
-        _u('乙', tag: 'CS解说'),
+        _u('甲', live: 2),
+        _u('乙'),
         _u('丙', live: 2),
       ],
       tags: [
@@ -78,12 +78,11 @@ void main() {
   });
 }
 
-FollowUser _u(String name, {String tag = '全部', int live = 1}) => FollowUser(
+FollowUser _u(String name, {int live = 1}) => FollowUser(
       id: 'huya_$name',
       roomId: 'r-$name',
       siteId: 'huya',
       userName: name,
       face: '',
       addTime: DateTime(2024),
-      tag: tag,
     )..liveStatus.value = live;

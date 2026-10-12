@@ -15,7 +15,6 @@ class FollowUser implements Mappable {
     required this.face,
     required this.addTime,
     this.watchDuration = "00:00:00",
-    this.tag = "全部",
     this.remark = "",
     this.romanName = "",
     this.syncDuration = 0,
@@ -48,8 +47,10 @@ class FollowUser implements Mappable {
   @HiveField(6)
   String? watchDuration; // "00:00:00"
 
-  @HiveField(7)
-  String tag;
+  // 这里原来还有 @HiveField(7) 的「主分组」展示缓存 `String tag`。
+  // 2026-10-12 删除：归属唯一真源是 `FollowUserTag.userId`（多分组归属），
+  // 展示取 `FollowService.userTagNamesOf`。旧记录里的 field 7 读取时被忽略，
+  // 旧版本 app 读新记录时按它的旧逻辑回退「全部」，成员表本身不受影响。
 
   @HiveField(8)
   String? remark;
@@ -98,7 +99,6 @@ class FollowUser implements Mappable {
         face: json['face'],
         addTime: DateTime.parse(json['addTime']),
         watchDuration: json["watchDuration"] ?? "00:00:00",
-        tag: json["tag"] ?? "全部",
         remark: json["remark"] ?? "",
         romanName: json["romanName"] ?? "",
         syncDuration: json["syncDuration"] ?? 0,
@@ -116,7 +116,6 @@ class FollowUser implements Mappable {
         'face': face,
         'addTime': addTime.toString(),
         "watchDuration": watchDuration ?? "00:00:00",
-        "tag": tag,
         "remark": remark,
         "romanName": romanName,
         "syncDuration": syncDuration,

@@ -154,9 +154,10 @@ class FollowUserItem extends StatelessWidget {
               // 整体仍截到 8 字，避免长组名把行尾挤没）。
               () {
                 // 本组件还被直播间关注面板等宿主复用，那边（以及单测宿主）
-                // 可能没注册 FollowService，此时退回主分组缓存兜底。
+                // 可能没注册 FollowService；归属真源在分组成员表里，拿不到
+                // 服务就无从查起，退回哨兵「全部」（不崩、不拉数据）。
                 if (!Get.isRegistered<FollowService>()) {
-                  return item.tag;
+                  return '全部';
                 }
                 final names =
                     FollowService.instance.userTagNamesOf(item.id);

@@ -50,8 +50,9 @@ class _FakeDBService extends DBService {
     return item;
   }
 
-  // `addUserToTag` 会顺带写主分组缓存（FollowUser.tag），真实现在这里落
-  // followBox；测试里没开 Hive，必须换内存实现。
+  // 归组（addUserToTag 一族）现在只写成员表（FollowUserTag.userId），
+  // 不再碰关注记录；这个内存实现留着兜底：万一有路径调 addFollow，
+  // 也别打到真实 Hive（测试里没开 Hive）。
   @override
   Future addFollow(FollowUser follow) async => follows[follow.id] = follow;
 }
