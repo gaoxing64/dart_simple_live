@@ -171,4 +171,83 @@ void main() {
       expect(db.tags['t0']!.userId, ['d']);
     });
   });
+
+  group('FollowService 归属 API', () {
+    FollowUser user(String id, {String tag = '全部'}) => FollowUser(
+          id: id,
+          roomId: id,
+          siteId: 'huya',
+          userName: id,
+          face: '',
+          addTime: DateTime(2024),
+          tag: tag,
+        );
+
+    void seedTags() {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: '我的喜爱', userId: []),
+        FollowUserTag(id: 'a1', tag: '常看', userId: []),
+      ]);
+      db.tags
+        ..clear()
+        ..addEntries(FollowService.instance.followTagList
+            .map((t) => MapEntry(t.id, t)));
+      FollowService.instance.followList.assignAll([user('u1')]);
+    }
+
+    test('addUserToTag：可同时属于多个分组', () async {
+      seedTags();
+      final u = FollowService.instance.followList.first;
+      await FollowService.instance.addUserToTag(u, '我的喜爱');
+      await FollowService.instance.addUserToTag(u, '常看');
+
+      expect(FollowService.instance.userTagNamesOf(u.id), ['我的喜爱', '常看']);
+      expect(db.tags['a0']!.userId, ['u1']);
+      expect(db.tags['a1']!.userId, ['u1']);
+    });
+
+    test('addUserToTag：重复加入不产生重复成员', () async {
+      seedTags();
+      final u = FollowService.instance.followList.first;
+      await FollowService.instance.addUserToTag(u, '我的喜爱');
+      await FollowService.instance.addUserToTag(u, '我的喜爱');
+
+      expect(db.tags['a0']!.userId, ['u1']);
+    });
+
+    test('removeUserFromTag：只移出该组，别的组不动', () async {
+      seedTags();
+      final u = FollowService.instance.followList.first;
+      await FollowService.instance.addUserToTag(u, '我的喜爱');
+      await FollowService.instance.addUserToTag(u, '常看');
+
+      await FollowService.instance.removeUserFromTag(u, '我的喜爱');
+
+      expect(FollowService.instance.userTagNamesOf(u.id), ['常看']);
+      expect(db.tags['a0']!.userId, isEmpty);
+      expect(db.tags['a1']!.userId, ['u1']);
+    });
+
+    test('未知分组名：不抛异常、不改数据', () async {
+      seedTags();
+      final u = FollowService.instance.followList.first;
+      await FollowService.instance.addUserToTag(u, '不存在');
+      await FollowService.instance.removeUserFromTag(u, '不存在');
+
+      expect(FollowService.instance.userTagNamesOf(u.id), isEmpty);
+    });
+
+    test('removeAllTagsFromUser：清空全部归属', () async {
+      seedTags();
+      final u = FollowService.instance.followList.first;
+      await FollowService.instance.addUserToTag(u, '我的喜爱');
+      await FollowService.instance.addUserToTag(u, '常看');
+
+      await FollowService.instance.removeAllTagsFromUser(u);
+
+      expect(FollowService.instance.userTagNamesOf(u.id), isEmpty);
+      expect(db.tags['a0']!.userId, isEmpty);
+      expect(db.tags['a1']!.userId, isEmpty);
+    });
+  });
 }

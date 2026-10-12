@@ -144,6 +144,80 @@ class FollowService extends GetxService {
     ];
   }
 
+  /// 某关注所属的分组名（按 `followTagList` 顺序）。
+  ///
+  /// 归属唯一真源是 `FollowUserTag.userId`；`FollowUser.tag` 只是「主分组」缓存，
+  /// 二者由 `addUserToTag` / `removeUserFromTag` 一起维护。
+  List<String> userTagNamesOf(String followId) => [
+        for (final t in followTagList)
+          if (t.contains(followId)) t.tag,
+      ];
+
+  /// 某关注所属的全部分组对象（按显示顺序）。
+  List<FollowUserTag> userTagsOf(String followId) => [
+        for (final t in followTagList)
+          if (t.contains(followId)) t,
+      ];
+
+  /// 把关注加入分组（多归属：不影响它已在的其他分组）。
+  ///
+  /// [tagName] 传哨兵 `'全部'` 等价于「移出所有分组」，由调用方保证语义；
+  /// 这里只处理普通分组名。分组名不存在时静默返回 —— 分组是用户数据，
+  /// 名字对不上说明调用方拿了个已经删掉的组，不该再往里写人。
+  ///
+  /// ⚠️ 不在这里 `liveListSort()`：按「自定义分组」排序时归属变化会影响顺序，
+  /// 但一次批量归组（智能分组 / 勾选移入）要动 N 个人，每条都重排就是
+  /// O(N² log N)。排序交给调用方在一批操作结束后做一次（见控制器与
+  /// `SmartGroupService.execute`）。
+  Future<void> addUserToTag(FollowUser user, String tagName) async {
+    if (tagName == '全部') {
+      return removeAllTagsFromUser(user);
+    }
+    final tag = followTagList.firstWhereOrNull((t) => t.tag == tagName);
+    if (tag == null) {
+      return;
+    }
+    if (!tag.addMember(user.id)) {
+      return;
+    }
+    await updateFollowUserTag(tag);
+    // 主分组缓存：没有主分组时，把新加入的组记为主分组，供行副标题展示。
+    if (user.tag == '全部' || user.tag.isEmpty) {
+      user.tag = tagName;
+      await DBService.instance.addFollow(user);
+    }
+  }
+
+  /// 把关注移出某个分组。移出的是主分组时，主分组顺延到剩余第一个，没有则回 `'全部'`。
+  /// 同样不在此重排，理由见 [addUserToTag]。
+  Future<void> removeUserFromTag(FollowUser user, String tagName) async {
+    if (tagName == '全部') {
+      return removeAllTagsFromUser(user);
+    }
+    final tag = followTagList.firstWhereOrNull((t) => t.tag == tagName);
+    if (tag == null || !tag.userId.remove(user.id)) {
+      return;
+    }
+    await updateFollowUserTag(tag);
+    if (user.tag == tagName) {
+      user.tag = userTagNamesOf(user.id).firstOrNull ?? '全部';
+      await DBService.instance.addFollow(user);
+    }
+  }
+
+  /// 清空某关注的全部归属（回到「未分组」）。只写真的变了的分组。
+  Future<void> removeAllTagsFromUser(FollowUser user) async {
+    for (final tag in followTagList) {
+      if (tag.userId.remove(user.id)) {
+        await updateFollowUserTag(tag);
+      }
+    }
+    if (user.tag != '全部') {
+      user.tag = '全部';
+      await DBService.instance.addFollow(user);
+    }
+  }
+
   /// 为关注项设置标签（统一逻辑）
   Future<void> setFollowTag(FollowUser item, FollowUserTag targetTag) async {
     // 当前标签对象（可能为“全部”且不在 followTagList 中）
