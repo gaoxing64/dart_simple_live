@@ -66,6 +66,14 @@ class DBService extends GetxService {
     await tagBox.delete(id);
   }
 
+  /// 用 [items] 整体替换分组表（数据校准 / WebDAV 恢复用）。
+  ///
+  /// 走方法而不是裸 `tagBox.clear()+putAll`，是为了让测试能用内存替身覆盖它。
+  Future<void> replaceAllFollowTags(Map<String, FollowUserTag> items) async {
+    await tagBox.clear();
+    await tagBox.putAll(items);
+  }
+
   FollowUserTag? getFollowTag(String tag) {
     return tagBox.values.firstWhereOrNull((item) => item.tag == tag);
   }
@@ -79,6 +87,9 @@ class DBService extends GetxService {
     var follow = followBox.get(id);
     return follow != null && !follow.deleted;
   }
+
+  /// 按 id 取关注（含墓碑）。同样是为了让测试能覆盖，别在业务里裸用 `followBox.get`。
+  FollowUser? getFollow(String id) => followBox.get(id);
 
   List<FollowUser> getFollowList() {
     return followBox.values.where((f) => !f.deleted).toList();

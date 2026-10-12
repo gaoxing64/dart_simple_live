@@ -169,6 +169,45 @@ class MigrationService {
         }
       }
     }
+
+    // follow.tag -> followUserTag.userId 归属真源迁移（v1.8.16）
+    if (curDBVer <= 10816) {
+      await migrateTagMembership();
+      // FollowService 已在 main.dart 里先于本方法 put，内存态的 followTagList
+      // 是迁移前从 tagBox 读的旧副本，必须重载，否则关注页看不到补上的成员。
+      FollowService.instance.getAllTagList();
+    }
+
     LocalStorageService.instance.settingsBox.put(LocalStorageService.kHiveDbVer, curAppVer);
+  }
+
+  /// 归属真源迁移：把 `FollowUser.tag` 单向灌进 `FollowUserTag.userId`。
+  ///
+  /// 多分组归属之后 `userId` 是唯一真源，`FollowUser.tag` 降级为「主分组」展示缓存，
+  /// 最终在后续版本删除。这里只做**补全**：
+  /// - `tag == '全部'`（哨兵）的关注不进任何分组；
+  /// - `tag` 指向的分组不存在时新建（孤儿名字，原来靠 `followUserAllDataCheck` 修）；
+  /// - 已在 `userId` 里的跳过，重复执行无副作用。
+  static Future<void> migrateTagMembership() async {
+    final followList = DBService.instance.getFollowList();
+    final tagList = DBService.instance.getFollowTagList();
+    final byName = {for (final t in tagList) t.tag: t};
+
+    for (final follow in followList) {
+      if (follow.tag == '全部' || follow.tag.isEmpty) {
+        continue;
+      }
+      var tag = byName[follow.tag];
+      if (tag == null) {
+        tag = await DBService.instance.addFollowTag(follow.tag);
+        byName[follow.tag] = tag;
+      }
+      if (!tag.userId.contains(follow.id)) {
+        tag.userId.add(follow.id);
+        await DBService.instance.updateFollowTag(tag);
+      }
+    }
+    Log.i("Migration: tag -> userId membership backfilled "
+        "(${followList.length} follows, ${byName.length} tags)");
   }
 }
