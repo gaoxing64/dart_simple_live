@@ -4,6 +4,7 @@ import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
+import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'dart:ui' as ui;
 
@@ -149,9 +150,20 @@ class FollowUserItem extends StatelessWidget {
             ),
             AppStyle.hGap4,
             Text(
-              item.tag.length > 8
-                  ? '${item.tag.substring(0, 8)}...'
-                  : item.tag,
+              // 归属唯一真源是分组的成员表，这里显示它所属的分组（多个用 · 连接，
+              // 整体仍截到 8 字，避免长组名把行尾挤没）。
+              () {
+                // 本组件还被直播间关注面板等宿主复用，那边（以及单测宿主）
+                // 可能没注册 FollowService，此时退回主分组缓存兜底。
+                if (!Get.isRegistered<FollowService>()) {
+                  return item.tag;
+                }
+                final names =
+                    FollowService.instance.userTagNamesOf(item.id);
+                if (names.isEmpty) return '全部';
+                final joined = names.join(' · ');
+                return joined.length > 8 ? '${joined.substring(0, 8)}...' : joined;
+              }(),
               style: const TextStyle(
                 fontSize: 12,
                 color: Colors.grey,

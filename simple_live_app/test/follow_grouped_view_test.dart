@@ -8,7 +8,14 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/material.dart'
-    show Icons, Key, MediaQuery, SingleChildScrollView;
+    show
+        BoxDecoration,
+        Colors,
+        Container,
+        Icons,
+        Key,
+        MediaQuery,
+        SingleChildScrollView;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
@@ -293,11 +300,11 @@ void main() {
     expect(find.text('已选择 2 位'), findsOneWidget);
     expect(find.textContaining('在播 · 已选 1'), findsNWidgets(2));
 
-    // 滚回顶部让收起的顶栏展开，再点「编辑」
+    // 滚回顶部让收起的顶栏展开，再点「编辑」（顶栏已换成图标 + tooltip）
     await tester.dragFrom(const Offset(200, 400), const Offset(0, 300));
     await settle(tester);
     // 编辑 → 弹窗填名字 → 创建分组
-    await tester.tap(find.text('编辑'));
+    await tester.tap(find.byTooltip('移入分组'));
     await settle(tester);
     expect(find.text('分组名称'), findsOneWidget);
     await tester.enterText(
@@ -307,8 +314,14 @@ void main() {
     await tester.tap(find.text('创建分组'));
     await settle(tester);
 
+    // 多归属语义：批量是「加入」新分组，原分组身份保留 ——
+    // 乙 原在 CS解说，加入「新观赛组」后两个组都待得住。
+    final created = svc.followTagList.firstWhere((t) => t.tag == '新观赛组');
+    expect(created.userId, containsAll(['huya_丁', 'huya_乙']));
+    expect(svc.followTagList.firstWhere((t) => t.tag == 'CS解说').userId,
+        contains('huya_乙'));
+    // 丁 原来没分组，加入后主分组缓存落到「新观赛组」
     expect(svc.followList.firstWhere((u) => u.userName == '丁').tag, '新观赛组');
-    expect(svc.followList.firstWhere((u) => u.userName == '乙').tag, '新观赛组');
     expect(c.selectedIds, isEmpty);
     expect(find.text('已选择 1 位'), findsNothing);
     expect(find.text('新观赛组'), findsOneWidget);
@@ -328,7 +341,7 @@ void main() {
     // 滚回顶部让收起的顶栏展开
     await tester.dragFrom(const Offset(200, 400), const Offset(0, 300));
     await settle(tester);
-    await tester.tap(find.text('编辑'));
+    await tester.tap(find.byTooltip('移入分组'));
     await settle(tester);
     await tester.tap(find.descendant(
         of: find.byType(FollowQuickGroupSheet), matching: find.text('LOL解说')));
@@ -351,7 +364,7 @@ void main() {
     await settle(tester);
     await tester.dragFrom(const Offset(200, 400), const Offset(0, 300));
     await settle(tester);
-    await tester.tap(find.text('编辑'));
+    await tester.tap(find.byTooltip('移入分组'));
     await settle(tester);
 
     tester.view.viewInsets =
@@ -539,6 +552,92 @@ void main() {
         reason: '多分组归属：加入新组不该把它从原组踢出去');
     expect(svc.followTagList.firstWhere((t) => t.tag == 'CS解说').userId,
         contains('huya_甲'));
+    await settleEnd(tester);
+  });
+
+  testWidgets('已在组内的成员拖回本组：不高亮（同组拖回不该像发生了移动）',
+      (tester) async {
+    // 甲 同时属于 CS解说 + LOL解说，主分组缓存（`FollowUser.tag`）是 LOL解说 ——
+    // 「已在组内」只能按成员表判断，看主分组缓存就会把「拖回已加入的 CS解说」
+    // 误判成一次跨组移动而亮起高亮。
+    final svc = FakeFollowService(
+      users: [
+        _u('甲', tag: 'LOL解说', live: 2),
+        _u('乙', tag: 'CS解说'),
+        _u('丙', tag: 'LOL解说'),
+        _u('丁'),
+      ],
+      tags: [
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: ['huya_甲', 'huya_乙']),
+        FollowUserTag(id: 'a1', tag: 'LOL解说', userId: ['huya_甲', 'huya_丙']),
+      ],
+    );
+    final indexed = await pumpIndexed(tester, followService: svc);
+    await gotoFollowPage(tester, indexed);
+
+    await tester.dragFrom(const Offset(200, 560), const Offset(0, -200));
+    await settle(tester);
+
+    // 甲 已经在 CS解说 里，把它拖回 CS解说
+    final avatar = find.descendant(
+      of: find.descendant(of: cardOf('CS解说'), matching: rowOf('甲')),
+      matching: find.byType(NetImage),
+    );
+    final gesture = await tester.startGesture(tester.getCenter(avatar));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    await gesture.moveTo(tester.getCenter(cardOf('CS解说')));
+    await tester.pump();
+
+    // 高亮 = DragTarget 收到 candidate 时给最外层 Container 画的 1.5 描边。
+    // 同组成员拖回来不该收到 candidate，所以描边必须是透明的。
+    final shell = tester.widget<Container>(
+      find
+          .descendant(
+            of: cardOf('CS解说'),
+            matching: find.byType(Container, skipOffstage: false),
+          )
+          .first,
+    );
+    final deco = shell.decoration as BoxDecoration;
+    expect(deco.border!.top.color, Colors.transparent,
+        reason: '同组成员拖回本组不该高亮');
+
+    await gesture.up();
+    await settle(tester);
+    // 同组拖回 = 无操作：两个分组的成员表都不该变
+    expect(svc.followTagList.firstWhere((t) => t.tag == 'CS解说').userId,
+        contains('huya_甲'));
+    expect(svc.followTagList.firstWhere((t) => t.tag == 'LOL解说').userId,
+        contains('huya_甲'));
+    await settleEnd(tester);
+  });
+
+  testWidgets('空分组 + 选择态：计数 Obx 不再抛「没有可观察变量」', (tester) async {
+    // 空分组也会渲染卡片 —— 它是拖拽归组的落点，得让用户看得见组存在。
+    final svc = FakeFollowService(
+      users: [
+        _u('戊'),
+        _u('己'),
+      ],
+      tags: [
+        FollowUserTag(id: 'b0', tag: '空组', userId: []),
+      ],
+    );
+    final indexed = await pumpIndexed(tester, followService: svc);
+    await gotoFollowPage(tester, indexed);
+
+    // 进入选择态（点头像勾选一位）：修复前空组卡片的计数 Obx 里
+    // `group.members.where(...)` 一次 Rx 都读不到，GetX 直接抛
+    // 「[Get] the improper use of a GetX ...」并连带布局异常。
+    await tester.tap(
+        find.descendant(of: rowOf('戊'), matching: find.byType(NetImage)));
+    await settle(tester);
+
+    expect(tester.takeException(), isNull,
+        reason: '空分组 + 选择态不该抛 GetX「没有可观察变量」');
+    expect(find.text('空组'), findsOneWidget);
+    expect(find.text('已选择 1 位'), findsOneWidget);
     await settleEnd(tester);
   });
 }

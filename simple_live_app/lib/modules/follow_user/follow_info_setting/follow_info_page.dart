@@ -4,7 +4,7 @@ import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/follow_user/follow_info_setting/follow_info_controller.dart';
-import 'package:simple_live_app/widgets/settings/settings_menu.dart';
+import 'package:simple_live_app/widgets/filter_button.dart';
 
 class FollowInfoPage extends GetView<FollowInfoController> {
   const FollowInfoPage({super.key});
@@ -94,26 +94,33 @@ class FollowInfoPage extends GetView<FollowInfoController> {
             ),
           ),
           AppStyle.divider,
-          // 分组设置：底部弹出选择
+          // 分组设置：多归属 = 多选 chips（勾选 = 加入该分组，取消 = 移出该分组）
           Padding(
             padding: AppStyle.edgeInsetsA12,
             child: Obx(() {
               final items = controller.tagOptions;
-              final selected = controller.selectedTag.value;
-              final Map<String, String> valueMap = {
-                for (final t in items) t.tag: t.tag,
-              };
-              return SettingsMenu<String>(
-                title: '分组设置',
-                value: selected?.tag ?? '全部',
-                valueMap: valueMap,
-                onChanged: (value) {
-                  final target = items.firstWhere(
-                    (e) => e.tag == value,
-                    orElse: () => items.first,
-                  );
-                  controller.changeTag(target);
-                },
+              if (items.isEmpty) {
+                return const Text('还没有分组，先去「关注设置 → 分组管理」新建');
+              }
+              return Row(
+                children: [
+                  Text('所属分组', style: Theme.of(context).textTheme.bodyLarge),
+                  AppStyle.hGap12,
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final t in items)
+                          FilterButton(
+                            text: t.tag,
+                            selected: controller.checkedTags.contains(t.tag),
+                            onTap: () => controller.toggleTag(t.tag),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               );
             }),
           ),

@@ -620,6 +620,8 @@ class FollowUserPage extends GetView<FollowUserController> {
             FollowUserController.kUngroupedKey,
           ),
           onDrop: (u) => controller.setFollowTag(u, controller.tagList.first),
+          hasMembership: (u) =>
+              FollowService.instance.userTagNamesOf(u.id).isNotEmpty,
           onToggleSelect: (u) => controller.toggleSelected(u.id),
           onMemberTap: _toDetail,
           onMemberLongPress: (u) => controller.showBottomMenu(u),
@@ -782,6 +784,10 @@ class _UngroupedSection extends StatelessWidget {
   final RxSet<String> selectedIds;
   final VoidCallback onToggle;
   final ValueChanged<FollowUser> onDrop;
+
+  /// 某关注是否还有分组归属（按成员表判，不看主分组缓存）。
+  /// 供拖拽谓词判「拖到这里 = 移出分组」，widget 不直接摸 service。
+  final bool Function(FollowUser) hasMembership;
   final ValueChanged<FollowUser> onToggleSelect;
   final ValueChanged<FollowUser> onMemberTap;
   final ValueChanged<FollowUser> onMemberLongPress;
@@ -798,6 +804,7 @@ class _UngroupedSection extends StatelessWidget {
     required this.selectedIds,
     required this.onToggle,
     required this.onDrop,
+    required this.hasMembership,
     required this.onToggleSelect,
     required this.onMemberTap,
     required this.onMemberLongPress,
@@ -808,7 +815,9 @@ class _UngroupedSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return DragTarget<FollowUser>(
-      onWillAcceptWithDetails: (details) => details.data.tag != "全部",
+      // 只有「至少在一个分组里」的成员才允许拖到未分组段 = 移出所有分组；
+      // 本来就没分组的成员拖回本段 = 无操作，不高亮（按成员表判，不看主分组缓存）。
+      onWillAcceptWithDetails: (details) => hasMembership(details.data),
       onAcceptWithDetails: (details) => onDrop(details.data),
       builder: (context, candidates, _) {
         final highlighted = candidates.isNotEmpty;

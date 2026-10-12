@@ -9,7 +9,8 @@ import 'package:simple_live_app/widgets/net_image.dart';
 
 /// 「编辑」bottom sheet（设计稿样式）：
 /// 输入分组名称 → 创建并把已勾选的主播加入；
-/// 或点已有分组 / 「全部（移出分组）」chip 把已勾选成员批量移过去。
+/// 或点已有分组 chip **加入**该分组（多归属，不动原分组），
+/// 「移出所有分组」chip 把已勾选成员移出所有分组。
 class FollowQuickGroupSheet extends StatefulWidget {
   final List<FollowUser> selected;
   final List<FollowUserTag> existingTags;
@@ -153,7 +154,7 @@ class _FollowQuickGroupSheetState extends State<FollowQuickGroupSheet> {
                     ),
                     AppStyle.vGap12,
                     Text(
-                      '或移入已有分组',
+                      '或加入已有分组',
                       style: TextStyle(
                         fontSize: 12,
                         color: scheme.onSurfaceVariant,
@@ -170,7 +171,7 @@ class _FollowQuickGroupSheetState extends State<FollowQuickGroupSheet> {
                             onTap: () => _moveTo(t),
                           ),
                         FilterButton(
-                          text: '全部（移出分组）',
+                          text: '移出所有分组',
                           onTap: () => _moveTo(widget.ungroupTag),
                         ),
                       ],

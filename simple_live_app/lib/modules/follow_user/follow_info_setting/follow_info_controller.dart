@@ -15,9 +15,11 @@ import 'package:simple_live_core/simple_live_core.dart';
 class FollowInfoController extends BasePageController<FollowUser> {
   final Rxn<FollowUser> followUser = Rxn<FollowUser>();
 
-  // 下拉可选标签：只包含“全部”+用户自定义标签
+  // 所属分组候选：用户自定义分组（多选 chips）
   final RxList<FollowUserTag> tagOptions = <FollowUserTag>[].obs;
-  final Rx<FollowUserTag?> selectedTag = Rx<FollowUserTag?>(null);
+
+  // 当前关注勾选着的分组名（多归属：可以同时属于多个分组）
+  final RxSet<String> checkedTags = <String>{}.obs;
 
   // 平台迁移预留：列出除当前平台外的其余平台
   final RxList<Site> migrationSites = <Site>[].obs;
@@ -41,21 +43,14 @@ class FollowInfoController extends BasePageController<FollowUser> {
   }
 
   void _initTagOptions() {
-    final List<FollowUserTag> options = FollowService.instance.getTagOptionsWithAll();
-    tagOptions.assignAll(options);
+    tagOptions.assignAll(FollowService.instance.followTagList);
 
-    // 设置选中项
+    // 勾选态直接取归属真源（成员表 `FollowUserTag.userId`），
+    // `FollowUser.tag` 只是主分组缓存，不能拿来当勾选依据。
     final current = followUser.value;
-    if (current != null) {
-      FollowUserTag? matched;
-      for (final e in options) {
-        if (e.tag == current.tag) {
-          matched = e;
-          break;
-        }
-      }
-      selectedTag.value = matched ?? options.first;
-    }
+    checkedTags.assignAll(
+      current == null ? const <String>[] : FollowService.instance.userTagNamesOf(current.id),
+    );
   }
 
   void _initMigrationSites() {
@@ -70,11 +65,19 @@ class FollowInfoController extends BasePageController<FollowUser> {
     );
   }
 
-  void changeTag(FollowUserTag newTag) {
+  /// 勾选/取消一个分组：多归属下这是「加入/移出该分组」，不动其他分组。
+  /// 批量结束后只重排一次（`addUserToTag` 内部不排，见其注释）。
+  Future<void> toggleTag(String name) async {
     final current = followUser.value;
     if (current == null) return;
-    FollowService.instance.setFollowTag(current, newTag);
-    selectedTag.value = newTag;
+    if (checkedTags.contains(name)) {
+      checkedTags.remove(name);
+      await FollowService.instance.removeUserFromTag(current, name);
+    } else {
+      checkedTags.add(name);
+      await FollowService.instance.addUserToTag(current, name);
+    }
+    FollowService.instance.liveListSort();
     followUser.refresh();
   }
 
@@ -176,8 +179,15 @@ class FollowInfoController extends BasePageController<FollowUser> {
       ..liveStatus.value = current.liveStatus.value;
 
     // 替换关注
+    // 归属随迁移带走：多归属真源在 `FollowUserTag.userId`，而 `removeFollowUser`
+    // 会把旧 id 从所有成员表里清掉 —— 所以旧归属必须在删之前记下来，
+    // 换绑后再把新关注加回去，否则主播会掉进「未分组」。
+    final tagNames = FollowService.instance.userTagNamesOf(current.id);
     await FollowService.instance.removeFollowUser(current.id);
     await FollowService.instance.addFollow(newFollow);
+    for (final name in tagNames) {
+      await FollowService.instance.addUserToTag(newFollow, name);
+    }
 
     // 更新关注同时 更新历史记录数据
     History? oldHistory = HistoryService.instance.getHistory(current.id);

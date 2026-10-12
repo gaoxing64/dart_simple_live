@@ -67,8 +67,9 @@ class FollowGroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return DragTarget<FollowUser>(
-      // 同组成员拖回本组 = 无操作，不显示高亮。
-      onWillAcceptWithDetails: (details) => details.data.tag != group.tag.tag,
+      // 已经在组里的成员拖回来 = 无操作，不高亮（多归属下「加入」是幂等的，
+      // 但高亮会误导用户以为发生了移动）。按成员表 `userId` 判，不看主分组缓存。
+      onWillAcceptWithDetails: (details) => !group.tag.contains(details.data.id),
       onAcceptWithDetails: (details) => onDropMember(details.data),
       builder: (context, candidates, _) {
         final highlighted = candidates.isNotEmpty;
@@ -150,6 +151,10 @@ class FollowGroupCard extends StatelessWidget {
                         ? FollowCountLabel(
                             live: group.liveCount, total: group.totalCount)
                         : Obx(() {
+                            // 无条件订阅勾选集合：空分组时下面的 where 一次 Rx 都
+                            // 读不到，Obx 会因「没有可观察变量」直接抛错
+                            //（空分组 + 选择态必现），先读一次长度把订阅登记上。
+                            final _ = selectedIds!.length;
                             // 勾选数（`· 已选 X`）：勾选集合是 RxSet，卡片又在
                             // 惰性 itemBuilder 里构建，必须自带 Obx 才订阅得到。
                             final sel = group.members
