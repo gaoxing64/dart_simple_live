@@ -38,6 +38,7 @@ import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:simple_live_app/services/migration_service.dart';
 import 'package:simple_live_app/services/platform_service.dart';
 import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
+import 'package:simple_live_app/services/smart_group_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
 import 'package:simple_live_app/services/window_service.dart';
 import 'package:simple_live_app/src/rust/frb_generated.dart';
@@ -119,6 +120,8 @@ Future initServices() async {
   await Get.put(AppStyleSettingController()).init();
 
   Get.put(FollowService());
+  // 智能分组：一键按平台归组（依赖 FollowService，紧随其后注册）
+  Get.put(SmartGroupService());
 
   // platformService need migrate
   await MigrationService.migrateDataByVersion();

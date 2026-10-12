@@ -21,6 +21,7 @@ import 'package:simple_live_app/modules/live_room/multi_play/multi_play_selectio
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_quick_group_sheet.dart';
+import 'package:simple_live_app/modules/follow_user/widgets/smart_group_preview_sheet.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 
 class FollowUserController extends BasePageController<FollowUser>
@@ -480,6 +481,14 @@ class FollowUserController extends BasePageController<FollowUser>
       filterData();
     }
   }
+
+  /// 一键按平台分组。
+  ///
+  /// 无可分组内容时 `showSmartGroupPreview` 自己只 toast、不弹空表；
+  /// 顶栏与关注设置页两个入口共用 `startSmartGrouping`，行为完全一致，
+  /// 这里只多补一步 `filterData()` 让本页立即重切（事件链那趟稍后还会刷一次）。
+  Future<void> runSmartGrouping() =>
+      startSmartGrouping(afterExecute: filterData);
 
   void removeFollow(FollowUser follow) async {
     var result = await Utils.showAlertDialog("确定要取消关注${follow.userName}吗?",

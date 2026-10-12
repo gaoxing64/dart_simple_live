@@ -4,6 +4,7 @@ import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/follow_app_setting/follow_app_settings_controller.dart';
+import 'package:simple_live_app/modules/follow_user/widgets/smart_group_preview_sheet.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/settings/settings_action.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
@@ -41,6 +42,17 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                     SettingsAction(
                       title: "分组管理",
                       onTap: controller.showTagsManager,
+                    ),
+                    AppStyle.divider,
+                    SettingsAction(
+                      leading: const Icon(Remix.magic_line),
+                      title: "按平台智能分组",
+                      subtitle: "把所有关注按平台归入同名分组，已有分组不受影响",
+                      // 刻意不走 `FollowUserController`：那个控制器 onInit 要
+                      // `vsync` 建 `TabController`，用户从未进过关注页时只能临时
+                      // `Get.put` 一份空壳实例，风险见计划「已知风险」第 1 条。
+                      // 这里直接调 `SmartGroupService` + `kUpdateFollow` 事件链。
+                      onTap: () => startSmartGrouping(),
                     ),
                   ],
                 ),

@@ -236,6 +236,17 @@ class FollowUserPage extends GetView<FollowUserController> {
                             ),
                           ),
                           const AppPopupMenuItem(
+                            value: 7,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Remix.magic_line),
+                                AppStyle.hGap12,
+                                Text("按平台智能分组"),
+                              ],
+                            ),
+                          ),
+                          const AppPopupMenuItem(
                             value: 0,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -264,6 +275,8 @@ class FollowUserPage extends GetView<FollowUserController> {
                           Get.toNamed(RoutePath.kSettingsFollow);
                         } else if (value == 0) {
                           SmartDialog.showToast("此功能暂未开放！敬请期待！");
+                        } else if (value == 7) {
+                          controller.runSmartGrouping();
                         } else if (value == 6) {
                           showFollowTagManagerSheet();
                         }
