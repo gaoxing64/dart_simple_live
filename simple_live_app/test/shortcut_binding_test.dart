@@ -82,19 +82,72 @@ void main() {
     });
   });
 
-  group('修饰键严格相等', () {
-    // 这是这套系统最容易做错的一处：只绑了 `S`（截图）时，用户按 Ctrl+S
-    // 想存个档，结果播放器切了图。反过来也一样。
-    test('带修饰键按下不会命中无修饰的绑定', () {
+  group('修饰键匹配与输入法旁路', () {
+    // 中文输入法激活时，字母键被输入法截获去做拼音合成，Flutter 收不到事件，
+    // 裸字母快捷键全部失效；`Ctrl + 字母` 输入法会放行，所以放开这一条旁路
+    // （参考项目 PiliPlus 的匹配根本不看 Ctrl）。
+    // 但旁路只给字母：Ctrl+Space 是 Windows 输入法切换、Ctrl+Enter 是输入法
+    // 中英标点切换，抢了就废掉系统热键。
+    test('字母绑定可被 Ctrl+字母 旁路命中（中文输入法下的通路）', () {
       expect(
         matchShortcut(effective, LogicalKeyboardKey.keyS,
             shift: false, ctrl: true, alt: false, meta: false),
-        isNull,
-        reason: 'Ctrl+S 不该触发截图',
+        PlayerShortcut.screenshot,
+        reason: '中文输入法下 Ctrl+S 要能触发截图',
+      );
+      expect(
+        matchShortcut(effective, LogicalKeyboardKey.keyF,
+            shift: false, ctrl: true, alt: false, meta: false),
+        PlayerShortcut.fullscreen,
       );
     });
 
-    test('绑定了修饰键后，裸主键不命中、组合命中', () {
+    test('空格/回车/方向键/数字/Esc 一律不旁路', () {
+      // 这些键输入法不截，本就能正常触发；旁路它们只会废掉系统热键。
+      for (final key in [
+        LogicalKeyboardKey.space,
+        LogicalKeyboardKey.enter,
+        LogicalKeyboardKey.arrowUp,
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.arrowLeft,
+        LogicalKeyboardKey.arrowRight,
+        LogicalKeyboardKey.digit1,
+        LogicalKeyboardKey.escape,
+      ]) {
+        expect(
+          matchShortcut(effective, key,
+              shift: false, ctrl: true, alt: false, meta: false),
+          isNull,
+          reason: 'Ctrl+$key 不该被应用抢走',
+        );
+      }
+    });
+
+    test('旁路只放过 Ctrl：Shift/Alt/Meta 仍必须严格相等', () {
+      for (final key in [
+        LogicalKeyboardKey.keyS,
+        LogicalKeyboardKey.keyF,
+      ]) {
+        expect(
+          matchShortcut(effective, key,
+              shift: true, ctrl: false, alt: false, meta: false),
+          isNull,
+          reason: 'Shift+$key 不该命中裸 $key 的绑定',
+        );
+        expect(
+          matchShortcut(effective, key,
+              shift: false, ctrl: false, alt: true, meta: false),
+          isNull,
+        );
+        expect(
+          matchShortcut(effective, key,
+              shift: false, ctrl: false, alt: false, meta: true),
+          isNull,
+        );
+      }
+    });
+
+    test('显式绑定了 Ctrl 的组合：裸主键不命中，且多按一个 Shift 不命中', () {
       final rebound = resolveEffectiveShortcuts({
         PlayerShortcut.screenshot: const ShortcutBinding(LogicalKeyboardKey.keyS,
             ctrl: true),
@@ -113,6 +166,26 @@ void main() {
       );
     });
 
+    test('严格命中优先于旁路：显式绑了 Ctrl+F 的动作不被裸 F 抢走', () {
+      // 截图=裸 F、某动作=Ctrl+F 时，按下 Ctrl+F 必须走那个显式绑定，
+      // 而不是被裸 F 的旁路截走。两遍匹配（先严格后旁路）保证这一点。
+      final rebound = resolveEffectiveShortcuts({
+        PlayerShortcut.fullscreen: const ShortcutBinding(LogicalKeyboardKey.keyF),
+        PlayerShortcut.screenshot: const ShortcutBinding(LogicalKeyboardKey.keyF,
+            ctrl: true),
+      });
+      expect(
+        matchShortcut(rebound, LogicalKeyboardKey.keyF,
+            shift: false, ctrl: true, alt: false, meta: false),
+        PlayerShortcut.screenshot,
+      );
+      expect(
+        matchShortcut(rebound, LogicalKeyboardKey.keyF,
+            shift: false, ctrl: false, alt: false, meta: false),
+        PlayerShortcut.fullscreen,
+      );
+    });
+
     test('纯修饰键作为主键按下一律不命中', () {
       for (final key in [
         LogicalKeyboardKey.shiftLeft,
@@ -123,6 +196,31 @@ void main() {
       ]) {
         expect(_match(effective, key), isNull, reason: '$key 不该触发动作');
         expect(isModifierKey(key), isTrue);
+      }
+    });
+  });
+
+  group('字母键判定（旁路的适用边界）', () {
+    test('26 个字母全在旁路范围内', () {
+      for (var i = 0; i < 26; i++) {
+        final key = LogicalKeyboardKey(LogicalKeyboardKey.keyA.keyId + i);
+        expect(isLetterShortcutKey(key), isTrue, reason: '$key 应判为字母');
+      }
+    });
+
+    test('非字母一律不在旁路范围内', () {
+      for (final key in [
+        LogicalKeyboardKey.space,
+        LogicalKeyboardKey.enter,
+        LogicalKeyboardKey.escape,
+        LogicalKeyboardKey.tab,
+        LogicalKeyboardKey.arrowUp,
+        LogicalKeyboardKey.digit1,
+        LogicalKeyboardKey.f1,
+        LogicalKeyboardKey.comma,
+        LogicalKeyboardKey.numpad1,
+      ]) {
+        expect(isLetterShortcutKey(key), isFalse, reason: '$key 不该被旁路');
       }
     });
   });

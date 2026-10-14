@@ -279,11 +279,64 @@ Map<PlayerShortcut, ShortcutBinding?> resolveEffectiveShortcuts(
   };
 }
 
+/// 主键是不是一个字母键（A–Z）。
+///
+/// 这是「Ctrl 旁路」的适用边界，只放开字母：中文输入法激活时，字母键会被截获
+/// 去做拼音合成，Flutter 根本收不到 `KeyDownEvent`，裸字母快捷键因此在中文
+/// 输入法下全部失效；而 `Ctrl + 字母` 输入法会放行（参考项目 PiliPlus 正是靠
+/// 「匹配时不看 Ctrl」让 `Ctrl+F` 也能触发全屏）。
+///
+/// 空格 / 回车 / 方向键 / 数字 / Esc **一律不旁路**，两个理由：
+/// 1. 输入法不截这些键，它们本来就能正常触发，没有旁路的需要；
+/// 2. 抢了会废掉系统级热键——`Ctrl+Space` 是 Windows 的输入法切换、
+///    `Ctrl+Enter` 是输入法的中英标点切换。
+bool isLetterShortcutKey(LogicalKeyboardKey key) => _letterKeys.contains(key);
+
+/// 26 个字母逻辑键。`keyA`–`keyZ` 在 Unicode 区段内连续，从 `keyA` 递增构造，
+/// 而不是手抄 26 个常量（抄漏一个就是「某个字母在中文输入法下按不动」这种
+/// 只在特定键上复现的诡异 bug）。
+final Set<LogicalKeyboardKey> _letterKeys = {
+  for (var i = 0; i < 26; i++)
+    LogicalKeyboardKey(LogicalKeyboardKey.keyA.keyId + i),
+};
+
+/// 单个绑定是否命中这次按键。
+///
+/// [imeBypass] 关掉时是**严格相等**：只绑了 `S`（截图）时 `Ctrl+S` 不得命中，
+/// 否则用户想存个档就把播放器切走了；反过来绑了 `Ctrl+S` 时裸 `S` 也不命中。
+/// 打开时额外允许「按下带 Ctrl、绑定本身不带 Ctrl、主键是字母」这一种偏差，
+/// 即上面说的输入法旁路。其余修饰键（Shift/Alt/Meta）两种模式下都必须相等。
+bool _bindingMatches(
+  ShortcutBinding binding,
+  LogicalKeyboardKey key, {
+  required bool shift,
+  required bool ctrl,
+  required bool alt,
+  required bool meta,
+  bool imeBypass = false,
+}) {
+  if (binding.key != key) {
+    return false;
+  }
+  if (binding.shift != shift || binding.alt != alt || binding.meta != meta) {
+    return false;
+  }
+  if (binding.ctrl == ctrl) {
+    return true;
+  }
+  return imeBypass &&
+      ctrl &&
+      !binding.ctrl &&
+      isLetterShortcutKey(key);
+}
+
 /// 按下的键（含修饰键状态）命中哪个动作。
 ///
-/// 修饰键**必须完全相等**：只写「按 S 截图」时，`Ctrl+S` 不得也命中截图，
-/// 否则用户想存个档就把播放器切走了。反过来绑了 `Ctrl+S` 时，裸 `S` 同样不命中。
-/// 修饰键本身作为主键按下一律不匹配（见 [isForbiddenShortcutKey]）。
+/// 纯修饰键作为主键按下一律不匹配（见 [isForbiddenShortcutKey]）。
+///
+/// **两遍匹配，严格优先**：先找完全相等的绑定，都没有才找旁路。顺序反了的话，
+/// 用户把某个动作显式绑成 `Ctrl+F`、另一个动作是裸 `F` 时，`Ctrl+F` 会被裸 `F`
+/// 抢走——显式配置必须赢过隐式旁路。
 PlayerShortcut? matchShortcut(
   Map<PlayerShortcut, ShortcutBinding?> effective,
   LogicalKeyboardKey key, {
@@ -300,12 +353,35 @@ PlayerShortcut? matchShortcut(
     if (binding == null) {
       continue;
     }
-    if (binding.key == key &&
-        binding.shift == shift &&
-        binding.ctrl == ctrl &&
-        binding.alt == alt &&
-        binding.meta == meta) {
+    if (_bindingMatches(
+      binding,
+      key,
+      shift: shift,
+      ctrl: ctrl,
+      alt: alt,
+      meta: meta,
+    )) {
       return entry.key;
+    }
+  }
+  // 第二遍：输入法旁路。只在真的按住了 Ctrl 时才可能命中，所以裸键不会走到这里。
+  if (ctrl) {
+    for (final entry in effective.entries) {
+      final binding = entry.value;
+      if (binding == null) {
+        continue;
+      }
+      if (_bindingMatches(
+        binding,
+        key,
+        shift: shift,
+        ctrl: ctrl,
+        alt: alt,
+        meta: meta,
+        imeBypass: true,
+      )) {
+        return entry.key;
+      }
     }
   }
   return null;
@@ -313,9 +389,9 @@ PlayerShortcut? matchShortcut(
 
 /// 按下的键（含修饰键状态）是否就是 [binding] 所描述的那个组合。
 ///
-/// 与 [matchShortcut] 同一套判据（修饰键严格相等、纯修饰键不算），只是调用方
-/// 手上只有一个绑定而不是整张表——`main.dart` 那条全局链正是这种情况：它只需要
-/// 知道「这一下是不是用户给『退出/关闭播放器』配的那个键」。
+/// 与 [matchShortcut] 同一套判据（含输入法旁路），只是调用方手上只有一个绑定
+/// 而不是整张表——`main.dart` 那条全局链正是这种情况：它只需要知道「这一下是不是
+/// 用户给『退出/关闭播放器』配的那个键」。单绑定不需要「严格优先」的两遍结构。
 bool shortcutBindingMatches(
   ShortcutBinding binding,
   LogicalKeyboardKey key, {
@@ -327,17 +403,26 @@ bool shortcutBindingMatches(
   if (isModifierKey(key)) {
     return false;
   }
-  return binding.key == key &&
-      binding.shift == shift &&
-      binding.ctrl == ctrl &&
-      binding.alt == alt &&
-      binding.meta == meta;
+  return _bindingMatches(
+    binding,
+    key,
+    shift: shift,
+    ctrl: ctrl,
+    alt: alt,
+    meta: meta,
+    imeBypass: true,
+  );
 }
 
 /// 这个绑定已被哪个**别的**动作占用；没有冲突返回 null。
 ///
 /// [exclude] 是正在编辑的那个动作：它自己当然占着自己的键，不算冲突。
 /// 比较走 [ShortcutBinding] 的 `==`，所以 `Shift+A` 与 `A` 不会互相误判。
+///
+/// 这里**刻意用精确相等**而不是复用 [_bindingMatches]：输入法旁路会让裸 `F`
+/// 与 `Ctrl+F` 在「按下」时都能命中 `F` 那条绑定，但那是**有优先级规则的**
+/// （见 [matchShortcut]：严格命中先于旁路），不是一处需要拦下来的冲突。若这里
+/// 也按旁路判等，用户就没法同时保留「F 全屏」与「Ctrl+F 截图」这种合法配置了。
 PlayerShortcut? conflictShortcut(
   Map<PlayerShortcut, ShortcutBinding?> effective,
   ShortcutBinding candidate,
