@@ -5,7 +5,9 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
+import 'package:simple_live_app/modules/live_room/player/player_tooltip.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
+import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 
 /// 条带／胶囊共用的图标按钮样式底版：小尺寸、无内边距、白色前景。
@@ -315,24 +317,28 @@ Widget buildPlayerActionItem({
     case PlayerActionId.danmakuToggle:
       // 开／关两个 asset 图标，是「状态」而不是「动作名」，所以不能收进 ⋮ 用通用图标。
       return Obx(
-        () => IconButton(
-          tooltip: target.showDanmakuState.value ? "关闭弹幕" : "开启弹幕",
-          iconSize: iconSize,
-          style: buttonStyle,
-          icon: ImageIcon(
-            AssetImage(
-              target.showDanmakuState.value
-                  ? 'assets/icons/icon_danmaku_close.png'
-                  : 'assets/icons/icon_danmaku_open.png',
+        () => shortcutTooltip(
+          label: target.showDanmakuState.value ? '关闭弹幕' : '开启弹幕',
+          shortcut: PlayerShortcut.danmakuToggle,
+          child: IconButton(
+            tooltip: null,
+            iconSize: iconSize,
+            style: buttonStyle,
+            icon: ImageIcon(
+              AssetImage(
+                target.showDanmakuState.value
+                    ? 'assets/icons/icon_danmaku_close.png'
+                    : 'assets/icons/icon_danmaku_open.png',
+              ),
+              size: iconSize,
+              color: Colors.white,
             ),
-            size: iconSize,
-            color: Colors.white,
-          ),
-          onPressed: () => invokePlayerAction(
-            host: host,
-            target: target,
-            page: page,
-            id: action.id,
+            onPressed: () => invokePlayerAction(
+              host: host,
+              target: target,
+              page: page,
+              id: action.id,
+            ),
           ),
         ),
       );
@@ -400,16 +406,20 @@ Widget buildPlayerActionItem({
       );
     case PlayerActionId.smallWindow:
       return Obx(
-        () => IconButton(
-          tooltip: page.smallWindowState.value ? "退出小窗" : action.title,
-          iconSize: iconSize,
-          style: buttonStyle,
-          icon: Icon(Icons.picture_in_picture, color: Colors.white),
-          onPressed: () => invokePlayerAction(
-            host: host,
-            target: target,
-            page: page,
-            id: action.id,
+        () => shortcutTooltip(
+          label: page.smallWindowState.value ? '退出小窗' : action.title,
+          shortcut: PlayerShortcut.smallWindow,
+          child: IconButton(
+            tooltip: null,
+            iconSize: iconSize,
+            style: buttonStyle,
+            icon: const Icon(Icons.picture_in_picture, color: Colors.white),
+            onPressed: () => invokePlayerAction(
+              host: host,
+              target: target,
+              page: page,
+              id: action.id,
+            ),
           ),
         ),
       );
@@ -431,24 +441,28 @@ Widget buildPlayerActionItem({
           final iconData = host == PlayerHost.tile
               ? (showExit ? Icons.fullscreen_exit : Icons.fullscreen)
               : (showExit ? Remix.fullscreen_exit_fill : Remix.fullscreen_line);
-          return IconButton(
-            tooltip: showExit ? "退出全屏" : "全屏播放",
-            iconSize: iconSize,
-            style: buttonStyle,
-            icon: Icon(iconData, color: Colors.white),
-            onPressed: () {
-              onInteract?.call();
-              if (pip) {
-                page.enterFullScreen();
-              } else {
-                invokePlayerAction(
-                  host: host,
-                  target: target,
-                  page: page,
-                  id: action.id,
-                );
-              }
-            },
+          return shortcutTooltip(
+            label: showExit ? '退出全屏' : '全屏播放',
+            shortcut: PlayerShortcut.fullscreen,
+            child: IconButton(
+              tooltip: null,
+              iconSize: iconSize,
+              style: buttonStyle,
+              icon: Icon(iconData, color: Colors.white),
+              onPressed: () {
+                onInteract?.call();
+                if (pip) {
+                  page.enterFullScreen();
+                } else {
+                  invokePlayerAction(
+                    host: host,
+                    target: target,
+                    page: page,
+                    id: action.id,
+                  );
+                }
+              },
+            ),
           );
         },
       );
@@ -476,33 +490,37 @@ Widget buildPlayerActionItem({
         },
       );
     default:
-      return IconButton(
-        tooltip: action.title,
-        iconSize: iconSize,
-        style: buttonStyle,
-        // 刷新颗与全屏颗同理：桌面条带回到项目图标族 Remix.refresh_line（Task 8
-        // 接线时漂成 Icons.refresh，作者未认可）；tile 宿主维持 Material 表。
-        // 换台颗同理回到改造前顶栏那颗 `Remix.play_list_2_line`——作者要求右上这一簇
-        // 与改造前一致，图标也算一致的一部分。
-        icon: Icon(
-          host == PlayerHost.tile
-              ? playerActionIcon(action.id)
-              : switch (action.id) {
-                  PlayerActionId.refresh => Remix.refresh_line,
-                  PlayerActionId.pick => Remix.play_list_2_line,
-                  _ => playerActionIcon(action.id),
-                },
-          color: Colors.white,
+      return shortcutTooltip(
+        label: action.title,
+        shortcut: shortcutForAction(action.id),
+        child: IconButton(
+          tooltip: null,
+          iconSize: iconSize,
+          style: buttonStyle,
+          // 刷新颗与全屏颗同理：桌面条带回到项目图标族 Remix.refresh_line（Task 8
+          // 接线时漂成 Icons.refresh，作者未认可）；tile 宿主维持 Material 表。
+          // 换台颗同理回到改造前顶栏那颗 `Remix.play_list_2_line`——作者要求右上这一簇
+          // 与改造前一致，图标也算一致的一部分。
+          icon: Icon(
+            host == PlayerHost.tile
+                ? playerActionIcon(action.id)
+                : switch (action.id) {
+                    PlayerActionId.refresh => Remix.refresh_line,
+                    PlayerActionId.pick => Remix.play_list_2_line,
+                    _ => playerActionIcon(action.id),
+                  },
+            color: Colors.white,
+          ),
+          onPressed: () {
+            onInteract?.call();
+            invokePlayerAction(
+              host: host,
+              target: target,
+              page: page,
+              id: action.id,
+            );
+          },
         ),
-        onPressed: () {
-          onInteract?.call();
-          invokePlayerAction(
-            host: host,
-            target: target,
-            page: page,
-            id: action.id,
-          );
-        },
       );
   }
 }
