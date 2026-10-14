@@ -7,8 +7,6 @@
 // `fullScreenState` 仍是 true，停在「在全屏、画面却不全屏」的半态。
 // 修复：全屏态（小窗 implies fullScreenState==true）下本方法一概不摆窗口几何，
 // 也不采还原点；几何归 `exitFull` 消费的 `_lastWindowSize` 管。
-import 'dart:ui' show Rect, Size;
-
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
