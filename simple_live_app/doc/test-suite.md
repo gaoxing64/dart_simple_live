@@ -36,6 +36,7 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 | | `multi_play_selection_test.dart` | 15 | 勾选→选路（剔除未开播、上限、顺序）、删格后焦点归属、关注行「加入多开」置灰判据 |
 | | `multi_play_volume_test.dart` | 6 | `resolveTileVolume` 真值表（压低开关/系数/焦点） |
 | | `multi_play_identity_test.dart` | 1 | 每格身份（`isSecondaryTile`/槽位） |
+| | `multi_play_window_floor_test.dart` | 3 | 多开窗口收口：全屏态关格零摆窗、不采还原点；窗口态关格照旧还原 |
 | **播放器动作 / 快捷键 / 音量 / OSD / 窗口几何** | `player_action_set_test.dart` | 22 | resolver：跨宿主全集一致、格子/小窗切片、常驻兜底、竖屏降级、页级「更多」、容器判据 |
 | | `player_action_bar_test.dart` | 3 | 条带 renderer 渲染 |
 | | `player_volume_action_test.dart` | 7 | 音量三态控件（点击静音 / 悬停滑条 / 滚轮） |
@@ -130,6 +131,7 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 | TC-A-111 | 每格身份 | `isSecondaryTile` / 槽位正确 | 【已有：multi_play_identity_test.dart】 |
 | TC-A-112 | 多开达到 4 路上限再加 | toast「已满 4 路」且不新增 | 【待补】需 fake `MultiPlaySession`，断言 `slots.length` 与提示 |
 | TC-A-113 | 副格不挂后台播放通知 | `isSecondaryTile==true` 时 handler 不 attach | 【待补】对应 backlog P1-2 |
+| TC-A-114 | 多开中进全屏后关掉副格 | 窗口保持全屏、主格单画面铺满；不得出现「全屏态 + 窗口化尺寸」半态 | 【已有：multi_play_window_floor_test.dart】 |
 
 ### 4.2 播放器动作与 OSD（TC-A-2xx）
 
