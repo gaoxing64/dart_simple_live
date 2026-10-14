@@ -6,6 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
+import 'package:simple_live_app/modules/live_room/player/player_tooltip.dart';
+import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 
 /// 音量按钮此刻绑的是哪个量。
 ///
@@ -404,23 +406,29 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
         },
         child: Obx(() {
           final muted = widget.target.muted;
-          return IconButton(
-            tooltip: widget.isTouch
+          return shortcutTooltip(
+            label: widget.isTouch
                 ? "音量"
                 : muted
                 ? "取消静音（悬停可调音量）"
                 : "静音（悬停可调音量）",
-            style: widget.style,
-            iconSize: widget.iconSize,
-            icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
-            onPressed: () {
-              widget.onInteract?.call();
-              if (widget.isTouch) {
-                _toggleByTouch();
-                return;
-              }
-              widget.target.toggleMute();
-            },
+            // 触屏点音量颗是弹滑条、不是静音（静音在 ⋮ 的 muteTile），
+            // 所以只有非触屏才挂 M 键帽，否则提示的是「点它并不会做」的动作。
+            shortcut: widget.isTouch ? null : PlayerShortcut.mute,
+            child: IconButton(
+              tooltip: null,
+              style: widget.style,
+              iconSize: widget.iconSize,
+              icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
+              onPressed: () {
+                widget.onInteract?.call();
+                if (widget.isTouch) {
+                  _toggleByTouch();
+                  return;
+                }
+                widget.target.toggleMute();
+              },
+            ),
           );
         }),
       ),

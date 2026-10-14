@@ -387,4 +387,52 @@ void main() {
       reason: '读数必须反映拖动后的真实值',
     );
   });
+
+  testWidgets('桌面音量颗 tooltip 带静音键帽 M', (tester) async {
+    final tile = _FakeTile();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.tile(tile),
+              style: const ButtonStyle(),
+              isTouch: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    expect(tooltip.richMessage, isNotNull);
+    // 键帽是 WidgetSpan：toPlainText() 只给 U+FFFC，读不到它的文字，必须把
+    // WidgetSpan 的 child 单独 pump 出来断言（同 player_tooltip_test 的 _keycapText）。
+    final keycap = (tooltip.richMessage! as TextSpan)
+        .children!
+        .whereType<WidgetSpan>()
+        .single
+        .child;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: keycap)));
+    expect(find.text('M'), findsOneWidget);
+  });
+
+  testWidgets('触屏音量颗不挂静音键帽（点它是弹滑条，不是静音）', (tester) async {
+    final tile = _FakeTile();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.tile(tile),
+              style: const ButtonStyle(),
+              isTouch: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    expect(tooltip.richMessage, isNull);
+    expect(tooltip.message, '音量');
+  });
 }
