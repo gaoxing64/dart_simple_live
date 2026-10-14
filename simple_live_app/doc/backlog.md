@@ -5,11 +5,19 @@
 
 ## 0. 使用说明
 
-- 每条含：**现象 → 证据（file:line / 文档）→ 建议动作 → 影响面**。
+- 每条含：**现象 → 证据（file:line / commit / 已内联的事实）→ 建议动作 → 影响面**。
 - 优先级：`P0` 用户可见的正确性风险；`P1` 平台/设备侧随时可能爆的脆弱点；`P2` 结构/技术债/功能缺口。
 - 「证据」行号基于锚点提交 `5ae375f1`；若与当前代码不符，先 `git log -L` 核对再动手。
-- 来源标记：`[注释]` 来自 `lib/**` 的 TODO/FIXME/⚠️/已知限制 注释；`[notes]` 来自根目录 `background-playback-notes.md`、`volume-normalize-notes.md`；`[review]` 来自 `.workbuddy/artifacts/code-review-*.md` 与根目录 `ocr-review-future.md`；`[spec]` 来自 `specs/2026-10-03-*`。
-- **引用文件状态（2026-10-14 复核）**：`specs/` 目录现在**只有** `2026-10-12-multi-membership-and-smart-grouping-{plan,pr}.md`；`specs/2026-10-03-osd-unify-and-independent-volume-{design,plan}.md` 与 `background-playback-notes.md` 在 HEAD 里仍在、但**已在工作区被删除（未提交的删除，非本批文档改动）**，所以按文件路径引用它们的条目（P0-1/P0-2/P0-3、§5 多处、P2-9）现在只能从 `git show HEAD:<路径>` 读到；`volume-normalize-notes.md` **从未入库**（只在当时的工作区存在，现已不可得）。这些引用**刻意不删**，取用时以 `git show` 为准。
+- 来源标记只表示**来源类别**，不再指向可点开的文件：
+  - `[注释]` —— `lib/**` 里的 TODO / FIXME / ⚠️ / 已知限制 注释（路径可直接查证）；
+  - `[notes]` —— 原「后台播放」「音量均衡」两份取证笔记的结论，**已内联进条目正文**；
+  - `[review]` —— 历史代码评审（OCR / Open Code Review）的结论，**已内联**；
+  - `[spec]` —— 2026-10-03「播放 OSD 统一 + 每路独立音量」设计稿的结论，**已内联**。
+- **来源文件现状（2026-10-14）**：上述 `[notes]` / `[review]` / `[spec]` 所依据的原件**都已不在工作区**——
+  `background-playback-notes.md` 与 `specs/2026-10-03-osd-unify-and-independent-volume-{design,plan}.md`
+  曾在 HEAD 里（需要考古时可用 `git show <HEAD>:<路径>` 取回），而 `volume-normalize-notes.md`、
+  `ocr-review-future.md` 从未入库、已不可得。故本文**一律不以文件路径作为证据**：原先只写
+  「见某笔记第 N 条」的地方，事实都已写进条目正文；标记仅留作来源线索。
 - 第 5 节记录**已决策不修**的取舍，避免反复讨论。
 
 ## 1. P0 — 用户可见的正确性风险
@@ -17,36 +25,36 @@
 ### P0-1 音量均衡（loudnorm）依赖定制 libmpv，滤镜缺失即整条音轨被禁用（无声）
 
 - 现象：`af=lavfi=[loudnorm=...]` 挂在 mpv 属性上。若宿主 libmpv 未编译 `loudnorm`，mpv 的 `recreate_audio_filters()` 失败走 `init_error` → `uninit_audio_chain` + `error_on_track`，**音频轨被直接禁用**（mpv 没有「跳过滤镜继续播」的回退），表现就是「开启音量均衡后直播静音」。
-- 证据：`lib/modules/live_room/player/player_controller.dart:47`（⚠️ 依赖内核编译 loudnorm）、`:51` `volumeNormalizeAF()`、`:252` `_volumeNormalizeUnsupported`、`:284` 起自愈检测；供应链实测与「Predidit 官方构建 loudnorm 0 命中、改用 gaoxing64 fork 构建」见 `volume-normalize-notes.md`。`[notes]`
-- 建议：保留现有运行时自愈（监听 `Audio filter initialized failed!` → 清 `af` → 提示并重连本线路）为兜底；**发版前**用 `volume-normalize-notes.md` 的 Python 扫描法（含阳性对照）核对四个 ABI 的 libmpv 均含 `loudnorm`。
+- 证据：`lib/modules/live_room/player/player_controller.dart:47`（⚠️ 依赖内核编译 loudnorm）、`:51` `volumeNormalizeAF()`、`:252` `_volumeNormalizeUnsupported`、`:284` 起自愈检测。供应链取证（已内联）：对 Predidit 官方「仅视频」构建的 libmpv 产物做符号/字符串扫描，`loudnorm` 相关符号**0 命中**（同法可命中阳性对照），遂改用 gaoxing64 fork 构建（其 ffmpeg 未 `--disable-filters`）。`[notes]`
+- 建议：保留现有运行时自愈（监听 `Audio filter initialized failed!` → 清 `af` → 提示并重连本线路）为兜底；**发版前**对四个 ABI（android / windows / linux / macos）的 libmpv 产物各跑一次上述符号扫描（带阳性对照），确认都编入了 `loudnorm`。
 - **供应链分叉（2026-10-12 新增）**：同步上游 dev(v1.8.15) 时上游把 media_kit 指向 `SlotSun/media-kit@b2bb9ff0…`；本 fork **保留** `github.com/gaoxing64/media-kit@23ec6b9c…` 钉版（`pubspec.yaml:99-160` 六处 + `dependency_overrides` 五个 libs）。于是 fork 与上游在此分叉：上游那份**是否编译了 `loudnorm`/`dynaudnorm` 未核实**，一旦有人把钉版改回上游即可能整条音轨被禁。升级 media_kit 只能二者取一，且必须连带核对本项。`[notes]`
 - 影响：所有开启「音量均衡」的用户，跨平台。
 
 ### P0-2 Android 12+ 后台播放：暂停后从通知/锁屏按播放＝一次「后台重启前台服务」
 
 - 现象：`AudioService.enterPlayingState()` 里那句 `startForegroundService` **没有** try/catch；`androidStopForegroundOnPause: true`（暂停时前台服务降级）意味着之后从通知/锁屏按播放是一次「后台重启前台服务」，插件 README 明确点出该组合会中招 `ForegroundServiceStartNotAllowedException`。
-- 证据：`background-playback-notes.md`「已知限制 5」；实现见 `lib/services/playback/live_playback_audio_handler.dart`、`live_audio_session.dart`。`[notes]`
+- 证据：实现见 `lib/services/playback/live_playback_audio_handler.dart`、`live_audio_session.dart`。原笔记结论（已内联）：该组合的成因就是「暂停时前台服务降级 → 之后按播放＝后台重启前台服务」；本轮没改，是因为改正会牵动唤醒锁的持有期（见下条建议的代价说明）。`[notes]`
 - 建议：真机复现则把 `androidStopForegroundOnPause` 改成 `false`（并**连带**把 `androidNotificationOngoing` 也改成 `false`，否则触发插件硬 assert），作为**单变量 A/B** 跑，别和别的改动混一轮；接受「暂停后持续持有 `PARTIAL_WAKE_LOCK`」的耗电代价。
 - 影响：Android 13+ 的后台/锁屏播放。
 
 ### P0-3 Android 后台按「停止」可能连带回收 Flutter 引擎（长后台后表现为冷启动，需确认真机不黑屏）
 
 - 现象：发出 idle → `AudioService._stop()` → Java `stopSelf()` → `onDestroy()` → `disposeFlutterEngine()`；该方法开头有 `if (clientInterface.activity != null) return;` 守卫。常见「切后台→通知里按停止」时 Activity 仍存活，引擎不销毁；只有「系统已回收 Activity、仅剩进程」时才连带销毁引擎。
-- 证据：`background-playback-notes.md`「已知限制 6」。`[notes]`
+- 证据：`AudioServicePlugin.disposeFlutterEngine()` 开头有 `if (clientInterface.activity != null) return;` 守卫——只有系统已回收 Activity、仅剩进程时，这一次 stop 才会连带销毁引擎（原笔记结论，已内联）。`[notes]`
 - 建议：真机专项——挂后台足够久（系统可能已销毁 Activity）后从通知按停止，重开 app 确认非黑屏、能正常进直播间。
 - 影响：Android 后台播放的退出路径。
 
 ### P0-4 后台通知封面取不到（audio_service 的 cache manager 不带 referer/UA）
 
 - 现象：`MediaItem.artUri` 由 audio_service 自己的 cache manager 下载，**不带**页面上那些 referer/UA 请求头；B站/抖音等 CDN 有防盗链时通知退化成纯文字。
-- 证据：`background-playback-notes.md`「已知限制 3」；`lib/services/playback/live_playback_audio_handler.dart:213` `_buildMediaItem`。`[notes]`
+- 证据：`lib/services/playback/live_playback_audio_handler.dart:213` `_buildMediaItem` 只交出 `artUri`，取图由 audio_service 自带的 cache manager 完成，不经过页面的 headers（原笔记结论，已内联）。`[notes]`
 - 建议：二期改成先落本地文件，再把 `Uri.file(...)` 交给 `MediaItem.artUri`。
 - 影响：后台播放通知观感（B站/抖音）。
 
 ### P0-5 弹幕表情渲染无开关；旧存储键 `kDanmuEmoticonEnable` 保留但无读取方
 
 - 现象：表情渲染改为**无条件开启**（有表情就渲染）。用户从此没有入口关闭表情图片的下载/解码；老用户此前「关闭表情」的偏好既不会被迁移也不会被清理。
-- 证据：`lib/modules/live_room/live_room_page.dart:850`（注释「本项目未提供『表情包』开关（表情始终渲染）」）、`lib/services/local_storage_service.dart:97`（键 `kDanmuEmoticonEnable` 仍在）、`lib/modules/live_room/player/player_controller.dart:541/558`（`_applyDanmakuEmoticon` 无条件渲染）。来源 `ocr-review-future.md` medium#9（人工复核确认为真）。`[review]`
+- 证据：`lib/modules/live_room/live_room_page.dart:850`（注释「本项目未提供『表情包』开关（表情始终渲染）」）、`lib/services/local_storage_service.dart:97`（键 `kDanmuEmoticonEnable` 仍在）、`lib/modules/live_room/player/player_controller.dart:541/558`（`_applyDanmakuEmoticon` 无条件渲染）。该项原为历史 OCR 评审的一条，人工复核确认为真（评审记录本身已不在仓库，结论即上条现象）。`[review]`
 - **上游对照（2026-10-12 新增）**：上游 dev(v1.8.15) 引入了 `danmuEmoticonEnable` 开关（`AppSettingsController` 上的 getter）；本次同步时本 fork **未采用**该开关（`git grep danmuEmoticonEnable -- simple_live_app/lib` 无命中），仍走「始终渲染」。故此项已从「上游也没有」变成**明确的 fork 决策项**：要么采纳上游开关、要么在 §5 正式登记为有意取舍。
 - 建议：确认是否为有意取舍（若是，见 §5）；否则在设置层保留开关、由调用方决定是否传入 `emoticons`，并迁移/清理旧存储键（可直接复用上游 `danmuEmoticonEnable` 的实现）。
 - 影响：低端机/流量敏感用户失去退路；老用户偏好静默丢失。**待确认**（是否有意为之，现已有上游实现可对照）。
@@ -56,14 +64,14 @@
 ### P1-1 iOS 后台/音频会话未在本机验证（开发机为 Windows，无法构建/运行）
 
 - 现象：iOS 侧改动全部落在 `LiveAudioSession` 的类别与激活上；`Info.plist` 早已声明 `UIBackgroundModes: [audio]`，`AppDelegate.swift` 未改。上 Mac 之前，iOS 视为未验证。
-- 证据：`background-playback-notes.md`「已知限制 4」；`lib/services/playback/live_audio_session.dart`、`ios/Runner/Info.plist`。`[notes]`
-- 建议：上 Mac 后跑「验收要点」里 iOS 对应项（切后台/锁屏出声、耳机键、来电中断、拔耳机暂停、类别切换）。
+- 证据：`lib/services/playback/live_audio_session.dart`、`ios/Runner/Info.plist`；原笔记结论（已内联）：iOS 侧全部改动集中在 `LiveAudioSession` 的类别与激活，plist 早已就位、`AppDelegate.swift` 未改。`[notes]`
+- 建议：上 Mac 后补跑 iOS 手测（原笔记的验收清单已内联在此）：切后台/锁屏出声、耳机键、来电中断、拔耳机暂停、类别切换。
 - 影响：iOS 后台播放整体可用性。
 
 ### P1-2 多开时后台通知只代表页面主格那一路，四路继续各自出声
 
 - 现象：副格永不挂载后台播放（多开时四路争同一条通知只会互相顶掉）；通知跟随聚焦格属二期。
-- 证据：`background-playback-notes.md`「已知限制 1」；`lib/services/playback/live_playback_target.dart:11`（只有 `isSecondaryTile == false` 的主格实现）、`lib/modules/live_room/live_room_controller.dart:1589`（副格不挂通知）。`[notes]`
+- 证据：`lib/services/playback/live_playback_target.dart:11`（只有 `isSecondaryTile == false` 的主格实现）、`lib/modules/live_room/live_room_controller.dart:1589`（副格不挂通知）；原笔记结论（已内联）：要让通知跟随聚焦格走，需在聚焦切换处 attach/detach，属二期。`[notes]`
 - 建议：二期在聚焦切换处 attach/detach；短期在文档中明示。
 - 影响：多开 + 后台播放组合的行为预期。
 
@@ -78,7 +86,7 @@
 
 - 现象：`onClose` 里对 `player.dispose()` 留有 TODO，指向 `media-kit` 的具体 issue。
 - 证据：`lib/modules/live_room/player/player_controller.dart:1526`。`[注释]`
-- 建议：跟踪上游修复；升级 media-kit 时与 `volume-normalize-notes.md` 里的 libs 分支（滤镜）一并核对，别只 bump 一个。
+- 建议：跟踪上游修复；升级 media-kit 时**连同 libs 分支的滤镜钉版一起核对**（本 fork 的 libs 是编入 `loudnorm` 的自建产物，见 P0-1），别只 bump 主包。
 - 影响：播放器退出时的资源释放。
 
 ### P1-5 Wayland 下窗口置顶/几何提示为 no-op（自然降级）
@@ -167,7 +175,7 @@
 ### P2-9 OSD 设计里明确「不做 / 二期」的部分（记录以免重开）
 
 - 内容：容器视觉形态统一、移动端重做、4 路上限调整、拖拽换位/拖拽换台、讲解性提示条、`kMultiPlayLowQualityUnfocused` 性能降级；多路性能 spike 本设计不依赖。
-- 证据：`specs/2026-10-03-osd-unify-and-independent-volume-design.md` §11。`[spec]`
+- 证据：原设计稿的「明确不做」章节已内联为上面这条内容本身（设计稿文件已不在工作区）。`[spec]`
 - 影响：功能范围。
 
 ### P2-10 `_appendDistinct` 每页重建 `seen` 集合，跨页 O(n²)（留作观察）
@@ -186,7 +194,7 @@
 ### P2-12 审查报告整体落地情况（仅登记残留，已修复项不再收）
 
 - `code-review-future-branch.md` 的 P1/P2/P3/N1–N6 **已全部落地**（见 `code-review-remediation-applied.md`），未收。
-- `ocr-review-future.md` 的高/中优先级绝大多数**已修复或已确认为误报**：`app_scroll_behavior.dart` 的 `-delta`（复核为与框架默认一致，误报）、`indexed_controller.dart`（`jumpToPage` + `_instantiated.add` 置后 + release 兜底）、`page_grid_view.dart`（构造函数已补 assert）、`app_style.dart`（`main.dart` 已覆盖 `backgroundColor`）、`live_room_card.dart`（胶囊已始终渲染）、`settings_switch.dart`（`width` 已夹取 + locked 断言）、`duration_2_str_utils.dart`（0 值返回空串）。**仅**表情开关（P0-5）作为残留登记。`[review]`
+- 历史 OCR 评审（记录已不在仓库）的高/中优先级绝大多数**已修复或已确认为误报**：`app_scroll_behavior.dart` 的 `-delta`（复核为与框架默认一致，误报）、`indexed_controller.dart`（`jumpToPage` + `_instantiated.add` 置后 + release 兜底）、`page_grid_view.dart`（构造函数已补 assert）、`app_style.dart`（`main.dart` 已覆盖 `backgroundColor`）、`live_room_card.dart`（胶囊已始终渲染）、`settings_switch.dart`（`width` 已夹取 + locked 断言）、`duration_2_str_utils.dart`（0 值返回空串）。**仅**表情开关（P0-5）作为残留登记。`[review]`
 
 ### P2-13 `analysis_options.yaml` 未排除 `rust_builder/`，`flutter analyze` 带出 43 个存量 error
 
@@ -213,14 +221,14 @@
 
 | 取舍 | 原因 | 来源 |
 | --- | --- | --- |
-| 弹幕表情始终渲染、设置页不提供「表情包」开关 | 有意统一渲染、简化调用（有表情就渲染，没表情返回纯文本）；存储键保留以兼容将来恢复。**注**：上游 dev(v1.8.15) 已加 `danmuEmoticonEnable` 开关，本 fork 未采用（见 P0-5），此取舍待复核 | `live_room_page.dart:850`；`ocr-review-future.md` medium#9 |
-| 通知不绘画进度条、不推 `duration`/`updatePosition`（v1） | 直播无时间轴；发了 duration 两端都会画出拖着没反应的进度条，比没有更糟 | `background-playback-notes.md`「已知限制 2」 |
-| 通知里的「停止」＝暂停出声 + 撤通知，不是 `player.stop()` | `player.stop()` 会推 EOS → `completed` → 触发 `mediaEnd()` 自愈重连，把「停止」当成意外断流又拉起来 | 同上「语义决定」 |
-| 抢音频焦点只挂「真的推出 `playing=true`」的边沿；`refresh()` 去重不用 `PlaybackState ==` | `attach` 跟 mpv 事件率（弱网 buffering 一秒跳多回）；`PlaybackState ==` 含 `updateTime`，两次同内容状态永不相等 | 同上 |
-| 「后台播放」与「进入后台自动暂停」互斥，由两个 setter 互相顶掉 | 两者同开时切后台即被暂停，后台播放名存实亡 | 同上 |
-| 副格永不挂载后台播放 | 多开时四路争同一条通知只会互相顶掉 | 同上「已知限制 1」 |
-| OSD 容器按宿主分：右侧面板只用于全屏/小窗/格子，窗口化（含页级「更多」）回底部抽屉 | 窗口化右侧站着聊天/SC/关注栏，再来一块 400 宽面板会整个盖掉 | `specs/2026-10-03-...-design.md` §3、§8 |
-| 4 路上限不变；拖拽换位/换台不做 | 布局引擎与性能未评估，本批不动 | 同上 §11 |
-| 音量滑条绑的量按宿主不同（单播放绑总音量、格子绑该格系数） | 总音量是 OSD 里唯一入口，换成按路系数等于把它藏了（形态一致、语义按宿主标注） | 同上 §3、§5 |
+| 弹幕表情始终渲染、设置页不提供「表情包」开关 | 有意统一渲染、简化调用（有表情就渲染，没表情返回纯文本）；存储键保留以兼容将来恢复。**注**：上游 dev(v1.8.15) 已加 `danmuEmoticonEnable` 开关，本 fork 未采用（见 P0-5），此取舍待复核 | `live_room_page.dart:850`；见 P0-5 |
+| 通知不绘画进度条、不推 `duration`/`updatePosition`（v1） | 直播无时间轴；发了 duration 两端都会画出拖着没反应的进度条，比没有更糟 | 见 P0-4；`[notes]` |
+| 通知里的「停止」＝暂停出声 + 撤通知，不是 `player.stop()` | `player.stop()` 会推 EOS → `completed` → 触发 `mediaEnd()` 自愈重连，把「停止」当成意外断流又拉起来 | `[notes]` |
+| 抢音频焦点只挂「真的推出 `playing=true`」的边沿；`refresh()` 去重不用 `PlaybackState ==` | `attach` 跟 mpv 事件率（弱网 buffering 一秒跳多回）；`PlaybackState ==` 含 `updateTime`，两次同内容状态永不相等 | `[notes]` |
+| 「后台播放」与「进入后台自动暂停」互斥，由两个 setter 互相顶掉 | 两者同开时切后台即被暂停，后台播放名存实亡 | `[notes]` |
+| 副格永不挂载后台播放 | 多开时四路争同一条通知只会互相顶掉 | 见 P1-2 |
+| OSD 容器按宿主分：右侧面板只用于全屏/小窗/格子，窗口化（含页级「更多」）回底部抽屉 | 窗口化右侧站着聊天/SC/关注栏，再来一块 400 宽面板会整个盖掉 | 原 OSD 设计稿 §3/§8（已内联）；`[spec]` |
+| 4 路上限不变；拖拽换位/换台不做 | 布局引擎与性能未评估，本批不动 | 见 P2-9 |
+| 音量滑条绑的量按宿主不同（单播放绑总音量、格子绑该格系数） | 总音量是 OSD 里唯一入口，换成按路系数等于把它藏了（形态一致、语义按宿主标注） | 原 OSD 设计稿 §3/§5（已内联） |
 | `followStyleNotGrid` 字段/setter/存储键刻意保留、当前无读取方 | 关注页改成「上段卡片 + 下段紧凑行」后二选一不存在，但老用户取值不丢、恢复便宜 | `app_settings_controller.dart:1197` |
 | 重试条出现会扰动滚动几何，故放宽既有测试的精确计数 | 断言过严（原断言 `requestedPages == [1,2]`），非逻辑缺陷；真正要守的是「不出现请求风暴」 | `code-review-remediation-applied.md` §三.2 |

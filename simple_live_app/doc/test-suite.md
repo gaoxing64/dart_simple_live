@@ -276,9 +276,9 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 - §4.1 TC-A-112 / TC-A-113 对应 backlog **P1-6**（多开资源上限）与 **P1-2**（副格不挂通知）；
 - §4.5 TC-A-506 / TC-A-507 对应 backlog 已决策取舍（PiP 几何链）与 review low#31（`SmoothWheelScrollController` 补测）；
 - §4.2/§4.4 是 backlog「已决策取舍」里「音量滑条按宿主绑定」「OSD 容器按宿主分」的护栏；
-- §4.8 TC-A-807 / TC-A-809 对应 `ocr-review-future.md` medium#25 / medium#10 的残留（当前代码已修，缺回归用例）；
+- §4.8 TC-A-807 / TC-A-809 对应历史 OCR 评审两条残留（评审记录已不在仓库）：内置标签保留字 `isReservedTagName` 的门禁、`hideRemoveFollowButton` 透传到下段紧凑行——两处代码均已修，缺回归用例；
 - §4.9 TC-A-909 对应 `app_style.dart` 的 AppBar 底色取舍（`main.dart` 覆盖）——一旦有人只改一处会在这里先红；
-- backlog **P0-2/P0-3/P1-1**（后台播放/Android 前台服务/iOS）在本目录**无离线测试**，只能靠 `background-playback-notes.md` 的「验收要点」手测矩阵，属 §3 的天然缺口。
+- backlog **P0-2/P0-3/P1-1**（后台播放/Android 前台服务/iOS）在本目录**无离线测试**，只能靠真机手测矩阵（即 backlog 各条建议里列出的验收动作），属 §3 的天然缺口。
 - backlog **P1-7**（本机 15 个存量失败）即 §7 的红灯清单。
 
 ## 7. 已知红灯清单（2026-10-14 本机，`fvm flutter test --no-pub` 507 通过 / 15 失败）

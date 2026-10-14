@@ -175,7 +175,7 @@ media_kit_libs_*_video（各平台预编译 libmpv 产物）
 ```
 
 - **全部走 fork**：`pubspec.yaml:99-160` 把 `media_kit` / `media_kit_video` / `media_kit_libs_video` 及 5 个平台 libs 全部钉到 **`github.com/gaoxing64/media-kit@23ec6b9c`**（`dependency_overrides` 里 6 个 libs 也一并指向它）。
-- **为何 fork**：官方（Predidit）的「仅视频」libmpv 构建 ffmpeg `--disable-filters`，**不含 `loudnorm`/`dynaudnorm`**；挂载音量均衡的 `af` 链会导致音频轨被禁（静音）。fork 分支 `feat/audio-filters` 编入了这些滤镜，运行时仍保留「回读 + 自愈 + 重连」（`player_controller.dart:33-60,241-257` 挂载与回读；`live_room_controller.dart:901-908` 不可用时重连当前线路）。取证见根目录 `volume-normalize-notes.md`。
+- **为何 fork**：官方（Predidit）的「仅视频」libmpv 构建 ffmpeg `--disable-filters`，**不含 `loudnorm`/`dynaudnorm`**；挂载音量均衡的 `af` 链会导致音频轨被禁（静音）。fork 分支 `feat/audio-filters` 编入了这些滤镜，运行时仍保留「回读 + 自愈 + 重连」（`player_controller.dart:33-60,241-257` 挂载与回读；`live_room_controller.dart:901-908` 不可用时重连当前线路）。取证（已内联）：对官方构建产物做符号/字符串扫描，`loudnorm` 相关符号 0 命中（带阳性对照）。
 - **供应链说明**：media-kit 的 fork **不是主仓库的一部分**——`git ls-files media-kit` 为 0、非 submodule（仓库根有一份独立 clone，非跟踪）。锁定的是**远程仓库 + 精确 commit**，bump 需同时改 8 处引用。
 
 ## 7. Rust 桥（flutter_rust_bridge 2.13.0）
@@ -205,7 +205,7 @@ media_kit_libs_*_video（各平台预编译 libmpv 产物）
 | `hive_ce`(+flutter/generator) | 本地持久化（设置/关注/历史） | 中 |
 | `dio` | App 自身 HTTP（非 core 请求） | 中 |
 | `media_kit` 系（git fork） | 播放内核 + Video widget + libmpv | **极低**（滤镜依赖 fork 构建） |
-| `audio_service` 0.18.19 + `audio_session` 0.2.4 | 后台播放 / 系统媒体控制 / 音频会话 | 低（钉死版本，源码前提见 notes） |
+| `audio_service` 0.18.19 + `audio_session` 0.2.4 | 后台播放 / 系统媒体控制 / 音频会话 | 低（钉死精确版本；四条源码前提已内联在 backlog P0-2 与 [workflow-diagram.md](./workflow-diagram.md) §5） |
 | `flutter_rust_bridge` + `rust_builder` | 弹幕去重（Rust） | 中 |
 | `canvas_danmaku` | 弹幕渲染轨 | 中 |
 | `easy_refresh` | 下拉刷新（footer 已被移除，仅刷新） | 中 |

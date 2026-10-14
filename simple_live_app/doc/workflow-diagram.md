@@ -157,7 +157,7 @@ sequenceDiagram
 - **小窗态下 `fullScreenState` 也为 true**，判「谁在执行动作」必须**先判小窗**（`player_shortcuts.dart:92-104`）。
 - 多开时非窗口级动作作用于**聚焦格** `page.focused`（`player_shortcuts.dart:186-187`）。
 - `initializePlayer` 通过 `setProperty` 设置的属性 **media_kit 会丢弃返回值**，只能在 log 开启时回读校验（`player_controller.dart:66-94`）。
-- 音量均衡（loudnorm）**依赖 fork 内核编译了音频滤镜**，官方裁剪构建没有，挂载会导致音频轨被禁（静音）；见根目录 `volume-normalize-notes.md`。
+- 音量均衡（loudnorm）**依赖 fork 内核编译了音频滤镜**，官方裁剪构建没有，挂载会导致音频轨被禁（静音）。取证：官方构建的 libmpv 对 `loudnorm` 相关符号 0 命中（对产物做符号/字符串扫描、带阳性对照），故钉的是自建 fork 构建；详见 backlog P0-1。
 
 ## 4. 多开链（`lib/modules/live_room/multi_play/`）
 
@@ -239,7 +239,7 @@ sequenceDiagram
 
 #### 消费者需要知道的约定 / 易错点
 - **「后台播放」与「进入后台自动暂停」互斥**，由两个 setter 强制（`live_playback_target.dart:1-13`；`player_controller.dart:143-154` 的 `pauseOnBackground` 已把 `backgroundPlay` 纳入判定，否则「后台播放」名存实亡）。
-- 语义决定细节见根目录 `background-playback-notes.md`（含三条已核 0.18.19 源码的事实）。
+- 语义决定（原笔记结论，已内联；三条事实系直接读 `audio_service 0.18.19` 包源码得出）：① 它**不管音频焦点**、也从不 `configure()` 音频会话（对 `audio_session` 的唯一使用在已废弃的 `onStop()` 里）⇒ 焦点、中断、拔耳机、iOS 类别全由 `LiveAudioSession` 自己接；② `AudioHandler.stop()` 默认只把 `processingState` 落 idle、**不动** `playing` ⇒ 直接 `super.stop()` 会让通知停在「正在播放」的假象上，故这里用 `_publishIdle()` 显式落 `playing: false`；③ `AudioServiceActivity` 只覆写 `provideFlutterEngine()`，无生命周期/按键覆写 ⇒ 换父类不影响 PiP（但仍列为必测项）。
 - `AudioServiceConfig` 硬 assert：`androidNotificationOngoing` 必须与 `androidStopForegroundOnPause` 同用（`live_playback_audio_handler.dart:288-290`）。
 
 ## 6. 数据同步链（简图）

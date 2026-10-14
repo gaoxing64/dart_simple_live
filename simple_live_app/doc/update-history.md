@@ -360,17 +360,17 @@ app 版本号随之 `1.8.14+10814` → **`1.8.15+10815`**（`pubspec.yaml:2`）�
 
 - **背景**：改前 `AndroidManifest.xml` 连一个 `<service>` 都没有——无前台服务、无
   `MediaSession`、无 `WAKE_LOCK`、无音频焦点；targetSdk 37 下进程随时被挂起/回收，
-  别的 app 一出声就与我们混音（见 `background-playback-notes.md`）。
+  别的 app 一出声就与我们混音。
 - **改动**：manifest 补 `FOREGROUND_SERVICE(_MEDIA_PLAYBACK)`、`WAKE_LOCK`、
   `AudioService` 声明；`MainActivity.kt` 换 `AudioServiceActivity` 父类；
   新增通知图标 `res/drawable/ic_stat_slive.xml` 与 `res/raw/keep.xml`（钉住自定义图标，
   防 `shrinkResources` 误剥）；`proguard-rules.pro` 补规则。
 - **涉及文件**：`android/app/src/main/AndroidManifest.xml`、`MainActivity.kt`、
   `res/drawable/ic_stat_slive.xml`、`res/raw/keep.xml`、`proguard-rules.pro`（+77/-4）。
-- **测试**：无自动化，交真机验收（PiP 回归是换父类的唯一风险面，见 notes 验收要点 8）。
+- **测试**：无自动化，交真机验收（PiP 回归是换父类的唯一风险面：进出 `floating` 小窗、点通知回 app、进程被杀后从通知冷启动）。
 - **影响/残留**：Android 12+ 后台起前台服务可能抛
   `ForegroundServiceStartNotAllowedException`（插件无 try/catch）；靠 handler 闸 +
-  通知播放键 PendingIntent 缓解，真机待确认（notes 已知限制 5）。
+  通知播放键 PendingIntent 缓解，真机待确认（详见 backlog P0-2）。
 
 ### 3.2 `5692db16` feat(live_room): 直播间那一路挂到系统媒体控制上（2026-10-09）
 
@@ -397,7 +397,7 @@ app 版本号随之 `1.8.14+10814` → **`1.8.15+10815`**（`pubspec.yaml:2`）�
   `main.dart` 挂 `AudioService.init`（+475）。
 - **测试**：无自动化。
 - **影响/残留**：语义决定（有意为之）——不发「上/下一首」、不发 seek/duration
-  （不画进度条）、通知「停止」= 暂停+撤通知（不是 `player.stop()`），详见 notes。
+  （不画进度条）、通知「停止」= 暂停+撤通知（不是 `player.stop()`）；理由与其余语义决定见 backlog §5「已决策的取舍」。
 
 ### 3.4 `cbb474ee` feat(settings):「后台播放」开关，与「进入后台自动暂停」双向互斥（2026-10-09）
 
@@ -407,7 +407,7 @@ app 版本号随之 `1.8.14+10814` → **`1.8.15+10815`**（`pubspec.yaml:2`）�
   新增 `EventBus` 事件与存储键。
 - **涉及文件**：`app_settings_controller.dart`（+44）、`event_bus.dart`、
   `modules/settings/play_settings_page.dart`（+46）、`local_storage_service.dart`（+99）。
-- **测试**：无自动化（验收要点 9：开 A 锁 B、开 B 关 A、重启一致）。
+- **测试**：无自动化，手测项为「开 A 时 B 被锁、开 B 会关掉 A 并落盘、重启后状态一致」。
 
 ### 3.5 `efa33716` build(deps): 引入 audio_service 0.18.19 与 audio_session 0.2.4（2026-10-09）
 
@@ -686,8 +686,9 @@ future 上（在 = 新，不在 = 旧）。以下 8 对均已实测确证：
   → `5ae375f1`（2026-10-14，同步 dev 5 条，详见 §2.5）。
 - 已知红灯：`fvm flutter test --no-pub` 本机 **507 通过 / 15 失败**（全为存量，与 §2.4/§2.5
   两批改动无关；见 backlog P1-7、test-suite.md §7）。
-- 后台播放等悬置验收项见 `background-playback-notes.md`「验收要点 / 已知限制」；
-  OSD 统一设计口径见 `specs/2026-10-03-osd-unify-and-independent-volume-design.md`。
-  **注意**：这两份文件当前在工作区已被删除（未提交的删除），HEAD 里仍在，详见 backlog.md §0。
+- 后台播放的验收要点与已知限制、OSD 统一的设计口径，原先分别记在 `background-playback-notes.md`
+  与 `specs/2026-10-03-osd-unify-and-independent-volume-design.md`。这两份**已不在工作区**
+  （HEAD 里仍在，需要考古时用 `git show <HEAD>:<路径>`），其结论**已内联**到
+  [backlog.md](./backlog.md) 的分级条目（P0-2/P0-3/P0-4、P2-9）与「已决策取舍」两处。
   关注多归属与一键智能分组的权威设计与验收清单：
   `specs/2026-10-12-multi-membership-and-smart-grouping-{plan,pr}.md`（§2.4）。
