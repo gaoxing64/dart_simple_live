@@ -13,6 +13,8 @@ import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart'
 import 'package:simple_live_app/modules/live_room/player/player_action_surfaces.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_osd_overlay.dart';
+import 'package:simple_live_app/modules/live_room/player/player_tooltip.dart';
+import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -824,8 +826,9 @@ Widget buildOsdOverlay(LiveRoomController controller) {
 /// 和系统「返回」按钮那类 tooltip 的习惯一致。
 Widget buildLockButton(LiveRoomController controller) {
   return Center(
-    child: Tooltip(
-      message: controller.lockControlsState.value ? "解锁" : "锁定",
+    child: shortcutTooltip(
+      label: controller.lockControlsState.value ? "解锁" : "锁定",
+      shortcut: PlayerShortcut.lockControls,
       child: InkWell(
         onTap: () {
           controller.setLockState();
