@@ -551,7 +551,10 @@ class BiliBiliSite implements LiveSite {
 
   @override
   void setSiteAttrs(String data) {
-    cookie = data;
+    final map = jsonDecode(data) as Map<String, dynamic>;
+    if (map.containsKey('cookie')) {
+      cookie = map['cookie'];
+    }
   }
 
   @override
@@ -616,6 +619,7 @@ class BiliBiliSite implements LiveSite {
       );
       if (result["code"] == 0) {
         BiliBiliUserInfoModel info = BiliBiliUserInfoModel.fromJson(result["data"]);
+        userId = info.mid!; // danmaku_arg needs
         res = res.copyWith(
           name: info.uname,
           avatar: info.face,
