@@ -398,25 +398,41 @@ class MultiPlaySession {
   /// `setMinimumSize` 不会把已经更小的窗口撑大，所以小于下限时要自己 setSize；
   /// 多开前的尺寸另存一份，退出多开时还原（`WindowService` 在多开期间不落盘窗口尺寸，
   /// 所以还原动作本身不会被记成用户偏好）。
+  ///
+  /// ⚠️ 全屏态下**一概不摆窗口几何**（小窗 implies `fullScreenState==true`，一并覆盖）：
+  /// 那两种态的几何归「进入时采的还原点」管（`exitFull`/`exitSmallWindow` 消费
+  /// `_lastWindowSize`）。在这里 `setSize` 只会把 OS 全屏窗改小——window_manager 的
+  /// `setBounds` 就是一次 `SetWindowPos`，既不退全屏也不动 C++ 侧
+  /// `g_is_window_fullscreen`——于是窗口缩回多开前尺寸、Dart 侧 `fullScreenState`
+  /// 仍是 true，界面停在「在全屏、画面却不全屏」的半态里；采集同理，全屏期
+  /// `getSize` 返回的是显示器矩形，存下来当还原点，退成窗口态后会把窗口撑满屏幕。
   Future<void> refreshWindowFloor() async {
     restoreTileDanmakuOwnership();
     if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       return;
     }
+    // 全屏/小窗态：几何归 OS 还原点。本方法只维护下限（`setMinimumSize` 只存值、
+    // 不碰摆放），不采也不摆尺寸。
+    final osOwnsGeometry = page.fullScreenState.value;
     final window = WindowService.instance;
     if (!isActive) {
       await window.setMultiPlayMinimumSize(null);
       final restore = _preMultiPlaySize;
       _preMultiPlaySize = null;
-      if (restore != null) {
+      if (restore != null && !osOwnsGeometry) {
         await windowManager.setSize(restore);
       }
       return;
     }
 
     final minSize = requiredMinimumWindowSize();
-    _preMultiPlaySize ??= await windowManager.getSize();
+    if (!osOwnsGeometry) {
+      _preMultiPlaySize ??= await windowManager.getSize();
+    }
     await window.setMultiPlayMinimumSize(minSize);
+    if (osOwnsGeometry) {
+      return;
+    }
 
     final current = await windowManager.getSize();
     final width = current.width < minSize.width ? minSize.width : current.width;
