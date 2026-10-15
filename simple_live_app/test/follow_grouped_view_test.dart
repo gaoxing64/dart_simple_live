@@ -101,7 +101,8 @@ void main() {
     await seedGrouped(tester);
     final c = Get.find<FollowUserController>();
 
-    await tester.tap(find.text('CS解说'));
+    await tester.tap(find.descendant(
+        of: cardOf('CS解说'), matching: find.text('CS解说')));
     await settle(tester);
     expect(c.collapsedGroups.contains('a0'), isTrue);
     expect(
@@ -116,7 +117,8 @@ void main() {
         find.descendant(of: cardOf('LOL解说'), matching: find.text('丙')),
         findsOneWidget);
 
-    await tester.tap(find.text('CS解说'));
+    await tester.tap(find.descendant(
+        of: cardOf('CS解说'), matching: find.text('CS解说')));
     await settle(tester);
     expect(c.collapsedGroups.contains('a0'), isFalse);
     expect(
@@ -140,7 +142,10 @@ void main() {
         findsOneWidget);
 
     // 桌面端右键头部 = 重命名对话框
-    await tester.tap(find.text('CS解说'), buttons: kSecondaryButton);
+    await tester.tap(
+        find.descendant(
+            of: cardOf('CS解说'), matching: find.text('CS解说')),
+        buttons: kSecondaryButton);
     await settle(tester);
     expect(find.text('重命名分组'), findsOneWidget);
     await tester.tap(find.text('否'));
@@ -159,7 +164,8 @@ void main() {
         FakeViewPadding(bottom: 300 * tester.view.devicePixelRatio);
     await settle(tester);
 
-    await tester.longPress(find.text('CS解说'));
+    await tester.longPress(find.descendant(
+        of: cardOf('CS解说'), matching: find.text('CS解说')));
     await settle(tester);
 
     expect(find.text('重命名分组'), findsOneWidget);
@@ -323,7 +329,8 @@ void main() {
     expect(svc.userTagNamesOf('huya_丁'), contains('新观赛组'));
     expect(c.selectedIds, isEmpty);
     expect(find.text('已选择 1 位'), findsNothing);
-    expect(find.text('新观赛组'), findsOneWidget);
+    // 组名现在同时出现在胶囊行与卡片头部
+    expect(find.text('新观赛组'), findsNWidgets(2));
     await settleEnd(tester);
     // 排干 SmartDialog toast 的计时器
     await tester.pump(const Duration(seconds: 3));
@@ -450,7 +457,10 @@ void main() {
 
     // 每次测量前回到固定滚动位置，且只悬停在视口内的行上，避免
     // 上一次滚动把目标滚出视口造成误判
-    final onCard = await wheelAt(tester.getCenter(find.text('组1')), jumpTo: 0);
+    final onCard = await wheelAt(
+        tester.getCenter(find.descendant(
+            of: cardOf('组1'), matching: find.text('组1'))),
+        jumpTo: 0);
     c.scrollController.position.jumpTo(0);
     await settle(tester);
     final onMember = await wheelAt(tester.getCenter(rowOf('组0·乙')));
@@ -635,7 +645,8 @@ void main() {
 
     expect(tester.takeException(), isNull,
         reason: '空分组 + 选择态不该抛 GetX「没有可观察变量」');
-    expect(find.text('空组'), findsOneWidget);
+    // 空组名同时出现在胶囊行与卡片头部
+    expect(find.text('空组'), findsNWidgets(2));
     expect(find.text('已选择 1 位'), findsOneWidget);
     await settleEnd(tester);
   });
