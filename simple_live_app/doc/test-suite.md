@@ -1,6 +1,6 @@
 # simple_live_app 测试案例库（面向 AI 的文字版）
 
-> 版本锚点：`simple_live_app` v1.8.15+10815 · future 分支 `5ae375f1`（2026-10-14）
+> 版本锚点：`simple_live_app` v1.8.15+10815 · future 分支 `9697ab61`（2026-10-15）
 > 配套文档：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)
 
 ## 1. 怎么跑
@@ -20,7 +20,7 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 
 ## 2. 现有测试资产
 
-`simple_live_app/test/` 共 **51 个 `.dart`**（`find simple_live_app/test -name '*.dart' | wc -l`）：**50 个含用例文件**（静态声明 **496** 个 `test`/`testWidgets`）+ 1 个共享 harness（`follow_test_harness.dart`）。`fvm flutter test --no-pub` 本次**执行 522 条**（数据驱动循环用例使运行条数多于静态声明数）：**507 通过 / 15 失败**（2026-10-14 同机实测；红灯清单见 §7）。另有 `integration_test/simple_test.dart`（1 个用例，需设备）。
+`simple_live_app/test/` 共 **54 个 `.dart`**（`find simple_live_app/test -name '*.dart' | wc -l`）：**53 个含用例文件**（静态声明 **523** 个 `test`/`testWidgets`）+ 1 个共享 harness（`follow_test_harness.dart`）。`fvm flutter test --no-pub` 本次**执行 549 条**（数据驱动循环用例使运行条数多于静态声明数）：**534 通过 / 15 失败**（2026-10-15 同机实测；红灯清单见 §7）。另有 `integration_test/simple_test.dart`（1 个用例，需设备）。
 
 > 相对旧锚点 `abca65f8`（48 个 `.dart` / 465 声明 / 491 执行 / 473 通过 18 失败）的增量全部来自
 > 关注多归属功能线（update-history.md §2.4）：新增 `follow_membership_test.dart`、
@@ -61,6 +61,7 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 | | `chat_emoticon_span_test.dart` | 14 | 聊天区消息 span 构建、上下文菜单判据 |
 | **关注页** | `follow_search_test.dart` | 5 | 搜索过滤 |
 | | `follow_grouped_view_test.dart` | 17 | 分组卡片/计数 pill/折叠、拖头像换组、拖把手调序、视图切换；**多归属**：拖进别组=加入且原组仍可见、已在组内的成员拖回本组不高亮、空分组+选择态计数 Obx 不抛「没有可观察变量」 |
+| | `follow_group_filter_test.dart` | 8 | **分组胶囊筛选 + 模式切换**（2026-10-15 新增）：无自定义分组不出胶囊行、点胶囊=平铺该组成员（别的组/未分组不可见）、多归属筛选态去重、筛选态隐藏折叠全部按钮、筛选态搜索无匹配浮层、幽灵 id 回落总览、「模式切换」仅筛选态出现且紧凑/卡片切换生效、跨 tab 保持、卡片模式落存储 |
 | | `follow_membership_test.dart` | 16 | **归属唯一真源 = 成员表**（2026-10-12 新增）：`FollowService` 归属 API 5 条（多归属加入/重复加入不产生重复成员/只移出该组/未知组名不抛异常/清空全部归属）、`groupedView` 按 userId 分桶 4 条（出现在每个所属组/无归属落未分组/组内顺序继承 list 而非 userId/忽略幽灵 id）、JSON 导出导入 2 条（`generateJson` 带 `tags`、`inputJson` 认 `tags` 也认旧版单 `tag`）、备份向后兼容 3 条（旧→新、新→旧、往返）、WebDAV 合并 2 条（按分组名并集保住多归属、剔除幽灵与墓碑） |
 | | `smart_group_service_test.dart` | 9 | **`SmartGroupService` 纯逻辑**（2026-10-12 新增）：preview 按平台汇总人数/标记同名组已存在、execute 建组填人/多归属不冲掉手工组/幂等（第二次 0 新增）/未知平台跳过不建空组/无关注不建组、派生统计字段（`pendingTotal`/`newTagCount`/`skippedUnknownSite`）、`siteSort` 不全时缺掉的已知平台照常归组且不算「未知平台」 |
 | | `follow_smart_group_ui_test.dart` | 3 | **智能分组两处 UI 入口**（2026-10-12 新增）：顶栏 ⋮ 菜单点开预览→确认→完成归组、无可归组内容时只 toast 不弹空表、关注设置页入口同行为（并钉住「设置页不碰 `FollowUserController`」） |
