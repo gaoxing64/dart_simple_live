@@ -66,6 +66,53 @@ class FollowUserController extends BasePageController<FollowUser>
   /// 当前视图：0=全部（分组文件夹）1=直播中（卡片网格）2=未开播（紧凑行）。
   final activeTab = 0.obs;
 
+  /// 「全部」视图的分组筛选：选中的自定义分组 id；null = 文件夹总览。
+  ///
+  /// 存 id 不存对象：改名不影响筛选。但**调序会换 id**（`reorderFollowTag`
+  /// 重新生成 fractional key）、删除分组也不会回头清理 —— 所以读取一律经
+  /// [activeGroup] 校验，失效回落 null（文件夹总览），绝不让筛选指向一个
+  /// 已经不存在的组（那会渲染出一个空白平铺列表，看着像筛选坏了）。
+  final activeGroupId = Rx<String?>(null);
+
+  /// [activeGroupId] 对应的分组；失效（被删 / 调序换了 id）时为 null。
+  FollowUserTag? get activeGroup {
+    final id = activeGroupId.value;
+    if (id == null) {
+      return null;
+    }
+    return customTags.firstWhereOrNull((t) => t.id == id);
+  }
+
+  /// 当前选中分组的成员（搜索过滤后，顺序继承 [list]）；未选中分组时为空表。
+  ///
+  /// 页面两处用：平铺段自己，以及「没有匹配的关注」空态浮层的判据。
+  List<FollowUser> get activeGroupMembers {
+    final id = activeGroup?.id;
+    if (id == null) {
+      return const [];
+    }
+    return groupedView.groups
+            .firstWhereOrNull((g) => g.tag.id == id)
+            ?.members ??
+        const [];
+  }
+
+  /// 切分组筛选，并把「全部」页滚回顶部。
+  ///
+  /// 不复位滚动的话，旧内容的滚动位置会原封不动留给新内容 —— 平铺列表比
+  /// 文件夹卡片矮一大截，用户会停在半空以为「筛选没生效」。
+  void setGroupFilter(FollowUserTag? tag) {
+    activeGroupId.value = tag?.id;
+    final scroll = scrollController;
+    if (scroll.hasClients && scroll.offset > 0) {
+      scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+      );
+    }
+  }
+
   /// 顶部搜索框的内容，空串表示不过滤。
   ///
   /// 过滤在 [visibleList] 这一层做，**不放进 [filterData]** —— 后者会被
