@@ -1,11 +1,18 @@
 // 「全部」视图分组胶囊筛选的 widget 测试：
 // 胶囊行出现条件、点胶囊=平铺该组成员、多归属去重、折叠全部按钮让位、
 // 筛选态搜索无匹配的空态浮层。
+// ⚠️ `PopupMenuButton` 要用 material_ui 导出的那个：本应用跑在 material_ui 上，
+// 关注页顶栏 ⋮ 是它的 PopupMenuButton，换 flutter/material 的 find.byType
+// 永远匹配不上（同 follow_smart_group_ui_test 的教训）。
 import 'package:flutter/material.dart' show Icons, Key, ValueKey;
+import 'package:material_ui/material_ui.dart' show PopupMenuButton;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/services/local_storage_service.dart';
+import 'package:simple_live_app/widgets/live_room_card.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_group_card.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_member_row.dart';
@@ -33,6 +40,22 @@ Finder rowOf(String name) => find
 /// 不能走 find.text。
 Finder capsuleOf(String tagId) =>
     find.byKey(ValueKey('group-filter-$tagId'));
+
+/// 打开 ⋮ 弹层（与 follow_smart_group_ui_test 同口径）。
+Future<void> openOverflowMenu(WidgetTester tester) async {
+  await tester.tap(find.byType(PopupMenuButton<int>).last);
+  await settle(tester);
+}
+
+/// 抽干 LiveRoomCard 在 widget 测试环境里固有的 1px 竖向溢出异常。
+///
+/// 即 `doc/test-suite.md` §7 已记录的红灯（follow_grouped_view_test 的
+/// 「tab 变视图切换」同款）：卡面内容 165px 比 168 - 2×2（勾选态描边）的
+/// 可用高度高 1px，只在测试字体度量下溢出，真实字体度量不溢出、生产无感。
+/// 卡片模式的新用例会渲染卡面，不抽干就会被记成本轮回归。
+void drainLiveCardOverflow(WidgetTester tester) {
+  while (tester.takeException() != null) {}
+}
 
 void main() {
   setUp(() {
@@ -175,5 +198,90 @@ void main() {
     expect(c.activeGroup, isNull);
     expect(find.byType(FollowGroupCard), findsOneWidget);
     await settleEnd(tester);
+  });
+
+  testWidgets('「模式切换」只在筛选态出现；紧凑/卡片切换生效且跨 tab 保持', (tester) async {
+    final svc = FakeFollowService(
+      users: [_u('甲', live: 2), _u('乙')],
+      tags: [
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: ['huya_甲', 'huya_乙'])
+      ],
+    );
+    final indexed = await pumpIndexed(tester, followService: svc);
+    await gotoFollowPage(tester, indexed);
+    final settings = Get.find<AppSettingsController>();
+
+    // 文件夹总览态：⋮ 里没有「模式切换」（平铺才有两种排法）
+    await openOverflowMenu(tester);
+    expect(find.text('模式切换'), findsNothing);
+    // 点无关项收起弹层（toast 类，不离开本页）
+    await tester.tap(find.text('赛事订阅'));
+    await settle(tester);
+
+    await tester.tap(capsuleOf('a0'));
+    await settle(tester);
+    await openOverflowMenu(tester);
+    expect(find.text('模式切换'), findsOneWidget);
+    await tester.tap(find.text('模式切换'));
+    await settle(tester);
+    expect(find.text('关注样式切换'), findsOneWidget);
+    await tester.tap(find.text('卡片模式'));
+    await settle(tester);
+    drainLiveCardOverflow(tester);
+
+    expect(settings.followStyleNotGrid.value, isFalse);
+    expect(find.byType(LiveRoomCard), findsNWidgets(2));
+    expect(rowOf('甲'), findsNothing);
+
+    // 跨 tab 保持：切到「直播中」再回「全部」，仍是筛选态 + 卡片模式
+    await tester.tap(find.text('直播中 1'));
+    await settle(tester);
+    drainLiveCardOverflow(tester);
+    expect(find.byType(FollowGroupCard), findsNothing);
+    await tester.tap(find.text('全部 2'));
+    await settle(tester);
+    drainLiveCardOverflow(tester);
+    expect(find.byType(LiveRoomCard), findsNWidgets(2));
+    expect(rowOf('甲'), findsNothing);
+
+    // 切回紧凑模式
+    await openOverflowMenu(tester);
+    await tester.tap(find.text('模式切换'));
+    await settle(tester);
+    await tester.tap(find.text('紧凑模式'));
+    await settle(tester);
+    expect(settings.followStyleNotGrid.value, isTrue);
+    expect(rowOf('甲'), findsOneWidget);
+    expect(find.byType(LiveRoomCard), findsNothing);
+    await settleEnd(tester);
+    drainLiveCardOverflow(tester);
+    // 排干 SmartDialog toast 的计时器
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('卡片模式经 setFollowStyleNotGrid 落存储（老用户取值不丢）', (tester) async {
+    final svc = FakeFollowService(
+      users: [_u('甲', live: 2), _u('乙')],
+      tags: [
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: ['huya_甲', 'huya_乙'])
+      ],
+    );
+    final indexed = await pumpIndexed(tester, followService: svc);
+    await gotoFollowPage(tester, indexed);
+    await tester.tap(capsuleOf('a0'));
+    await settle(tester);
+    await openOverflowMenu(tester);
+    await tester.tap(find.text('模式切换'));
+    await settle(tester);
+    await tester.tap(find.text('卡片模式'));
+    await settle(tester);
+    drainLiveCardOverflow(tester);
+
+    // FakeLocalStorageService 是内存实现：能读到即证明过了 setter 落键
+    final storage = Get.find<LocalStorageService>();
+    expect(
+        storage.getValue(LocalStorageService.kFollowStyleNotGrid, true), isFalse);
+    await settleEnd(tester);
+    drainLiveCardOverflow(tester);
   });
 }

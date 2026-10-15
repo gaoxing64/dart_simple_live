@@ -516,6 +516,24 @@ class FollowUserController extends BasePageController<FollowUser>
     loadMoreFailed.value = false;
   }
 
+  /// 关注样式二选一的选项表：紧凑模式（true）/ 卡片模式（false）。
+  ///
+  /// 只作用于「全部」视图**选中某一分组**时的平铺列表（见 [activeGroup]）——
+  /// 文件夹总览下成员固定紧凑行，没有第二种排法，⋮ 里的「模式切换」也因此
+  /// 只在筛选态出现。
+  static const followStyleMap = {true: "紧凑模式", false: "卡片模式"};
+
+  Future<void> showFollowStyleDialog() async {
+    var res = await Utils.showMapOptionDialog(
+      title: "关注样式切换",
+      followStyleMap,
+      AppSettingsController.instance.followStyleNotGrid.value,
+    );
+    if (res != null) {
+      AppSettingsController.instance.setFollowStyleNotGrid(res);
+    }
+  }
+
   // 用户自定义顺序dialog
   Future<void> showSortDialog() async {
     var res = await Utils.showMapOptionDialog(sortMap, sortMethod.value,

@@ -237,6 +237,21 @@ class FollowUserPage extends GetView<FollowUserController> {
                               ],
                             ),
                           ),
+                          // 「模式切换」只在筛选态出现：平铺列表才有
+                          // 紧凑/卡片两种排法，文件夹总览下点了没有意义。
+                          if (controller.activeTab.value == 0 &&
+                              controller.activeGroup != null)
+                            const AppPopupMenuItem(
+                              value: 1,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Remix.blender_line),
+                                  AppStyle.hGap12,
+                                  Text("模式切换"),
+                                ],
+                              ),
+                            ),
                           const AppPopupMenuItem(
                             value: 7,
                             child: Row(
@@ -277,6 +292,8 @@ class FollowUserPage extends GetView<FollowUserController> {
                           Get.toNamed(RoutePath.kSettingsFollow);
                         } else if (value == 0) {
                           SmartDialog.showToast("此功能暂未开放！敬请期待！");
+                        } else if (value == 1) {
+                          controller.showFollowStyleDialog();
                         } else if (value == 7) {
                           controller.runSmartGrouping();
                         } else if (value == 6) {
