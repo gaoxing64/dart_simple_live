@@ -32,6 +32,7 @@ import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/history_service.dart';
 import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
 import 'package:simple_live_app/services/playback/live_playback_target.dart';
+import 'package:simple_live_app/services/stream_relay/stream_relay_service.dart';
 import 'package:simple_live_app/src/rust/api/danmaku_mask.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
@@ -234,6 +235,22 @@ class LiveRoomController extends PlayerController
 
   /// 线路数据
   RxList<String> playUrls = RxList<String>();
+
+  /// 下发给播放器的地址（与 [playUrls] 一一对应）。
+  ///
+  /// 带时效的直链（斗鱼，见 [LivePlayUrl.renewers]）由 [buildPlayerUrls] 替换为
+  /// 本地续流中转地址，播放器实际拉的是中转流；[playUrls] 始终保留真实直链，
+  /// 供线路列表展示与复制链接使用。
+  List<String> playerUrls = [];
+
+  /// 最近一次取流返回的续流回调（与 [playUrls] 一一对应），平台不支持续流时为 null。
+  List<LivePlayUrlRenewer?>? _playUrlRenewers;
+
+  /// 本控制器登记的续流会话（本地中转地址），换流与销毁时统一回收。
+  final List<String> _relaySessions = [];
+
+  /// 续流会话的代次：并发刷新时只认最后一次，作废的那批立即回收。
+  int _relayGeneration = 0;
 
   /// 清晰度/线路动作「是否存在」的谓词：多于一路可选项才提供入口。
   ///
@@ -803,6 +820,7 @@ class LiveRoomController extends PlayerController
     }
     playUrls.assignAll(playUrl.urls); // 深拷贝
     playHeaders = playUrl.headers;
+    _playUrlRenewers = playUrl.renewers;
     currentLineIndex = 0;
     currentLineInfo.value = "线路${currentLineIndex + 1}";
     //重置错误次数
@@ -821,7 +839,16 @@ class LiveRoomController extends PlayerController
     currentLineInfo.value = "线路${currentLineIndex + 1}";
     errorMsg.value = "";
 
-    final mediaList = playUrls.map((url) {
+    // 斗鱼等平台的直链带硬性寿命（300 秒后 CDN 主动断开），先包一层本地
+    // 续流中转，把「每 5 分钟断一次」变成一条对播放器不中断的流。
+    await buildPlayerUrls();
+
+    final mediaList = playerUrls.map((url) {
+      if (StreamRelayService.instance.isRelayUrl(url)) {
+        // 中转地址是本地 http：不参与「强制 https」改写，也不带平台防盗链头
+        //（这些请求头由中转服务补在上游连接上）。
+        return Media(url);
+      }
       var finalUrl = url;
       if (AppSettingsController.instance.playerForceHttps.value) {
         finalUrl = finalUrl.replaceAll("http://", "https://");
@@ -837,6 +864,65 @@ class LiveRoomController extends PlayerController
     // 此刻 playing 还是 false，所以只会发布元数据，不会去拉前台服务。
     _bgSuppressed = false;
     syncBackgroundPlayback();
+  }
+
+  /// 刷新 [playerUrls]：可续流的线路替换为本地中转地址，其余保持直链。
+  ///
+  /// 中转起不来的单条线路直接退回直链——最坏结果只是断流问题照旧，
+  /// 不影响这次播放。
+  Future<void> buildPlayerUrls() async {
+    final generation = ++_relayGeneration;
+    _releaseRelaySessions();
+
+    final urls = List<String>.from(playUrls);
+    playerUrls = urls;
+
+    final renewers = _playUrlRenewers;
+    if (renewers == null) {
+      return;
+    }
+
+    final relay = StreamRelayService.instance;
+    final forceHttps = AppSettingsController.instance.playerForceHttps.value;
+    final registered = <String>[];
+    for (var i = 0; i < urls.length && i < renewers.length; i++) {
+      final renewer = renewers[i];
+      if (renewer == null) {
+        continue;
+      }
+      try {
+        final upstreamUrl = forceHttps ? urls[i].replaceAll("http://", "https://") : urls[i];
+        final localUrl = await relay.register(
+          url: upstreamUrl,
+          renewer: renewer,
+          headers: playHeaders,
+        );
+        urls[i] = localUrl;
+        registered.add(localUrl);
+      } catch (e) {
+        Log.logPrint(e);
+      }
+    }
+
+    if (generation != _relayGeneration) {
+      // 期间又刷新过一轮：这批会话已作废，立即回收避免泄漏。
+      for (final url in registered) {
+        relay.release(url);
+      }
+      return;
+    }
+    _relaySessions.addAll(registered);
+  }
+
+  /// 回收本控制器登记的续流会话（断开上游连接，释放端口资源）。
+  ///
+  /// 释放后播放器若还持着旧中转地址，请求会拿到 404，等同一次流结束，
+  /// 走 [mediaEnd] 的正常重试路径。
+  void _releaseRelaySessions() {
+    for (final url in _relaySessions) {
+      StreamRelayService.instance.release(url);
+    }
+    _relaySessions.clear();
   }
 
   void setPlayer() async {
@@ -1748,6 +1834,8 @@ ${error?.stackTrace}''');
 
     liveDanmaku.stop();
     danmakuController = null;
+    // 续流中转会话随这一路一起回收：断开上游连接，避免退出后还在偷偷拉流。
+    _releaseRelaySessions();
     // 直接退出直播间不经过 resetRoom，这里补一次：表情是分房间下发的，
     // 留在静态缓存里的源图句柄与合成位图出房间后就没有复用价值了。
     DanmakuEmoticonRenderer.releaseCache();

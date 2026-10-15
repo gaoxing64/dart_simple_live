@@ -123,19 +123,42 @@ class DouyuSite implements LiveSite {
     var data = quality.data as DouyuPlayData;
 
     List<String> urls = [];
+    List<LivePlayUrlRenewer?> renewers = [];
     for (var item in data.cdns) {
       var url = await getPlayUrl(detail.roomId, data.rate, item);
       if (url.isNotEmpty) {
-        // if expire=300 and cdn is ws then add &expire=0
-        // user must be live in oversea
-        // cookie is better, cookie needs refreshed every 7 days
-        if (url.contains('expire=300') && url.contains('fcdn=ws')) {
-          url = '$url&expire=0';
-        }
+        url = _applyOverseaExpireWorkaround(url);
         urls.add(url);
+        // 斗鱼下发的 flv 直链固定 300 秒寿命，到点 CDN 主动 EOF——不处理的话
+        // 游客模式（未配置 cookie）播放约 5 分钟就会停在最后一帧。这里为每条
+        // 线路登记「重新取流」的能力，由播放层在到期前自行续流。非 FLV 容器
+        // 无法在 tag 边界上接续，不登记（播放层对其按原样直连）。
+        final roomId = detail.roomId;
+        final rate = data.rate;
+        renewers.add(
+          url.contains('.flv')
+              ? () async => _applyOverseaExpireWorkaround(await getPlayUrl(roomId, rate, item))
+              : null,
+        );
       }
     }
-    return LivePlayUrl(urls: urls);
+    return LivePlayUrl(
+      urls: urls,
+      renewers: renewers.every((x) => x == null) ? null : renewers,
+    );
+  }
+
+  /// 海外临时方案：`fcdn=ws` 线路追加 `expire=0` 可免登录长时间观看
+  /// （上游标注 temp，正式方案在跟进）。首次取流与续流都要走同一条规则，
+  /// 否则续流拿回来的直链又变回 5 分钟寿命。
+  String _applyOverseaExpireWorkaround(String url) {
+    // if expire=300 and cdn is ws then add &expire=0
+    // user must be live in oversea
+    // cookie is better, cookie needs refreshed every 7 days
+    if (url.contains('expire=300') && url.contains('fcdn=ws')) {
+      return '$url&expire=0';
+    }
+    return url;
   }
 
   Future<String> getPlayUrl(String roomId, int rate, String cdn) async {

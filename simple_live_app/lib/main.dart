@@ -39,6 +39,7 @@ import 'package:simple_live_app/services/migration_service.dart';
 import 'package:simple_live_app/services/platform_service.dart';
 import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
 import 'package:simple_live_app/services/smart_group_service.dart';
+import 'package:simple_live_app/services/stream_relay/stream_relay_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
 import 'package:simple_live_app/services/window_service.dart';
 import 'package:simple_live_app/src/rust/frb_generated.dart';
@@ -133,6 +134,10 @@ Future initServices() async {
   Get.put(HistoryService());
 
   Get.put(FollowBlockService());
+
+  // 续流中转：斗鱼等平台直链带时效，由它接管「到期前重新取流」，避免断流。
+  // 服务本身惰性启动（首次登记线路时才绑定本地端口）。
+  Get.put(StreamRelayService());
 
   // 移动平台不使用 windowManager
   if (!Platform.isAndroid && !Platform.isIOS) {
