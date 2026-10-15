@@ -61,7 +61,10 @@
 ### P1-5 斗鱼游客/海外链路依赖用户配置与临时 hack
 
 - 现象：游客流只能存活 5min、需 cookie（`b492f965`）；海外 `expire=300 & fcdn=ws` 追加 `&expire=0`（`douyu_site.dart:134-136`，上游标注 temp）；cookie 续期依赖 `safeAuth` + JWT exp 判断（`douyu_utils.dart:49-90`）。
-- 建议：把「cookie 即将过期」提前到设置页提示（上游 `88ee03b5` 已在 App 侧加了提示，仓库内确认覆盖）；跟踪 `expire=0` 的正式方案。
+- **已改进（2026-10-16）**：游客断流不再要求用户配 cookie——`LivePlayUrl.renewers`（core）+ `StreamRelayService` 本地续流中转（app，`lib/services/stream_relay/`）在直链 300s 到期前重新取流并做 FLV tag 级接续（参考 DTV `ae4b425f`）。非 FLV 线路或中转登记失败的线路自动退回直连。
+  - 补充实测（2026-10-16，游客态）：**「固定 300s 寿命」不是所有线路都成立**——`hw1a.douyucdn2.cn` 的直链 URL 自带 `expire=0`，连接 335s 未断。中继对此按「到期就续、没到期就不打扰」处理（预取挂 30s 用不上即放弃，退化为直通），真断时才同步补取。
+  - 另一实测：真实流里约 1/s 存在与前一帧**同毫秒**的音频 tag，接续过滤用「相等也算未落后」（`FlvTimeline.isNotBehind`），否则会系统性丢帧。
+- 建议：把「cookie 即将过期」提前到设置页提示（上游 `88ee03b5` 已在 App 侧加了提示，仓库内确认覆盖）；跟踪 `expire=0` 的正式方案（续流落地后它已退化为「首取+续流」共用的兼容路径，可择机验证删除）。
 - 影响：斗鱼在非登录/海外场景的稳定性。
 
 ## 3. P2 — 结构 / 技术债 / 功能缺口

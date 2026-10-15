@@ -25,11 +25,13 @@ fvm flutter test --plain-name "首屏"              # 按用例名过滤
 | `test/douyin_category_paging_test.dart` | 11 | 离线 | 抖音分类：offset/count 推进、满页判据、异常响应降级、脏数据单条跳过、与推荐共用 offset 约定 |
 | `test/douyin_linkmic_room_test.dart` | 6 | 离线 | 抖音连麦：reflow 优先、降级房间不抛空指针、双路失败抛 CoreError、画质回退 |
 | `test/douyu_recommend_paging_test.dart` | 4 | 离线 | 斗鱼推荐：`pgcnt=0` 时非空页仍判「还有更多」、空页到底、广告位过滤、缺字段降级 |
+| `test/douyu_play_url_renew_test.dart` | 2 | 离线 | 斗鱼续流契约（2026-10-16 新增）：每条 flv 线路都带 `LivePlayUrlRenewer`、调用它会重新请求取流接口且 `expire=0` 兜底与首取一致、非 flv 线路不给回调 |
 | `test/bilibili_emoticon_test.dart` | 31 | 离线 | B 站表情：两种下发入口、占位符形态判据、去重、上限 8、https 归一、异常载荷返回 null |
 | `test/douyu_enc.json` / `douyu_sc.json` | — | 样本 | 斗鱼签名/SC 抓包样本；**当前无用例引用**，可作解码测试素材 |
 
 > **2026-10-12 同步（`abca65f8`）后未新增任何测试文件**：账号体系下沉 core 只带来源码与模型（`account_info.dart` 等），core 侧未跑测试、App 侧仅做适配。账号接口用例全部为【待补】（见 §4.7）。
 > **2026-10-14 同步（`5ae375f1`）同样没有 core 测试变动**：`git diff --stat 8fd14a9f..HEAD -- simple_live_core/test` 输出为空；`grep -rn "setSiteAttrs" simple_live_core/test` 无命中，因此本轮改的 B 站凭证 JSON 解析目前**零覆盖**。
+> **2026-10-16 斗鱼续流新增 `douyu_play_url_renew_test.dart`（2 条离线用例）**：配套 App 侧 `stream_relay/` 的 15 条，并补上 §4.5 TC-I08。同机 core 全量实测 82 执行 / 79 通过 / 3 失败（3 条均为 `huya tests` 联网用例：房间未开播，与既有口径一致）。
 
 ## 3. 覆盖矩阵
 
@@ -131,6 +133,7 @@ fvm flutter test --plain-name "首屏"              # 按用例名过滤
 | TC-I05 | `WebScoketUtils` 重连 | 断线 5s 重连、5 次后 `onClose`；收到消息后重连计数归零 | [待补]（需要 WS mock 或抽接口） |
 | TC-I06 | 弹幕生命周期 | `onReady` → `onMessage`* → `onClose`；`stop()` 后回调置空、不再触发 | [待补] |
 | TC-I07 | `LiveMessageColor.numberToColor` | 4/6/8 位 hex（含 0x？）转换正确；非 hex 回落白色 | [待补] |
+| TC-I08 | `LivePlayUrl.renewers` 续流契约（2026-10-16） | douyu 为每条 flv 线路提供 `LivePlayUrlRenewer`，调用它=重新请求取流接口、`expire=0` 兜底与首取一致；非 flv 线路为 null；列表与 `urls` 等长（构造函数 assert） | [已有] douyu_play_url_renew_test.dart |
 
 ### 4.6 联网冒烟（夜间/发版前跑，勿进 PR 必跑集）
 

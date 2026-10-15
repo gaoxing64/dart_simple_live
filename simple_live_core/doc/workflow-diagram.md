@@ -75,8 +75,8 @@ sequenceDiagram
     C->>S: getPlayUrls(detail, quality)
     S->>H: 取流地址（bilibili/douyu/huya 需要请求；douyin 本地组装）
     H-->>S: 播放地址
-    S-->>C: LivePlayUrl{urls, headers}
-    C->>C: 交给播放器（media_kit），带 headers 播放
+    S-->>C: LivePlayUrl{urls, headers, renewers?}
+    C->>C: 交给播放器（media_kit），带 headers 播放；带 renewers 的线路（斗鱼 flv）先换成本地续流中转地址
 ```
 
 分段职责与特例：
@@ -86,7 +86,7 @@ sequenceDiagram
 | `getRoomDetail` | 请求 JSON 接口 | 虎牙：抓网页 HTML 用正则抠 `TT_ROOM_DATA` / `stream`；抖音：`roomId` 位数分流 `reflow/info` 与 `web/enter`，连麦房间走补查 |
 | `getPlayQualities` | 请求接口拿清晰度列表 | 虎牙：从 `detail.data`（`HuyaUrlDataModel`）本地组装；抖音：解析 `live_core_sdk_data`，缺失时回退 `flv_pull_url`/`hls_pull_url_map` |
 | `getPlayUrls` | 接口换真实流地址 | 抖音：直接用清晰度阶段已带出的地址；虎牙：逐条线路请求 tars `getCdnTokenInfoEx` 再拼 antiCode |
-| 播放 | `LivePlayUrl.urls` 多条线路 | bilibili：把含 `mcdn` 的线路排到最后；douyu：`fcdn=ws & expire=300` 时追加 `&expire=0`（海外临时方案） |
+| 播放 | `LivePlayUrl.urls` 多条线路 | bilibili：把含 `mcdn` 的线路排到最后；douyu：`fcdn=ws & expire=300` 时追加 `&expire=0`（海外临时方案），并给每条 flv 线路附带 `renewers` 续流回调（App 层 `StreamRelayService` 在到期前重新取流、按 FLV tag 边界接续） |
 
 ## 3. 弹幕链路时序与状态机
 
@@ -198,7 +198,11 @@ flowchart TD
     E --> F["getPlayUrls 逐 CDN 请求 → rtmp_url + rtmp_live"]
     F --> G{"url 含 expire=300 且 fcdn=ws?"}
     G -- "是" --> H["追加 &expire=0（海外临时方案）"]
+    G -- "否" --> I["flv 线路附带 renewers 续流回调（续流走同一条兜底规则）"]
+    H --> I
 ```
+
+- **续流回调（2026-10-16）**：斗鱼下发的 flv 直链有硬性寿命（第三方 300s，到点 CDN 主动 EOF），游客模式只拿得到这种短效直链。`getPlayUrls` 因此为每条 **flv** 线路提供 `LivePlayUrl.renewers`（`live_play_url.dart` 的 `LivePlayUrlRenewer`），由消费方（App 的 `lib/services/stream_relay/`）在到期前调它重取；`expire=0` 兜底在首取与续流上共用同一条规则（`douyu_site.dart:_applyOverseaExpireWorkaround`）。非 flv 线路不给回调。
 
 - cookie：`DouyuUtils` 解析 `acf_jwt_token` 的 exp 判断过期，用 `safeAuth` 刷新（`douyu_utils.dart:49-90`）；`setSiteAttrs` 注入 JSON（键 `cookie`/`dy_did`/`LTP0`）并同步 `dy_did`。
 - 弹幕：`danmuproxy.douyu.com:8506`，自制 STT 文本协议；**只受理 `fans=='1'` 的弹幕**（历史行为，见 backlog）。

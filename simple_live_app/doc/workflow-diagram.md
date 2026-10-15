@@ -107,6 +107,7 @@ sequenceDiagram
     participant Nav as AppNavigator
     participant LC as LiveRoomController
     participant S as LiveSite(core)
+    participant RA as StreamRelayService(本地续流中转)
     participant PC as PlayerController(PlayerMixin)
     participant DM as canvas_danmaku
     participant RK as Rust DanmakuMask
@@ -123,8 +124,11 @@ sequenceDiagram
         S-->>LC: List<LivePlayQuality>
         LC->>LC: getQualityLevel(区分蜂窝) → 选档 → getPlayUrl
         LC->>S: getPlayUrls(detail, quality)
-        S-->>LC: LivePlayUrl{urls, headers}
+        S-->>LC: LivePlayUrl{urls, headers, renewers?}
+        LC->>RA: buildPlayerUrls → register(带 renewers 的线路)
+        RA-->>LC: 本地中转地址 → playerUrls
         LC->>PC: initPlaylist → initializePlayer + player.open(Playlist)
+        Note over RA,PC: 播放期间：中转在直链到期前重新取流并做 FLV tag 接续
         LC->>S: getDanmaku().start(detail.danmakuData)
         loop 每 500ms + tileSlot*125ms
             LC->>RK: allowListBatch(texts, nowMs)
@@ -140,10 +144,11 @@ sequenceDiagram
 | 环节 | 实现 | 证据 |
 | --- | --- | --- |
 | 清晰度档位选择 | 设置 `qualityLevel`(2/1/0)→取最高/中间/最低；蜂窝网络另读 `qualityLevelCellular` | `live_room_controller.dart:752-793` |
-| 取播放地址 | `getPlayUrls` → 写 `playUrls`/`playHeaders`，线路切到第 0 条 | `live_room_controller.dart:795-811` |
+| 取播放地址 | `getPlayUrls` → 写 `playUrls`/`playHeaders`/`_playUrlRenewers`，线路切到第 0 条 | `live_room_controller.dart:795-811` |
+| 续流中转 | `buildPlayerUrls`：带 `renewers` 的线路换成 `127.0.0.1` 中转地址写进 `playerUrls`（`playUrls` 保留真实直链供展示/复制）；中转起不来的单条退回直链 | `live_room_controller.dart:838-926`；`stream_relay_service.dart:26-106` |
 | 换线路 | `changePlayLine(index)` → `player.jump(index)` | `live_room_controller.dart:813-847` |
-| 断流自愈 | `mediaError`/`mediaEnd` 重试 2 次，再逐条换线路，全断则判定下播 | `live_room_controller.dart:849-899` |
-| 强制 HTTPS / 头部透传 | `Media(url, httpHeaders: playHeaders)` | `live_room_controller.dart:824-830` |
+| 断流自愈 | `mediaError`/`mediaEnd` 重试 2 次，再逐条换线路，全断则判定下播；重试请求同一中转地址时会经 `renewers` 拿到**新直链** | `live_room_controller.dart:849-899` |
+| 强制 HTTPS / 头部透传 | 非中转线路才做 `http→https` 改写并带 `playHeaders`；中转地址是本地 http，上游请求头由中转服务补 | `live_room_controller.dart:846-857` |
 | 窗口/全屏/小窗 | `enterFullScreen` / `exitFull` / `enterSmallWindow` / `exitSmallWindow`（桌面走原生窗口 API） | `player_controller.dart:620,655,798,869` |
 | 快退全屏还原点 | 「谁先离开窗口态谁捕获」`_captureNormalGeometry` / 退出时 `_consumeNormalGeometry` | `player_controller.dart:729-754` |
 | 截图 | `saveScreenshot()` → `player.screenshot()` → 相册/文件对话框 | `player_controller.dart:926-965` |
@@ -158,6 +163,7 @@ sequenceDiagram
 - 多开时非窗口级动作作用于**聚焦格** `page.focused`（`player_shortcuts.dart:186-187`）。
 - `initializePlayer` 通过 `setProperty` 设置的属性 **media_kit 会丢弃返回值**，只能在 log 开启时回读校验（`player_controller.dart:66-94`）。
 - 音量均衡（loudnorm）**依赖 fork 内核编译了音频滤镜**，官方裁剪构建没有，挂载会导致音频轨被禁（静音）。取证：官方构建的 libmpv 对 `loudnorm` 相关符号 0 命中（对产物做符号/字符串扫描、带阳性对照），故钉的是自建 fork 构建；详见 backlog P0-1。
+- **斗鱼走「本地续流中转」（`lib/services/stream_relay/`，2026-10-16）**：`playUrls` 是**真实直链**（线路列表展示、复制链接用），`playerUrls` 才是下发给播放器的地址。只有 core 给了 `LivePlayUrl.renewers` 的线路（当前=斗鱼 flv）会被换成 `127.0.0.1` 中转地址，其余平台/线路与原行为完全一致；中转登记失败的线路自动退回直链。转发请求头（UA/防盗链）由中转服务补在上游连接上，`playHeaders` 对中转地址不再生效。换清晰度/换台会重建中转会话，退出直播间在 `onClose` 回收。
 
 ## 4. 多开链（`lib/modules/live_room/multi_play/`）
 

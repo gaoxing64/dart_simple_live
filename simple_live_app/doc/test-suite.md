@@ -20,7 +20,12 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 
 ## 2. 现有测试资产
 
-`simple_live_app/test/` 共 **54 个 `.dart`**（`find simple_live_app/test -name '*.dart' | wc -l`）：**53 个含用例文件**（静态声明 **523** 个 `test`/`testWidgets`）+ 1 个共享 harness（`follow_test_harness.dart`）。`fvm flutter test --no-pub` 本次**执行 549 条**（数据驱动循环用例使运行条数多于静态声明数）：**534 通过 / 15 失败**（2026-10-15 同机实测；红灯清单见 §7）。另有 `integration_test/simple_test.dart`（1 个用例，需设备）。
+`simple_live_app/test/` 共 **56 个 `.dart`**（`find simple_live_app/test -name '*.dart' | wc -l`）：**55 个含用例文件**（静态声明 **538** 个 `test`/`testWidgets`）+ 1 个共享 harness（`follow_test_harness.dart`）。`fvm flutter test --no-pub` 本次**执行 564 条**（数据驱动循环用例使运行条数多于静态声明数）：**549 通过 / 15 失败**（2026-10-16 同机实测；红灯清单见 §7）。另有 `integration_test/simple_test.dart`（1 个用例，需设备）。
+
+> 2026-10-16 的增量：斗鱼「游客模式播放 5 分钟断流」修复（`lib/services/stream_relay/`，参考 DTV `ae4b425f`）
+> 带入 2 个文件 / 15 条用例（`stream_relay/`，见下表末），静态声明 523→538。同机全量实测
+> **564 执行 / 549 通过 / 15 失败**，失败清单与 §7 登记的红灯逐条一致；改动前 HEAD 单独复跑这
+> 6 个红灯文件，15 条同样复现 ⇒ 这批红灯与本改动无关。
 
 > 相对旧锚点 `abca65f8`（48 个 `.dart` / 465 声明 / 491 执行 / 473 通过 18 失败）的增量全部来自
 > 关注多归属功能线（update-history.md §2.4）：新增 `follow_membership_test.dart`、
@@ -85,6 +90,8 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 | | `duration_2_str_utils_test.dart` | 6 | 「累计观看 N」文案三档 + 无记录 |
 | | `room_watch_clock_test.dart` | 6 | 观看计时 |
 | | `widget_test.dart` | 1 | 脚手架残留 smoke（`Counter increments smoke test`），**历来失败**，与业务无关 |
+| **续流中转（斗鱼直链 300s 到期续流）** | `stream_relay/flv_demuxer_test.dart` | 9 | FLV 增量解析（分片/时间戳/关键帧/初始化 tag/失同步兜底）与 `FlvTimeline` 去重判据 |
+| | `stream_relay/stream_relay_service_test.dart` | 6 | 端到端（本地假 CDN + 短 TTL）：到期自动接续成一条连续 FLV、无续流能力时直通、续流失败放弃、预取挂久放弃、时间轴重置放弃、释放会话 404 |
 | **harness（无用例）** | `follow_test_harness.dart` | 0 | 关注页 widget 测试的共享 fake + 泵取工具 |
 | **集成测试** | `integration_test/simple_test.dart` | 1 | Rust 桥（`RustLib.init` + `MyApp`），需设备 |
 
@@ -302,6 +309,8 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 
 - **2026-10-14 相对 10-12 的变化**：失败 18→15 全部来自关注多归属功能线顺手修好 `follow_grouped_view_test.dart`
   的 3 条旧文案断言（4→1），不是外部/环境问题。
+- **2026-10-16 复测（斗鱼续流中转落地后）**：全量 564 执行 / 549 通过 / 15 失败，**上表 15 条逐条一致**；
+  另外把改动前的 HEAD 单独 checkout 出来只跑这 6 个文件，同样 33 通过 / 15 失败、名单一致 ⇒ 无回归。
 - **同步门证据（merge `5ae375f1`）**：同机跑两次——合并前 `8fd14a9f` 与合并后 `5ae375f1` 都是
   **507 通过 / 15 失败**，且 15 条**失败名单逐条一致**，所以上面这批红灯与本次同步无关。
 - **未修复说明**：本批只修「签名编译」这一类（属于同步的连带修复），其余 15 条按「存量」留待专门一轮；**不掩盖**、不外推为业务回归。复跑建议见 backlog P1-7（真机/桌面 `flutter test -d windows`，或给 `path_provider` 注入 mock）。

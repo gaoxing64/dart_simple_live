@@ -123,7 +123,7 @@ simple_live_core/
 | 表情包 | `parseBilibiliEmoticons`（fork 新增） | — | `huya_emoticon.dart`（103 个 `[xx]` 映射） | — | — |
 | SC 路径 | WS 下行解析 | WS 下行解析 | **WS 信号 + HTTP 拉取** | 不支持 | 不支持 |
 | 搜索 | 房间+主播 | 房间+主播 | 房间（yyid） | 仅房间（主播接口抛异常） | 不支持 |
-| 特殊兜底 | mcdn 线路后置 | cookie JWT 续期；海外 `expire=0` | 4K(HDR/VIP) 跳过；线路级容错 | 连麦房间 reflow 补查；脏数据单条跳过 | — |
+| 特殊兜底 | mcdn 线路后置 | cookie JWT 续期；海外 `expire=0`；flv 线路带**续流回调** `renewers` | 4K(HDR/VIP) 跳过；线路级容错 | 连麦房间 reflow 补查；脏数据单条跳过 | — |
 | **账号能力**（v1.8.15） | 已实现：扫码 `getQRCode/getQRPollResult` + `getAccountInfo`（cookie 校验） | 已实现：did 获取 + 扫码 + `refreshCookie`（LTP0/cookie） | **TODO 桩**：三接口均 `UnimplementedError` | `getAccountInfo` 已实现；`getQRCode/getQRPollResult` 为 TODO 桩 | **TODO 桩**：三接口 + `setSiteAttrs` 均未实现 |
 
 ## 5. 依赖清单（`pubspec.yaml`）与用途
