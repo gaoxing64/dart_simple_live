@@ -1,6 +1,6 @@
 # simple_live_app 测试案例库（面向 AI 的文字版）
 
-> 版本锚点：`simple_live_app` v1.8.15+10815 · future 分支 `9697ab61`（2026-10-15）
+> 版本锚点：`simple_live_app` v1.8.15+10815 · future 分支 `eb8f91e8`（2026-10-15）
 > 配套文档：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)
 
 ## 1. 怎么跑
@@ -38,10 +38,11 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 | | `multi_play_identity_test.dart` | 1 | 每格身份（`isSecondaryTile`/槽位） |
 | | `multi_play_window_floor_test.dart` | 3 | 多开窗口收口：全屏态关格零摆窗、不采还原点；窗口态关格照旧还原 |
 | **播放器动作 / 快捷键 / 音量 / OSD / 窗口几何** | `player_action_set_test.dart` | 22 | resolver：跨宿主全集一致、格子/小窗切片、常驻兜底、竖屏降级、页级「更多」、容器判据 |
-| | `player_action_bar_test.dart` | 3 | 条带 renderer 渲染 |
-| | `player_volume_action_test.dart` | 7 | 音量三态控件（点击静音 / 悬停滑条 / 滚轮） |
+| | `player_action_bar_test.dart` | 5 | 条带 renderer 渲染 |
+| | `player_volume_action_test.dart` | 9 | 音量三态控件（点击静音 / 悬停滑条 / 滚轮） |
 | | `player_shortcuts_test.dart` | 9 | 默认键位逐键映射、不吞不属于自己的键、改键后生效 |
-| | `shortcut_binding_test.dart` | 27 | 快捷键模型结构性质（默认表覆盖全集、编解码往返、坏数据回落、冲突判定、显示名） |
+| | `player_tooltip_test.dart` | 7 | 按钮 tooltip 内联当前快捷键：默认键帽、改键后跟随、修饰键组合 |
+| | `shortcut_binding_test.dart` | 32 | 快捷键模型结构性质（默认表覆盖全集、编解码往返、坏数据回落、冲突判定、显示名） |
 | | `player_osd_metrics_test.dart` | 31 | OSD 度量：桌面断点、宽/高断点、小屏落底部表单、触控放大点击区、安全区、M3 可渲染 |
 | | `player_window_geometry_test.dart` | 3 | 窗口几何纯函数（全屏↔小窗还原点） |
 | | `resolve_player_fit_test.dart` | 3 | `scaleMode → fit/aspectRatio`（含按格覆盖值） |
