@@ -1,0 +1,1913 @@
+{
+  "_meta": {
+    "kind": "emoticon-contract",
+    "synthetic": false,
+    "source_of_truth": "simple_live_core/test/bilibili_emoticon_test.dart (31 条契约)",
+    "runtime_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_emoticon.dart:1-300",
+    "target_ac": [
+      "AC-16"
+    ],
+    "target_rust_fn": "slive_core::platforms::bilibili::danmaku::emoticon::parse_bilibili_emoticons",
+    "expect_ops": {
+      "is_null": "Option::is_none",
+      "not_null": "Option::is_some",
+      "len_eq": "as_ref().unwrap().len() == value",
+      "names_eq": "map(|e| e.name).collect() == value",
+      "urls_eq": "map(|e| e.url).collect() == value",
+      "first_name_eq": "result[0].name == Some(value)",
+      "first_name_null": "result[0].name.is_none()",
+      "first_url_eq": "result[0].url == value",
+      "first_width_eq": "result[0].width == Some(value)",
+      "first_height_eq": "result[0].height == Some(value)",
+      "first_large_true": "result[0].large == true",
+      "first_large_false": "result[0].large == false",
+      "first_emoticon_unique_eq": "result[0].emoticon_unique == Some(value)",
+      "no_url_ends_with": "!result.iter().any(|e| e.url.ends_with(value))"
+    },
+    "generator": "fixtures-draft/tools/gen_fixtures.py",
+    "note": "输入 info 数组由 Dart 测试 helper _infoOf/_emot 逐字复刻；expect 仅含 Dart 测试真正断言的内容（不过度断言）。"
+  },
+  "cases": [
+    {
+      "id": "EMO-01",
+      "origin_test": "从 extra.emots 解析出占位符与图片地址",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:56",
+      "desc": "从 extra.emots 解析出占位符与图片地址",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "哈哈哈[doge]笑死",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"[doge]\":{\"url\":\"https://i0.hdslb.com/bfs/live/doge.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "哈哈哈[doge]笑死",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "哈哈哈[doge]笑死"
+      },
+      "expect": [
+        {
+          "op": "not_null"
+        },
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_eq",
+          "value": "[doge]"
+        },
+        {
+          "op": "first_url_eq",
+          "value": "https://i0.hdslb.com/bfs/live/doge.png"
+        },
+        {
+          "op": "first_width_eq",
+          "value": 20
+        },
+        {
+          "op": "first_height_eq",
+          "value": 20
+        }
+      ]
+    },
+    {
+      "id": "EMO-02",
+      "origin_test": "只保留 message 里出现过的占位符，未使用的不下发",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:74",
+      "desc": "只保留 message 里出现过的占位符，未使用的不下发",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "只用[7号表情]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"[0号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/0.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[1号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/1.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[2号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/2.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[3号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/3.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[4号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/4.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[5号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/5.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[6号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/6.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[7号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/7.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[8号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/8.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[9号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/9.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[10号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/10.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[11号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/11.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[12号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/12.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[13号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/13.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[14号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/14.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[15号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/15.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[16号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/16.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[17号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/17.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[18号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/18.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[19号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/19.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[20号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/20.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[21号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/21.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[22号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/22.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[23号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/23.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[24号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/24.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[25号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/25.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[26号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/26.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[27号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/27.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[28号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/28.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[29号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/29.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "只用[7号表情]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "只用[7号表情]"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_eq",
+          "value": "[7号表情]"
+        }
+      ]
+    },
+    {
+      "id": "EMO-03",
+      "origin_test": "同一条弹幕可混排多个表情，顺序按 emots 下发顺序",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:88",
+      "desc": "同一条弹幕可混排多个表情，顺序按 emots 下发顺序",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[大笑]中间[大哭]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"[大笑]\":{\"url\":\"https://i0.hdslb.com/bfs/live/laugh.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[大哭]\":{\"url\":\"https://i0.hdslb.com/bfs/live/cry.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[大笑]中间[大哭]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[大笑]中间[大哭]"
+      },
+      "expect": [
+        {
+          "op": "names_eq",
+          "value": [
+            "[大笑]",
+            "[大哭]"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EMO-04",
+      "origin_test": "下发顺序与正文顺序相反时跟着 map 走",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:102",
+      "desc": "下发顺序与正文顺序相反时跟着 map 走",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[大笑]中间[大哭]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"[大哭]\":{\"url\":\"https://i0.hdslb.com/bfs/live/cry.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[大笑]\":{\"url\":\"https://i0.hdslb.com/bfs/live/laugh.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[大笑]中间[大哭]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[大笑]中间[大哭]"
+      },
+      "expect": [
+        {
+          "op": "names_eq",
+          "value": [
+            "[大哭]",
+            "[大笑]"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EMO-05",
+      "origin_test": "info[0][13] 与 extra.emots 同时下发同一张图时不重复",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:118",
+      "desc": "info[0][13] 与 extra.emots 同时下发同一张图时不重复",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[大笑]哈哈哈",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/laugh.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": "{\"emots\":{\"[大笑]\":{\"url\":\"https://i0.hdslb.com/bfs/live/laugh.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[大笑]哈哈哈",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[大笑]哈哈哈"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_eq",
+          "value": "[大笑]"
+        }
+      ]
+    },
+    {
+      "id": "EMO-06",
+      "origin_test": "超过上限时在入口就挡下（extra 已满 8 时单表情不再入队）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:136",
+      "desc": "超过上限时在入口就挡下（extra 已满 8 时单表情不再入队）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[0号表情][1号表情][2号表情][3号表情][4号表情][5号表情][6号表情][7号表情][8号表情]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/single.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": "{\"emots\":{\"[0号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/0.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[1号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/1.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[2号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/2.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[3号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/3.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[4号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/4.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[5号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/5.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[6号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/6.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[7号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/7.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[8号表情]\":{\"url\":\"https://i0.hdslb.com/bfs/live/8.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[0号表情][1号表情][2号表情][3号表情][4号表情][5号表情][6号表情][7号表情][8号表情]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[0号表情][1号表情][2号表情][3号表情][4号表情][5号表情][6号表情][7号表情][8号表情]"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 8
+        },
+        {
+          "op": "no_url_ends_with",
+          "value": "single.png"
+        }
+      ]
+    },
+    {
+      "id": "EMO-07",
+      "origin_test": "info[0][13] 单表情：message 是占位符时用它作为 name",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:156",
+      "desc": "info[0][13] 单表情：message 是占位符时用它作为 name",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[doge]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/single.png",
+              "width": 40,
+              "height": 30,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "[doge]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[doge]"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_eq",
+          "value": "[doge]"
+        },
+        {
+          "op": "first_width_eq",
+          "value": 40
+        },
+        {
+          "op": "first_height_eq",
+          "value": 30
+        }
+      ]
+    },
+    {
+      "id": "EMO-08",
+      "origin_test": "info[0][13] 单表情：message 不是占位符时 name 为 null",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:170",
+      "desc": "info[0][13] 单表情：message 不是占位符时 name 为 null",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/only.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": ""
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-09",
+      "origin_test": "info[0][13] 单表情：message 是不带方括号的表情名时整串作为 name",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:182",
+      "desc": "info[0][13] 单表情：message 是不带方括号的表情名时整串作为 name",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "大胆！",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/dadan.png",
+              "width": 60,
+              "height": 60,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "大胆！",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "大胆！"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_eq",
+          "value": "大胆！"
+        }
+      ]
+    },
+    {
+      "id": "EMO-10",
+      "origin_test": "info[0][13] 是空对象字符串时不产生表情",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:197",
+      "desc": "info[0][13] 是空对象字符串时不产生表情",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "白花300块",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "{}",
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "白花300块",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "白花300块"
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-11",
+      "origin_test": "info[0][13] 单表情：只含一个对象的数组形态同样支持",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:203",
+      "desc": "info[0][13] 单表情：只含一个对象的数组形态同样支持",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[doge]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            [
+              {
+                "url": "https://i0.hdslb.com/bfs/live/single.png",
+                "width": 40,
+                "height": 30,
+                "emoticon_unique": "room_0_1"
+              }
+            ],
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "[doge]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[doge]"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_eq",
+          "value": "[doge]"
+        },
+        {
+          "op": "first_width_eq",
+          "value": 40
+        }
+      ]
+    },
+    {
+      "id": "EMO-12",
+      "origin_test": "emots 的 key 不是 [xxx] 占位符形态时丢弃，避免子串替换吞正文",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:218",
+      "desc": "emots 的 key 不是 [xxx] 占位符形态时丢弃，避免子串替换吞正文",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "666哈哈哈",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"6\":{\"url\":\"https://i0.hdslb.com/bfs/live/six.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"哈\":{\"url\":\"https://i0.hdslb.com/bfs/live/ha.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "666哈哈哈",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "666哈哈哈"
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-13",
+      "origin_test": "key 不带方括号但整条弹幕就是它时命中（如「冲鸭」）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:231",
+      "desc": "key 不带方括号但整条弹幕就是它时命中（如「冲鸭」）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "冲鸭",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"冲鸭\":{\"url\":\"https://i0.hdslb.com/bfs/live/chongya.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "冲鸭",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "冲鸭"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_eq",
+          "value": "冲鸭"
+        },
+        {
+          "op": "first_url_eq",
+          "value": "https://i0.hdslb.com/bfs/live/chongya.png"
+        }
+      ]
+    },
+    {
+      "id": "EMO-14",
+      "origin_test": "key 不带方括号且夹在正文里时仍然丢弃，不做子串替换",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:248",
+      "desc": "key 不带方括号且夹在正文里时仍然丢弃，不做子串替换",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "我们一起冲鸭",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"冲鸭\":{\"url\":\"https://i0.hdslb.com/bfs/live/chongya.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "我们一起冲鸭",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "我们一起冲鸭"
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-15",
+      "origin_test": "整条弹幕与 key 相等时忽略首尾空白",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:259",
+      "desc": "整条弹幕与 key 相等时忽略首尾空白",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "  冲鸭  ",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"冲鸭\":{\"url\":\"https://i0.hdslb.com/bfs/live/chongya.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "  冲鸭  ",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "  冲鸭  "
+      },
+      "expect": [
+        {
+          "op": "first_name_eq",
+          "value": "冲鸭"
+        }
+      ]
+    },
+    {
+      "id": "EMO-16",
+      "origin_test": "info[0][13] 带 url 但 message 夹带正文时退回追加，不整串替换",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:272",
+      "desc": "info[0][13] 带 url 但 message 夹带正文时退回追加，不整串替换",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "冲鸭 哈哈哈",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/a.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "冲鸭 哈哈哈",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "冲鸭 哈哈哈"
+      },
+      "expect": [
+        {
+          "op": "first_name_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-17",
+      "origin_test": "emots 裸名整串命中时记 large",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:284",
+      "desc": "emots 裸名整串命中时记 large",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "冲鸭",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"冲鸭\":{\"url\":\"https://i0.hdslb.com/bfs/live/chongya.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "冲鸭",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "冲鸭"
+      },
+      "expect": [
+        {
+          "op": "first_large_true"
+        }
+      ]
+    },
+    {
+      "id": "EMO-18a",
+      "origin_test": "large 区分两种下发方式（单表情 large=true）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:297",
+      "desc": "large 区分两种下发方式（单表情 large=true）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "冲鸭",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/a.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "冲鸭",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "冲鸭"
+      },
+      "expect": [
+        {
+          "op": "first_large_true"
+        },
+        {
+          "op": "first_emoticon_unique_eq",
+          "value": "room_0_1"
+        }
+      ]
+    },
+    {
+      "id": "EMO-18b",
+      "origin_test": "large 区分两种下发方式（emots 占位符 large=false）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:297",
+      "desc": "large 区分两种下发方式（emots 占位符 large=false）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[doge]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"[doge]\":{\"url\":\"https://i0.hdslb.com/bfs/live/b.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[doge]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[doge]"
+      },
+      "expect": [
+        {
+          "op": "first_large_false"
+        },
+        {
+          "op": "first_emoticon_unique_eq",
+          "value": "room_0_1"
+        }
+      ]
+    },
+    {
+      "id": "EMO-19",
+      "origin_test": "大表情弹幕的真实载荷：info[0] 没有第 15 位也能解析",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:318",
+      "desc": "大表情弹幕的真实载荷：info[0] 没有第 15 位也能解析",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "冲鸭",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/chongya.png",
+              "width": 108,
+              "height": 108,
+              "emoticon_unique": "room_0_1"
+            },
+            null
+          ],
+          "冲鸭",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "冲鸭"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_name_eq",
+          "value": "冲鸭"
+        },
+        {
+          "op": "first_large_true"
+        },
+        {
+          "op": "first_width_eq",
+          "value": 108
+        }
+      ]
+    },
+    {
+      "id": "EMO-20",
+      "origin_test": "extra 与 info[0][13] 是同一张图时，large 不因 extra 先入队而丢失",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:335",
+      "desc": "extra 与 info[0][13] 是同一张图时，large 不因 extra 先入队而丢失",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[doge]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/doge.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": "{\"emots\":{\"[doge]\":{\"url\":\"https://i0.hdslb.com/bfs/live/doge.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[doge]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[doge]"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_large_true"
+        }
+      ]
+    },
+    {
+      "id": "EMO-21",
+      "origin_test": "占位符与正文混排时不整串替换（异常载荷兜底）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:352",
+      "desc": "占位符与正文混排时不整串替换（异常载荷兜底）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[大笑]哈哈哈",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/a.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "[大笑]哈哈哈",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[大笑]哈哈哈"
+      },
+      "expect": [
+        {
+          "op": "first_name_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-22a",
+      "origin_test": "裸表情名的长度上限是 12 字（12 字命中）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:366",
+      "desc": "裸表情名的长度上限是 12 字（12 字命中）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "一二三四五六七八九十甲乙",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/a.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "一二三四五六七八九十甲乙",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "一二三四五六七八九十甲乙"
+      },
+      "expect": [
+        {
+          "op": "first_name_eq",
+          "value": "一二三四五六七八九十甲乙"
+        }
+      ]
+    },
+    {
+      "id": "EMO-22b",
+      "origin_test": "裸表情名的长度上限是 12 字（13 字拒绝）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:376",
+      "desc": "裸表情名的长度上限是 12 字（13 字拒绝）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "一二三四五六七八九十甲乙丙",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/a.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "一二三四五六七八九十甲乙丙",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "一二三四五六七八九十甲乙丙"
+      },
+      "expect": [
+        {
+          "op": "first_name_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-23",
+      "origin_test": "无空白的「表情名+正文」按整串替换处理（已知取舍，锁预期）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:386",
+      "desc": "无空白的「表情名+正文」按整串替换处理（已知取舍，锁预期）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "冲鸭哈哈哈",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/a.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": ""
+            }
+          ],
+          "冲鸭哈哈哈",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "冲鸭哈哈哈"
+      },
+      "expect": [
+        {
+          "op": "first_name_eq",
+          "value": "冲鸭哈哈哈"
+        }
+      ]
+    },
+    {
+      "id": "EMO-24a",
+      "origin_test": "extra 的裸名 key 与单表情路径共用判据（超长裸名拒绝）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:400",
+      "desc": "extra 的裸名 key 与单表情路径共用判据（超长裸名拒绝）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "一二三四五六七八九十甲乙丙",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"一二三四五六七八九十甲乙丙\":{\"url\":\"https://i0.hdslb.com/bfs/live/x.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "一二三四五六七八九十甲乙丙",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "一二三四五六七八九十甲乙丙"
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-24b",
+      "origin_test": "extra 的裸名 key 与单表情路径共用判据（含空白裸名拒绝）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:412",
+      "desc": "extra 的裸名 key 与单表情路径共用判据（含空白裸名拒绝）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "冲鸭 哈哈哈",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"冲鸭 哈哈哈\":{\"url\":\"https://i0.hdslb.com/bfs/live/y.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "冲鸭 哈哈哈",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "冲鸭 哈哈哈"
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-25",
+      "origin_test": "图片地址统一升到 https",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:421",
+      "desc": "图片地址统一升到 https",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[a][b]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"[a]\":{\"url\":\"//i0.hdslb.com/bfs/live/a.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[b]\":{\"url\":\"http://i0.hdslb.com/bfs/live/b.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[a][b]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[a][b]"
+      },
+      "expect": [
+        {
+          "op": "urls_eq",
+          "value": [
+            "https://i0.hdslb.com/bfs/live/a.png",
+            "https://i0.hdslb.com/bfs/live/b.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EMO-26",
+      "origin_test": "丢掉不能用的图片地址（相对路径/ftp/缺 url）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:441",
+      "desc": "丢掉不能用的图片地址（相对路径/ftp/缺 url）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[a][b][c]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"[a]\":{\"url\":\"i0.hdslb.com/bfs/live/a.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[b]\":{\"url\":\"ftp://i0.hdslb.com/b.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[c]\":{\"width\":20,\"height\":20}}}"
+            }
+          ],
+          "[a][b][c]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[a][b][c]"
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-27",
+      "origin_test": "extra 不是合法 JSON 时不抛异常",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:454",
+      "desc": "extra 不是合法 JSON 时不抛异常",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[a]",
+            [
+              0,
+              "tester"
+            ],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{不是 json"
+            }
+          ],
+          "[a]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[a]"
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-28a",
+      "origin_test": "异常载荷返回 null：info == null",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:470",
+      "desc": "异常载荷返回 null：info == null",
+      "input": {
+        "info": null,
+        "message": ""
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-28b",
+      "origin_test": "异常载荷返回 null 而不是崩溃",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:471",
+      "desc": "异常载荷返回 null：info == []",
+      "input": {
+        "info": [],
+        "message": ""
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-28c",
+      "origin_test": "异常载荷返回 null 而不是崩溃",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:472",
+      "desc": "异常载荷返回 null：info == [0,'x']",
+      "input": {
+        "info": [
+          0,
+          "x"
+        ],
+        "message": ""
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-28d",
+      "origin_test": "异常载荷返回 null 而不是崩溃",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:473",
+      "desc": "异常载荷返回 null：info == [[], 'x']",
+      "input": {
+        "info": [
+          [],
+          "x"
+        ],
+        "message": ""
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-28e",
+      "origin_test": "异常载荷返回 null 而不是崩溃",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:476",
+      "desc": "异常载荷返回 null：info[0] 长度不足",
+      "input": {
+        "info": [
+          [
+            0,
+            "x"
+          ],
+          "x"
+        ],
+        "message": "x"
+      },
+      "expect": [
+        {
+          "op": "is_null"
+        }
+      ]
+    },
+    {
+      "id": "EMO-29",
+      "origin_test": "单条弹幕的表情数量有上限（30 个占位符 → 8）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:484",
+      "desc": "单条弹幕的表情数量有上限（30 个占位符 → 8）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[0][1][2][3][4][5][6][7][8][9][10][11][12][13][14][15][16][17][18][19][20][21][22][23][24][25][26][27][28][29]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "extra": "{\"emots\":{\"[0]\":{\"url\":\"https://i0.hdslb.com/bfs/live/0.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[1]\":{\"url\":\"https://i0.hdslb.com/bfs/live/1.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[2]\":{\"url\":\"https://i0.hdslb.com/bfs/live/2.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[3]\":{\"url\":\"https://i0.hdslb.com/bfs/live/3.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[4]\":{\"url\":\"https://i0.hdslb.com/bfs/live/4.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[5]\":{\"url\":\"https://i0.hdslb.com/bfs/live/5.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[6]\":{\"url\":\"https://i0.hdslb.com/bfs/live/6.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[7]\":{\"url\":\"https://i0.hdslb.com/bfs/live/7.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[8]\":{\"url\":\"https://i0.hdslb.com/bfs/live/8.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[9]\":{\"url\":\"https://i0.hdslb.com/bfs/live/9.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[10]\":{\"url\":\"https://i0.hdslb.com/bfs/live/10.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[11]\":{\"url\":\"https://i0.hdslb.com/bfs/live/11.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[12]\":{\"url\":\"https://i0.hdslb.com/bfs/live/12.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[13]\":{\"url\":\"https://i0.hdslb.com/bfs/live/13.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[14]\":{\"url\":\"https://i0.hdslb.com/bfs/live/14.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[15]\":{\"url\":\"https://i0.hdslb.com/bfs/live/15.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[16]\":{\"url\":\"https://i0.hdslb.com/bfs/live/16.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[17]\":{\"url\":\"https://i0.hdslb.com/bfs/live/17.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[18]\":{\"url\":\"https://i0.hdslb.com/bfs/live/18.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[19]\":{\"url\":\"https://i0.hdslb.com/bfs/live/19.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[20]\":{\"url\":\"https://i0.hdslb.com/bfs/live/20.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[21]\":{\"url\":\"https://i0.hdslb.com/bfs/live/21.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[22]\":{\"url\":\"https://i0.hdslb.com/bfs/live/22.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[23]\":{\"url\":\"https://i0.hdslb.com/bfs/live/23.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[24]\":{\"url\":\"https://i0.hdslb.com/bfs/live/24.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[25]\":{\"url\":\"https://i0.hdslb.com/bfs/live/25.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[26]\":{\"url\":\"https://i0.hdslb.com/bfs/live/26.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[27]\":{\"url\":\"https://i0.hdslb.com/bfs/live/27.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[28]\":{\"url\":\"https://i0.hdslb.com/bfs/live/28.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"},\"[29]\":{\"url\":\"https://i0.hdslb.com/bfs/live/29.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[0][1][2][3][4][5][6][7][8][9][10][11][12][13][14][15][16][17][18][19][20][21][22][23][24][25][26][27][28][29]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[0][1][2][3][4][5][6][7][8][9][10][11][12][13][14][15][16][17][18][19][20][21][22][23][24][25][26][27][28][29]"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 8
+        }
+      ]
+    },
+    {
+      "id": "EMO-30",
+      "origin_test": "emots 与 info[0][13] 同时存在时不重复（保留 emots 版本）",
+      "dart_source": "simple_live_core/test/bilibili_emoticon_test.dart:497",
+      "desc": "emots 与 info[0][13] 同时存在时不重复（保留 emots 版本）",
+      "input": {
+        "info": [
+          [
+            [
+              0,
+              0,
+              0,
+              16777215
+            ],
+            "[doge]",
+            [
+              0,
+              "tester"
+            ],
+            16777215,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "url": "https://i0.hdslb.com/bfs/live/single.png",
+              "width": 20,
+              "height": 20,
+              "emoticon_unique": "room_0_1"
+            },
+            null,
+            {
+              "extra": "{\"emots\":{\"[doge]\":{\"url\":\"https://i0.hdslb.com/bfs/live/from_emots.png\",\"width\":20,\"height\":20,\"emoticon_unique\":\"room_0_1\"}}}"
+            }
+          ],
+          "[doge]",
+          [
+            0,
+            "tester"
+          ],
+          0
+        ],
+        "message": "[doge]"
+      },
+      "expect": [
+        {
+          "op": "len_eq",
+          "value": 1
+        },
+        {
+          "op": "first_url_eq",
+          "value": "https://i0.hdslb.com/bfs/live/from_emots.png"
+        }
+      ]
+    }
+  ]
+}
