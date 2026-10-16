@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "kind": "ws-client-request",
+    "platform": "douyu",
+    "synthetic": true,
+    "derivation": "照 Dart douyu_danmaku.dart:152-173 serializeDouyu 逐字节推导；body 为 joinRoom/heartbeat 的字面量（Dart:49-58）",
+    "needs_realtime_validation": true,
+    "frame_format_source": "simple_live_core/lib/src/platforms/douyu/douyu_danmaku.dart:152-193",
+    "realtime_validation_plan": "用 wscat/mitm 抓 wss://danmuproxy.douyu.com:8506 真实帧，核对 packType 取值（客户端 689 / 服务端实际值）、STT 字段名与转义出现频率；替换本目录 *.bin 并把 _meta.synthetic 改为 false。",
+    "direction": "client->server",
+    "target_ac": [
+      "IP-3-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyu::danmaku::encode::serialize_douyu",
+    "dart_source": "douyu_danmaku.dart:49-58,152-173"
+  },
+  "stt_body": "type@=mrkl/",
+  "bytes_hex": "14 00 00 00 14 00 00 00 b1 02 00 00 74 79 70 65 40 3d 6d 72 6b 6c 2f 00",
+  "bytes_len": 24
+}

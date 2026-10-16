@@ -1,0 +1,40 @@
+{
+  "status_code": 0,
+  "data": {
+    "data": [
+      {
+        "id_str": "7382735338101328680",
+        "title": "音乐直播间",
+        "status": 2,
+        "cover": { "url_list": ["https://p3.douyinpic.com/cover-a.jpeg"] },
+        "owner": {
+          "nickname": "主播A",
+          "signature": "欢迎来到直播间",
+          "web_rid": "416144012050",
+          "avatar_thumb": { "url_list": ["https://p3.douyinpic.com/avatar-a.jpeg"] }
+        },
+        "room_view_stats": { "display_value": 12345 },
+        "stream_url": {
+          "live_core_sdk_data": {
+            "pull_data": {
+              "options": {
+                "qualities": [
+                  { "name": "原画", "level": 1, "sdk_key": "FULL_HD1" },
+                  { "name": "高清", "level": 2, "sdk_key": "HD1" },
+                  { "name": "标清", "level": 3, "sdk_key": "SD1" }
+                ]
+              },
+              "stream_data": "{\"data\":{\"FULL_HD1\":{\"main\":{\"flv\":\"https://flv-full.flv\",\"hls\":\"https://hls-full.m3u8\"}},\"HD1\":{\"main\":{\"flv\":\"https://flv-hd.flv\",\"hls\":\"https://hls-hd.m3u8\"}},\"SD1\":{\"main\":{\"flv\":\"https://flv-sd.flv\"}}}}"
+            }
+          },
+          "flv_pull_url": { "FULL_HD1": "https://table-flv-full.flv", "HD1": "https://table-flv-hd.flv" },
+          "hls_pull_url_map": { "FULL_HD1": "https://table-hls-full.m3u8", "HD1": "https://table-hls-hd.m3u8" }
+        }
+      }
+    ],
+    "user": {
+      "nickname": "用户昵称",
+      "avatar_thumb": { "url_list": ["https://p3.douyinpic.com/user.jpeg"] }
+    }
+  }
+}

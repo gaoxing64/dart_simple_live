@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "kind": "ws-client-request",
+    "platform": "douyin",
+    "synthetic": true,
+    "derivation": "照 douyin.proto 字段号手写 protobuf 编码（varint + length-delimited，proto3 默认值省略），外层包 gzip(mtime=0保证字节确定)；消息分发逻辑对照 douyin_danmaku.dart:133-196",
+    "frame_format_source": "simple_live_core/lib/src/platforms/douyin/proto/douyin.proto",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://webcast100-ws-web-lq.douyin.com/webcast/im/push/v2/（需带 ttwid cookie 与 X-Bogus signature，见 douyin_danmaku.dart:51-92），录制真实帧，核对：①payloadEncoding 是否恒为 gzip（是否有 'none'）②PushFrame.headersList(service/method) 实际取值 ③needAck 触发频率与 ack 包形态 ④是否混入 WebcastControlMessage 等第三类 method。替换后把 _meta.synthetic 改 false。",
+    "gzip_determinism": "gzip mtime=0，保证重复生成字节一致（夹具可入版本库比对）。",
+    "direction": "client->server",
+    "target_ac": [
+      "IP-6-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyin::danmaku::encode::heartbeat / join_room / send_ack",
+    "dart_source": "douyin_danmaku.dart:127-131,184-196",
+    "note": "ack 帧（:184-190）；字段取值见 frame-push-multi-need-ack.expected.json 的 ack 段。 空 payload 在 proto3 下不编码，故本帧只含 seqId/payloadType。"
+  },
+  "bytes_hex": "08 01 32 04 67 7a 69 70 3a 02 68 62",
+  "bytes_len": 12
+}

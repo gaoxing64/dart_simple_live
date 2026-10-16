@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "twitch",
+    "synthetic": true,
+    "derivation": "照 Dart core twitch_danmaku.dart 的三条正则（PING/display-name/color）与行拆分逻辑推导；IRC 标签格式参照 Twitch 官方 IRCv3 规范",
+    "frame_format_source": "simple_live_core/lib/src/platforms/twitch/twitch_danmaku.dart:73-103",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://irc-ws.chat.twitch.tv（先 CAP REQ + PASS SCHMOOPIIE + NICK justinfanXXXX）录制真实帧，核对：①tags 是否总带 color（无 color 的用户实际是否存在）②系统消息（RECONNECT/HOST_ON/CLEARCHAT）的实际形态 ③帧内是否多行、是否 CRLF。替换后把 _meta.synthetic 改 false。",
+    "protocol_ref": "https://dev.twitch.tv/docs/irc/",
+    "target_ac": [
+      "IP-5-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::twitch::danmaku::decode::decode_message",
+    "note": "真实 Twitch 帧多用 CRLF 行分隔；本夹具用于暴露 \\r 是否进入 message。**期望值待裁决**（见 18-fixtures-multiplatform.md 待确认表 D-3）。",
+    "dart_source": "twitch_danmaku.dart:86",
+    "decision_pending": true
+  },
+  "irc_text": "@color=#FF0000;display-name=Ivy;id=d1;room-id=1;user-id=9;user-type= :ivy!ivy@ivy.tmi.twitch.tv PRIVMSG #1 :crlf line\r\n",
+  "bytes_hex": "40 63 6f 6c 6f 72 3d 23 46 46 30 30 30 30 3b 64 69 73 70 6c 61 79 2d 6e 61 6d 65 3d 49 76 79 3b 69 64 3d 64 31 3b 72 6f 6f 6d 2d 69 64 3d 31 3b 75 73 65 72 2d 69 64 3d 39 3b 75 73 65 72 2d 74 79 70 65 3d 20 3a 69 76 79 21 69 76 79 40 69 76 79 2e 74 6d 69 2e 74 77 69 74 63 68 2e 74 76 20 50 52 49 56 4d 53 47 20 23 31 20 3a 63 72 6c 66 20 6c 69 6e 65 0d 0a",
+  "bytes_len": 119,
+  "expected": {
+    "messages": null,
+    "replies": [],
+    "assertion": "PENDING_REAL_CAPTURE",
+    "pending_id": "Q-C",
+    "ruled": true,
+    "question": "帧内含 CRLF 时，Dart 正则 (.+) 会把结尾 \\r 一并捕获进 message。Rust 侧应 (a) 照搬 Dart（message 尾部带 \\r，App 渲染可能出现空白行）还是 (b) trim 掉 \\r？",
+    "ruling": "**QA 裁决（2026-10-16）：照搬 Dart，不 trim。** 理由：AC-30 要求「其余平台零新增失败 / 行为零变化」是硬约束，\r 是否进入 message 属**行为差异**而非实现细节；在迁移窗口内任何「顺手 trim」都会让 Rust 与 Dart 产出不同，直接构成回归。若后续真机验证认为 \r 造成可见缺陷，应按变更流程单独提「修正 Q-C」，不得在迁移中夹带。",
+    "dart_current_behavior": "message == \"crlf line\\r\"（(.+) 贪婪吃到行尾含 \\r）——**以此为期望值**",
+    "why_not_pinned": "本项已裁决为「照搬 Dart 不 trim」，但**期望值仍需等真实抓包确认帧是否真为 CRLF**（见待抓包 P-11）：若真实帧是 \\n 结尾，则 \\r 分支在线上根本走不到，本夹具仅作防御性覆盖，故仍不写死 message 断言。"
+  }
+}

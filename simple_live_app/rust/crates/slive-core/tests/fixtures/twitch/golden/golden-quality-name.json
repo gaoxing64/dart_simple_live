@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "kind": "golden",
+    "platform": "twitch",
+    "synthetic": true,
+    "derivation": "照 Dart twitch_site.dart:182-188 的阈值表逐档枚举（含边界值 ±1）",
+    "target_ac": [
+      "IP-5-PLAY-QUALITY"
+    ],
+    "target_rust_fn": "slive_core::platforms::twitch::site::quality_name",
+    "needs_realtime_validation": false,
+    "realtime_note": "阈值表在 Dart 里是硬编码常量，无需抓包；抓包只用于确认真实m3u8 里 BANDWIDTH 的实际分布。",
+    "boundary_note": "所有阈值都是**严格大于**（`>`），故恰好等于阈值时归入下一档。"
+  },
+  "cases": [
+    {
+      "bandwidth": 0,
+      "expected_name": "自动",
+      "expected_sort": 0
+    },
+    {
+      "bandwidth": 1,
+      "expected_name": "自动",
+      "expected_sort": 1
+    },
+    {
+      "bandwidth": 500000,
+      "expected_name": "自动",
+      "expected_sort": 500000
+    },
+    {
+      "bandwidth": 500001,
+      "expected_name": "360P",
+      "expected_sort": 500001
+    },
+    {
+      "bandwidth": 1000000,
+      "expected_name": "360P",
+      "expected_sort": 1000000
+    },
+    {
+      "bandwidth": 1000001,
+      "expected_name": "480P",
+      "expected_sort": 1000001
+    },
+    {
+      "bandwidth": 2500000,
+      "expected_name": "480P",
+      "expected_sort": 2500000
+    },
+    {
+      "bandwidth": 2500001,
+      "expected_name": "720P",
+      "expected_sort": 2500001
+    },
+    {
+      "bandwidth": 5000000,
+      "expected_name": "720P",
+      "expected_sort": 5000000
+    },
+    {
+      "bandwidth": 5000001,
+      "expected_name": "1080P",
+      "expected_sort": 5000001
+    },
+    {
+      "bandwidth": 9000000,
+      "expected_name": "1080P",
+      "expected_sort": 9000000
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "kind": "ws-client-request",
+    "platform": "huya",
+    "synthetic": true,
+    "derivation": "照 Dart core 逐字节推导：TARS 编码规则见 packages/tars_dart/tars/codec/tars_output_stream.dart，结构 tag 见 platforms/huya/tars/huya_danmaku.dart",
+    "frame_format_source": "simple_live_core/lib/src/platforms/huya/tars/huya_danmaku.dart",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://cdnws.api.huya.com:443，用 mitmproxy/charles 录制 cmdType=7/22 的真实帧，核对 HYPushMessage.protocolType、requestId/traceId 是否下发、以及 HYMessage 是否还有未列出的 tag；替换后把 _meta.synthetic 改 false。",
+    "direction": "client->server",
+    "target_ac": [
+      "IP-4-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::huya::danmaku::encode::build_join_group_data / heartbeat_data",
+    "dart_source": "huya_danmaku.dart:62-67,106-115",
+    "note": "WebSocketCommand{cmdType:20(EWSCmdC2S_HeartBeatReq), data:空}；Dart joinRoom 只发 join group（liveInfo/doLaunch/enterChannel 已注释，:185-187）"
+  },
+  "cmd_type": 20,
+  "bytes_hex": "00 14 1d 00 0c 20 01 36 00 4c 5c 66 00",
+  "bytes_len": 13
+}

@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "kind": "ws-client-request",
+    "platform": "twitch",
+    "synthetic": true,
+    "derivation": "照 Dart core twitch_danmaku.dart 的三条正则（PING/display-name/color）与行拆分逻辑推导；IRC 标签格式参照 Twitch 官方 IRCv3 规范",
+    "frame_format_source": "simple_live_core/lib/src/platforms/twitch/twitch_danmaku.dart:73-103",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://irc-ws.chat.twitch.tv（先 CAP REQ + PASS SCHMOOPIIE + NICK justinfanXXXX）录制真实帧，核对：①tags 是否总带 color（无 color 的用户实际是否存在）②系统消息（RECONNECT/HOST_ON/CLEARCHAT）的实际形态 ③帧内是否多行、是否 CRLF。替换后把 _meta.synthetic 改 false。",
+    "protocol_ref": "https://dev.twitch.tv/docs/irc/",
+    "direction": "client->server",
+    "target_ac": [
+      "IP-5-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::twitch::danmaku::encode::join_room / heartbeat",
+    "dart_source": "twitch_danmaku.dart:25-29,56-64",
+    "note": "NICK/USER 的用户名是随机 `justinfan{1000..99999}`（Dart:57），不写进 golden；此处只锁固定的三条与心跳。"
+  },
+  "irc_text": "JOIN #12345\n",
+  "bytes_hex": "4a 4f 49 4e 20 23 31 32 33 34 35 0a",
+  "bytes_len": 12
+}

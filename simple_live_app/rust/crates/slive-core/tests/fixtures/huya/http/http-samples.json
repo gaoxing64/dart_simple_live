@@ -1,0 +1,616 @@
+{
+  "_meta": {
+    "kind": "http-samples",
+    "platform": "huya",
+    "synthetic": true,
+    "derivation": "字段逐条对照 Dart core platforms/huya/huya_site.dart 与 common/huya_request_params.dart 的解析行号（见各样本 field_sources）",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "录制 www.huya.com 房间页 HTML（重点核对两条正则是否仍中）、cache.php / bussLive / search.cdn 的真实 JSON 形态（尤其 gid 与 gameLiveOn 的类型）。替换后 synthetic 改 false。",
+    "html_samples_note": "响应体为 HTML 文本的样本用 `__raw_html` 字段承载（而非 JSON 对象），夹具加载时按文本注入 mock。",
+    "verification_assets": [
+      "simple_live_core/test/ 下无虎牙专用资产；huya 为 5 平台中唯一 App 侧联网有 3~4 条存量失败的平台（见 16-app-regression-baseline.md §6），说明其接口对网络/时段敏感，离线夹具尤必要。"
+    ]
+  },
+  "samples": {
+    "live_cdn_huya_com_liveconfig_game_bussLive": {
+      "endpoint": "https://live.cdn.huya.com/liveconfig/game/bussLive?bussType={id}",
+      "method": "GET",
+      "dart_source": "huya_site.dart:64-96",
+      "target_ac": [
+        "IP-4-HTTP-CATEGORIES"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data[].gid": "dart:76-84 **四种类型都要兼容**：Map{g:{value}} / double / int / 其他 -> toString",
+        "data[].gameFullName": "dart:88（LiveSubCategory.name）",
+        "parentId": "dart:89（= 传入的 bussType 字符串）",
+        "pic": "dart:90 **由 gid 拼接**：https://huyaimg.msstatic.com/cdnimage/game/{gid}-MS.jpg"
+      },
+      "response": {
+        "data": [
+          {
+            "gid": {
+              "value": "1001,1002,1003"
+            },
+            "gameFullName": "英雄联盟"
+          },
+          {
+            "gid": 2001.0,
+            "gameFullName": "DOTA2"
+          },
+          {
+            "gid": 3001,
+            "gameFullName": "穿越火线"
+          }
+        ]
+      },
+      "expected": {
+        "sub_categories": [
+          {
+            "id": "1001",
+            "name": "英雄联盟",
+            "parent_id": "1",
+            "pic": "https://huyaimg.msstatic.com/cdnimage/game/1001-MS.jpg"
+          },
+          {
+            "id": "2001",
+            "name": "DOTA2",
+            "parent_id": "1",
+            "pic": "https://huyaimg.msstatic.com/cdnimage/game/2001-MS.jpg"
+          },
+          {
+            "id": "3001",
+            "name": "穿越火线",
+            "parent_id": "1",
+            "pic": "https://huyaimg.msstatic.com/cdnimage/game/3001-MS.jpg"
+          }
+        ]
+      },
+      "note": "⚠️ **gid 四种形态**是本平台最大的解析坑（Dart:76-84）：①Map 取 value 再 split(',').first ②double toInt ③int toString ④其他 toString。本样本三种都给，第4 种（null/字符串）见变体。另外分类父级是 Dart 硬编码 4 个（huya_site.dart:50-55：网游1/单机2/娱乐8/手游3），**不来自服务端**，按 id 顺序请求 bussLive。",
+      "verify_note": "`gid` 的真实形态（是否总是 {value:'a,b,c'}）待抓包；pic 拼接是否仍有效（-MS.jpg 后缀）待抓包确认。",
+      "variants": [
+        {
+          "name": "gid 为字符串（Dart 走 else 分支）",
+          "response": {
+            "data": [
+              {
+                "gid": "4001",
+                "gameFullName": "恐怖游戏"
+              }
+            ]
+          },
+          "expected": {
+            "sub_categories": [
+              {
+                "id": "4001",
+                "name": "恐怖游戏",
+                "parent_id": "1",
+                "pic": "https://huyaimg.msstatic.com/cdnimage/game/4001-MS.jpg"
+              }
+            ]
+          }
+        },
+        {
+          "name": "gid 为 null（Dart else 分支 -> 'null'）",
+          "response": {
+            "data": [
+              {
+                "gid": null,
+                "gameFullName": "未知游戏"
+              }
+            ]
+          },
+          "expected": {
+            "sub_categories": [
+              {
+                "id": "null",
+                "name": "未知游戏",
+                "parent_id": "1",
+                "pic": "https://huyaimg.msstatic.com/cdnimage/game/null-MS.jpg"
+              }
+            ]
+          },
+          "note": "照搬 Dart 行为（不「修好」）；实现若改为跳过需另立决策"
+        },
+        {
+          "name": "空列表",
+          "response": {
+            "data": []
+          },
+          "expected": {
+            "sub_categories": []
+          }
+        }
+      ]
+    },
+    "www_huya_com_cache_php": {
+      "endpoint": "https://www.huya.com/cache.php?m=LiveList&do=getLiveListByPage&tagAll=0&gameId={gid}&page={page}",
+      "method": "GET",
+      "dart_source": "huya_site.dart:103-130（分类下房间）/ :196-223（推荐）",
+      "target_ac": [
+        "IP-4-HTTP-CATEGORY-ROOMS",
+        "IP-4-HTTP-RECOMMEND"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.datas[].profileRoom": "huya_site.dart:120（roomId）",
+        "data.datas[].introduction": ":114 优先作 title；为空回落 roomName（:116）",
+        "data.datas[].roomName": ":116（introduction 为空时的回落）",
+        "data.datas[].screenshot": ":110-113 不含 '?' 时追加 '?x-oss-process=style/w338_h190&'",
+        "data.datas[].nick": ":123（userName）",
+        "data.datas[].totalCount": ":124 int.tryParse ?? 0（**注意是字符串**）",
+        "hasMore": ":128 `data.page < data.totalPage`"
+      },
+      "response": {
+        "data": {
+          "page": 1,
+          "totalPage": 5,
+          "datas": [
+            {
+              "profileRoom": "abc123",
+              "roomName": "房间名",
+              "introduction": "房间简介",
+              "screenshot": "https://example.huya.com/shot.jpg",
+              "nick": "主播名",
+              "totalCount": "12345"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items": [
+          {
+            "room_id": "abc123",
+            "title": "房间简介",
+            "cover": "https://example.huya.com/shot.jpg?x-oss-process=style/w338_h190&",
+            "user_name": "主播名",
+            "online": 12345
+          }
+        ]
+      },
+      "note": "⚠️ **两次 json.decode**（Dart:103-107：getJson 返回 String 又被 json.decode 一次）——响应是 **JSON 字符串**而非对象。实现须按「文本再解析」处理，或与 Dart 等价。\n封面拼接：Dart 判断 `!cover.contains('?')` 才追加 query尾巴（**带尾随 &**）。",
+      "verify_note": "`totalCount` 真实类型（字符串 vs 数字）待抓包；Dart 用 toString()+tryParse 两者都兼容，实现须同样宽容。",
+      "variants": [
+        {
+          "name": "introduction 为空 -> 回落 roomName",
+          "response": {
+            "data": {
+              "page": 1,
+              "totalPage": 5,
+              "datas": [
+                {
+                  "profileRoom": "abc123",
+                  "roomName": "房间名",
+                  "introduction": "",
+                  "screenshot": "https://example.huya.com/shot.jpg",
+                  "nick": "主播名",
+                  "totalCount": "12345"
+                }
+              ]
+            }
+          },
+          "expected": {
+            "items": [
+              {
+                "title": "房间名"
+              }
+            ]
+          }
+        },
+        {
+          "name": "封面已含 ? -> 不再追加",
+          "response": {
+            "data": {
+              "page": 1,
+              "totalPage": 5,
+              "datas": [
+                {
+                  "profileRoom": "abc123",
+                  "roomName": "房间名",
+                  "introduction": "房间简介",
+                  "screenshot": "https://x.com/a.jpg?w=1",
+                  "nick": "主播名",
+                  "totalCount": "12345"
+                }
+              ]
+            }
+          },
+          "expected": {
+            "items": [
+              {
+                "cover": "https://x.com/a.jpg?w=1"
+              }
+            ]
+          }
+        },
+        {
+          "name": "最后一页 page==totalPage -> hasMore=false",
+          "response": {
+            "data": {
+              "page": 5,
+              "totalPage": 5,
+              "datas": [
+                {
+                  "profileRoom": "abc123",
+                  "roomName": "房间名",
+                  "introduction": "房间简介",
+                  "screenshot": "https://example.huya.com/shot.jpg",
+                  "nick": "主播名",
+                  "totalCount": "12345"
+                }
+              ]
+            }
+          },
+          "expected": {
+            "has_more": false
+          }
+        },
+        {
+          "name": "空页",
+          "response": {
+            "data": {
+              "page": 6,
+              "totalPage": 5,
+              "datas": []
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "totalCount 非数字 -> online=0",
+          "response": {
+            "data": {
+              "page": 1,
+              "totalPage": 5,
+              "datas": [
+                {
+                  "profileRoom": "abc123",
+                  "roomName": "房间名",
+                  "introduction": "房间简介",
+                  "screenshot": "https://example.huya.com/shot.jpg",
+                  "nick": "主播名",
+                  "totalCount": "N/A"
+                }
+              ]
+            }
+          },
+          "expected": {
+            "items": [
+              {
+                "online": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "search_cdn_huya_com_rooms": {
+      "endpoint": "https://search.cdn.huya.com/?m=Search&do=getSearchContent&q={kw}&v=4&rows=20&start={n}",
+      "method": "GET",
+      "dart_source": "huya_site.dart:412-451",
+      "target_ac": [
+        "IP-4-HTTP-SEARCH-ROOMS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "response.3.docs[]": "dart:429（**字符串键 '3'** 表示房间维度）",
+        "docs[].yyid": "dart:441 roomId = **\"yy/{yyid}\"** 前缀拼接",
+        "docs[].game_introduction": "dart:435 优先 title，空则 game_roomName",
+        "docs[].game_roomName": "dart:437（回落）",
+        "docs[].game_screenshot": "dart:430 + 同样的 ? 拼接规则",
+        "docs[].game_nick": "dart:444",
+        "docs[].game_total_count": "dart:445",
+        "hasMore": "dart:449 `response.3.numFound > page*20`"
+      },
+      "response": {
+        "response": {
+          "3": {
+            "numFound": 35,
+            "docs": [
+              {
+                "yyid": 660000,
+                "game_introduction": "英雄联盟精彩操作",
+                "game_roomName": "房间名",
+                "game_screenshot": "https://example.huya.com/s.jpg",
+                "game_nick": "主播A",
+                "game_total_count": "8888"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items": [
+          {
+            "room_id": "yy/660000",
+            "title": "英雄联盟精彩操作",
+            "cover": "https://example.huya.com/s.jpg?x-oss-process=style/w338_h190&",
+            "user_name": "主播A",
+            "online": 8888
+          }
+        ]
+      },
+      "note": "⚠️ roomId 形态是 **`yy/{yyid}`**（dart:441）—— 不是纯 yyid。搜索接口的 `v=4` 取 `response['3']`，主播搜索 `v=1` 取 `response['1']`（dart:471）。",
+      "variants": [
+        {
+          "name": "空结果",
+          "response": {
+            "response": {
+              "3": {
+                "numFound": 0,
+                "docs": []
+              }
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "numFound <= page*20 -> hasMore=false",
+          "response": {
+            "response": {
+              "3": {
+                "numFound": 20,
+                "docs": []
+              }
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        }
+      ]
+    },
+    "search_cdn_huya_com_anchors": {
+      "endpoint": "https://search.cdn.huya.com/?m=Search&do=getSearchContent&q={kw}&v=1&rows=20&start={n}",
+      "method": "GET",
+      "dart_source": "huya_site.dart:454-482",
+      "target_ac": [
+        "IP-4-HTTP-SEARCH-ANCHORS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "response.1.docs[]": "dart:471（字符串键 '1'）",
+        "docs[].room_id": "dart:473",
+        "docs[].game_avatarUrl180": "dart:474（avatar）",
+        "docs[].game_nick": "dart:475",
+        "docs[].gameLiveOn": "dart:476 liveStatus（**直接赋 bool**，类型待核实）",
+        "hasMore": "dart:480 `response.1.numFound > page*20`"
+      },
+      "response": {
+        "response": {
+          "1": {
+            "numFound": 2,
+            "docs": [
+              {
+                "room_id": "660000",
+                "game_avatarUrl180": "https://example.huya.com/av.jpg",
+                "game_nick": "主播A",
+                "gameLiveOn": true
+              },
+              {
+                "room_id": "660001",
+                "game_avatarUrl180": "https://example.huya.com/av2.jpg",
+                "game_nick": "主播B",
+                "gameLiveOn": false
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "has_more": false,
+        "items": [
+          {
+            "room_id": "660000",
+            "avatar": "https://example.huya.com/av.jpg",
+            "user_name": "主播A",
+            "live_status": true
+          },
+          {
+            "room_id": "660001",
+            "avatar": "https://example.huya.com/av2.jpg",
+            "user_name": "主播B",
+            "live_status": false
+          }
+        ]
+      },
+      "note": "hasMore：numFound=2，`2 > 1*20` 为false -> has_more=false（**注意语义反直觉**：结果非空但判「无更多」，照搬 Dart）。",
+      "verify_note": "**`gameLiveOn` 的真实类型待抓包**（bool true vs 数字 1）。Dart:476 直接赋给 bool字段——若服务端返回 1/0 会抛类型错（潜在既有缺陷）。实现须以抓包为准，并在文档登记。",
+      "variants": [
+        {
+          "name": "numFound=21 -> hasMore=true",
+          "response": {
+            "response": {
+              "1": {
+                "numFound": 21,
+                "docs": [
+                  {
+                    "room_id": "1",
+                    "game_avatarUrl180": "a",
+                    "game_nick": "n",
+                    "gameLiveOn": true
+                  }
+                ]
+              }
+            }
+          },
+          "expected": {
+            "has_more": true
+          }
+        }
+      ]
+    },
+    "www_huya_com_room_html": {
+      "endpoint": "https://www.huya.com/{roomId}",
+      "method": "GET",
+      "dart_source": "huya_site.dart:226-342（详情）/ :485-505（直播状态）",
+      "target_ac": [
+        "IP-4-HTTP-DETAIL",
+        "IP-4-HTTP-STATUS",
+        "IP-4-HTTP-PLAY"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "TT_ROOM_DATA 正则": "HuyaRequestParams.ROOM_DATA_REGEX = r'var\\s+TT_ROOM_DATA\\s*=\\s*(\\{[\\s\\S]*?\\})'",
+        "stream 正则": "HuyaRequestParams.STREAM_REGEX = r\"stream:\\s*(\\{[\\s\\S]*?\\n\\s*\\})\"（取 split('\\n')[0]）",
+        "state": "huya_site.dart:255 status = state=='ON' && isReplay==false",
+        "isReplay": "huya_site.dart:259 isRecord",
+        "gameLiveInfo.introduction/screenshot/nick/avatar180/totalCount": ":250-254",
+        "gameStreamInfoList[].sFlvUrl/sHlsUrl": ":288-289（**都非空则产出两条线路**：flv + hls）",
+        "sFlvAntiCode/sHlsAntiCode/sStreamName/sCdnType": ":294-297",
+        "lChannelId/lSubChannelId": ":266-267（topSid/subSid，弹幕参数）",
+        "vMultiStreamInfo[].sDisplayName/iBitRate": ":306-314（**含 HDR 的被跳过** :308）",
+        "4K 跳过": "huya_site.dart:149-150 getPlayQualities 里 name=='4K' 被 continue"
+      },
+      "response": {
+        "__raw_html": "<!DOCTYPE html><html><head><title>虎牙直播</title></head><body>\n<script>var TT_ROOM_DATA = {\"state\":\"ON\",\"isReplay\":false,\"roomId\":\"abc123\",\"nick\":\"主播名\"};</script>\n<script>\nwindow.__DATA__ = {\nstream: {\"data\":[{\"gameLiveInfo\":{\"introduction\":\"房间简介\",\"screenshot\":\"https://example.huya.com/shot.jpg\",\"nick\":\"主播名\",\"avatar180\":\"https://example.huya.com/av.jpg\",\"totalCount\":\"12345\",\"uid\":\"660000\"},\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"https://hls1.huya.com/live\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}]}],\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"https://hls1.huya.com/live\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}],\"vMultiStreamInfo\":[{\"sDisplayName\":\"原画\",\"iBitRate\":0},{\"sDisplayName\":\"高清\",\"iBitRate\":2000},{\"sDisplayName\":\"蓝光\",\"iBitRate\":4000},{\"sDisplayName\":\"HDR 超清\",\"iBitRate\":6000}]}\n}\n</script>\n</body></html>"
+      },
+      "expected": {
+        "room_id": "abc123",
+        "title": "房间简介",
+        "cover": "https://example.huya.com/shot.jpg",
+        "user_name": "主播名",
+        "user_avatar": "https://example.huya.com/av.jpg",
+        "online": 12345,
+        "introduction": "房间简介",
+        "status": true,
+        "is_record": false,
+        "url": "https://www.huya.com/abc123",
+        "danmaku_data": {
+          "ayyuid": 660000,
+          "topSid": 660000,
+          "subSid": 660001
+        },
+        "data": {
+          "lines": [
+            {
+              "line": "https://flv1.huya.com/live",
+              "lineType": "flv",
+              "streamName": "abc123stream",
+              "cdnType": "HY",
+              "presenterUid": 660000
+            },
+            {
+              "line": "https://hls1.huya.com/live",
+              "lineType": "hls",
+              "streamName": "abc123stream",
+              "cdnType": "HY",
+              "presenterUid": 660000
+            }
+          ],
+          "bitRates": [
+            {
+              "name": "原画",
+              "bitRate": 0
+            },
+            {
+              "name": "高清",
+              "bitRate": 2000
+            },
+            {
+              "name": "蓝光",
+              "bitRate": 4000
+            }
+          ]
+        },
+        "qualities": [
+          "原画",
+          "高清",
+          "蓝光"
+        ]
+      },
+      "note": "⚠️ 详情走**HTML 正则抓 JSON**，不是 JSON 接口：\n ①ROOM_DATA_REGEX 抓 `var TT_ROOM_DATA = {...};`\n ②STREAM_REGEX 抓 `stream: {...}`（注意 Dart 取 `.split('\\n')[0]`，所以正则必须匹配到行尾前的第一个 `}`）\n ③**HDR 清晰度被跳过**（:308）、**4K 被跳过**（:149）\n ④flv 与 hls 两条线路都非空时会产出 **2 条**线路（lineTypes 遍历）\n ⑤未开播时 danmaku_data 是 {0,0,0}（:327-333），**不能为 null**——App 的 live-controller 无条件用它启动弹幕（Dart 注释 :325-326）。",
+      "verify_note": "**STREAM_REGEX 的真实匹配形态待抓包**（现代虎牙页面结构可能已变）：需确认仍存在 `stream:` 前缀与 `var TT_ROOM_DATA =`。若页面改版需同步更新正则与本夹具——这是虎牙链路最大的**时效性风险**。",
+      "variants": [
+        {
+          "name": "未开播（state != ON）-> status=false + 弹幕参数全0",
+          "expected": {
+            "status": false,
+            "danmaku_data": {
+              "ayyuid": 0,
+              "topSid": 0,
+              "subSid": 0
+            },
+            "data": "空（未开播时不填 HuyaUrlDataModel）"
+          },
+          "response": {
+            "__raw_html": "<!DOCTYPE html><html><head><title>虎牙直播</title></head><body>\n<script>var TT_ROOM_DATA = {\"state\":\"OFF\",\"isReplay\":false,\"roomId\":\"abc123\",\"nick\":\"主播名\"};</script>\n<script>\nwindow.__DATA__ = {\nstream: {\"data\":[{\"gameLiveInfo\":{\"introduction\":\"房间简介\",\"screenshot\":\"https://example.huya.com/shot.jpg\",\"nick\":\"主播名\",\"avatar180\":\"https://example.huya.com/av.jpg\",\"totalCount\":\"12345\",\"uid\":\"660000\"},\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"https://hls1.huya.com/live\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}]}],\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"https://hls1.huya.com/live\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}],\"vMultiStreamInfo\":[{\"sDisplayName\":\"原画\",\"iBitRate\":0},{\"sDisplayName\":\"高清\",\"iBitRate\":2000},{\"sDisplayName\":\"蓝光\",\"iBitRate\":4000},{\"sDisplayName\":\"HDR 超清\",\"iBitRate\":6000}]}\n}\n</script>\n</body></html>"
+          },
+          "mutation_applied": "off"
+        },
+        {
+          "name": "回放（isReplay=true）-> status=false 且 isRecord=true",
+          "expected": {
+            "status": false,
+            "is_record": true
+          },
+          "response": {
+            "__raw_html": "<!DOCTYPE html><html><head><title>虎牙直播</title></head><body>\n<script>var TT_ROOM_DATA = {\"state\":\"ON\",\"isReplay\":true,\"roomId\":\"abc123\",\"nick\":\"主播名\"};</script>\n<script>\nwindow.__DATA__ = {\nstream: {\"data\":[{\"gameLiveInfo\":{\"introduction\":\"房间简介\",\"screenshot\":\"https://example.huya.com/shot.jpg\",\"nick\":\"主播名\",\"avatar180\":\"https://example.huya.com/av.jpg\",\"totalCount\":\"12345\",\"uid\":\"660000\"},\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"https://hls1.huya.com/live\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}]}],\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"https://hls1.huya.com/live\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}],\"vMultiStreamInfo\":[{\"sDisplayName\":\"原画\",\"iBitRate\":0},{\"sDisplayName\":\"高清\",\"iBitRate\":2000},{\"sDisplayName\":\"蓝光\",\"iBitRate\":4000},{\"sDisplayName\":\"HDR 超清\",\"iBitRate\":6000}]}\n}\n</script>\n</body></html>"
+          },
+          "mutation_applied": "replay"
+        },
+        {
+          "name": "缺少 TT_ROOM_DATA（正则不中）-> Dart late 变量未初始化会抛",
+          "expected": {
+            "error": "抛类型化错误（Dart:228 `late LiveRoomDetail result` 未赋值 -> LateInitializationError；实现须转为 CoreError）"
+          },
+          "response": {
+            "__raw_html": "<!DOCTYPE html><html><head><title>虎牙直播</title></head><body>\n<script>\nwindow.__DATA__ = {\nstream: {\"data\":[{\"gameLiveInfo\":{\"introduction\":\"房间简介\",\"screenshot\":\"https://example.huya.com/shot.jpg\",\"nick\":\"主播名\",\"avatar180\":\"https://example.huya.com/av.jpg\",\"totalCount\":\"12345\",\"uid\":\"660000\"},\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"https://hls1.huya.com/live\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}]}],\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"https://hls1.huya.com/live\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}],\"vMultiStreamInfo\":[{\"sDisplayName\":\"原画\",\"iBitRate\":0},{\"sDisplayName\":\"高清\",\"iBitRate\":2000},{\"sDisplayName\":\"蓝光\",\"iBitRate\":4000},{\"sDisplayName\":\"HDR 超清\",\"iBitRate\":6000}]}\n}\n</script>\n</body></html>"
+          },
+          "mutation_applied": "no_room_data"
+        },
+        {
+          "name": "只有 flv 线路（sHlsUrl 为空）-> 仅 1 条线路",
+          "expected": {
+            "lines_count": 1
+          },
+          "response": {
+            "__raw_html": "<!DOCTYPE html><html><head><title>虎牙直播</title></head><body>\n<script>var TT_ROOM_DATA = {\"state\":\"ON\",\"isReplay\":false,\"roomId\":\"abc123\",\"nick\":\"主播名\"};</script>\n<script>\nwindow.__DATA__ = {\nstream: {\"data\":[{\"gameLiveInfo\":{\"introduction\":\"房间简介\",\"screenshot\":\"https://example.huya.com/shot.jpg\",\"nick\":\"主播名\",\"avatar180\":\"https://example.huya.com/av.jpg\",\"totalCount\":\"12345\",\"uid\":\"660000\"},\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}]}],\"gameStreamInfoList\":[{\"sFlvUrl\":\"https://flv1.huya.com/live\",\"sHlsUrl\":\"\",\"sFlvAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sHlsAntiCode\":\"fm=AbCdEf_0123456789&wsTime=66b2f1c0a1b2c3d4&ctype=huya_pc_exe&fs=1&t=100\",\"sStreamName\":\"abc123stream\",\"sCdnType\":\"HY\",\"lChannelId\":\"660000\",\"lSubChannelId\":\"660001\"}],\"vMultiStreamInfo\":[{\"sDisplayName\":\"原画\",\"iBitRate\":0},{\"sDisplayName\":\"高清\",\"iBitRate\":2000},{\"sDisplayName\":\"蓝光\",\"iBitRate\":4000},{\"sDisplayName\":\"HDR 超清\",\"iBitRate\":6000}]}\n}\n</script>\n</body></html>"
+          },
+          "mutation_applied": "flv_only"
+        }
+      ]
+    },
+    "udblgn_huya_com_web_anonymousLogin": {
+      "endpoint": "https://udblgn.huya.com/web/anonymousLogin",
+      "method": "POST",
+      "dart_source": "huya_site.dart:508-517",
+      "target_ac": [
+        "IP-4-PLAY-UID"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.uid": "dart:516（匿名 uid；Dart getUid(t:13,e:10) 本地生成 13 位随机串）"
+      },
+      "response": {
+        "data": {
+          "uid": "1234567890123"
+        }
+      },
+      "expected": {
+        "uid": "1234567890123"
+      },
+      "verify_note": "getUid 生成的是 **13 位随机串**（huya_site.dart:526-544 t=13/e=10），不是服务端下发；夹具的 uid 值仅用于断言「能取到 data.uid」。",
+      "variants": [
+        {
+          "name": "错误流：data 缺失",
+          "response": {
+            "code": 0
+          },
+          "expected": {
+            "error": "抛类型化错误（不得 panic）"
+          }
+        }
+      ]
+    }
+  }
+}

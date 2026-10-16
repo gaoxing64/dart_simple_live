@@ -1,0 +1,36 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "twitch",
+    "synthetic": true,
+    "derivation": "照 Dart core twitch_danmaku.dart 的三条正则（PING/display-name/color）与行拆分逻辑推导；IRC 标签格式参照 Twitch 官方 IRCv3 规范",
+    "frame_format_source": "simple_live_core/lib/src/platforms/twitch/twitch_danmaku.dart:73-103",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://irc-ws.chat.twitch.tv（先 CAP REQ + PASS SCHMOOPIIE + NICK justinfanXXXX）录制真实帧，核对：①tags 是否总带 color（无 color 的用户实际是否存在）②系统消息（RECONNECT/HOST_ON/CLEARCHAT）的实际形态 ③帧内是否多行、是否 CRLF。替换后把 _meta.synthetic 改 false。",
+    "protocol_ref": "https://dev.twitch.tv/docs/irc/",
+    "target_ac": [
+      "IP-5-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::twitch::danmaku::decode::decode_message",
+    "note": "内容自身含 ':' —— `PRIVMSG [^:]+:(.+)` 的 `[^:]+` 只到**第一个**冒号，`(.+)` 贪婪到行尾，内容中的冒号完整保留。钉死「不会把内容从中间截断」。",
+    "dart_source": "twitch_danmaku.dart:86"
+  },
+  "irc_text": "@color=#FF0000;display-name=Henry;id=c1;room-id=1;user-id=8;user-type= :henry!henry@henry.tmi.twitch.tv PRIVMSG #1 :time is 12:30 now\n",
+  "bytes_hex": "40 63 6f 6c 6f 72 3d 23 46 46 30 30 30 30 3b 64 69 73 70 6c 61 79 2d 6e 61 6d 65 3d 48 65 6e 72 79 3b 69 64 3d 63 31 3b 72 6f 6f 6d 2d 69 64 3d 31 3b 75 73 65 72 2d 69 64 3d 38 3b 75 73 65 72 2d 74 79 70 65 3d 20 3a 68 65 6e 72 79 21 68 65 6e 72 79 40 68 65 6e 72 79 2e 74 6d 69 2e 74 77 69 74 63 68 2e 74 76 20 50 52 49 56 4d 53 47 20 23 31 20 3a 74 69 6d 65 20 69 73 20 31 32 3a 33 30 20 6e 6f 77 0a",
+  "bytes_len": 134,
+  "expected": {
+    "messages": [
+      {
+        "type": "chat",
+        "user_name": "Henry",
+        "message": "time is 12:30 now",
+        "color": {
+          "r": 255,
+          "g": 0,
+          "b": 0
+        }
+      }
+    ],
+    "replies": []
+  }
+}

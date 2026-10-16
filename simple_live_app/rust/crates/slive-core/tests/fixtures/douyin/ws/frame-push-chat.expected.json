@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "douyin",
+    "synthetic": true,
+    "derivation": "照 douyin.proto 字段号手写 protobuf 编码（varint + length-delimited，proto3 默认值省略），外层包 gzip(mtime=0保证字节确定)；消息分发逻辑对照 douyin_danmaku.dart:133-196",
+    "frame_format_source": "simple_live_core/lib/src/platforms/douyin/proto/douyin.proto",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://webcast100-ws-web-lq.douyin.com/webcast/im/push/v2/（需带 ttwid cookie 与 X-Bogus signature，见 douyin_danmaku.dart:51-92），录制真实帧，核对：①payloadEncoding 是否恒为 gzip（是否有 'none'）②PushFrame.headersList(service/method) 实际取值 ③needAck 触发频率与 ack 包形态 ④是否混入 WebcastControlMessage 等第三类 method。替换后把 _meta.synthetic 改 false。",
+    "gzip_determinism": "gzip mtime=0，保证重复生成字节一致（夹具可入版本库比对）。",
+    "target_ac": [
+      "IP-6-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyin::danmaku::decode::decode_message（prost 解 PushFrame/Response，见 danmaku/proto.rs）",
+    "note": "PushFrame.payload 经 **gzip 解压**后是 Response；Response.messagesList[].method=='WebcastChatMessage' 时取 ChatMessage.content 与 user.nickName。",
+    "color_note": "**颜色恒为白色**（Dart douyin_danmaku.dart:158-162 写死 LiveMessageColor.white，注释说明「暂不知道怎么转换颜色」）——实现不得自行按 fullScreenTextColor 上色（会与 Dart 行为不一致）。",
+    "dart_source": "douyin_danmaku.dart:133-152,154-168"
+  },
+  "bytes_hex": "08 01 10 d9 36 32 04 67 7a 69 70 3a 03 6d 73 67 42 5a 1f 8b 08 00 00 00 00 00 02 ff 01 43 00 bc ff 0a 3a 0a 12 57 65 62 63 61 73 74 43 68 61 74 4d 65 73 73 61 67 65 12 22 12 0f 08 87 e4 06 1a 09 e8 a7 82 e4 bc 97 e7 94 b2 1a 0f e4 bd a0 e5 a5 bd ef bc 8c e6 8a 96 e9 9f b3 18 01 20 c0 c6 b9 e6 bd 33 38 66 3d 9c 43 00 00 00",
+  "bytes_len": 108,
+  "expected": {
+    "push_frame": {
+      "seq_id": 1,
+      "log_id": 7001,
+      "payload_type": "msg",
+      "payload_encoding": "gzip"
+    },
+    "need_ack": false,
+    "messages": [
+      {
+        "type": "chat",
+        "user_name": "观众甲",
+        "message": "你好，抖音",
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        }
+      }
+    ]
+  }
+}

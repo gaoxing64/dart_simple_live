@@ -1,0 +1,37 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "douyu",
+    "synthetic": true,
+    "derivation": "照 Dart core douyu_danmaku.dart 的 STT 协议与 12 字节小端包头逐字段推导（行号见各帧 dart_source / note）；STT 语法与转义见 :196-228",
+    "needs_realtime_validation": true,
+    "frame_format_source": "simple_live_core/lib/src/platforms/douyu/douyu_danmaku.dart:152-193",
+    "realtime_validation_plan": "用 wscat/mitm 抓 wss://danmuproxy.douyu.com:8506 真实帧，核对 packType 取值（客户端 689 / 服务端实际值）、STT 字段名与转义出现频率；替换本目录 *.bin 并把 _meta.synthetic 改为 false。",
+    "target_ac": [
+      "IP-3-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyu::danmaku::decode::deserialize_douyu / stt::stt_to_json / parse::decode_message",
+    "note": "nn 含 '@' -> 编码为 @A；txt 含 '/' -> 编码为 @S。解码必须还原为 'a@b' 与 '路径/a@b&x=1'（douyu_danmaku.dart:226-228）。",
+    "stt_escape_pairs": {
+      "@S": "/",
+      "@A": "@"
+    }
+  },
+  "stt_body": "type@=chatmsg/if@=1/nn@=a@Ab/txt@=路径@Sa@Ab&x=1/col@=0/",
+  "bytes_hex": "43 00 00 00 43 00 00 00 b1 02 00 00 74 79 70 65 40 3d 63 68 61 74 6d 73 67 2f 69 66 40 3d 31 2f 6e 6e 40 3d 61 40 41 62 2f 74 78 74 40 3d e8 b7 af e5 be 84 40 53 61 40 41 62 26 78 3d 31 2f 63 6f 6c 40 3d 30 2f 00",
+  "bytes_len": 71,
+  "expected": {
+    "messages": [
+      {
+        "type": "chat",
+        "user_name": "a@b",
+        "message": "路径/a@b&x=1",
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        }
+      }
+    ]
+  }
+}

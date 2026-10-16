@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "douyin",
+    "synthetic": true,
+    "derivation": "照 douyin.proto 字段号手写 protobuf 编码（varint + length-delimited，proto3 默认值省略），外层包 gzip(mtime=0保证字节确定)；消息分发逻辑对照 douyin_danmaku.dart:133-196",
+    "frame_format_source": "simple_live_core/lib/src/platforms/douyin/proto/douyin.proto",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://webcast100-ws-web-lq.douyin.com/webcast/im/push/v2/（需带 ttwid cookie 与 X-Bogus signature，见 douyin_danmaku.dart:51-92），录制真实帧，核对：①payloadEncoding 是否恒为 gzip（是否有 'none'）②PushFrame.headersList(service/method) 实际取值 ③needAck 触发频率与 ack 包形态 ④是否混入 WebcastControlMessage 等第三类 method。替换后把 _meta.synthetic 改 false。",
+    "gzip_determinism": "gzip mtime=0，保证重复生成字节一致（夹具可入版本库比对）。",
+    "target_ac": [
+      "IP-6-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyin::danmaku::decode::decode_message（prost 解 PushFrame/Response，见 danmaku/proto.rs）",
+    "note": "method=='WebcastRoomUserSeqMessage' -> 取 RoomUserSeqMessage.totalUser（字段 7，uint64）转 i32 作为在线人数（Dart:170-182）。",
+    "dart_source": "douyin_danmaku.dart:170-182"
+  },
+  "bytes_hex": "08 01 10 da 36 32 04 67 7a 69 70 3a 03 6d 73 67 42 4b 1f 8b 08 00 00 00 00 00 02 ff e3 d2 e7 92 0c 4f 4d 4a 4e 2c 2e 09 ca cf cf 0d 2d 4e 2d 0a 4e 2d f4 4d 2d 2e 4e 4c 4f 15 12 90 d8 b1 8d d5 02 88 9d d8 2c f4 2c 9f ec 68 97 60 54 38 70 6c e7 b3 bd c6 00 4b 8a a5 01 38 00 00 00",
+  "bytes_len": 93,
+  "expected": {
+    "push_frame": {
+      "seq_id": 1,
+      "log_id": 7002,
+      "payload_type": "msg",
+      "payload_encoding": "gzip"
+    },
+    "need_ack": false,
+    "messages": [
+      {
+        "type": "online",
+        "data_int": 88888,
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        },
+        "user_name": "",
+        "message": ""
+      }
+    ]
+  }
+}
