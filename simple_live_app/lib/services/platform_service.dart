@@ -70,7 +70,9 @@ class PlatformService extends GetxService {
 
   // ==================== 抖音 ====================
 
-  final _douyinSite = (Sites.allSites[Constant.kDouyin]!.liveSite as DouyinSite);
+  // ⚠️ 类型用基类 LiveSite：Dart/Rust 两种实现都只调 setSiteAttrs（基类方法），
+  // 早年强转 as DouyinSite 在 Rust Core 路径下会直接炸（not a subtype）。
+  final _douyinSite = Sites.allSites[Constant.kDouyin]!.liveSite;
   void _updateDouyinAttr() {
     var douyinHlsFirst = LocalStorageService.instance.getValue(LocalStorageService.kDouyinHlsFirst, false);
     Map<String, dynamic> params = {
@@ -82,7 +84,7 @@ class PlatformService extends GetxService {
   // ==================== 虎牙 ====================
 
   static const String defaultHuyaSdkUa = "HYSDK(Windows,30000002)_APP(pc_exe&7090000&official)_SDK(trans&2.35.0.5996)";
-  final _huyaSite = (Sites.allSites[Constant.kHuya]!.liveSite as HuyaSite);
+  final _huyaSite = Sites.allSites[Constant.kHuya]!.liveSite;
   var huyaSdkUa = "".obs;
 
   void _initHuya() {
