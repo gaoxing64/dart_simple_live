@@ -18,7 +18,7 @@ use super::bare::{read_bare_bytes, read_bare_i64, read_bare_string, read_bare_st
 /// `x.WSMsgItem`（对齐 Dart `WSMsgItem`，tag 0/1/2）。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct WsMsgItem {
-    /// 消息 uri（`2001314` = 醒目留言事件）。
+    /// 消息 uri（`2001317` = 醒目留言事件；2026-10-17 上游同步更正，旧值 2001314）。
     pub i_uri: i64,
     /// 消息体。
     pub s_msg: Vec<u8>,

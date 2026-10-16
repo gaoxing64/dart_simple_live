@@ -12,7 +12,7 @@
     ],
     "target_rust_fn": "slive_core::platforms::huya::danmaku::decode::decode_message（TARS + WebSocketCommand；对照 slive-core::tars）",
     "cmd_type": 22,
-    "note": "V2 帧里的 iUri=1400 Dart 只在 V1(7) 分支处理，这里**不产出消息**（huya_danmaku.dart:258-269 只匹配 2001314）。锁定「不过度解码」行为。",
+    "note": "V2 帧里的 iUri=1400 Dart 只在 V1(7) 分支处理，这里**不产出消息**（huya_danmaku.dart:258-269 只匹配 2001317（2026-10-17 上游同步））。锁定「不过度解码」行为。",
     "dart_source": "huya_danmaku.dart:254-269"
   },
   "bytes_hex": "00 16 1d 00 00 1f 06 0d 6c 69 76 65 3a 31 32 33 34 35 36 37 38 19 00 01 0a 01 05 78 1d 00 00 02 00 00 20 01 0b 20 01 36 00 4c 5c 66 00",

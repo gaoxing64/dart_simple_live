@@ -120,7 +120,7 @@ fn ac_huya_ws_online_frame_maps_int_data() {
 
 #[test]
 fn ac_huya_ws_v2_superchat_uri_triggers_fetch() {
-    let expected = read_expected("frame-push-v2-uri2001314-superchat-trigger")["expected"].clone();
+    let expected = read_expected("frame-push-v2-uri2001317-superchat-trigger")["expected"].clone();
     let trigger = &expected["triggers"][0];
     assert_eq!(trigger["iUri"].as_i64().unwrap(), frames::URI_SUPER_CHAT);
 
@@ -133,7 +133,7 @@ fn ac_huya_ws_v2_superchat_uri_triggers_fetch() {
 
     // 夹具口径：本帧只置触发位、不产消息（expected.messages 为空）
     let decoded = decode_to_items(
-        &read_bytes("frame-push-v2-uri2001314-superchat-trigger.bin"),
+        &read_bytes("frame-push-v2-uri2001317-superchat-trigger.bin"),
         &HuyaDanmakuArgs::new(1, 66_0000, 66_0001),
         66_0000,
     );
@@ -402,4 +402,30 @@ async fn ac_huya_session_stop_closes_without_reconnect() {
             slive_core::models::LiveDanmuControlEvent::Closed(_)
         ))
     ));
+}
+
+// ---------------------------------------------------------------------------
+// 上游同步 97413c60：旧 uri 2001314 不再触发（防回退反例）
+// ---------------------------------------------------------------------------
+
+#[test]
+fn ac_huya_upstream_97413c60_old_uri_2001314_does_not_trigger() {
+    // SlotSun dev 97413c60「listen real uri」：真实 SC uri 是 2001317；
+    // 旧值 2001314 为修复前语义，**不得再触发**（实现若回退即本用例失败）。
+    let doc = read_expected("frame-push-v2-uri2001314-ignored");
+    assert_eq!(
+        doc["expected"]["triggers"].as_array().expect("triggers").len(),
+        0,
+        "旧 uri 2001314 不得触发（上游 97413c60 口径）"
+    );
+    let decoded = decode_to_items(
+        &read_bytes("frame-push-v2-uri2001314-ignored.bin"),
+        &HuyaDanmakuArgs::new(1, 66_0000, 66_0001),
+        66_0000,
+    );
+    assert!(decoded.items.is_empty(), "反例帧同样不产消息");
+    assert!(
+        !decoded.super_chat_triggered,
+        "旧 uri 2001314 必须不置触发位（上游 97413c60）"
+    );
 }

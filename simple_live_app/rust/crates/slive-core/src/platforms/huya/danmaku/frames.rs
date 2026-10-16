@@ -14,7 +14,7 @@
 //! uri 语义（来自 Dart 注释，勿改）：
 //! - `1400`：聊天弹幕 / 醒目留言文案；
 //! - `8006`：在线人气（整型直塞在 `msg` 里）；
-//! - V2 的 `2001314`：醒目留言事件（触发 SC 拉取）。
+//! - V2 的 `2001317`：醒目留言事件（触发 SC 拉取；2026-10-17 上游同步更正，旧值 2001314）。
 
 use crate::error::SliveError;
 use crate::tars::{TarsDecoder, TarsEncoder, TarsValue};
@@ -38,8 +38,11 @@ pub mod cmd {
 pub const URI_CHAT: i64 = 1400;
 /// `uri = 8006`：在线人气。
 pub const URI_ONLINE: i64 = 8006;
-/// V2 `iUri = 2001314`：醒目留言事件（需拉 SC 列表）。
-pub const URI_SUPER_CHAT: i64 = 2001314;
+/// V2 `iUri = 2001317`：醒目留言事件（需拉 SC 列表）。
+///
+/// 2026-10-17 随上游 SlotSun dev `97413c60`（listen real uri）从旧值 `2001314` 更正 ——
+/// 旧值对应 dev 修复前语义，真实 SC uri 为 `2001317`。
+pub const URI_SUPER_CHAT: i64 = 2001317;
 
 /// 注册群组请求体（对齐 Dart `WsRegisterGroupReq`，tag 0/1）。
 fn register_group_body(group_ids: &[String]) -> Vec<u8> {
