@@ -55,7 +55,8 @@ fn websocket_command_frames_have_expected_cmd_types() {
     for (stem, want) in [
         ("frame-push-uri1400-chat", 7u8),
         ("frame-push-uri8006-online", 7),
-        ("frame-push-v2-uri2001314-superchat-trigger", 22),
+        ("frame-push-v2-uri2001317-superchat-trigger", 22),
+        ("frame-push-v2-uri2001314-ignored", 22),
         ("req-register-group", 16),
         ("req-heartbeat", 20),
     ] {
@@ -74,7 +75,8 @@ fn websocket_command_is_fully_consumable() {
     for stem in [
         "frame-push-uri1400-chat",
         "frame-push-uri8006-online",
-        "frame-push-v2-uri2001314-superchat-trigger",
+        "frame-push-v2-uri2001317-superchat-trigger",
+        "frame-push-v2-uri2001314-ignored",
         "req-register-group",
         "req-heartbeat",
     ] {
@@ -116,14 +118,21 @@ fn uri8006_is_online_count() {
 #[test]
 fn v2_frame_only_triggers_sc_and_emits_nothing() {
     // 钉死「不过度解码」：cmdType=22 只触发 SC 拉取，本帧不产出 LiveMessage。
-    let doc = expected_doc("frame-push-v2-uri2001314-superchat-trigger");
+    let doc = expected_doc("frame-push-v2-uri2001317-superchat-trigger");
     assert_eq!(
         doc["expected"]["messages"].as_array().expect("messages").len(),
         0
     );
     let triggers = doc["expected"]["triggers"].as_array().expect("triggers");
     assert_eq!(triggers.len(), 1);
-    assert_eq!(triggers[0]["iUri"], 2001314);
+    assert_eq!(triggers[0]["iUri"], 2001317);
+    // 旧 uri 反例（上游 97413c60）：2001314 不再触发
+    let old = expected_doc("frame-push-v2-uri2001314-ignored");
+    assert_eq!(
+        old["expected"]["triggers"].as_array().expect("triggers").len(),
+        0,
+        "旧 uri 2001314 不得触发（上游 97413c60 口径）"
+    );
     assert_eq!(doc["_meta"]["cmd_type"], 22);
 
     // V2 帧里的 iUri=1400 也不产出（Dart 只在 V1 分支处理聊天）

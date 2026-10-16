@@ -2,7 +2,7 @@
 
 > 版本锚点：`dart_simple_live` fork future @ `4dcdb4fe`（2026-10-16）· worktree 分支 `feat/core-rust`
 > 交付边界（用户已确认）：**crate 骨架 + B站（bilibili）端到端**
-> 桥接版本（D6）：`flutter_rust_bridge = 2.13.0`（仓库既有 `simple_live_app/rust/` 口径；上游 slive_core 为 2.12.0，**不采用**）
+> 桥接版本（D6）：`flutter_rust_bridge = 2.13.0`（仓库既有 `simple_live_core/` 口径；上游 slive_core 为 2.12.0，**不采用**）
 > 依据：`docs/rust-core/00-briefing.md`（D1–D6）· `references/01-standards/spec-as-contract.md` · `references/01-standards/test-integrity-anti-gaming.md`
 > 关联文档：`simple_live_core/doc/{architecture,test-suite,update-history}.md`
 > 本文是 Spec 与 QA 的**唯一验收依据**。实现与本文冲突时：**先改本文，再改代码**（活规格）。
@@ -143,7 +143,7 @@
 |------|--------|------------------|----------|
 | AC-30 | P0 | 当本轮迁移合入后，其余 4 平台（douyu/huya/douyin/twitch）**必须**继续走 Dart core 且行为不变。 | App 侧 Dart 测试回归名单逐条比对：**零新增失败**（对齐 `update-history.md §5.3` 的「失败名单逐条一致」口径） |
 | AC-31 | P0 | 当 B站开关置于「Dart」时，App **必须**仍可正常使用 B站全部功能（**运行时回退**）。 | 开关切换后的路径走查 + 冒烟；**判定口径（2026-10-17 re-baseline）**：只要求「运行时回退」——开关翻 false 后全走 Dart core（Rust 库仍随 App 构建）。「Rust 侧编译失败不得阻断 App 构建（编译期回退）」与 ADR-001（cargokit 硬依赖）冲突，**不在本轮范围**，登记为后续项（如需：条件依赖 / 可选 cargokit） |
-| AC-32 | P0 | 本轮**必须**不引入任何用户可见交互变化（页面/文案/布局/图标）。 | diff 审查：仅 `simple_live_core` Rust 侧 + `simple_live_app/rust` 与绑定层，无 UI 文件改动 |
+| AC-32 | P0 | 本轮**必须**不引入任何用户可见交互变化（页面/文案/布局/图标）。 | diff 审查：仅 `simple_live_core` Rust 侧 + `simple_live_core` 与绑定层，无 UI 文件改动 |
 | AC-33 | P0 | 迁移后源码**必须**满足门禁：单文件 ≤300 行、依赖只向下、无 emoji 作图标、无 TODO 空壳/占位实现。 | 脚本化统计（行数/lint）+ diff 人工核对 |
 | AC-34 | P1 | 当 Dart core 的 B站代码被 Rust 取代时，Dart 侧**应该**保留至回退窗口结束（不提前删除）。 | git 审查：删除动作与回退窗口结束同批 |
 

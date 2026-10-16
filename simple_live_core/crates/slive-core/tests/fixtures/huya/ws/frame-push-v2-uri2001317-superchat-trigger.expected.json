@@ -1,0 +1,32 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "huya",
+    "synthetic": true,
+    "derivation": "照 Dart core 逐字节推导：TARS 编码规则见 packages/tars_dart/tars/codec/tars_output_stream.dart，结构 tag 见 platforms/huya/tars/huya_danmaku.dart",
+    "frame_format_source": "simple_live_core/lib/src/platforms/huya/tars/huya_danmaku.dart",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://cdnws.api.huya.com:443，用 mitmproxy/charles 录制 cmdType=7/22 的真实帧，核对 HYPushMessage.protocolType、requestId/traceId 是否下发、以及 HYMessage 是否还有未列出的 tag；替换后把 _meta.synthetic 改 false。",
+    "target_ac": [
+      "IP-4-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::huya::danmaku::decode::decode_message（TARS + WebSocketCommand；对照 slive-core::tars）",
+    "cmd_type": 22,
+    "cmd_type_name": "EWSCmdS2C_MsgPushReq_V2",
+    "note": "V2 帧**不直接产出 LiveMessage**：仅 iUri==2001317（2026-10-17 随上游 SlotSun dev 97413c60 从 2001314 更正为真实 uri）时调 callSc()，SC 内容由 SC 列表接口补内容后另行产出。实现若在 V2 帧直接造 SC 消息即为错误。",
+    "dart_source": "huya_danmaku.dart 97413c60（listen real uri / iUri=2001317）",
+    "upstream_sync": "SlotSun dev 97413c60（2026-10-17 同步；原值 2001314 为 dev 修复前的旧 uri）"
+  },
+  "bytes_hex": "00 16 1d 00 00 21 06 0d 6c 69 76 65 3a 31 32 33 34 35 36 37 38 19 00 01 0a 02 00 1e 89 a5 1d 00 00 02 00 00 20 01 0b 20 01 36 00 4c 5c 66 00",
+  "bytes_len": 47,
+  "expected": {
+    "messages": [],
+    "triggers": [
+      {
+        "kind": "SuperChatRefresh",
+        "iUri": 2001317,
+        "note": "Dart huya_danmaku.dart:266-268 只触发 callSc()，不发消息本体；SC 内容需再请求 getHeadLineMessageBoard"
+      }
+    ]
+  }
+}

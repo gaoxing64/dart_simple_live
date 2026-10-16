@@ -43,7 +43,8 @@ pub type ConnectFactory = Box<
 
 /// 醒目留言事件的拉取钩子。
 ///
-/// 虎牙的 SC 不随弹幕下发：收到 `(来自 xx 上头条)` 文案或 V2 `iUri=2001314` 事件时
+/// 虎牙的 SC 不随弹幕下发：收到 V2 `iUri=2001317` 事件时（2026-10-17 上游同步：
+/// 旧「文案含 `(来自 xx 上头条)`」文本路径已弃用，见 dev 97413c60）
 /// 才去拉一次列表（对齐 Dart `callSc`）。core 不直接发 HTTP，故由调用方注入。
 /// `pub`：桥层（FRB）注入生产实现时会用到本类型名。
 pub type SuperChatFetcher = Arc<dyn Fn(i64) -> Vec<crate::models::LiveSuperChatMessage> + Send + Sync>;
@@ -186,7 +187,7 @@ async fn reconnect_or_close(
 pub struct DecodedFrame {
     /// 业务消息（0..N 条）。
     pub items: Vec<LiveDanmuItem>,
-    /// 命中醒目留言信号（V2 `iUri=2001314`，或文案含 `(来自 xx 上头条)`）。
+    /// 命中醒目留言信号（V2 `iUri=2001317`；文本路径已弃用，2026-10-17 上游同步）。
     pub super_chat_triggered: bool,
 }
 
@@ -195,8 +196,8 @@ pub struct DecodedFrame {
 /// 映射口径（对齐 Dart `decodeMessage` / `callSc`）：
 /// - 聊天 -> `LiveMessageType::Chat`，颜色 `font_color <= 0` 归白色；
 /// - 人气 -> `LiveMessageType::Online`（`data = Online(online)`）；
-/// - 醒目留言事件 / 文案含 `(来自 xx 上头条)` -> **只置触发位，不产消息**
-///   （Dart `huya_danmaku.dart:266-268` 只调 `callSc()`；SC 内容由会话循环
+/// - 醒目留言事件（V2 `iUri=2001317`）-> **只置触发位，不产消息**
+///   （Dart `huya_danmaku.dart` @97413c60 只调 `callSc()`；SC 内容由会话循环
 ///   经 `SuperChatFetcher` 另行拉取，QA 夹具的 `expected.messages` 亦为空）；
 /// - 脏帧 -> 空序列（不中断会话）。
 pub fn decode_to_items(
@@ -210,7 +211,10 @@ pub fn decode_to_items(
             content,
             font_color,
         } => {
-            let triggered = super_chat_map::mentions_super_chat(&content);
+            // 文本正则触发已随上游弃用（SlotSun dev 97413c60「listen real uri」，
+            // 2026-10-17 同步）：旧 `(来自 xx 上头条)` 文案匹配是临时方案，改由
+            // V2 真实 uri（`URI_SUPER_CHAT = 2001317`）唯一触发，避免误触发/漏触发。
+            // `super_chat_map::mentions_super_chat` 保留以备回退，但不再参与判定。
             DecodedFrame {
                 items: vec![LiveDanmuItem::Message(Box::new(LiveMessage {
                     message_type: LiveMessageType::Chat,
@@ -225,7 +229,7 @@ pub fn decode_to_items(
                     },
                     emoticons: emoticon::extract_emoticons(&content),
                 }))],
-                super_chat_triggered: triggered,
+                super_chat_triggered: false,
             }
         }
         frames::HuyaFrame::Online { online } => DecodedFrame {

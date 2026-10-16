@@ -51,8 +51,8 @@
 
 | 层 | 技术 | 实际版本 | 锁定原因 |
 |----|------|----------|----------|
-| 工作区 | cargo **workspace**（`simple_live_app/rust/` 原地升级） | — | cargokit 零改动、回归面最小 |
-| 核心 crate | **`slive-core`（纯 Rust，零 FRB）** — 位于 `simple_live_app/rust/crates/slive-core` | 0.1.0 | 可被 Flutter 之外的 Tauri 等前端复用（issue 目标）；**路径由 spike 锁定，勿移**（移动会破坏 cargokit 零改动） |
+| 工作区 | cargo **workspace**（`simple_live_core/` 原地升级） | — | cargokit 零改动、回归面最小 |
+| 核心 crate | **`slive-core`（纯 Rust，零 FRB）** — 位于 `simple_live_core/crates/slive-core` | 0.1.0 | 可被 Flutter 之外的 Tauri 等前端复用（issue 目标）；**路径由 spike 锁定，勿移**（移动会破坏 cargokit 零改动） |
 | 桥 crate | `rust_lib_simple_live_app`（**现状保留**） | 0.1.0 | 避免改 cargokit manifest/libname |
 | 桥接 | **flutter_rust_bridge** | **`=2.13.0`（精确，禁 caret）** | 与现仓库资产一致；两侧版本漂移会让 `RustLib.init()` 静默抛异常 |
 | HTTP | `reqwest`（`rustls-tls,json,stream,cookies,brotli,gzip`，`default-features=false`） | **0.12（实测锁定）** | 移动端 OpenSSL 构建不可行，统一 rustls（ADR-003）；0.11 为 DTV 口径且偏旧，0.12 的 rustls 支持稳定 |
@@ -170,7 +170,7 @@
 
 ```bash
 # 1) 依赖与构建核验
-cd simple_live_app/rust
+cd simple_live_core
 cargo tree -p slive-core | grep -E "reqwest|rustls|brotli|flate2"
 cargo build -p slive-core && cargo clippy -p slive-core -- -D warnings
 
@@ -215,7 +215,7 @@ flutter test integration_test/rust_bilibili_e2e_test.dart
 | 2026-10-16 | 初始版本 v1.0（Phase 1.5） | 用户确认 D1–D6 与三方向后汇编 | 全部 |
 | 2026-10-16 | 并入 PM 修订（AC-39/AC-40）与总监裁决 J-1~J-8；AC 索引扩至 **40 条** | Phase 1 两份文档（PM 范围 / 架构方案）交叉校验后定稿 | §8 / §12 |
 | 2026-10-16 | 补 J-9（回退窗口结束判据）/ J-10（JSON 通道 Dart 侧失败行为）；采纳架构师 JSON 通道加固（`schema_version` + 单测三条 + 缺字段/非法串 → `CoreError(Decode)`） | 架构师 advisory + 交叉校验收口 | §8 / §12 |
-| 2026-10-16 | 补记实测锁定：crate 路径 `simple_live_app/rust/crates/slive-core`（spike 定，勿移）、`reqwest 0.12`、`async-trait 0.1`；§9 增回归判定口径与测试环境前置（代理隔离） | spike 通过后回写实测值（活规格：实现与文档同步） | §4.1 / §9 |
+| 2026-10-16 | 补记实测锁定：crate 路径 `simple_live_core/crates/slive-core`（spike 定，勿移）、`reqwest 0.12`、`async-trait 0.1`；§9 增回归判定口径与测试环境前置（代理隔离） | spike 通过后回写实测值（活规格：实现与文档同步） | §4.1 / §9 |
 | 2026-10-16 | **实现期差异修订（DoD-8）**：① Dart 侧需 `freezed 3.x`（FRB 2.13 对有数据枚举强制 freezed；2.x 与 hive_ce_generator 冲突）；② `startDanmaku` 为 Stream 形态，连接句柄存全局 + `stop_danmaku()`（单房间语义）；③ 绑定层 `setSiteAttrs` 用 pending 模式（同步 void vs FRB async 句柄）；④ **nav 匿名响应 code=-101 但 wbi_img 有效**（真实冒烟发现）→ `getWbiKeys` 不做通用 code 检查；⑤ join 后立即发首心跳；⑥ `quality.data` 以字符串往返（仅绑定层内部使用） | 真实网络冒烟 + 实现期验证（活规格） | §4.1 / §4.4 / §13 |
 | 2026-10-16 | **IP-2 交付后用户验收通过**（B站真机与 Dart core 体验一致）；**真机三类修复**：① FRB FFI 线程无 tokio runtime → `tokio::spawn` panic 被吞（弹幕会话改独立线程+自建 runtime）；② 登录 cookie 与 uid=0 矛盾 → 服务端 reset（F-06 组装前先回填 mid）；③ WS 握手补 UA+Origin | 用户真机上手反馈 + debug run 日志定位 | §10 / §13 |
 | 2026-10-16 | **启动其余平台迁移**：IP-3 斗鱼（TARS 弹幕，DTV 1724 行参考）→ IP-4 虎牙（TARS）→ IP-5 twitch（IRC，上游有骨架）→ IP-6 抖音（abogus/protobuf，最复杂殿后）。每平台对齐 B站范式：site 全方法 + 弹幕全链路 + 账号 + FRB 桥 + Dart 绑定层 + 离线测试。斗鱼 renewers（FRB 回调）登记待办 O-7 | 用户指令"其他平台也都 Rust 化" | 全部 |

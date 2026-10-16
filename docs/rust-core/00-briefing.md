@@ -29,7 +29,7 @@
 | D3 | 本轮范围 | 骨架(common/model/接口)+ B站全部方法 + FRB 绑定 + 单测 |
 | D4 | 实现蓝本 | **API/模型/接口形态对齐上游 `slive_core`;平台协议实现细节以 `C:\DTV` 为主参考** |
 | D5 | 开发环境 | 新 worktree(`core-rust`),保证主仓库与 App 始终可用、可回退 |
-| D6 | 桥接版本 | flutter_rust_bridge **2.13.0**(与仓库既有 `simple_live_app/rust/` 的 danmaku_mask 一致;上游 slive_core 用的是 2.12.0) |
+| D6 | 桥接版本 | flutter_rust_bridge **2.13.0**(与仓库既有 `simple_live_core/` 的 danmaku_mask 一致;上游 slive_core 用的是 2.12.0) |
 
 ---
 
@@ -97,7 +97,7 @@ simple_live_core/lib/src/common/*
 
 ## 5. 现有 Rust 基础设施(仓库内)
 
-- `simple_live_app/rust/` —— 已有 FRB 2.13.0 工程:crate `rust_lib_simple_live_app`,`src/api/danmaku_mask.rs`(164 行,弹幕屏蔽)+ `simple.rs`(模板残esidual)+ `frb_generated.rs`
+- `simple_live_core/` —— 已有 FRB 2.13.0 工程:crate `rust_lib_simple_live_app`,`src/api/danmaku_mask.rs`(164 行,弹幕屏蔽)+ `simple.rs`(模板残esidual)+ `frb_generated.rs`
 - `simple_live_app/lib/src/rust/` —— 对应 Dart 生成代码
 - `simple_live_app/pubspec.yaml`:依赖 `rust_lib_simple_live_app: path: rust_builder` + `flutter_rust_bridge: ^2.13.0`
 - 上游 `slive-rust-dev` 分支另有 `simple_live_app/{flutter_rust_bridge.yaml,rust_builder/}` 可参考

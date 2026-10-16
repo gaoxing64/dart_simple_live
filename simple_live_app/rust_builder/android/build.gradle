@@ -51,6 +51,6 @@ android {
 
 apply from: "../cargokit/gradle/plugin.gradle"
 cargokit {
-    manifestDir = "../../rust"
+    manifestDir = "../../../simple_live_core"
     libname = "rust_lib_simple_live_app"
 }

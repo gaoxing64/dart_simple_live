@@ -4,8 +4,10 @@
 //! 不涉及连接 / 心跳 / 重连。
 //!
 //! 两条触发路径（对齐 Dart）：
-//! 1. V2 推送 `iUri == 2001314`（由 [`super::frames`] 识别为 `SuperChatEvent`）；
-//! 2. 聊天文案命中 `(来自 xx 上头条)`（Dart 正则 `\(来自.+?上头条\)`）。
+//! 1. V2 推送 `iUri == 2001317`（由 [`super::frames`] 识别为 `SuperChatEvent`；
+//!    2026-10-17 上游同步更正，旧值 2001314）；
+//! 2. ~~聊天文案命中 `(来自 xx 上头条)`~~ —— **上游已弃用**（dev 97413c60）：
+//!    文本路径会误触发/漏触发，判定只信 V2 真实 uri。本模块相关函数保留以备回退。
 //!
 //! 两条路径都**只置触发位、不直接产消息**；SC 内容由会话循环经
 //! `SuperChatFetcher` 拉取后另行产出（QA 夹具 `expected.messages` 亦为空）。
@@ -14,7 +16,11 @@ use crate::models::{LiveDanmuItem, LiveMessage, LiveMessageColor, LiveMessageDat
 
 use super::SuperChatFetcher;
 
-/// 文案是否命中醒目留言特征（对齐 Dart 正则 `\(来自.+?上头条\)`）。
+/// 文案是否命中醒目留言特征（对齐 Dart 旧正则 `\(来自.+?上头条\)`）。
+///
+/// **上游 dev 97413c60 起弃用**（不再参与 SC 判定，只信 V2 uri=2001317）；
+/// 保留函数与其测试以备回退。
+#[allow(dead_code)]
 ///
 /// `pub`：会话编排与集成测试共用同一判据。
 pub fn mentions_super_chat(content: &str) -> bool {

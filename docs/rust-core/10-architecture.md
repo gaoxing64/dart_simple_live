@@ -14,7 +14,7 @@
 
 | 议题 | 结论 | 依据 |
 |------|------|------|
-| 工作区结构 | 把现 `simple_live_app/rust/` 升级为 **cargo workspace**；新增**纯核心 crate `slive-core`**（无 FRB），现 crate `rust_lib_simple_live_app` **原地保留作 FRB 桥** | §1 / ADR-001 |
+| 工作区结构 | 把现 `simple_live_core/` 升级为 **cargo workspace**；新增**纯核心 crate `slive-core`**（无 FRB），现 crate `rust_lib_simple_live_app` **原地保留作 FRB 桥** | §1 / ADR-001 |
 | FRB | **精确 `=2.13.0`**；复用现 `flutter_rust_bridge.yaml` 与 `rust_builder`（cargokit 零改动）；生成代码**入库** | §2 / ADR-002 |
 | TLS | `reqwest`+`tokio-tungstenite` 统一走 **rustls（纯 Rust）+ webpki-roots**；**不**用 openssl-sys vendored | §8 / ADR-003 |
 | 压缩 | **纯 Rust 后端**：brotli 用 `brotli` crate、zlib 用 `flate2`(miniz_oxide)，避免 NDK 编译 C 依赖 | §8 / ADR-003 |
@@ -39,7 +39,7 @@
 
 ### 1.1 现状与约束
 
-- 仓库内唯一 Rust 工程：`simple_live_app/rust/`（crate `rust_lib_simple_live_app`，FRB 2.13.0，含 `src/api/danmaku_mask.rs`），由 `simple_live_app/rust_builder/` 经 **cargokit** 构建，`cargokit { manifestDir = "../../rust"; libname = "rust_lib_simple_live_app" }`（`rust_builder/android/build.gradle` 尾部；ios/macos podspec、linux/windows CMake 同口径）。
+- 仓库内唯一 Rust 工程：`simple_live_core/`（crate `rust_lib_simple_live_app`，FRB 2.13.0，含 `src/api/danmaku_mask.rs`），由 `simple_live_app/rust_builder/` 经 **cargokit** 构建，`cargokit { manifestDir = "../../rust"; libname = "rust_lib_simple_live_app" }`（`rust_builder/android/build.gradle` 尾部；ios/macos podspec、linux/windows CMake 同口径）。
 - 3 个 Flutter 前端共用 `simple_live_core`（Dart）：`simple_live_app`、`simple_live_console`、`simple_live_tv_app`（各自 `pubspec.yaml` 的 `simple_live_core: path: ../simple_live_core`）。
 - 需求要求「**支持未来 Flutter 之外的 Tauri 等前端复用**」（briefing 附录 A 第 1 条），且 D2 要求「Dart 直连 FRB API」。
 
@@ -59,7 +59,7 @@
 ### 1.3 目标目录（本轮落地）
 
 ```
-simple_live_app/rust/                     # cargo workspace 根（现 FRB 工程原地升级）
+simple_live_core/                     # cargo workspace 根（现 FRB 工程原地升级）
   Cargo.toml                              # [workspace] members = ["crates/slive-core"] + [package] rust_lib_simple_live_app
   rust-toolchain.toml                     # 新增：钉 rust channel（可复现）
   src/
@@ -145,7 +145,7 @@ simple_live_app/rust/                     # cargo workspace 根（现 FRB 工程
 |------|------|
 | `simple_live_app/flutter_rust_bridge.yaml`（`rust_input: crate::api` / `rust_root: rust/` / `dart_output: lib/src/rust`） | **不改**。新增 `api/slive/**` 会被自动扫描 |
 | `simple_live_app/rust_builder/`（cargokit + 5 平台工程） | **不改**（`manifestDir=../../rust`、`libname=rust_lib_simple_live_app` 保持） |
-| `simple_live_app/rust/src/api/{danmaku_mask.rs,simple.rs}` | **不动**（`main.dart:71 RustLib.init()` 已有；`live_room_controller.dart` 的 `DanmakuMask` 调用不受影响） |
+| `simple_live_core/src/api/{danmaku_mask.rs,simple.rs}` | **不动**（`main.dart:71 RustLib.init()` 已有；`live_room_controller.dart` 的 `DanmakuMask` 调用不受影响） |
 | 生成代码 `rust/src/frb_generated.rs`、`simple_live_app/lib/src/rust/**` | **入库**（现 `.gitignore` 仅排除 `/target`，与现口径一致） |
 | 上游 slive_core 的 `cargokit/` + `rust_builder/`（2.12.0 口径） | **不整包引入**；仅在需要时对照 cargokit 补丁（见 §11 Windows 坑） |
 
@@ -485,7 +485,7 @@ pub fn disconnect(conn: &LiveDanmuConnection) { ... }
 
 ### 8.2 构建链路
 
-- **工具链**：新增 `simple_live_app/rust/rust-toolchain.toml` 钉 `channel`（钉 channel，不改工具链来源；briefing §6：`RUSTUP_HOME`/`CARGO_HOME` 指向 scoop rustup）。
+- **工具链**：新增 `simple_live_core/rust-toolchain.toml` 钉 `channel`（钉 channel，不改工具链来源；briefing §6：`RUSTUP_HOME`/`CARGO_HOME` 指向 scoop rustup）。
 - **cargokit**：复用现 `rust_builder`（Android gradle plugin / iOS+macOS podspec / linux+windows CMake），`manifestDir=../../rust`，`libname=rust_lib_simple_live_app` —— **本轮不改**。
 - **iOS**：桥 crate `crate-type` 已含 `staticlib`（`rust/Cargo.toml:7`），cargokit `build_pod.sh` 走静态库链入。
 - **目标架构**（实现阶段 `rustup target add`）：`aarch64-linux-android`、`armv7-linux-androideabi`、`x86_64-linux-android`、`aarch64-apple-ios`、`aarch64-apple-ios-sim`、`x86_64-apple-ios`、`aarch64-apple-darwin`、`x86_64-apple-darwin`、`x86_64-pc-windows-msvc`、`x86_64-unknown-linux-gnu`。
@@ -495,7 +495,7 @@ pub fn disconnect(conn: &LiveDanmuConnection) { ... }
 
 ```bash
 # 1) 版本与构建
-cd simple_live_app/rust
+cd simple_live_core
 cargo tree -p slive-core | grep -E "reqwest|rustls|brotli|flate2"   # 依赖核验
 cargo build -p slive-core && cargo clippy -p slive-core -- -D warnings
 # 2) 离线单测（覆盖 AC-01~AC-29；skip/ignore/xfail 必须为 0）
@@ -666,5 +666,5 @@ LiveSite createBilibiliSite() =>
 - Dart core：`lib/src/interface/live_site.dart:17-122`、`live_danmaku.dart:5-25`、`platforms/bilibili/bilibili_site.dart:11-636`、`bilibili_danmaku.dart:14-262`、`bilibili_emoticon.dart:1-300`、`model/*`、`common/{http_client,web_socket_util,core_error,binary_writer,qr_status}.dart`、`doc/architecture.md`。
 - DTV（`C:\DTV`）：`platforms/bilibili/{state.rs:1-11,stream_url.rs:65-71,websocket.rs:32-265,auth.rs,search.rs,models.rs}`、`platforms/common/http_client.rs:11-45`、`Cargo.toml`（依赖清单）。
 - 上游：`github.com/SlotSun/slive_core`（`rust/Cargo.toml`=`=2.12.0`、`rust/src/api/{danmaku,extractor,simple}.rs`、`api/models/*.rs`、`flutter_rust_bridge.yaml`、`lib/src/slive_{site,factory,danmaku}.dart`）；`github.com/SlotSun/slive-core-api-rust`（`crates/platforms-parser/src/{extractor/models.rs, extractor/platforms/bilibili/{extractor,danmaku,wbi}.rs, danmaku/message.rs}`）。
-- 现 Rust 资产：`simple_live_app/rust/{Cargo.toml,src/api/danmaku_mask.rs}`、`rust_builder/{pubspec.yaml,android/build.gradle,ios/*.podspec}`、`flutter_rust_bridge.yaml`、`lib/src/rust/frb_generated.dart`（`@generated … 2.13.0`）、`lib/main.dart:71`（`RustLib.init()`）。
+- 现 Rust 资产：`simple_live_core/{Cargo.toml,src/api/danmaku_mask.rs}`、`rust_builder/{pubspec.yaml,android/build.gradle,ios/*.podspec}`、`flutter_rust_bridge.yaml`、`lib/src/rust/frb_generated.dart`（`@generated … 2.13.0`）、`lib/main.dart:71`（`RustLib.init()`）。
 - 联网证据：FRB 文档 Stream（`cjycode.com/flutter_rust_bridge/guides/types/translatable/stream`）与 Return Types（`…/translatable/return`）与 DateTime(Chrono)（`…/translatable/detailed/chrono`）；FRB issue #2005 + GitCode 案例（Android rustls 方案）；`fluttercandies/fjs` CHANGELOG（2.13.0 版本钉死/Dart≥3.9.2/cargokit Windows 退出码）。
