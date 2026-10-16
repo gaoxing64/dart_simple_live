@@ -330,7 +330,7 @@ let t_rsp = rsp.resp_bytes();                 // "tRsp" 结构体字节
 ### 运行
 
 ```bash
-cd simple_live_app/rust
+cd simple_live_core
 cargo test -p slive-core --test ac_tars_codec --test ac_tars_wire
 ```
 

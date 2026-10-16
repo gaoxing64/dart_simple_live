@@ -16,7 +16,7 @@
 
 ---
 
-## 1. 现状核验（`simple_live_app/rust/`）
+## 1. 现状核验（`simple_live_core/`）
 
 | 项 | 现状 | 结论 |
 |---|---|---|
@@ -28,7 +28,7 @@
 ## 2. 最小 workspace（已验证）
 
 ```toml
-# simple_live_app/rust/Cargo.toml（在既有 [package] 基础上追加）
+# simple_live_core/Cargo.toml（在既有 [package] 基础上追加）
 [dependencies]
 slive-core = { path = "crates/slive-core" }   # 新增
 
@@ -120,7 +120,7 @@ abstract class LiveBilibiliSite implements RustOpaqueInterface {
 $ flutter_rust_bridge_codegen --version
 flutter_rust_bridge_codegen 2.13.0
 
-$ cd simple_live_app/rust && cargo build
+$ cd simple_live_core && cargo build
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.47s
 rc=0
 warning: `rust_lib_simple_live_app` (lib) generated 1 warning   # 仅 danmaku_mask 预存在的 dead_code，与 slive 无关
@@ -146,7 +146,7 @@ Formatted 3 files (3 changed) in 0.02 seconds.   # = 均可被解析（rc=0）
 
 | 章节 | 影响 |
 |---|---|
-| `10-architecture.md §1.3`（目录） | 落地路径确认：workspace 根 = `simple_live_app/rust`；纯核心 = `rust/crates/slive-core`；桥 = `rust/src/api/slive/**`。**cargokit 零改动**成立 |
+| `10-architecture.md §1.3`（目录） | 落地路径确认：workspace 根 = `simple_live_core`；纯核心 = `rust/crates/slive-core`；桥 = `rust/src/api/slive/**`。**cargokit 零改动**成立 |
 | `10-architecture.md §3`（模型映射表） | **mirror 主路径确认**；§3.2 的「回退到 C（显式 From）」**不启用**，但仍保留为文档中的兜底方案（不删） |
 | `10-architecture.md §2`（FRB 集成） | 补充前置：codegen 需 `cargo-expand`（自动装）；Dart 侧 `dart` 需在 PATH（供格式化） |
 | `ADR-007` | Status 可从「mirror 可行性待验证」升级为「**已验证通过**」（本 spike 为依据） |
@@ -169,7 +169,7 @@ Formatted 3 files (3 changed) in 0.02 seconds.   # = 均可被解析（rc=0）
 
 ## 8. 交付物清单
 
-- workspace 骨架（可构建）：`simple_live_app/rust/Cargo.toml`（+`[workspace]`）、`rust/crates/slive-core/{Cargo.toml,src/**}`、`rust/src/api/slive/{mod.rs,models.rs,site.rs}`、`rust/src/api/mod.rs`。
+- workspace 骨架（可构建）：`simple_live_core/Cargo.toml`（+`[workspace]`）、`rust/crates/slive-core/{Cargo.toml,src/**}`、`rust/src/api/slive/{mod.rs,models.rs,site.rs}`、`rust/src/api/mod.rs`。
 - 生成产物：`simple_live_app/lib/src/rust/api/slive/{models.dart,site.dart}` 及更新的 `frb_generated.*`。
 - 本报告：`docs/rust-core/14-spike-frb-mirror.md`。
 - 无临时文件残留（spike 内建文件即正式骨架起点）。

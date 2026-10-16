@@ -4,7 +4,7 @@
 Accepted (2026-10-16)
 
 ## Background
-D6 定 `flutter_rust_bridge = 2.13.0`（与仓库既有 `simple_live_app/rust/` 一致；上游 slive_core 用 2.12.0，不采用）。现有 FRB 资产：`simple_live_app/flutter_rust_bridge.yaml`（`rust_input: crate::api` / `rust_root: rust/` / `dart_output: lib/src/rust`）、`rust_builder/`（cargokit，5 平台）、生成代码 `rust/src/frb_generated.rs` 与 `lib/src/rust/**`（当前已入库）。`pubspec.yaml` 现写 `flutter_rust_bridge: ^2.13.0`（caret）。
+D6 定 `flutter_rust_bridge = 2.13.0`（与仓库既有 `simple_live_core/` 一致；上游 slive_core 用 2.12.0，不采用）。现有 FRB 资产：`simple_live_app/flutter_rust_bridge.yaml`（`rust_input: crate::api` / `rust_root: rust/` / `dart_output: lib/src/rust`）、`rust_builder/`（cargokit，5 平台）、生成代码 `rust/src/frb_generated.rs` 与 `lib/src/rust/**`（当前已入库）。`pubspec.yaml` 现写 `flutter_rust_bridge: ^2.13.0`（caret）。
 
 ## Decision
 1. Rust 侧 `flutter_rust_bridge = "=2.13.0"`（精确）；Dart 侧由 `^2.13.0` **改为 `2.13.0`**（精确）。

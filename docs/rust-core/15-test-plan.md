@@ -67,7 +67,7 @@
 |----|--------|--------|----------|------|
 | AC-30 | P0 | 其余 4 平台零新增失败 | `flutter test`（`simple_live_core` + App）失败名单与迁移前**逐条比对**；`git diff` 确认 4 平台源码未动 | [待建]（需实现+基线） |
 | AC-31 | P0 | 开关切 Dart 仍可用 | 开关切换路径走查 + 冒烟；关闭 Rust 路径不影响构建（`kUseRustBilibili=false`） | [待建] |
-| AC-32 | P0 | UI 零变化 | `git diff --stat` 仅含 `slive-core` Rust 侧 + `simple_live_app/rust` + 绑定层 + `sites.dart` 1 行；**无 UI 文件改动** | [待建] |
+| AC-32 | P0 | UI 零变化 | `git diff --stat` 仅含 `slive-core` Rust 侧 + `simple_live_core` + 绑定层 + `sites.dart` 1 行；**无 UI 文件改动** | [待建] |
 | AC-33 | P0 | 门禁（行数/依赖/emoji/占位） | 脚本：①`≤300 行/文件`；②`cargo tree` 依赖只向下；③emoji 正则扫描；④`todo!()/unimplemented!()/Lorem` 扫描 | [待建]（脚本见 §5） |
 | AC-34 | P1 | Dart B站三文件保留 | `git` 审查：`bilibili_{site,danmaku,emoticon}.dart` 未删（窗口未结束，J-9） | [待建] |
 
@@ -215,7 +215,7 @@ Phase 4：QA 运行 `cargo test --features heldout` → 单独判定 → 结果�
 
 ```bash
 # 实现 diff（评审 A：功能逻辑）
-git diff -- 'simple_live_app/rust/**/src/**' 'simple_live_app/lib/src/bridge/**'
+git diff -- 'simple_live_core/**/src/**' 'simple_live_app/lib/src/bridge/**'
 
 # 测试/门禁 diff（评审 B：完整性差异）——单独看，逐项盘问
 git diff -- '**/tests/**' '**/*.toml' 'Cargo.lock' '**/jest.config.*' '**/pytest.ini'

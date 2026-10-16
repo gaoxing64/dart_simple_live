@@ -3,7 +3,7 @@
 > 用途：把 B站每条能力钉到「迁移源（Dart core）→ 实现参考（DTV）→ 目标 Rust 模块/函数」，并标注复用度，供实现者逐条照做、供评审逐条核对。
 > 源：`simple_live_core/lib/src/platforms/bilibili/*`、`lib/src/interface/*`、`lib/src/common/*`、`lib/src/model/*`
 > 参考：`C:\DTV\src-tauri\src\platforms\bilibili\*`、`C:\DTV\src-tauri\src\platforms\common\*`
-> 目标：`simple_live_app/rust/crates/slive-core/src/**`、桥 `simple_live_app/rust/src/api/slive/**`（见 `10-architecture.md §1.3`）
+> 目标：`simple_live_core/crates/slive-core/src/**`、桥 `simple_live_core/src/api/slive/**`（见 `10-architecture.md §1.3`）
 > 复用度图例：**直接移植**（算法/协议等价，改动限于接口适配）｜**需改写**（语义/签名/策略不同，须按 Dart core 契约重写）｜**需新写**（DTV 与上游均无，须自建）
 >
 > **重要口径（总监修正 + PM §4）**：**DTV 不是「平台实现主参考」**。DTV 缺 core 独有的 **9 项**能力（见 §7），这 9 项**必须从 Dart core 重实现**；DTV 仅作**局部增强参考**（`d1--cn` 优先 / HLS 重试），**不得替换既有语义**（否则违反 AC-30/AC-32）。
@@ -77,9 +77,9 @@
 
 | 目标 | 文件 | 说明 | 复用度 |
 |---|---|---|---|
-| FRB 门面（Site） | `simple_live_app/rust/src/api/slive/site.rs` | `#[frb(opaque)] LiveBilibiliSite`，转调 `slive-core::platforms::bilibili::site::BilibiliSite` | 需新写 |
-| FRB 门面（弹幕） | `simple_live_app/rust/src/api/slive/danmaku.rs` | `StreamSink<LiveDanmuItem>` + `LiveDanmuConnection` | 需新写 |
-| FRB 模型镜像 | `simple_live_app/rust/src/api/slive/models/*` | `#[frb(mirror(...))]`（见 ADR-007） | 需新写 |
+| FRB 门面（Site） | `simple_live_core/src/api/slive/site.rs` | `#[frb(opaque)] LiveBilibiliSite`，转调 `slive-core::platforms::bilibili::site::BilibiliSite` | 需新写 |
+| FRB 门面（弹幕） | `simple_live_core/src/api/slive/danmaku.rs` | `StreamSink<LiveDanmuItem>` + `LiveDanmuConnection` | 需新写 |
+| FRB 模型镜像 | `simple_live_core/src/api/slive/models/*` | `#[frb(mirror(...))]`（见 ADR-007） | 需新写 |
 | App 绑定层 | `simple_live_app/lib/src/bridge/rust_bilibili_{site,danmaku}.dart` | `implements LiveSite/LiveDanmaku`；模型/异常映射 | 需新写 |
 | App 分派点 | `simple_live_app/lib/app/sites.dart:15` | 改 1 行（`createBilibiliSite()`） | 需改写 |
 

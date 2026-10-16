@@ -10,8 +10,8 @@
 
 | 项 | 内容 |
 |----|------|
-| Rust 核心 crate | `simple_live_app/rust/crates/slive-core`（纯 Rust，零 FRB 依赖） |
-| FRB 桥层 | `simple_live_app/rust/src/api/slive/`（flutter_rust_bridge 2.13.0，钉版） |
+| Rust 核心 crate | `simple_live_core/crates/slive-core`（纯 Rust，零 FRB 依赖） |
+| FRB 桥层 | `simple_live_core/src/api/slive/`（flutter_rust_bridge 2.13.0，钉版） |
 | 平台覆盖 | B站（首个端到端）；斗鱼 / 虎牙 / Twitch / 抖音（四平台迁移） |
 | App 集成 | `lib/services/rust_core/` Dart 绑定层 + `sites.dart` 分派开关（可一键回退 Dart core） |
 | 共享模块 | `tars/`（虎牙/斗鱼 TARS 编解码，手写不依赖 tars-stream） |
