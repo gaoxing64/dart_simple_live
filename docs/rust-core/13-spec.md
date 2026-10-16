@@ -76,7 +76,7 @@
 | 状态 | **不透明句柄** `LiveBilibiliSite`（cookie/uid/buvid/wbi 缓存 + **复用单个 reqwest Client**）；弃 `tauri::State` | ADR-005 |
 | 错误 | `SliveError`(thiserror) → `CoreError{message,status_code}` → App 映射回 Dart `CoreError`（两路径**同一**异常类型） | ADR-006 |
 | 模型暴露 | 模型定义在 `slive-core`，桥层 `#[frb(mirror)]`（回退：显式 `From`） | ADR-007 |
-| App 分派 | `simple_live_app/lib/app/sites.dart:15` **单点分派**；`RustBilibiliSite implements LiveSite`；开关默认 **false**（走 Dart） | ADR-008 |
+| App 分派 | `simple_live_app/lib/app/sites.dart:15` **单点分派**；`RustBilibiliSite implements LiveSite`；开发阶段开关默认 **false**（走 Dart）；**体验版（2026-10-16 起）五平台开关已按 J-9 判据①翻 true**（Rust 为默认路径；回退开关保留，见 ADR-008） | ADR-008 |
 | 上游依赖 | **不**依赖 `SlotSun/slive-core-api-rust`，只对齐其命名/形态 | ADR-009 |
 | 图标 | 统一 **Remix Icon**（App 既有依赖），禁 emoji 作功能图标 | ADR-010 |
 
@@ -136,7 +136,7 @@
 | 错误·边界（8） | AC-22 ~ AC-29 | 未开播/房间不存在/凭证无效/风控码(-352)/HTTP 失败与 WS 重连/空页/脏帧/未知清晰度 |
 | 回归约束（5） | AC-30 ~ AC-34 | 其余 4 平台零新增失败/可回退/UI 零变化/门禁（≤300 行·依赖向下·无 emoji·无占位）/Dart B站代码保留至回退窗口（**窗口结束判据见 J-9**） |
 | 反作弊（4） | AC-35 ~ AC-38 | 确定性 golden/held-out 留出集/实现与测试 diff 分离/真实命令输出 |
-| **绑定层与凭证安全（2）** | **AC-39 ~ AC-40** | AC-39 绑定层只做类型翻译与转发、**零协议逻辑**，且其所在 crate **不得依赖** http/ws/签名 crate（→ 由"人工审查"升级为**结构可判定**）；AC-40 凭证注入/账号校验后日志（含调试输出）**不得**出现 credential/cookie 明文（断言不含 `SESSDATA` 等子串，对齐 `bilibili_site.dart:598` 教训） |
+| **绑定层与凭证安全（2）** | **AC-39 ~ AC-40** | AC-39 绑定层只做类型翻译与转发、**零协议逻辑**（URL 拼接 / 签名 / 帧编解码 / 重连策略 / 解析）、**结构可判定如下**：桥 crate 不得含上述协议符号与实现，**允许**持有 WS/HTTP **传输依赖**作为连接工厂的注入实现（`tokio-tungstenite` 由桥层提供 `ConnectFactory`，与 `HttpTransport` 由 core 定 trait、运行时注入同构；口径修订：2026-10-17 合并前评审裁定）；AC-40 凭证注入/账号校验后日志（含调试输出）**不得**出现 credential/cookie 明文（断言不含 `SESSDATA` 等子串，对齐 `bilibili_site.dart:598` 教训） |
 
 ---
 
@@ -144,7 +144,7 @@
 
 - **性能**：每类 B站请求不得引入额外串行往返（请求数 ≤ Dart core 同路径，以拦截到的请求集合断言）。
 - **安全**：credential/cookie **禁止**写入日志（`bilibili_site.dart:598` 的 `CoreLog.i(cookieStr)` 行为**不得**复刻）；仅 HTTPS。
-- **可回退**：开关（`kUseRustBilibili`，默认 false）关闭时全走 Dart；Rust 侧编译失败**不得**阻断 App 构建。
+- **可回退**：开关（`kUseRustBilibili`）关闭时全走 Dart（**运行时回退**，2026-10-17 re-baseline：Rust 库随 App 构建为硬依赖，见 AC-31 判定口径修订）。
 - **可维护**：三层分层、依赖只向下、**单文件 ≤300 行**、按能力拆文件（`site.rs` 仅编排）。
 - **回归判定口径（采纳 QA 建议）**：离线子集**零新增失败** + 联网子集**失败同质**（联网用例自身 flaky 是既有共识，不做精确条数比对）。比对方式 = 失败「文件 + 用例名」**集合相等**，差值即新增/消除。基准快照：`16-app-regression-baseline.md §4`（App 564/549/15，core 84/80/4）。
 - **测试环境前置（必做）**：本机代理变量会让 `flutter test` 的 loopback WebSocket 走代理 → 报 `Invalid WebSocket upgrade request` 且表现为 `+0 -55` 全挂。**跑测试必须隔离**：`env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy NO_PROXY="localhost,127.0.0.1,::1" no_proxy="..." fvm flutter test --no-pub`。

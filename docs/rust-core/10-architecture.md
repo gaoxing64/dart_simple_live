@@ -473,11 +473,11 @@ pub fn disconnect(conn: &LiveDanmuConnection) { ... }
 |---|---|---|
 | HTTPS | (a) `native-tls`+`openssl-sys` vendored（DTV 口径）；(b) **`rustls`（纯 Rust）**；(c) 平台原生 TLS | **(b) rustls**。证据：FRB 官方/社区案例中 Android 上 OpenSSL 构建失败（`openssl-sys` build script exit 101）导致 `.so` 缺失、App dlopen 失败，公认解法是 `reqwest = { version = "0.12", features=["rustls-tls"], default-features=false }`（FRB issue #2005、GitCode 案例；本项目实测取 0.12）；DTV 走 (a) 是因为它只面向桌面（Windows/macOS）+ 已有 vendored 工具链，代价是 Android/iOS 要预编译 OpenSSL |
 | 证书库 | webpki-roots（内置 Mozilla 根） vs 系统 store | 用 **`rustls-tls`（webpki-roots）**，无系统 store 依赖；后续如需企业 CA 再加 `rustls-platform-verifier` |
-| WSS | `tokio-tungstenite` native-tls vs rustls | 统一 rustls：`tokio-tungstenite = { features=["rustls-tls-webpki-roots"] }`（DTV 用 native-tls 属桌面口径） |
+| WSS | `tokio-tungstenite` native-tls vs rustls | **按平台分层（2026-10-17 修订，见 ADR-013）**：桌面 `native-tls`（斗鱼弹幕服务器对 rustls 指纹风控，仅放行系统 TLS —— 真机实证）；移动 `rustls-tls-webpki-roots`（保「零 NDK C 依赖」）。桥 crate 用 target-specific deps 表达 |
 | brotli（弹幕 protover=3） | `brotlic`(C) vs `brotli`(纯 Rust) | 用 **`brotli`**（Dart core 用 `package:brotli`；上游 Rust 亦用 `brotli`）。避开 NDK 编译 C 依赖 |
 | zlib（弹幕 protover=2） | `flate2`(miniz_oxide 纯 Rust) vs C zlib | 用 **`flate2` + `rust_backend`**（纯 Rust） |
 
-依赖清单（`crates/slive-core/Cargo.toml`）：`reqwest 0.12`(`rustls-tls,json,stream,cookies,brotli,gzip`, `default-features=false`)、`async-trait`、`thiserror`、`md-5`（已落地）；`tokio`、`serde`/`serde_json`、`futures-util`、`tokio-tungstenite`(`rustls-tls-webpki-roots`)、`chrono`(`serde`)、`brotli`、`flate2`(rust_backend)、`regex`、`rand`、`urlencoding`、`log`/`tracing`、`once_cell`（随各 F-xx 落地）。桥 crate：`flutter_rust_bridge = "=2.13.0"`（`features=["chrono"]`）+ `slive-core = { path = "crates/slive-core" }`。
+依赖清单（`crates/slive-core/Cargo.toml`）：`reqwest 0.12`(`rustls-tls,json,stream,cookies,brotli,gzip`, `default-features=false`)、`async-trait`、`thiserror`、`md-5`（已落地）；`tokio`、`serde`/`serde_json`、`futures-util`、`tokio-tungstenite`（**TLS 后端按平台分层，2026-10-17 修订：桌面 native-tls / 移动 rustls-tls-webpki-roots，见 ADR-013**）、`chrono`(`serde`)、`brotli`、`flate2`(rust_backend)、`regex`、`rand`、`urlencoding`、`log`/`tracing`、`once_cell`（随各 F-xx 落地）。桥 crate：`flutter_rust_bridge = "=2.13.0"`（`features=["chrono"]`）+ `slive-core = { path = "crates/slive-core" }` + `tokio-tungstenite`（**WS 传输连接工厂的注入实现**，AC-39 口径修订 2026-10-17）。
 
 > 版本锚定（实测）：`reqwest` 取 **0.12**（0.11 偏旧、本机缓存为 0.12、rustls 支持稳定）；`md-5` 0.10、`thiserror` 1.x、`async-trait` 0.1。ADR-003 的「rustls / 纯 Rust 后端」结论不随版本变化。
 

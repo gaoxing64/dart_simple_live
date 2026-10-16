@@ -48,7 +48,7 @@
 
 | 项 | 结果 |
 |----|------|
-| Rust 全量测试（slive-core + 桥 crate） | **909 passed / 0 failed**（19 ignored） |
+| Rust 全量测试（slive-core + 桥 crate） | **908 passed / 0 failed**（截至交付整理；ignored 为联网冒烟与文档用例） |
 | 真机冒烟 | 五平台首页/分类/搜索/进房/取流/弹幕——B站与四平台均在 Windows 真机验证 |
 | 抖音参数核对 | 6 接口与 Dart 逐键一致 + a_bogus 端到端（curl 200 真数据） |
 | 斗鱼弹幕 | native-tls 探针直连 101，收到 loginres + 真实 chatmsg |
@@ -57,10 +57,16 @@
 ## 5. 遗留事项（非阻塞）
 
 1. **真机冒烟建议清单**（交给用户）：五平台各做一次「首页→进房→取流→弹幕」全链路。
-2. **Linux/macOS 构建**：`native-tls` 依赖系统 openssl，跨平台发布时需确认（Windows 主战场不受影响）。
-3. **Twitch 真机**：无扫码登录、匿名只读链路，国内网络可达性未全面验证。
-4. **斗鱼/虎牙/抖音登录态**：扫码登录链路已实现，未做完整登录后全功能回归。
-5. **直链续流（O-7 renewers）**：需 FRB 回调通道，已登记待办（本次不做）。
+2. **Android 斗鱼弹幕（OPEN）**：移动端 WSS 仍走 rustls（保 NDK 零 C 依赖，ADR-013）；
+   若斗鱼风控同样拒绝 rustls 指纹，Android 上斗鱼弹幕将失败（其余弹幕不受影响）。
+   需 Android 真机验证；失败则评估 Android 切 native-tls（vendor openssl）或降级策略。
+   见 `docs/decisions/OPEN-DECISIONS.md`。
+3. **编译期回退（OPEN）**：AC-31 修订后仅承诺「运行时回退」；「Rust 编译失败不阻断 App 构建」
+   需条件依赖/可选 cargokit，登记为后续项。
+4. **Linux/macOS 构建**：桌面 `native-tls` 依赖系统 TLS 库，跨平台发布时需确认。
+5. **Twitch 真机**：无扫码登录、匿名只读链路，国内网络可达性未全面验证。
+6. **斗鱼/虎牙/抖音登录态**：扫码登录链路已实现，未做完整登录后全功能回归。
+7. **直链续流（O-7 renewers）**：需 FRB 回调通道，已登记待办（本次不做）。
 
 ## 6. 证据归档说明
 
