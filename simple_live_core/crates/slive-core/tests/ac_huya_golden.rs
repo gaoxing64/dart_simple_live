@@ -112,7 +112,7 @@ fn anticode_golden_fixes_the_clock() {
 #[test]
 fn gid_base_sample_covers_map_double_and_int() {
     // huya_site.dart:76-84 对 gid 有 Map/double/int/其他 四条分支。
-    let s = sample(PLATFORM, "live_cdn_huya_com_liveconfig_game_bussLive");
+    let s = sample(PLATFORM, "huya_cdn_liveconfig_game_bussLive");
     let data = s["response"]["data"].as_array().expect("data 是数组");
     assert!(data[0]["gid"].is_object(), "第 1 条应是 Map 形态");
     assert!(

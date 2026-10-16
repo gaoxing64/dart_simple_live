@@ -12,7 +12,7 @@
     ]
   },
   "samples": {
-    "live_cdn_huya_com_liveconfig_game_bussLive": {
+    "huya_cdn_liveconfig_game_bussLive": {
       "endpoint": "https://live.cdn.huya.com/liveconfig/game/bussLive?bussType={id}",
       "method": "GET",
       "dart_source": "huya_site.dart:64-96",

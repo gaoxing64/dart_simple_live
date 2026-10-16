@@ -76,7 +76,7 @@ fn site_with(stub_key: &str, body: &str) -> (Arc<MockTransport>, HuyaSite) {
 
 #[tokio::test]
 async fn ac_huya_categories_map_all_gid_types() {
-    let body = serde_json::to_string(&sample("live_cdn_huya_com_liveconfig_game_bussLive")["response"])
+    let body = serde_json::to_string(&sample("huya_cdn_liveconfig_game_bussLive")["response"])
         .expect("序列化");
     let (mock, site) = site_with("live.cdn.huya.com", &body);
 
@@ -84,7 +84,7 @@ async fn ac_huya_categories_map_all_gid_types() {
         .get_sub_categories("1")
         .await
         .expect("子分类");
-    let want = expected("live_cdn_huya_com_liveconfig_game_bussLive")["sub_categories"]
+    let want = expected("huya_cdn_liveconfig_game_bussLive")["sub_categories"]
         .as_array()
         .expect("期望子分类")
         .clone();
