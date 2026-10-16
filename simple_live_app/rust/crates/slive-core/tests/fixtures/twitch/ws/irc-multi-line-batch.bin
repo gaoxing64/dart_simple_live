@@ -1,0 +1,3 @@
+@color=#00FF00;display-name=Dave;id=a1;room-id=1;user-id=4;user-type= :dave!dave@dave.tmi.twitch.tv PRIVMSG #1 :line one
+@color=#FF00FF;display-name=Eve;id=a2;room-id=1;user-id=5;user-type= :eve!eve@eve.tmi.twitch.tv PRIVMSG #1 :line two
+@color=#FFFF00;display-name=Fox;id=a3;room-id=1;user-id=6;user-type= :fox!fox@fox.tmi.twitch.tv PRIVMSG #1 :line three

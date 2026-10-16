@@ -1,0 +1,25 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "twitch",
+    "synthetic": true,
+    "derivation": "照 Dart core twitch_danmaku.dart 的三条正则（PING/display-name/color）与行拆分逻辑推导；IRC 标签格式参照 Twitch 官方 IRCv3 规范",
+    "frame_format_source": "simple_live_core/lib/src/platforms/twitch/twitch_danmaku.dart:73-103",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://irc-ws.chat.twitch.tv（先 CAP REQ + PASS SCHMOOPIIE + NICK justinfanXXXX）录制真实帧，核对：①tags 是否总带 color（无 color 的用户实际是否存在）②系统消息（RECONNECT/HOST_ON/CLEARCHAT）的实际形态 ③帧内是否多行、是否 CRLF。替换后把 _meta.synthetic 改 false。",
+    "protocol_ref": "https://dev.twitch.tv/docs/irc/",
+    "target_ac": [
+      "IP-5-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::twitch::danmaku::decode::decode_message",
+    "note": "**缺 color tag** -> colorMatch == null -> Dart:90 三条件 && 不成立 -> 无产出、不抛。Twitch 侧最易「过度解码」的边界：不得因有 PRIVMSG 就造消息。",
+    "dart_source": "twitch_danmaku.dart:86-98"
+  },
+  "irc_text": "@badge-info=;display-name=Bob;emotes=;id=def-456;mod=0;subscriber=0;user-id=222;user-type= :bob!bob@bob.tmi.twitch.tv PRIVMSG #12345 :no color here\n",
+  "bytes_hex": "40 62 61 64 67 65 2d 69 6e 66 6f 3d 3b 64 69 73 70 6c 61 79 2d 6e 61 6d 65 3d 42 6f 62 3b 65 6d 6f 74 65 73 3d 3b 69 64 3d 64 65 66 2d 34 35 36 3b 6d 6f 64 3d 30 3b 73 75 62 73 63 72 69 62 65 72 3d 30 3b 75 73 65 72 2d 69 64 3d 32 32 32 3b 75 73 65 72 2d 74 79 70 65 3d 20 3a 62 6f 62 21 62 6f 62 40 62 6f 62 2e 74 6d 69 2e 74 77 69 74 63 68 2e 74 76 20 50 52 49 56 4d 53 47 20 23 31 32 33 34 35 20 3a 6e 6f 20 63 6f 6c 6f 72 20 68 65 72 65 0a",
+  "bytes_len": 148,
+  "expected": {
+    "messages": [],
+    "replies": []
+  }
+}

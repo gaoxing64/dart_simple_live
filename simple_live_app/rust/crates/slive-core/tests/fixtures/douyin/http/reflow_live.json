@@ -1,0 +1,32 @@
+{
+  "status_code": 0,
+  "data": {
+    "room": {
+      "id_str": "7382735338101328680",
+      "title": "连麦直播间",
+      "status": 2,
+      "cover": { "url_list": ["https://p3.douyinpic.com/cover-reflow.jpeg"] },
+      "owner": {
+        "nickname": "主播A",
+        "signature": "连麦中",
+        "web_rid": "416144012050",
+        "avatar_thumb": { "url_list": ["https://p3.douyinpic.com/avatar-a.jpeg"] }
+      },
+      "room_view_stats": { "display_value": 555 },
+      "stream_url": {
+        "live_core_sdk_data": {
+          "pull_data": {
+            "options": {
+              "qualities": [
+                { "name": "原画", "level": 1, "sdk_key": "FULL_HD1" }
+              ]
+            },
+            "stream_data": "not-json"
+          }
+        },
+        "flv_pull_url": { "A": "https://reflow-flv-a.flv" },
+        "hls_pull_url_map": { "A": "https://reflow-hls-a.m3u8" }
+      }
+    }
+  }
+}

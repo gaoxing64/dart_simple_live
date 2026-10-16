@@ -1,0 +1,35 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "huya",
+    "synthetic": true,
+    "derivation": "照 Dart core 逐字节推导：TARS 编码规则见 packages/tars_dart/tars/codec/tars_output_stream.dart，结构 tag 见 platforms/huya/tars/huya_danmaku.dart",
+    "frame_format_source": "simple_live_core/lib/src/platforms/huya/tars/huya_danmaku.dart",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://cdnws.api.huya.com:443，用 mitmproxy/charles 录制 cmdType=7/22 的真实帧，核对 HYPushMessage.protocolType、requestId/traceId 是否下发、以及 HYMessage 是否还有未列出的 tag；替换后把 _meta.synthetic 改 false。",
+    "target_ac": [
+      "IP-4-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::huya::danmaku::decode::decode_message（TARS + WebSocketCommand；对照 slive-core::tars）",
+    "cmd_type": 7,
+    "inner_uri": 1400,
+    "note": "fontColor=0 -> LiveMessageColor.white（Dart huya_danmaku.dart:234 的 `color <= 0 ? white : numberToColor(color)` 分支）。",
+    "dart_source": "huya_danmaku.dart:234"
+  },
+  "bytes_hex": "00 07 1d 00 01 00 a0 0c 11 05 78 2d 00 01 00 96 0a 02 00 bc 61 4e 1c 26 07 e8 a7 82 e4 bc 97 42 30 01 46 2b 68 74 74 70 73 3a 2f 2f 68 75 79 61 69 6d 67 2e 6d 73 73 74 61 74 69 63 2e 63 6f 6d 2f 63 64 6e 69 6d 61 67 65 2f 61 2e 6a 70 67 5c 76 20 30 61 37 64 34 62 30 38 32 36 61 66 36 63 36 39 33 38 30 31 39 39 64 63 39 61 64 63 36 62 35 30 86 1a 77 65 62 68 35 26 32 36 31 30 31 36 31 32 30 30 26 77 65 62 73 6f 63 6b 65 74 9c 0b 36 0c e7 99 bd e8 89 b2 e5 bc b9 e5 b9 95 6a 0c 10 19 2c 30 01 0b 3c 20 01 36 00 4c 5c 66 00",
+  "bytes_len": 175,
+  "expected": {
+    "messages": [
+      {
+        "type": "chat",
+        "user_name": "观众B",
+        "message": "白色弹幕",
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,2380 @@
+{
+  "_meta": {
+    "kind": "http-samples",
+    "platform": "douyin",
+    "synthetic": true,
+    "derivation": "字段逐条对照 Dart core platforms/douyin/douyin_site.dart 的解析行号（见各样本 field_sources）；不臆造任何字段",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "抖音风控最严，需带完整浏览器头 + ttwid cookie + A-Bogus：\n①用 Dio HttpClientAdapter 注入录制，或 mitmproxy 录制 HAR\n②重点抓 feed / web_enter / partition 三条链路的真实响应\n③抓风控时的响应形态（是否 'blocked' 纯文本）\n替换后把 _meta.synthetic 改 false。",
+    "difficulty_note": "抖音是四平台中**最难抓包**的一个：需要 ttwid（HEAD 请求换）、完整浏览器 UA/Origin、以及 A-Bogus / X-Bogus 签名。这也是 spec O-8 把它排在最后的原因。",
+    "unsupported_by_dart": {
+      "search_anchors": "douyin_site.dart:1172-1176 throw Exception（不支持搜索主播）",
+      "get_super_chat_message": ":1184-1187 直接返回空列表",
+      "get_qr_code / get_qr_poll_result": ":1290-1299 throw UnimplementedError",
+      "note": "迁移须保持同样行为（抛同样的错 / 返回空），不得顺手实现。"
+    },
+    "room_id_convention": {
+      "webRid": "11-12 位，用户固定（如 416144012050）—— **LiveRoomDetail.roomId 存这个**",
+      "roomId": "19 位，每次开播重新生成（如 7376429659866598196）",
+      "dispatch": "getRoomDetail 按 `roomId.length <= 16` 判别（douyin_site.dart:502）",
+      "dart_source": "douyin_site.dart:496-504"
+    }
+  },
+  "samples": {
+    "live_douyin_com_webcast_web_partition_detail_room_v2": {
+      "endpoint": "https://live.douyin.com/webcast/web/partition/detail/room/v2/",
+      "method": "GET",
+      "dart_source": "douyin_site.dart:110-234（分类页 + _fetchPartitionPage + _roomItemOf）",
+      "target_ac": [
+        "IP-6-HTTP-CATEGORY-ROOMS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.data[]": "douyin_site.dart:194-196（**双重嵌套**：data.data 是 List）",
+        "[].web_rid": ":216 缺 web_rid 的条目被**整条跳过**",
+        "[].room": ":211 非 Map 则跳过",
+        "room.title": ":226",
+        "room.cover.url_list[0]": ":227-229（取第一个；空列表 -> ''）",
+        "room.owner.nickname": ":230",
+        "room.room_view_stats.display_value": ":231-232 int.tryParse（**'1.2万' 解析失败 -> 0**）",
+        "hasMore": ":125 `rawCount >= count`；**用服务端原始条数**，不用过滤后的 items.len()",
+        "count 固定": ":116 `const count = 15`（分类页），**pageSize 被忽略**",
+        "partition 形态": ":160-161 `'{id},{type}'`，如 '106,4'"
+      },
+      "response": {
+        "status_code": 0,
+        "data": {
+          "data": [
+            {
+              "web_rid": "416144012050",
+              "room": {
+                "id_str": "7376429659866598196",
+                "status": 2,
+                "title": "直播标题",
+                "cover": {
+                  "url_list": [
+                    "https://example.douyin.com/cover.jpg"
+                  ]
+                },
+                "owner": {
+                  "nickname": "主播甲",
+                  "web_rid": "416144012050",
+                  "avatar_thumb": {
+                    "url_list": [
+                      "https://example.douyin.com/av.jpg"
+                    ]
+                  },
+                  "signature": "主播签名"
+                },
+                "room_view_stats": {
+                  "display_value": "1.2万"
+                },
+                "stream_url": {
+                  "flv_pull_url": {
+                    "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                  },
+                  "hls_pull_url_map": {
+                    "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                  },
+                  "live_core_sdk_data": {
+                    "pull_data": {
+                      "options": {
+                        "qualities": [
+                          {
+                            "name": "原画",
+                            "level": 0,
+                            "sdk_key": "FULL_HD1"
+                          },
+                          {
+                            "name": "高清",
+                            "level": 1,
+                            "sdk_key": "HD1"
+                          },
+                          {
+                            "name": "标清",
+                            "level": 2,
+                            "sdk_key": "SD1"
+                          }
+                        ]
+                      },
+                      "stream_data": ""
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "web_rid": "416144012051",
+              "room": {
+                "id_str": "7376429659866598196",
+                "status": 2,
+                "title": "第二个房间",
+                "cover": {
+                  "url_list": [
+                    "https://example.douyin.com/cover.jpg"
+                  ]
+                },
+                "owner": {
+                  "nickname": "主播乙",
+                  "web_rid": "416144012051",
+                  "avatar_thumb": {
+                    "url_list": [
+                      "https://example.douyin.com/av.jpg"
+                    ]
+                  },
+                  "signature": "主播签名"
+                },
+                "room_view_stats": {
+                  "display_value": "3000"
+                },
+                "stream_url": {
+                  "flv_pull_url": {
+                    "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                  },
+                  "hls_pull_url_map": {
+                    "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                  },
+                  "live_core_sdk_data": {
+                    "pull_data": {
+                      "options": {
+                        "qualities": [
+                          {
+                            "name": "原画",
+                            "level": 0,
+                            "sdk_key": "FULL_HD1"
+                          },
+                          {
+                            "name": "高清",
+                            "level": 1,
+                            "sdk_key": "HD1"
+                          },
+                          {
+                            "name": "标清",
+                            "level": 2,
+                            "sdk_key": "SD1"
+                          }
+                        ]
+                      },
+                      "stream_data": ""
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items": [
+          {
+            "room_id": "416144012050",
+            "title": "直播标题",
+            "cover": "https://example.douyin.com/cover.jpg",
+            "user_name": "主播甲",
+            "online": 0
+          },
+          {
+            "room_id": "416144012051",
+            "title": "第二个房间",
+            "cover": "https://example.douyin.com/cover.jpg",
+            "user_name": "主播乙",
+            "online": 3000
+          }
+        ]
+      },
+      "note": "⚠️ 两个大坑：\n①`room_view_stats.display_value` 是**格式化字符串**（'1.2万'），`int.tryParse` 必然失败 -> online 恒 0（Dart:232）。这是**既有行为**，实现须一致。\n②`hasMore` 用 `rawCount >= count`（服务端原始条数），而畸形条目会被 `_roomItemOf` 跳过 —— 若用 items.len() 判会失真（Dart:136-138 注释）。",
+      "verify_note": "**display_value 的真实形态**（'1.2万' vs 纯数字）待抓包；若某天变成纯数字，online 才会非 0 —— 夹具已同时给出两种形态。",
+      "variants": [
+        {
+          "name": "空页（翻到底）",
+          "response": {
+            "data": {
+              "data": []
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "畸形条目被跳过但不影响 hasMore",
+          "response": {
+            "data": {
+              "data": [
+                {
+                  "web_rid": "416144012050"
+                },
+                {
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012050",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012099",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012099",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "expected": {
+            "has_more": true,
+            "items": [
+              {
+                "room_id": "416144012099"
+              }
+            ],
+            "note": "rawCount=3 >= 15? 否 -> has_more 应为 False。见下条"
+          }
+        },
+        {
+          "name": "满页 15 条 -> has_more=true",
+          "expected": {
+            "has_more": true
+          },
+          "response": {
+            "status_code": 0,
+            "data": {
+              "data": [
+                {
+                  "web_rid": "416144012000",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012000",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012001",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012001",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012002",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012002",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012003",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012003",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012004",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012004",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012005",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012005",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012006",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012006",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012007",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012007",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012008",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012008",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012009",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012009",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012010",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012010",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012011",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012011",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012012",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012012",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012013",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012013",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "web_rid": "416144012014",
+                  "room": {
+                    "id_str": "7376429659866598196",
+                    "status": 2,
+                    "title": "直播标题",
+                    "cover": {
+                      "url_list": [
+                        "https://example.douyin.com/cover.jpg"
+                      ]
+                    },
+                    "owner": {
+                      "nickname": "主播甲",
+                      "web_rid": "416144012014",
+                      "avatar_thumb": {
+                        "url_list": [
+                          "https://example.douyin.com/av.jpg"
+                        ]
+                      },
+                      "signature": "主播签名"
+                    },
+                    "room_view_stats": {
+                      "display_value": "1.2万"
+                    },
+                    "stream_url": {
+                      "flv_pull_url": {
+                        "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                      },
+                      "hls_pull_url_map": {
+                        "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                      },
+                      "live_core_sdk_data": {
+                        "pull_data": {
+                          "options": {
+                            "qualities": [
+                              {
+                                "name": "原画",
+                                "level": 0,
+                                "sdk_key": "FULL_HD1"
+                              },
+                              {
+                                "name": "高清",
+                                "level": 1,
+                                "sdk_key": "HD1"
+                              },
+                              {
+                                "name": "标清",
+                                "level": 2,
+                                "sdk_key": "SD1"
+                              }
+                            ]
+                          },
+                          "stream_data": ""
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "mutation_applied": "full_page"
+        },
+        {
+          "name": "错误流：data 为 List（不是 Map）-> 按空页处理",
+          "response": {
+            "data": []
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          },
+          "note": "Dart:191-193 注释：曾直接取 result['data']['data'] 抛 TypeError 带崩整页"
+        },
+        {
+          "name": "错误流：data 为 null",
+          "response": {
+            "data": null
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "错误流：整个 data 缺失",
+          "response": {},
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        }
+      ]
+    },
+    "live_douyin_com_webcast_feed": {
+      "endpoint": "https://live.douyin.com/webcast/feed/",
+      "method": "GET",
+      "dart_source": "douyin_site.dart:293-494（推荐流：首屏 fanout + 续接分区）",
+      "target_ac": [
+        "IP-6-HTTP-RECOMMEND"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data[].data": "douyin_site.dart:467-469 ⚠️ **feed 把房间挂在 item['data']**，而分区接口挂在 item['room']（:211）—— 两者结构不同！",
+        "extra.total": ":240 注释：服务端固定给 20 条，**count/offset/cursor 全被忽略**",
+        "kFeedSliceSize": ":241 = 20（硬编码）",
+        "kMinFeedFanout / kMaxFeedFanout": ":252/:255 = 4 / 6（首屏并发路数）",
+        "去重": ":342-346 按 roomId 去重",
+        "部分失败容忍": ":349-350 单路失败只记日志，全部失败才上抛"
+      },
+      "response": {
+        "status_code": 0,
+        "extra": {
+          "total": 2
+        },
+        "data": [
+          {
+            "data": {
+              "id_str": "7376429659866598196",
+              "status": 2,
+              "title": "直播标题",
+              "cover": {
+                "url_list": [
+                  "https://example.douyin.com/cover.jpg"
+                ]
+              },
+              "owner": {
+                "nickname": "主播甲",
+                "web_rid": "416144012050",
+                "avatar_thumb": {
+                  "url_list": [
+                    "https://example.douyin.com/av.jpg"
+                  ]
+                },
+                "signature": "主播签名"
+              },
+              "room_view_stats": {
+                "display_value": "1.2万"
+              },
+              "stream_url": {
+                "flv_pull_url": {
+                  "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                },
+                "hls_pull_url_map": {
+                  "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                },
+                "live_core_sdk_data": {
+                  "pull_data": {
+                    "options": {
+                      "qualities": [
+                        {
+                          "name": "原画",
+                          "level": 0,
+                          "sdk_key": "FULL_HD1"
+                        },
+                        {
+                          "name": "高清",
+                          "level": 1,
+                          "sdk_key": "HD1"
+                        },
+                        {
+                          "name": "标清",
+                          "level": 2,
+                          "sdk_key": "SD1"
+                        }
+                      ]
+                    },
+                    "stream_data": ""
+                  }
+                }
+              },
+              "web_rid": "416144012050"
+            }
+          },
+          {
+            "data": {
+              "id_str": "7376429659866598196",
+              "status": 2,
+              "title": "第二个房间",
+              "cover": {
+                "url_list": [
+                  "https://example.douyin.com/cover.jpg"
+                ]
+              },
+              "owner": {
+                "nickname": "主播乙",
+                "web_rid": "416144012051",
+                "avatar_thumb": {
+                  "url_list": [
+                    "https://example.douyin.com/av.jpg"
+                  ]
+                },
+                "signature": "主播签名"
+              },
+              "room_view_stats": {
+                "display_value": "3000"
+              },
+              "stream_url": {
+                "flv_pull_url": {
+                  "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                },
+                "hls_pull_url_map": {
+                  "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                },
+                "live_core_sdk_data": {
+                  "pull_data": {
+                    "options": {
+                      "qualities": [
+                        {
+                          "name": "原画",
+                          "level": 0,
+                          "sdk_key": "FULL_HD1"
+                        },
+                        {
+                          "name": "高清",
+                          "level": 1,
+                          "sdk_key": "HD1"
+                        },
+                        {
+                          "name": "标清",
+                          "level": 2,
+                          "sdk_key": "SD1"
+                        }
+                      ]
+                    },
+                    "stream_data": ""
+                  }
+                }
+              },
+              "web_rid": "416144012051"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "items": [
+          {
+            "room_id": "416144012050",
+            "title": "直播标题",
+            "user_name": "主播甲"
+          },
+          {
+            "room_id": "416144012051",
+            "title": "第二个房间",
+            "user_name": "主播乙"
+          }
+        ],
+        "note": "首屏并发 fanout 路数由 pageSize 推导（默认 4）；用例应断言「请求次数 == fanout」与「去重后条数」。"
+      },
+      "note": "⚠️ feed 的 room 在 `item.data`（不是 `item.room`），且 `web_rid` 与 `room` 是**兄弟字段**（Dart:469 取 item['data'] 后再取 web_rid）。\n推荐流第 2 页起改用分区接口（kRecommendPartitions 轮转 7 个分区），故「推荐翻页」需要**两个**样本配合断言。",
+      "verify_note": "feed 接口的 query 参数（count/cursor/max_time）是否**全部被忽略**需抓包确认 —— Dart:237-240 的实测记录是「恒 20 条」，若服务端改为尊重 count，hasMore 口径需重新评估。",
+      "variants": [
+        {
+          "name": "重叠去重（两条相同 roomId）",
+          "response": {
+            "data": [
+              {
+                "data": {
+                  "id_str": "7376429659866598196",
+                  "status": 2,
+                  "title": "直播标题",
+                  "cover": {
+                    "url_list": [
+                      "https://example.douyin.com/cover.jpg"
+                    ]
+                  },
+                  "owner": {
+                    "nickname": "主播甲",
+                    "web_rid": "416144012050",
+                    "avatar_thumb": {
+                      "url_list": [
+                        "https://example.douyin.com/av.jpg"
+                      ]
+                    },
+                    "signature": "主播签名"
+                  },
+                  "room_view_stats": {
+                    "display_value": "1.2万"
+                  },
+                  "stream_url": {
+                    "flv_pull_url": {
+                      "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                    },
+                    "hls_pull_url_map": {
+                      "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                    },
+                    "live_core_sdk_data": {
+                      "pull_data": {
+                        "options": {
+                          "qualities": [
+                            {
+                              "name": "原画",
+                              "level": 0,
+                              "sdk_key": "FULL_HD1"
+                            },
+                            {
+                              "name": "高清",
+                              "level": 1,
+                              "sdk_key": "HD1"
+                            },
+                            {
+                              "name": "标清",
+                              "level": 2,
+                              "sdk_key": "SD1"
+                            }
+                          ]
+                        },
+                        "stream_data": ""
+                      }
+                    }
+                  },
+                  "web_rid": "416144012050"
+                }
+              },
+              {
+                "data": {
+                  "id_str": "7376429659866598196",
+                  "status": 2,
+                  "title": "直播标题",
+                  "cover": {
+                    "url_list": [
+                      "https://example.douyin.com/cover.jpg"
+                    ]
+                  },
+                  "owner": {
+                    "nickname": "主播甲",
+                    "web_rid": "416144012050",
+                    "avatar_thumb": {
+                      "url_list": [
+                        "https://example.douyin.com/av.jpg"
+                      ]
+                    },
+                    "signature": "主播签名"
+                  },
+                  "room_view_stats": {
+                    "display_value": "1.2万"
+                  },
+                  "stream_url": {
+                    "flv_pull_url": {
+                      "FULL_HD1": "https://flv.example.douyin.com/fullhd1.flv"
+                    },
+                    "hls_pull_url_map": {
+                      "FULL_HD1": "https://hls.example.douyin.com/fullhd1.m3u8"
+                    },
+                    "live_core_sdk_data": {
+                      "pull_data": {
+                        "options": {
+                          "qualities": [
+                            {
+                              "name": "原画",
+                              "level": 0,
+                              "sdk_key": "FULL_HD1"
+                            },
+                            {
+                              "name": "高清",
+                              "level": 1,
+                              "sdk_key": "HD1"
+                            },
+                            {
+                              "name": "标清",
+                              "level": 2,
+                              "sdk_key": "SD1"
+                            }
+                          ]
+                        },
+                        "stream_data": ""
+                      }
+                    }
+                  },
+                  "web_rid": "416144012050"
+                }
+              }
+            ]
+          },
+          "expected": {
+            "items_count": 1
+          }
+        },
+        {
+          "name": "单路返回畸形 -> 部分失败容忍",
+          "response": {
+            "data": []
+          },
+          "expected": {
+            "items": [],
+            "note": "不抛（除全部路失败）"
+          }
+        }
+      ]
+    },
+    "live_douyin_com_webcast_room_web_enter": {
+      "endpoint": "https://live.douyin.com/webcast/room/web/enter/",
+      "method": "GET",
+      "dart_source": "douyin_site.dart:646-724（_getRoomDetailByWebRidApi）",
+      "target_ac": [
+        "IP-6-HTTP-DETAIL"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data[0].id_str": ":658（**一次性 roomId**，每次开播都变）",
+        "data[0].status": ":667 `== 2` 才算在播",
+        "data[0].title": ":698",
+        "data[0].cover.url_list[0]": ":699（仅在播时取）",
+        "data[0].owner.nickname": ":701",
+        "data[0].owner.web_rid": ":601（**webRid 才是 LiveRoomDetail.roomId** :605）",
+        "data[0].room_view_stats.display_value": ":707",
+        "data[0].stream_url": ":669（**为空则触发reflow/info 补救** :680-692）",
+        "user.nickname": ":702（**未开播时的回落来源**）"
+      },
+      "response": {
+        "status_code": 0,
+        "data": [
+          {
+            "id_str": "7376429659866598196",
+            "status": 2,
+            "title": "直播标题",
+            "cover": {
+              "url_list": [
+                "https://example.douyin.com/cover.jpg"
+              ]
+            },
+            "owner": {
+              "nickname": "主播甲",
+              "web_rid": "416144012050",
+              "avatar_thumb": {
+                "url_list": [
+                  "https://example.douyin.com/av.jpg"
+                ]
+              },
+              "signature": "主播签名"
+            },
+            "room_view_stats": {
+              "display_value": "12345"
+            },
+            "stream_url": {
+              "flv_pull_url": {
+                "FULL_HD1": "https://flv1.example.douyin.com/a.flv",
+                "HD1": "https://flv1.example.douyin.com/b.flv"
+              },
+              "hls_pull_url_map": {
+                "FULL_HD1": "https://hls1.example.douyin.com/a.m3u8",
+                "HD1": "https://hls1.example.douyin.com/b.m3u8"
+              },
+              "live_core_sdk_data": {
+                "pull_data": {
+                  "options": {
+                    "qualities": [
+                      {
+                        "name": "原画",
+                        "level": 0,
+                        "sdk_key": "FULL_HD1"
+                      },
+                      {
+                        "name": "高清",
+                        "level": 1,
+                        "sdk_key": "HD1"
+                      },
+                      {
+                        "name": "标清",
+                        "level": 2,
+                        "sdk_key": "SD1"
+                      }
+                    ]
+                  },
+                  "stream_data": ""
+                }
+              }
+            }
+          }
+        ],
+        "user": {
+          "nickname": "观看者",
+          "avatar_thumb": {
+            "url_list": [
+              "https://x/me.jpg"
+            ]
+          }
+        }
+      },
+      "expected": {
+        "room_id": "416144012050",
+        "title": "直播标题",
+        "cover": "https://example.douyin.com/cover.jpg",
+        "user_name": "主播甲",
+        "user_avatar": "https://example.douyin.com/av.jpg",
+        "online": 12345,
+        "introduction": "主播签名",
+        "status": true,
+        "url": "https://live.douyin.com/416144012050",
+        "danmaku_data": {
+          "webRid": "416144012050",
+          "roomId": "7376429659866598196",
+          "userId": "<随机 12 位数字>",
+          "cookie": "<ttwid>"
+        },
+        "data_keys": [
+          "flv_pull_url",
+          "hls_pull_url_map",
+          "live_core_sdk_data"
+        ]
+      },
+      "note": "⚠️ 抖音 room_id 有**两种**（Dart:496-504）：webRid（11-12 位，固定）与 roomId（19 位，一次性）。`getRoomDetail` 按 `length <= 16` 判别走哪条链路。\nLiveRoomDetail.roomId 存的是 **webRid**；danmakuData 里两者都有。\nstream_url 为空 -> 自动改查 reflow/info（连麦房间会触发，:671-679 注释）。",
+      "verify_note": "连麦房间的降级形态需真实连麦场景抓包；`user` 节点（观看者信息）在不同端点下是否都存在也需确认。",
+      "variants": [
+        {
+          "name": "未开播（status=4）-> 回退按 webRid 重查",
+          "response": {
+            "status_code": 0,
+            "data": [
+              {
+                "id_str": "7376429659866598196",
+                "status": 4,
+                "title": "已结束",
+                "owner": {
+                  "nickname": "主播甲",
+                  "web_rid": "416144012050",
+                  "avatar_thumb": {
+                    "url_list": []
+                  },
+                  "signature": ""
+                },
+                "cover": {
+                  "url_list": []
+                },
+                "room_view_stats": {
+                  "display_value": "0"
+                },
+                "stream_url": {}
+              }
+            ],
+            "user": {
+              "nickname": "观看者"
+            }
+          },
+          "expected": {
+            "note": "Dart:572-578 status==4 时用 owner.web_rid 再调 getRoomDetailByWebRid（会发起**第二次**请求）",
+            "request_count": 2
+          }
+        },
+        {
+          "name": "未开播（status!=2 且 !=4）-> status=false，用户名回落到 user",
+          "response": {
+            "status_code": 0,
+            "data": [
+              {
+                "id_str": "1",
+                "status": 0,
+                "title": "未开播",
+                "owner": {
+                  "nickname": "主播甲",
+                  "web_rid": "w",
+                  "avatar_thumb": {
+                    "url_list": []
+                  },
+                  "signature": ""
+                },
+                "cover": {
+                  "url_list": []
+                },
+                "room_view_stats": {
+                  "display_value": "0"
+                },
+                "stream_url": {}
+              }
+            ],
+            "user": {
+              "nickname": "观看者",
+              "avatar_thumb": {
+                "url_list": [
+                  "https://x/me.jpg"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "status": false,
+            "user_name": "观看者",
+            "user_avatar": "https://x/me.jpg",
+            "online": 0
+          }
+        },
+        {
+          "name": "错误流：data 为空数组 -> 抛 CoreError",
+          "response": {
+            "status_code": 0,
+            "data": []
+          },
+          "expected": {
+            "error": "抛 CoreError（Dart:653-655「抖音进房接口未返回房间数据」）"
+          }
+        },
+        {
+          "name": "错误流：data 缺失",
+          "response": {
+            "status_code": 0
+          },
+          "expected": {
+            "error": "抛 CoreError"
+          }
+        },
+        {
+          "name": "降级骨架（stream_url 为空）-> 触发 reflow/info 补救",
+          "expected": {
+            "note": "连麦/多人连线房间：room 数据在但 stream_url 空。实现须发第二次请求查 reflow/info，否则 detail.data 为空导致后续取画质抛空指针（Dart:671-679）。",
+            "request_count": 2
+          },
+          "response": {
+            "status_code": 0,
+            "data": [
+              {
+                "id_str": "7376429659866598196",
+                "status": 2,
+                "title": "直播标题",
+                "cover": {
+                  "url_list": [
+                    "https://example.douyin.com/cover.jpg"
+                  ]
+                },
+                "owner": {
+                  "nickname": "主播甲",
+                  "web_rid": "416144012050",
+                  "avatar_thumb": {
+                    "url_list": [
+                      "https://example.douyin.com/av.jpg"
+                    ]
+                  },
+                  "signature": "主播签名"
+                },
+                "room_view_stats": {
+                  "display_value": "12345"
+                },
+                "stream_url": {}
+              }
+            ],
+            "user": {
+              "nickname": "观看者",
+              "avatar_thumb": {
+                "url_list": [
+                  "https://x/me.jpg"
+                ]
+              }
+            }
+          },
+          "mutation_applied": "degraded"
+        }
+      ]
+    },
+    "live_douyin_com_stream_url_quality": {
+      "endpoint": "(stream_url 子结构，无独立请求)",
+      "method": "STRUCT",
+      "dart_source": "douyin_site.dart:949-1080（getPlayQualities）",
+      "target_ac": [
+        "IP-6-PLAY-QUALITY"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "detail.data 为空": ":957-959 直接返回**空列表**，不抛（连麦降级场景）",
+        "live_core_sdk_data.pull_data.options.qualities[]": ":962",
+        "qualities[].name / level / sdk_key": ":1024/:1056/:1039",
+        "stream_data 以 '{' 开头 -> 走 JSON 分支": ":1033 `qualityData[sdk_key].main.flv/.hls`",
+        "stream_data 为空串 -> 走 flv/hls 地址表分支": ":1000-1031（**按 level 倒序索引**）",
+        "flv/hls 地址表分支的配对": ":1015-1021 `flvList[flvList.length - level]`",
+        "排序": ":1078 按 sort(=level) **降序**",
+        "hlsFirst": "setSiteAttrs 可开启 hls 优先（:979/:1048）"
+      },
+      "response": {
+        "status_code": 0,
+        "data": [
+          {
+            "id_str": "7376429659866598196",
+            "status": 2,
+            "title": "直播标题",
+            "cover": {
+              "url_list": [
+                "https://example.douyin.com/cover.jpg"
+              ]
+            },
+            "owner": {
+              "nickname": "主播甲",
+              "web_rid": "416144012050",
+              "avatar_thumb": {
+                "url_list": [
+                  "https://example.douyin.com/av.jpg"
+                ]
+              },
+              "signature": "主播签名"
+            },
+            "room_view_stats": {
+              "display_value": "12345"
+            },
+            "stream_url": {
+              "flv_pull_url": {
+                "FULL_HD1": "https://flv1.example.douyin.com/a.flv",
+                "HD1": "https://flv1.example.douyin.com/b.flv"
+              },
+              "hls_pull_url_map": {
+                "FULL_HD1": "https://hls1.example.douyin.com/a.m3u8",
+                "HD1": "https://hls1.example.douyin.com/b.m3u8"
+              },
+              "live_core_sdk_data": {
+                "pull_data": {
+                  "options": {
+                    "qualities": [
+                      {
+                        "name": "原画",
+                        "level": 0,
+                        "sdk_key": "FULL_HD1"
+                      },
+                      {
+                        "name": "高清",
+                        "level": 1,
+                        "sdk_key": "HD1"
+                      },
+                      {
+                        "name": "标清",
+                        "level": 2,
+                        "sdk_key": "SD1"
+                      }
+                    ]
+                  },
+                  "stream_data": "{\"data\": {\"FULL_HD1\": {\"main\": {\"flv\": \"https://flv1.example.douyin.com/origin.flv\", \"hls\": \"https://hls1.example.douyin.com/origin.m3u8\"}, \"backup\": {}}, \"HD1\": {\"main\": {\"flv\": \"https://flv1.example.douyin.com/hd.flv\", \"hls\": \"https://hls1.example.douyin.com/hd.m3u8\"}, \"backup\": {}}, \"SD1\": {\"main\": {\"flv\": \"https://flv1.example.douyin.com/sd.flv\"}, \"backup\": {}}}}"
+                }
+              }
+            }
+          }
+        ],
+        "user": {
+          "nickname": "观看者",
+          "avatar_thumb": {
+            "url_list": [
+              "https://x/me.jpg"
+            ]
+          }
+        }
+      },
+      "expected": {
+        "qualities": [
+          {
+            "quality": "原画",
+            "sort": 0,
+            "urls": [
+              "https://flv1.example.douyin.com/origin.flv",
+              "https://hls1.example.douyin.com/origin.m3u8"
+            ]
+          },
+          {
+            "quality": "高清",
+            "sort": 1,
+            "urls": [
+              "https://flv1.example.douyin.com/hd.flv",
+              "https://hls1.example.douyin.com/hd.m3u8"
+            ]
+          },
+          {
+            "quality": "标清",
+            "sort": 2,
+            "urls": [
+              "https://flv1.example.douyin.com/sd.flv"
+            ]
+          }
+        ]
+      },
+      "note": "清晰度有**两条完全不同的解析分支**（Dart:999 `streamData.startsWith('{')`）：\n①JSON 分支：按 sdk_key 取 main.flv/main.hls\n②地址表分支：stream_data 为空时，按 `length - level` **倒序索引**取 flv/hls 数组\n两分支的 URL 结果顺序不同，用例必须分别覆盖。\n**urls 为空的档位会被丢弃**（:1028/:1059 `if (urls.isNotEmpty)`）。",
+      "verify_note": "`stream_data` 真实取值形态（是否恒为 JSON 串、还是常为空）待抓包 —— 这决定线上走哪条分支，是抖音取流最关键的未验证点。",
+      "variants": [
+        {
+          "name": "分支②：stream_data 为空 -> 地址表倒序索引（错位边界）",
+          "response": {
+            "status_code": 0,
+            "data": [
+              {
+                "id_str": "7376429659866598196",
+                "status": 2,
+                "title": "直播标题",
+                "cover": {
+                  "url_list": [
+                    "https://example.douyin.com/cover.jpg"
+                  ]
+                },
+                "owner": {
+                  "nickname": "主播甲",
+                  "web_rid": "416144012050",
+                  "avatar_thumb": {
+                    "url_list": [
+                      "https://example.douyin.com/av.jpg"
+                    ]
+                  },
+                  "signature": "主播签名"
+                },
+                "room_view_stats": {
+                  "display_value": "12345"
+                },
+                "stream_url": {
+                  "flv_pull_url": {
+                    "FULL_HD1": "https://flv1.example.douyin.com/a.flv",
+                    "HD1": "https://flv1.example.douyin.com/b.flv"
+                  },
+                  "hls_pull_url_map": {
+                    "FULL_HD1": "https://hls1.example.douyin.com/a.m3u8",
+                    "HD1": "https://hls1.example.douyin.com/b.m3u8"
+                  },
+                  "live_core_sdk_data": {
+                    "pull_data": {
+                      "options": {
+                        "qualities": [
+                          {
+                            "name": "原画",
+                            "level": 0,
+                            "sdk_key": "FULL_HD1"
+                          },
+                          {
+                            "name": "高清",
+                            "level": 1,
+                            "sdk_key": "HD1"
+                          },
+                          {
+                            "name": "标清",
+                            "level": 2,
+                            "sdk_key": "SD1"
+                          }
+                        ]
+                      },
+                      "stream_data": ""
+                    }
+                  }
+                }
+              }
+            ],
+            "user": {
+              "nickname": "观看者",
+              "avatar_thumb": {
+                "url_list": [
+                  "https://x/me.jpg"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "qualities": [
+              {
+                "quality": "标清",
+                "sort": 2,
+                "urls": [
+                  "https://flv1.example.douyin.com/a.flv",
+                  "https://hls1.example.douyin.com/a.m3u8"
+                ]
+              },
+              {
+                "quality": "高清",
+                "sort": 1,
+                "urls": [
+                  "https://flv1.example.douyin.com/b.flv",
+                  "https://hls1.example.douyin.com/b.m3u8"
+                ]
+              }
+            ],
+            "dropped": [
+              {
+                "quality": "原画",
+                "sort": 0
+              }
+            ],
+            "note": "⚠️ **本夹具钉的是一个真实的错位行为**（已用 Dart 算法独立复算确认）：\n  flv/hls 地址表各只有 2 条，而 qualities 有 3 档（level 0/1/2），\n  Dart:1015 `flvIndex = flvList.length - level` 于是：\n    level=0 -> index 2 越界 -> urls 为空 -> **原画被丢弃**（:1028）\n    level=1 -> index 1 -> 拿到 HD1 的地址\n    level=2 -> index 0 -> 拿到 FULL_HD1 的地址（**标清却拿到原画地址**）\n  即：档位名与实际清晰度**整体错位一档**。\n  这是 Dart 既有行为，迁移必须一致；实现若「顺手修正」会导致与 Dart 不一致（AC-30 回归风险）。真实抓包需确认线上 stream_data 是否恒为 JSON 串（若恒为 JSON 则本分支线上不走到，属防御性覆盖）。"
+          }
+        },
+        {
+          "name": "detail.data 为空 -> 空清晰度列表（连麦降级）",
+          "expected": {
+            "qualities": [],
+            "note": "不抛（Dart:957-959）"
+          },
+          "response": {
+            "__detail_data": {}
+          },
+          "note": "detail.data 为空 {} -> getPlayQualities 返回空列表（Dart:957-959）",
+          "mutation_applied": "empty_data"
+        },
+        {
+          "name": "无 qualities 列表 -> 用地址表键名当画质名",
+          "expected": {
+            "note": "Dart:965-997：键名即画质名，level 从键数递减"
+          },
+          "response": {
+            "status_code": 0,
+            "data": [
+              {
+                "id_str": "7376429659866598196",
+                "status": 2,
+                "title": "直播标题",
+                "cover": {
+                  "url_list": [
+                    "https://example.douyin.com/cover.jpg"
+                  ]
+                },
+                "owner": {
+                  "nickname": "主播甲",
+                  "web_rid": "416144012050",
+                  "avatar_thumb": {
+                    "url_list": [
+                      "https://example.douyin.com/av.jpg"
+                    ]
+                  },
+                  "signature": "主播签名"
+                },
+                "room_view_stats": {
+                  "display_value": "12345"
+                },
+                "stream_url": {
+                  "flv_pull_url": {
+                    "FULL_HD1": "https://flv1.example.douyin.com/a.flv",
+                    "HD1": "https://flv1.example.douyin.com/b.flv"
+                  },
+                  "hls_pull_url_map": {
+                    "FULL_HD1": "https://hls1.example.douyin.com/a.m3u8",
+                    "HD1": "https://hls1.example.douyin.com/b.m3u8"
+                  },
+                  "live_core_sdk_data": {
+                    "pull_data": {
+                      "stream_data": "{\"data\": {\"FULL_HD1\": {\"main\": {\"flv\": \"https://flv1.example.douyin.com/origin.flv\", \"hls\": \"https://hls1.example.douyin.com/origin.m3u8\"}, \"backup\": {}}, \"HD1\": {\"main\": {\"flv\": \"https://flv1.example.douyin.com/hd.flv\", \"hls\": \"https://hls1.example.douyin.com/hd.m3u8\"}, \"backup\": {}}, \"SD1\": {\"main\": {\"flv\": \"https://flv1.example.douyin.com/sd.flv\"}, \"backup\": {}}}}"
+                    }
+                  }
+                }
+              }
+            ],
+            "user": {
+              "nickname": "观看者",
+              "avatar_thumb": {
+                "url_list": [
+                  "https://x/me.jpg"
+                ]
+              }
+            }
+          },
+          "mutation_applied": "no_qualities"
+        },
+        {
+          "name": "错误流：stream_data 是非法 JSON 串",
+          "expected": {
+            "qualities": "走分支②（不以 '{' 开头）",
+            "note": "Dart:1033 用 _safeJsonDecode 兜底"
+          },
+          "response": {
+            "status_code": 0,
+            "data": [
+              {
+                "id_str": "7376429659866598196",
+                "status": 2,
+                "title": "直播标题",
+                "cover": {
+                  "url_list": [
+                    "https://example.douyin.com/cover.jpg"
+                  ]
+                },
+                "owner": {
+                  "nickname": "主播甲",
+                  "web_rid": "416144012050",
+                  "avatar_thumb": {
+                    "url_list": [
+                      "https://example.douyin.com/av.jpg"
+                    ]
+                  },
+                  "signature": "主播签名"
+                },
+                "room_view_stats": {
+                  "display_value": "12345"
+                },
+                "stream_url": {
+                  "flv_pull_url": {
+                    "FULL_HD1": "https://flv1.example.douyin.com/a.flv",
+                    "HD1": "https://flv1.example.douyin.com/b.flv"
+                  },
+                  "hls_pull_url_map": {
+                    "FULL_HD1": "https://hls1.example.douyin.com/a.m3u8",
+                    "HD1": "https://hls1.example.douyin.com/b.m3u8"
+                  },
+                  "live_core_sdk_data": {
+                    "pull_data": {
+                      "options": {
+                        "qualities": [
+                          {
+                            "name": "原画",
+                            "level": 0,
+                            "sdk_key": "FULL_HD1"
+                          },
+                          {
+                            "name": "高清",
+                            "level": 1,
+                            "sdk_key": "HD1"
+                          },
+                          {
+                            "name": "标清",
+                            "level": 2,
+                            "sdk_key": "SD1"
+                          }
+                        ]
+                      },
+                      "stream_data": "not-json{"
+                    }
+                  }
+                }
+              }
+            ],
+            "user": {
+              "nickname": "观看者",
+              "avatar_thumb": {
+                "url_list": [
+                  "https://x/me.jpg"
+                ]
+              }
+            }
+          },
+          "mutation_applied": "bad_stream_data"
+        }
+      ]
+    },
+    "www_douyin_com_aweme_v1_web_live_search": {
+      "endpoint": "https://www.douyin.com/aweme/v1/web/live/search/",
+      "method": "GET",
+      "dart_source": "douyin_site.dart:1090-1170",
+      "target_ac": [
+        "IP-6-HTTP-SEARCH-ROOMS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "响应可能不是 JSON": ":1154 `if (result == \"\" || result == 'blocked') throw` —— 风控时返回**纯文本** 'blocked'",
+        "data[].lives.rawdata": ":1158 **字符串化的 JSON**，需二次 parse",
+        "rawdata.owner.web_rid": ":1160（roomId 用 web_rid）",
+        "rawdata.title": ":1161",
+        "rawdata.cover.url_list[0]": ":1162",
+        "rawdata.owner.nickname": ":1163",
+        "rawdata.stats.total_user": ":1164 int.tryParse",
+        "hasMore": ":1168 `items.length >= 10`（**固定 10**，与 count 参数无关）"
+      },
+      "response": {
+        "status_code": 0,
+        "data": [
+          {
+            "lives": {
+              "rawdata": "{\"owner\": {\"web_rid\": \"416144012050\", \"nickname\": \"主播甲\"}, \"title\": \"直播标题\", \"cover\": {\"url_list\": [\"https://example.douyin.com/cover.jpg\"]}, \"stats\": {\"total_user\": \"12345\"}}"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "has_more": false,
+        "items": [
+          {
+            "room_id": "416144012050",
+            "title": "直播标题",
+            "cover": "https://example.douyin.com/cover.jpg",
+            "user_name": "主播甲",
+            "online": 12345
+          }
+        ]
+      },
+      "note": "⚠️ 双层编码：`lives.rawdata` 是**字符串化的 JSON**，需再 parse 一次。\n风控时响应体是纯文本 `blocked`（非 JSON）—— mock 必须能返回非 JSON 文本，且此时应抛「抖音直播搜索被限制」而不是 JSON 解析错误。",
+      "verify_note": "风控的实际返回（纯文本 'blocked' / HTML / 空）**必须抓包确认**；不同风控等级形态可能不同，夹具按代码里已知的两种固化。",
+      "variants": [
+        {
+          "name": "错误流：风控返回纯文本 'blocked'",
+          "__mock_text": "blocked",
+          "expected": {
+            "error": "抛错「抖音直播搜索被限制，请稍后再试」（Dart:1154-1156）"
+          }
+        },
+        {
+          "name": "错误流：空响应",
+          "__mock_text": "",
+          "expected": {
+            "error": "抛错（同上）"
+          }
+        },
+        {
+          "name": "空结果",
+          "response": {
+            "status_code": 0,
+            "data": []
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "满 10 条 -> has_more=true",
+          "expected": {
+            "has_more": true
+          },
+          "response": {
+            "status_code": 0,
+            "data": [
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012000\", \"nickname\": \"主播0\"}, \"title\": \"标题0\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1000\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012001\", \"nickname\": \"主播1\"}, \"title\": \"标题1\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1001\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012002\", \"nickname\": \"主播2\"}, \"title\": \"标题2\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1002\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012003\", \"nickname\": \"主播3\"}, \"title\": \"标题3\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1003\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012004\", \"nickname\": \"主播4\"}, \"title\": \"标题4\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1004\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012005\", \"nickname\": \"主播5\"}, \"title\": \"标题5\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1005\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012006\", \"nickname\": \"主播6\"}, \"title\": \"标题6\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1006\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012007\", \"nickname\": \"主播7\"}, \"title\": \"标题7\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1007\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012008\", \"nickname\": \"主播8\"}, \"title\": \"标题8\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1008\"}}"
+                }
+              },
+              {
+                "lives": {
+                  "rawdata": "{\"owner\": {\"web_rid\": \"416144012009\", \"nickname\": \"主播9\"}, \"title\": \"标题9\", \"cover\": {\"url_list\": [\"https://x/c.jpg\"]}, \"stats\": {\"total_user\": \"1009\"}}"
+                }
+              }
+            ]
+          },
+          "mutation_applied": "ten"
+        }
+      ]
+    },
+    "live_douyin_com_webcast_user_me": {
+      "endpoint": "https://live.douyin.com/webcast/user/me/",
+      "method": "GET",
+      "dart_source": "douyin_site.dart:1249-1284 + model/douyin_user_info.dart",
+      "target_ac": [
+        "IP-6-ACCOUNT"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.id_str": "douyin_user_info.dart:22（**注意是 id_str 不是 id**）",
+        "data.nickname": ":23",
+        "data.short_id": ":24",
+        "data.sign": ":25",
+        "data.birthday": ":26",
+        "data.gender": ":27",
+        "data.avatar_thumb.url_list[0]": ":28（**嵌套取 [0]**，缺失会抛）",
+        "isValid": "douyin_site.dart:1276（仅在 data 是 Map 时为 true）",
+        "cookie 为空": ":1255-1258 直接返回**空 AccountInfo**，不抛"
+      },
+      "response": {
+        "status_code": 0,
+        "data": {
+          "id_str": "1234567890",
+          "nickname": "抖音用户",
+          "short_id": "12345",
+          "sign": "签名",
+          "birthday": "1990-01-01",
+          "gender": 1,
+          "avatar_thumb": {
+            "url_list": [
+              "https://example.douyin.com/avatar.jpg"
+            ]
+          }
+        }
+      },
+      "expected": {
+        "uid": "1234567890",
+        "name": "抖音用户",
+        "avatar": "https://example.douyin.com/avatar.jpg",
+        "is_valid": true
+      },
+      "note": "头像取 `avatar_thumb.url_list[0]`（dart:28），**url_list 为空数组会抛 RangeError** —— 实现须判空回落空串。",
+      "verify_note": "`gender` / `birthday` 的真实类型（数字 vs 字符串）待抓包；字段名 `id_str`（非 `id`）已按 Dart 固化。",
+      "variants": [
+        {
+          "name": "错误流：data 不是 Map -> is_valid=false 不抛",
+          "response": {
+            "status_code": 0,
+            "data": []
+          },
+          "expected": {
+            "is_valid": false,
+            "note": "Dart:1270-1276 判 is Map 后跳过"
+          }
+        },
+        {
+          "name": "错误流：data 为 null",
+          "response": {
+            "status_code": 0
+          },
+          "expected": {
+            "is_valid": false
+          }
+        },
+        {
+          "name": "cookie 为空串 -> 直接返回空 AccountInfo（不发请求）",
+          "__mock_no_request": true,
+          "expected": {
+            "is_valid": false,
+            "request_count": 0
+          }
+        }
+      ]
+    }
+  }
+}

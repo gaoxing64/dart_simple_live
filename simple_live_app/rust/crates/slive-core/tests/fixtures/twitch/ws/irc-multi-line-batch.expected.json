@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "twitch",
+    "synthetic": true,
+    "derivation": "照 Dart core twitch_danmaku.dart 的三条正则（PING/display-name/color）与行拆分逻辑推导；IRC 标签格式参照 Twitch 官方 IRCv3 规范",
+    "frame_format_source": "simple_live_core/lib/src/platforms/twitch/twitch_danmaku.dart:73-103",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://irc-ws.chat.twitch.tv（先 CAP REQ + PASS SCHMOOPIIE + NICK justinfanXXXX）录制真实帧，核对：①tags 是否总带 color（无 color 的用户实际是否存在）②系统消息（RECONNECT/HOST_ON/CLEARCHAT）的实际形态 ③帧内是否多行、是否 CRLF。替换后把 _meta.synthetic 改 false。",
+    "protocol_ref": "https://dev.twitch.tv/docs/irc/",
+    "target_ac": [
+      "IP-5-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::twitch::danmaku::decode::decode_message",
+    "note": "一条 WS 帧含多条 IRC 行（Dart split('\\n') 逐行，:84-98）——不得只取首行；产出顺序须与帧内顺序一致。",
+    "dart_source": "twitch_danmaku.dart:84-98"
+  },
+  "irc_text": "@color=#00FF00;display-name=Dave;id=a1;room-id=1;user-id=4;user-type= :dave!dave@dave.tmi.twitch.tv PRIVMSG #1 :line one\n@color=#FF00FF;display-name=Eve;id=a2;room-id=1;user-id=5;user-type= :eve!eve@eve.tmi.twitch.tv PRIVMSG #1 :line two\n@color=#FFFF00;display-name=Fox;id=a3;room-id=1;user-id=6;user-type= :fox!fox@fox.tmi.twitch.tv PRIVMSG #1 :line three\n",
+  "bytes_hex": "40 63 6f 6c 6f 72 3d 23 30 30 46 46 30 30 3b 64 69 73 70 6c 61 79 2d 6e 61 6d 65 3d 44 61 76 65 3b 69 64 3d 61 31 3b 72 6f 6f 6d 2d 69 64 3d 31 3b 75 73 65 72 2d 69 64 3d 34 3b 75 73 65 72 2d 74 79 70 65 3d 20 3a 64 61 76 65 21 64 61 76 65 40 64 61 76 65 2e 74 6d 69 2e 74 77 69 74 63 68 2e 74 76 20 50 52 49 56 4d 53 47 20 23 31 20 3a 6c 69 6e 65 20 6f 6e 65 0a 40 63 6f 6c 6f 72 3d 23 46 46 30 30 46 46 3b 64 69 73 70 6c 61 79 2d 6e 61 6d 65 3d 45 76 65 3b 69 64 3d 61 32 3b 72 6f 6f 6d 2d 69 64 3d 31 3b 75 73 65 72 2d 69 64 3d 35 3b 75 73 65 72 2d 74 79 70 65 3d 20 3a 65 76 65 21 65 76 65 40 65 76 65 2e 74 6d 69 2e 74 77 69 74 63 68 2e 74 76 20 50 52 49 56 4d 53 47 20 23 31 20 3a 6c 69 6e 65 20 74 77 6f 0a 40 63 6f 6c 6f 72 3d 23 46 46 46 46 30 30 3b 64 69 73 70 6c 61 79 2d 6e 61 6d 65 3d 46 6f 78 3b 69 64 3d 61 33 3b 72 6f 6f 6d 2d 69 64 3d 31 3b 75 73 65 72 2d 69 64 3d 36 3b 75 73 65 72 2d 74 79 70 65 3d 20 3a 66 6f 78 21 66 6f 78 40 66 6f 78 2e 74 6d 69 2e 74 77 69 74 63 68 2e 74 76 20 50 52 49 56 4d 53 47 20 23 31 20 3a 6c 69 6e 65 20 74 68 72 65 65 0a",
+  "bytes_len": 357,
+  "expected": {
+    "messages": [
+      {
+        "type": "chat",
+        "user_name": "Dave",
+        "message": "line one",
+        "color": {
+          "r": 0,
+          "g": 255,
+          "b": 0
+        }
+      },
+      {
+        "type": "chat",
+        "user_name": "Eve",
+        "message": "line two",
+        "color": {
+          "r": 255,
+          "g": 0,
+          "b": 255
+        }
+      },
+      {
+        "type": "chat",
+        "user_name": "Fox",
+        "message": "line three",
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 0
+        }
+      }
+    ],
+    "replies": []
+  }
+}

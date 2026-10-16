@@ -1,0 +1,771 @@
+{
+  "_meta": {
+    "kind": "http-samples",
+    "synthetic": true,
+    "note": "所有响应均为**合成最小样本**，只含 Dart 解析代码真正读取的字段；真实响应形态（尤其嵌套/额外字段/类型）待联网抓包替换。禁止把本文件当真实抓包。",
+    "generator": "fixtures-draft/tools/gen_fixtures.py",
+    "split_hint": "落地到 crates/slive-core/tests/fixtures/bilibili/ 时按端点拆分为独立 .json。"
+  },
+  "samples": {
+    "room_v1_Area_getList": {
+      "endpoint": "https://api.live.bilibili.com/room/v1/Area/getList",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:51-80",
+      "target_ac": [
+        "AC-01"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data[].id/name": "dart:61-77",
+        "data[].list[].id/name/parent_id/pic": "dart:63-68",
+        "pic 后缀 @100w.png": "dart:68"
+      },
+      "response": {
+        "code": 0,
+        "message": "0",
+        "data": [
+          {
+            "id": 1,
+            "name": "娱乐",
+            "list": [
+              {
+                "id": "101",
+                "name": "视频唱见",
+                "parent_id": "1",
+                "pic": "https://i0.hdslb.com/bfs/activity-plat/a.png"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "categories": [
+          {
+            "id": "1",
+            "name": "娱乐",
+            "children": [
+              {
+                "id": "101",
+                "name": "视频唱见",
+                "parent_id": "1",
+                "pic": "https://i0.hdslb.com/bfs/activity-plat/a.png@100w.png"
+              }
+            ]
+          }
+        ]
+      },
+      "verify_note": "data 为数组（Dart 直接 for-in result['data']）；空/缺失 data 应得空列表（AC-27），本样本非空。"
+    },
+    "xlive_web-interface_v1_second_getList": {
+      "endpoint": "https://api.live.bilibili.com/xlive/web-interface/v1/second/getList",
+      "method": "GET(+wbi)",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:82-114",
+      "target_ac": [
+        "AC-02"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.has_more == 1": "dart:101",
+        "data.list[].roomid/title/cover/uname/online": "dart:103-110",
+        "cover 后缀 @400w.jpg": "dart:107"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "has_more": 1,
+          "list": [
+            {
+              "roomid": 6,
+              "title": "t",
+              "cover": "https://i0.hdslb.com/bfs/cover/x.jpg",
+              "uname": "u",
+              "online": 123
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items": [
+          {
+            "room_id": "6",
+            "title": "t",
+            "cover": "https://i0.hdslb.com/bfs/cover/x.jpg@400w.jpg",
+            "user_name": "u",
+            "online": 123
+          }
+        ]
+      },
+      "variants": [
+        {
+          "desc": "空页/分页到底",
+          "response": {
+            "code": 0,
+            "data": {
+              "has_more": 0,
+              "list": []
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        }
+      ]
+    },
+    "xlive_web-interface_v1_second_getListByArea": {
+      "endpoint": "https://api.live.bilibili.com/xlive/web-interface/v1/second/getListByArea",
+      "method": "GET(+wbi)",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:195-222",
+      "target_ac": [
+        "AC-03"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "hasMore = list 非空（本页非空判据）": "dart:209",
+        "list[].*": "dart:211-218"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "list": [
+            {
+              "roomid": 1,
+              "title": "t",
+              "cover": "https://i0.hdslb.com/bfs/cover/y.jpg",
+              "uname": "u",
+              "online": 9
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items_len": 1
+      },
+      "variants": [
+        {
+          "desc": "空页",
+          "response": {
+            "code": 0,
+            "data": {
+              "list": []
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items_len": 0
+          }
+        }
+      ],
+      "verify_note": "hasMore **不采信任何服务端分页字段**，只看 list 是否非空（AC-03 硬约束）。"
+    },
+    "www.bilibili.com_x_web-interface_search_type_live": {
+      "endpoint": "https://api.bilibili.com/x/web-interface/search/type?search_type=live",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:273-304",
+      "target_ac": [
+        "AC-04"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.result.live_room[]": "dart:290",
+        "title 去 <em>": "dart:293",
+        "cover 补 https: + @400w.jpg": "dart:297",
+        "hasMore = len>=40": "dart:303"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "result": {
+            "live_room": [
+              {
+                "roomid": 7141277,
+                "title": "<em class=\"keyword\">LOL</em>直播",
+                "cover": "//i0.hdslb.com/bfs/live/cover.jpg",
+                "uname": "up",
+                "online": 100
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "has_more": false,
+        "items": [
+          {
+            "room_id": "7141277",
+            "title": "LOL直播",
+            "cover": "https://i0.hdslb.com/bfs/live/cover.jpg@400w.jpg",
+            "user_name": "up",
+            "online": 100
+          }
+        ]
+      },
+      "verify_note": "真实 cover 常以 '//' 开头 → 补 'https:' 得 'https://...@400w.jpg'；缺 result.live_room → 空列表（AC-27）。"
+    },
+    "www.bilibili.com_x_web-interface_search_type_live_user": {
+      "endpoint": "https://api.bilibili.com/x/web-interface/search/type?search_type=live_user",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:307-337",
+      "target_ac": [
+        "AC-05"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.result[]": "dart:324",
+        "uname 去 <em>": "dart:327",
+        "avatar 补 https: + @400w.jpg": "dart:330",
+        "is_live 原样透传": "dart:332"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "result": [
+            {
+              "roomid": 1,
+              "uname": "<em class=\"keyword\">联盟</em>主播",
+              "uface": "//i0.hdslb.com/bfs/face/a.jpg",
+              "is_live": true
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": false,
+        "items": [
+          {
+            "room_id": "1",
+            "user_name": "联盟主播",
+            "avatar": "https://i0.hdslb.com/bfs/face/a.jpg@400w.jpg",
+            "live_status": true
+          }
+        ]
+      },
+      "verify_note": "**待核实**：`is_live` 的真实 JSON 类型（bool vs int）。Dart `liveStatus: item['is_live']` 直接赋给 `bool` 字段（live_anchor_item.dart:14/20），若服务端返回 int 会在 Dart 侧抛 TypeError。实现者**必须**以真实抓包为准，不得臆断；本样本暂用 bool（对齐 Dart 字段类型）。"
+    },
+    "getInfoByRoom_plus_getDanmuInfo": {
+      "endpoint": "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom + .../getDanmuInfo",
+      "method": "GET(+wbi)",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:225-270",
+      "target_ac": [
+        "AC-06",
+        "AC-22"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "room_info.room_id/title/cover/online/live_status/description": "dart:227,241-249",
+        "anchor_info.base_info.uname/face": "dart:243-244",
+        "host_list[].host → serverHost(兜底 broadcastlv...)": "dart:235-236,254",
+        "data.token": "dart:253",
+        "url 用原 roomId": "dart:247"
+      },
+      "response": {
+        "getInfoByRoom": {
+          "code": 0,
+          "data": {
+            "room_info": {
+              "room_id": 545068,
+              "title": "T",
+              "cover": "https://i0.hdslb.com/bfs/cover/c.jpg",
+              "online": 1000,
+              "live_status": 1,
+              "description": "d"
+            },
+            "anchor_info": {
+              "base_info": {
+                "uname": "U",
+                "face": "https://i0.hdslb.com/bfs/face/f.jpg"
+              }
+            }
+          }
+        },
+        "getDanmuInfo": {
+          "code": 0,
+          "data": {
+            "token": "tok",
+            "host_list": [
+              {
+                "host": "broadcastlv.chat.bilibili.com",
+                "wss_port": 443
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "room_id": "545068",
+        "title": "T",
+        "status": true,
+        "user_avatar": "https://i0.hdslb.com/bfs/face/f.jpg@100w.jpg",
+        "url": "https://live.bilibili.com/{原请求 roomId}",
+        "danmaku_data": {
+          "schema_version": 1,
+          "room_id": 545068,
+          "uid": 0,
+          "token": "tok",
+          "server_host": "broadcastlv.chat.bilibili.com",
+          "buvid": "",
+          "cookie": ""
+        }
+      },
+      "variants": [
+        {
+          "desc": "未开播（AC-22）",
+          "response": {
+            "getInfoByRoom": {
+              "code": 0,
+              "data": {
+                "room_info": {
+                  "room_id": 545068,
+                  "title": "T",
+                  "cover": "c",
+                  "online": 0,
+                  "live_status": 0,
+                  "description": "d"
+                },
+                "anchor_info": {
+                  "base_info": {
+                    "uname": "U",
+                    "face": "f"
+                  }
+                }
+              }
+            },
+            "getDanmuInfo": {
+              "code": 0,
+              "data": {
+                "token": "tok",
+                "host_list": []
+              }
+            }
+          },
+          "expected": {
+            "status": false,
+            "server_host": "broadcastlv.chat.bilibili.com"
+          }
+        }
+      ],
+      "verify_note": "danmaku_data 为 Rust 侧 BiliBiliDanmakuArgs 的 JSON（含 schema_version=1，见 architecture §3.3(b)）；Dart 侧无 schema_version 字段（dart:29-39），Rust 侧新增。"
+    },
+    "xlive_web-room_v2_index_getRoomPlayInfo": {
+      "endpoint": "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:117-192",
+      "target_ac": [
+        "AC-07",
+        "AC-08",
+        "AC-29"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "g_qn_desc[].qn/desc → 映射表": "dart:131-133",
+        "stream[0].format[0].codec[0].accept_qn": "dart:135-141",
+        "未知 qn → '未知清晰度'": "dart:137",
+        "url = host+base_url+extra": "dart:167-171",
+        "mcdn 后置排序": "dart:176-183",
+        "headers referer/user-agent 常量": "dart:186-190"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "playurl_info": {
+            "playurl": {
+              "g_qn_desc": [
+                {
+                  "qn": 10000,
+                  "desc": "原画"
+                },
+                {
+                  "qn": 400,
+                  "desc": "蓝光"
+                },
+                {
+                  "qn": 250,
+                  "desc": "超清"
+                }
+              ],
+              "stream": [
+                {
+                  "protocol_name": "http_stream",
+                  "format": [
+                    {
+                      "format_name": "flv",
+                      "codec": [
+                        {
+                          "codec_name": "avc",
+                          "base_url": "/live-bvc/x.flv",
+                          "accept_qn": [
+                            10000,
+                            400,
+                            99999
+                          ],
+                          "url_info": [
+                            {
+                              "host": "https://cn-hbxy-cu-01.live-play.acgvideo.com",
+                              "extra": "?a=1"
+                            },
+                            {
+                              "host": "https://mcdn.example.com",
+                              "extra": "?b=2"
+                            },
+                            {
+                              "host": "https://d1--cn-gotcha.example.com",
+                              "extra": "?c=3"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": {
+        "qualities": [
+          {
+            "quality": "原画",
+            "data": "10000",
+            "sort": 0
+          },
+          {
+            "quality": "蓝光",
+            "data": "400",
+            "sort": 1
+          },
+          {
+            "quality": "未知清晰度",
+            "data": "99999",
+            "sort": 2
+          }
+        ],
+        "play_urls_first": "https://cn-hbxy-cu-01.live-play.acgvideo.com/live-bvc/x.flv?a=1",
+        "play_urls_last_contains_mcdn": true,
+        "play_urls_len": 3,
+        "headers": {
+          "referer": "https://live.bilibili.com",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ... Edg/115.0.1901.188"
+        }
+      },
+      "verify_note": "AC-08 断言：含 mcdn 的 URL 必须排在最后（Dart sort 对 mcdn 返回 1）。quality.data 为 qn 十进制字符串（AC-07）。"
+    },
+    "room_v1_Room_get_info": {
+      "endpoint": "https://api.live.bilibili.com/room/v1/Room/get_info",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:340-349",
+      "target_ac": [
+        "AC-09"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.live_status == 1": "dart:348"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "room_id": 6,
+          "live_status": 1,
+          "uid": 123
+        }
+      },
+      "expected": {
+        "is_live": true
+      },
+      "variants": [
+        {
+          "desc": "未开播/缺 data",
+          "response": {
+            "code": 0,
+            "data": {
+              "live_status": 0
+            }
+          },
+          "expected": {
+            "is_live": false
+          }
+        }
+      ]
+    },
+    "av_v1_SuperChat_getMessageList": {
+      "endpoint": "https://api.live.bilibili.com/av/v1/SuperChat/getMessageList",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:352-379",
+      "target_ac": [
+        "AC-10"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.list[]": "dart:361",
+        "秒→毫秒 start/end_time*1000": "dart:365-373",
+        "face 后缀 @200w.jpg": "dart:368",
+        "price 原样": "dart:370"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "list": [
+            {
+              "background_bottom_color": "#2A60B2",
+              "background_color": "#EDF5FF",
+              "end_time": 1700000060,
+              "start_time": 1700000000,
+              "message": "sc",
+              "price": 30,
+              "user_info": {
+                "face": "https://i0.hdslb.com/bfs/face/x.jpg",
+                "uname": "u"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "items": [
+          {
+            "user_name": "u",
+            "face": "https://i0.hdslb.com/bfs/face/x.jpg@200w.jpg",
+            "message": "sc",
+            "price": 30,
+            "start_time_ms": 1700000000000,
+            "end_time_ms": 1700000060000,
+            "background_color": "#EDF5FF",
+            "background_bottom_color": "#2A60B2"
+          }
+        ]
+      },
+      "variants": [
+        {
+          "desc": "data 缺失",
+          "response": {
+            "code": 0
+          },
+          "expected": {
+            "items": []
+          }
+        }
+      ],
+      "verify_note": "data.list 为 null → 空列表（AC-27）。"
+    },
+    "passport_qrcode_generate": {
+      "endpoint": "https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:561-573",
+      "target_ac": [
+        "AC-18"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.qrcode_key/url": "dart:568-571"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "qrcode_key": "KEY123",
+          "url": "https://passport.bilibili.com/h5/login?..."
+        }
+      },
+      "expected": {
+        "key": "KEY123",
+        "url": "https://passport.bilibili.com/h5/login?..."
+      },
+      "variants": [
+        {
+          "desc": "code!=0 → 抛错",
+          "response": {
+            "code": -1,
+            "message": "服务异常"
+          },
+          "expected": {
+            "error": "CoreError",
+            "message": "服务异常"
+          }
+        }
+      ]
+    },
+    "passport_qrcode_poll": {
+      "endpoint": "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:576-610",
+      "target_ac": [
+        "AC-19"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.code 映射": "dart:589-608",
+        "set-cookie 汇总为 credential": "dart:591-601"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "code": 86038,
+          "message": "",
+          "url": ""
+        }
+      },
+      "expected": {
+        "status": "expired"
+      },
+      "variants": [
+        {
+          "desc": "code=0 扫码成功",
+          "response": {
+            "code": 0,
+            "data": {
+              "code": 0
+            }
+          },
+          "response_headers": {
+            "set-cookie": [
+              "SESSDATA=xxx; Path=/; HttpOnly",
+              "bili_jct=yyy; Path=/"
+            ]
+          },
+          "expected": {
+            "status": "scanned",
+            "credential": "{\"cookie\":\"SESSDATA=xxx;bili_jct=yyy\"}"
+          }
+        },
+        {
+          "desc": "code=86090 已扫码未确认",
+          "response": {
+            "code": 0,
+            "data": {
+              "code": 86090
+            }
+          },
+          "expected": {
+            "status": "scanned",
+            "credential": ""
+          }
+        },
+        {
+          "desc": "其它 code 保持未扫",
+          "response": {
+            "code": 0,
+            "data": {
+              "code": 86101
+            }
+          },
+          "expected": {
+            "status": "unscanned",
+            "credential": ""
+          }
+        }
+      ],
+      "verify_note": "本文件 headers 需另附 `set-cookie`（HTTP 响应头，非 body），Dart 汇总为 JSON `{\"cookie\":...}`；code 0→scanned+credential、86038→expired、86090→scanned、其余→unscanned（AC-19 全覆盖）。注意：Dart dart:598 曾 `CoreLog.i(cookieStr)` 打印 cookie 明文——Rust 侧**禁止**复刻（AC-40）。"
+    },
+    "x_member_web_account": {
+      "endpoint": "https://api.bilibili.com/x/member/web/account",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:613-635",
+      "target_ac": [
+        "AC-20",
+        "AC-24"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.mid → userId 回填副作用": "dart:621-622",
+        "data.uname/face/userid": "dart:624-626"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "mid": 10001,
+          "uname": "me",
+          "userid": "u10001",
+          "face": "https://i0.hdslb.com/bfs/face/me.jpg"
+        }
+      },
+      "expected": {
+        "is_valid": true,
+        "name": "me",
+        "avatar": "https://i0.hdslb.com/bfs/face/me.jpg",
+        "uid": "u10001",
+        "site_user_id_side_effect": 10001
+      },
+      "variants": [
+        {
+          "desc": "凭证无效（AC-24）",
+          "response": {
+            "code": -101
+          },
+          "expected": {
+            "is_valid": false,
+            "name": null
+          }
+        }
+      ],
+      "verify_note": "请求头为 `jsonDecode(credential)`（dart:618）——credential 是 JSON 对象作请求头。AC-20 断言成功时站点 userId 被回填为 mid；AC-24 断言 code!=0 → isValid=false 且不抛。"
+    },
+    "x_frontend_finger_spi": {
+      "endpoint": "https://api.bilibili.com/x/frontend/finger/spi",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:389-414",
+      "target_ac": [
+        "AC-21"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.b_3/b_4": "dart:407,34-35"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "b_3": "BUV3",
+          "b_4": "BUV4"
+        }
+      },
+      "expected": {
+        "buvid3": "BUV3",
+        "buvid4": "BUV4"
+      },
+      "verify_note": "指纹接口失败 → 返回空 buvid（dart:408-413，不阻断）。AC-21 断言无 cookie 时请求头注入 buvid3/buvid4。"
+    },
+    "x_web-interface_nav": {
+      "endpoint": "https://api.bilibili.com/x/web-interface/nav",
+      "method": "GET",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:484-503",
+      "target_ac": [
+        "AC-21"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "img_url/sub_url 取文件名去扩展名": "dart:494-497"
+      },
+      "response": {
+        "code": 0,
+        "data": {
+          "wbi_img": {
+            "img_url": "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png",
+            "sub_url": "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png"
+          }
+        }
+      },
+      "expected": {
+        "img_key": "7cd084941338484aae1ad9425b84077c",
+        "sub_key": "4932caff0ff746eab6f01bf08b70ac45"
+      },
+      "verify_note": "与 golden/golden-wbi.json 的固定 img_key/sub_key 一致，可串成 AC-21 端到端。"
+    },
+    "live.bilibili.com_lol": {
+      "endpoint": "https://live.bilibili.com/lol",
+      "method": "GET(text)",
+      "dart_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_site.dart:536-550",
+      "target_ac": [
+        "AC-21"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "正则 \"access_id\":\"(.*?)\"": "dart:547"
+      },
+      "response": "<html>...\"access_id\":\"ABCDEF123\"...</html>",
+      "expected": {
+        "access_id": "ABCDEF123"
+      },
+      "verify_note": "响应为 HTML 文本（getText），非 JSON。access_id 作 w_webid 拼进 F-02 的 URL。"
+    }
+  }
+}

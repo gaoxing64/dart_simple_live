@@ -5,6 +5,7 @@ import 'package:simple_live_app/app/app_scroll_behavior.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/src/rust/api/slive/error.dart';
 
 class BaseController extends GetxController {
   /// 加载中，更新页面
@@ -42,6 +43,12 @@ class BaseController extends GetxController {
   }
 
   String exceptionToString(Object exception) {
+    // FRB 的 CoreError 没重写 toString（默认 `Instance of 'CoreError'` 无信息量），
+    // 这里把 Rust 侧真实 message/statusCode 拼出来，否则 Rust Core 路径的报错
+    // 在 UI 上完全不可诊断（2026-10-17 斗鱼/抖音排障时补）。
+    if (exception is CoreError) {
+      return "CoreError(${exception.statusCode}): ${exception.message}";
+    }
     return exception.toString().replaceAll("Exception:", "");
   }
 

@@ -1,0 +1,75 @@
+{
+  "_meta": {
+    "kind": "golden",
+    "platform": "huya",
+    "synthetic": true,
+    "derivation": "照 Dart huya_site.dart:348-397 buildAntiCode 用 Python 独立复刻（md5 + rotl64 + base64(fm) 前缀 + 分支判定）",
+    "target_ac": [
+      "IP-4-PLAY-ANTICODE"
+    ],
+    "target_rust_fn": "slive_core::platforms::huya::site::build_anti_code",
+    "needs_realtime_validation": false,
+    "realtime_note": "算法确定性，不需抓包。真实抓包用于确认 `fm` 的 base64 内容形态（是否含额外 `_` 分段）与 `wsTime` 是否恒为 16 进制。",
+    "nondeterministic_fields": [
+      "ct",
+      "uuid"
+    ],
+    "nondeterministic_reason": "Dart:374-376 用 Random() 生成 ct/uuid，无法进 golden；用例只断言 wsSecret/seqid/u 等确定字段。"
+  },
+  "cases": [
+    {
+      "name": "wap-branch-t103",
+      "input": {
+        "anti_code": "ctype=huya_pc_exe&t=103&fm=QWJDZEVmXzAxMjM0NTY3ODk=&wsTime=66b2f1c0a1b2c3d4&fs=1",
+        "presenter_uid": 12345678,
+        "stream": "abc123stream",
+        "clac_start_ms": 1768936072000
+      },
+      "expect": {
+        "wsSecret": "8344028f365fe3d3dc66f9e95066e0c6",
+        "wsTime": "66b2f1c0a1b2c3d4",
+        "seqid": 1768948417678,
+        "ctype": "huya_pc_exe",
+        "ver": "1",
+        "fs": "1",
+        "fm": "QWJDZEVmXzAxMjM0NTY3ODk=",
+        "t": 103,
+        "_wap_branch": true,
+        "uid": 12345678,
+        "_uuid_note": "uuid = f(Random) -> 不确定，不入golden"
+      }
+    },
+    {
+      "name": "pc-branch-t100",
+      "input": {
+        "anti_code": "ctype=huya_pc_exe&t=100&fm=QWJDZEVmXzAxMjM0NTY3ODk=&wsTime=66b2f1c0a1b2c3d4&fs=1",
+        "presenter_uid": 12345678,
+        "stream": "abc123stream",
+        "clac_start_ms": 1768936072000
+      },
+      "expect": {
+        "wsSecret": "9952c5baf40f8437bcd4654352a04feb",
+        "wsTime": "66b2f1c0a1b2c3d4",
+        "seqid": 1768948417678,
+        "ctype": "huya_pc_exe",
+        "ver": "1",
+        "fs": "1",
+        "fm": "QWJDZEVmXzAxMjM0NTY3ODk=",
+        "t": 100,
+        "u": 24691356
+      }
+    },
+    {
+      "name": "no-fm-passthrough（无 fm 直接原样返回）",
+      "input": {
+        "anti_code": "ctype=huya_pc_exe&wsTime=66b2f1c0",
+        "presenter_uid": 12345678,
+        "stream": "abc123stream",
+        "clac_start_ms": 1768936072000
+      },
+      "expect": {
+        "passthrough": "ctype=huya_pc_exe&wsTime=66b2f1c0"
+      }
+    }
+  ]
+}

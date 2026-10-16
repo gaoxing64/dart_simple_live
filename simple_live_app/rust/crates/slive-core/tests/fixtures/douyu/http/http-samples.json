@@ -1,0 +1,1201 @@
+{
+  "_meta": {
+    "kind": "http-samples",
+    "platform": "douyu",
+    "synthetic": true,
+    "derivation": "字段逐条对照 Dart core douyu_site.dart / douyu_utils.dart 的解析行号（见各样本 field_sources）；不含任何臆造字段",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "用 mitmproxy/Charles 或 dart HttpClientAdapter 录制https://www.douyu.com 与 passport.douyu.com 的真实响应，逐样本核对：①嵌套层级与额外字段 ②数值字段的真实类型（string vs int）③错误流形态。替换后把 _meta.synthetic 改 false。",
+    "verification_assets": [
+      "simple_live_core/test/douyu_enc.json（getEncryption 真实抓包，本目录已引用其字段值）",
+      "simple_live_core/test/douyu_sc.json（voice_trlt 真实抓包，ws 夹具引用其形状）",
+      "simple_live_core/test/douyu_recommend_paging_test.dart（pgcnt 恒 0 的实测记录）",
+      "simple_live_core/test/douyu_play_url_renew_test.dart（renewers + expire=0 行为）"
+    ]
+  },
+  "samples": {
+    "m_douyu_com_api_cate_list": {
+      "endpoint": "https://m.douyu.com/api/cate/list",
+      "method": "GET",
+      "dart_source": "douyu_site.dart:28-56",
+      "target_ac": [
+        "IP-3-HTTP-CATEGORIES"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.cate1Info[].cate1Id": "dart:33",
+        "data.cate1Info[].cate1Name": "dart:34",
+        "data.cate2Info[].cate1Id": "dart:36（按 cate1Id 归属子分类）",
+        "data.cate2Info[].cate2Id": "dart:39（toString 后为子分类 id）",
+        "data.cate2Info[].cate2Name": "dart:41",
+        "data.cate2Info[].icon": "dart:38（作为 LiveSubCategory.pic）",
+        "排序": "dart:53 categories.sort(int.parse(a.id) - int.parse(b.id))"
+      },
+      "response": {
+        "code": 0,
+        "msg": "ok",
+        "data": {
+          "cate1Info": [
+            {
+              "cate1Id": 1,
+              "cate1Name": "网游"
+            },
+            {
+              "cate1Id": 9,
+              "cate1Name": "DOTA2"
+            }
+          ],
+          "cate2Info": [
+            {
+              "cate1Id": 1,
+              "cate2Id": 1001,
+              "cate2Name": "英雄联盟",
+              "icon": "https://example.douyu.com/icon/lol.jpg"
+            },
+            {
+              "cate1Id": 1,
+              "cate2Id": 1002,
+              "cate2Name": "穿越火线",
+              "icon": "https://example.douyu.com/icon/cf.jpg"
+            },
+            {
+              "cate1Id": 9,
+              "cate2Id": 9001,
+              "cate2Name": "DOTA2",
+              "icon": "https://example.douyu.com/icon/dota2.jpg"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "categories": [
+          {
+            "id": "1",
+            "name": "网游",
+            "children": [
+              {
+                "id": "1001",
+                "name": "英雄联盟",
+                "parent_id": "1",
+                "pic": "https://example.douyu.com/icon/lol.jpg"
+              },
+              {
+                "id": "1002",
+                "name": "穿越火线",
+                "parent_id": "1",
+                "pic": "https://example.douyu.com/icon/cf.jpg"
+              }
+            ]
+          },
+          {
+            "id": "9",
+            "name": "DOTA2",
+            "children": [
+              {
+                "id": "9001",
+                "name": "DOTA2",
+                "parent_id": "9",
+                "pic": "https://example.douyu.com/icon/dota2.jpg"
+              }
+            ]
+          }
+        ]
+      },
+      "note": "分类按 **cate1Id 数值升序** 排序（dart:53），不是按服务端返回顺序——本样本故意让 cate1Info 为 [1, 9] 且已升序；见variants 的乱序变体。",
+      "verify_note": "Dart 直接 `result['data']['cate2Info'] as List`（:31）——若服务端缺 cate2Info 会抛 TypeError。真实响应是否总有该键**待抓包确认**。",
+      "variants": [
+        {
+          "name": "cate1Info 乱序（验证实现确实按 id 排序）",
+          "response": {
+            "code": 0,
+            "msg": "ok",
+            "data": {
+              "cate1Info": [
+                {
+                  "cate1Id": 9,
+                  "cate1Name": "DOTA2"
+                },
+                {
+                  "cate1Id": 1,
+                  "cate1Name": "网游"
+                }
+              ],
+              "cate2Info": [
+                {
+                  "cate1Id": 9,
+                  "cate2Id": 9001,
+                  "cate2Name": "DOTA2",
+                  "icon": "i9.jpg"
+                },
+                {
+                  "cate1Id": 1,
+                  "cate2Id": 1001,
+                  "cate2Name": "英雄联盟",
+                  "icon": "i1.jpg"
+                }
+              ]
+            }
+          },
+          "expected": {
+            "categories": [
+              {
+                "id": "1",
+                "name": "网游",
+                "children": [
+                  {
+                    "id": "1001",
+                    "name": "英雄联盟",
+                    "parent_id": "1",
+                    "pic": "i1.jpg"
+                  }
+                ]
+              },
+              {
+                "id": "9",
+                "name": "DOTA2",
+                "children": [
+                  {
+                    "id": "9001",
+                    "name": "DOTA2",
+                    "parent_id": "9",
+                    "pic": "i9.jpg"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "空 cate1Info（边界：空列表不抛）",
+          "response": {
+            "code": 0,
+            "msg": "ok",
+            "data": {
+              "cate1Info": [],
+              "cate2Info": []
+            }
+          },
+          "expected": {
+            "categories": []
+          }
+        }
+      ]
+    },
+    "www_douyu_com_gapi_rkc_directory_mixList": {
+      "endpoint": "https://www.douyu.com/gapi/rkc/directory/mixList/2_{cateId}/{page}",
+      "method": "GET",
+      "dart_source": "douyu_site.dart:59-84",
+      "target_ac": [
+        "IP-3-HTTP-CATEGORY-ROOMS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.rl[].type": "dart:70（!= 1 的条目被 continue 跳过，即广告位过滤）",
+        "data.rl[].rid": "dart:76（toString）",
+        "data.rl[].rn": "dart:77（title）",
+        "data.rl[].nn": "dart:78（userName）",
+        "data.rl[].rs16": "dart:74（cover，16:9 缩略图）",
+        "data.rl[].ol": "dart:75（online）",
+        "data.pgcnt": "dart:82（hasMore = page < pgcnt；**本接口 pgcnt 有效**）"
+      },
+      "response": {
+        "data": {
+          "pgcnt": 3,
+          "rl": [
+            {
+              "type": 1,
+              "rid": 252140,
+              "rn": "房间标题",
+              "nn": "主播名",
+              "rs16": "https://example.douyu.com/cover/252140.jpg",
+              "ol": 12345
+            },
+            {
+              "type": 1,
+              "rid": 252141,
+              "rn": "第二个房间",
+              "nn": "主播乙",
+              "rs16": "https://example.douyu.com/cover/252140.jpg",
+              "ol": 12345
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items": [
+          {
+            "room_id": "252140",
+            "title": "房间标题",
+            "cover": "https://example.douyu.com/cover/252140.jpg",
+            "user_name": "主播名",
+            "online": 12345
+          },
+          {
+            "room_id": "252141",
+            "title": "第二个房间",
+            "cover": "https://example.douyu.com/cover/252140.jpg",
+            "user_name": "主播乙",
+            "online": 12345
+          }
+        ]
+      },
+      "note": "⚠️ 与推荐流的 pgcnt 口径**不同**：本接口 pgcnt 有效（dart:82 `page < pgcnt`），实现不得把推荐流的「非空即有更多」规则套到这里（dart:199-215 有明确注释）。",
+      "variants": [
+        {
+          "name": "含广告位（type!=1 须被过滤，且不影响 hasMore）",
+          "response": {
+            "data": {
+              "pgcnt": 5,
+              "rl": [
+                {
+                  "type": 3,
+                  "rid": 999001,
+                  "rn": "广告位",
+                  "nn": "主播名",
+                  "rs16": "https://example.douyu.com/cover/252140.jpg",
+                  "ol": 12345
+                },
+                {
+                  "type": 1,
+                  "rid": 252140,
+                  "rn": "房间标题",
+                  "nn": "主播名",
+                  "rs16": "https://example.douyu.com/cover/252140.jpg",
+                  "ol": 12345
+                },
+                {
+                  "type": 4,
+                  "rid": 999002,
+                  "rn": "广告位2",
+                  "nn": "主播名",
+                  "rs16": "https://example.douyu.com/cover/252140.jpg",
+                  "ol": 12345
+                }
+              ]
+            }
+          },
+          "expected": {
+            "has_more": true,
+            "items": [
+              {
+                "room_id": "252140",
+                "title": "房间标题",
+                "cover": "https://example.douyu.com/cover/252140.jpg",
+                "user_name": "主播名",
+                "online": 12345
+              }
+            ]
+          }
+        },
+        {
+          "name": "空页（rl 为空数组）",
+          "response": {
+            "data": {
+              "pgcnt": 3,
+              "rl": []
+            }
+          },
+          "expected": {
+            "has_more": true,
+            "items": []
+          }
+        },
+        {
+          "name": "最后一页（page == pgcnt -> hasMore=false）",
+          "response": {
+            "data": {
+              "pgcnt": 3,
+              "rl": [
+                {
+                  "type": 1,
+                  "rid": 252140,
+                  "rn": "房间标题",
+                  "nn": "主播名",
+                  "rs16": "https://example.douyu.com/cover/252140.jpg",
+                  "ol": 12345
+                }
+              ]
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": [
+              {
+                "room_id": "252140",
+                "title": "房间标题",
+                "cover": "https://example.douyu.com/cover/252140.jpg",
+                "user_name": "主播名",
+                "online": 12345
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "www_douyu_com_japi_weblist_apinc_allpage": {
+      "endpoint": "https://www.douyu.com/japi/weblist/apinc/allpage/6/{page}",
+      "method": "GET",
+      "dart_source": "douyu_site.dart:177-216",
+      "target_ac": [
+        "IP-3-HTTP-RECOMMEND"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.rl[]": "dart:185（`as List? ?? []`，缺字段按空处理）",
+        "data.rl[].type/rid/rn/nn/rs16/ol": "dart:187-193（同上，过滤 type!=1）",
+        "hasMore": "dart:214 `items.isNotEmpty` —— **不读 pgcnt**（本接口 pgcnt 恒为 0，见注释 :199-213）"
+      },
+      "response": {
+        "data": {
+          "pgcnt": 0,
+          "rl": [
+            {
+              "type": 1,
+              "rid": 252140,
+              "rn": "房间标题",
+              "nn": "主播名",
+              "rs16": "https://example.douyu.com/cover/252140.jpg",
+              "ol": 12345
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items": [
+          {
+            "room_id": "252140",
+            "title": "房间标题",
+            "cover": "https://example.douyu.com/cover/252140.jpg",
+            "user_name": "主播名",
+            "online": 12345
+          }
+        ]
+      },
+      "note": "⚠️ **回归锁定点**：2026-09 实测本接口 `pgcnt` 键存在但**恒为 0**，用 `page < pgcnt` 会让 hasMore 恒 false（App 表现为「内容不满一屏却不再加载」）。Dart 已改为「本页非空即还有更多」。实现照此，勿回退。",
+      "variants": [
+        {
+          "name": "空页（唯一停止条件）",
+          "response": {
+            "data": {
+              "pgcnt": 0,
+              "rl": []
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "缺 rl 字段（按空页处理，不抛）",
+          "response": {
+            "data": {
+              "pgcnt": 0
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "全广告位 -> items 空 -> hasMore 也为 false",
+          "response": {
+            "data": {
+              "pgcnt": 0,
+              "rl": [
+                {
+                  "type": 3,
+                  "rid": 252140,
+                  "rn": "房间标题",
+                  "nn": "主播名",
+                  "rs16": "https://example.douyu.com/cover/252140.jpg",
+                  "ol": 12345
+                },
+                {
+                  "type": 3,
+                  "rid": 2,
+                  "rn": "房间标题",
+                  "nn": "主播名",
+                  "rs16": "https://example.douyu.com/cover/252140.jpg",
+                  "ol": 12345
+                }
+              ]
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        }
+      ]
+    },
+    "www_douyu_com_betard": {
+      "endpoint": "https://www.douyu.com/betard/{roomId}",
+      "method": "GET",
+      "dart_source": "douyu_site.dart:219-237（详情）/ :274-288（_getRoomInfo）/ :337-340（直播状态）",
+      "target_ac": [
+        "IP-3-HTTP-DETAIL",
+        "IP-3-HTTP-STATUS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "room.room_id": "dart:225",
+        "room.room_name": "dart:226（并用于「【回放】」前缀判定 :231/:339）",
+        "room.room_pic": "dart:223",
+        "room.owner_name": "dart:227",
+        "room.owner_avatar": "dart:228",
+        "room.show_details": "dart:229",
+        "room.show_status": "dart:231/:339 `== 1` 才算在播",
+        "room.videoLoop": "dart:231/:339 `!= 1` 且 isRecord=videoLoop==1（:235）",
+        "room.room_biz_all.hot": "dart:224 int.tryParse（失败回落 0）",
+        "danmakuData": "dart:232 = room_id（**斗鱼弹幕参数就是房间号字符串**）"
+      },
+      "response": {
+        "room": {
+          "room_id": "252140",
+          "room_name": "测试房间",
+          "room_pic": "https://example.douyu.com/pic.jpg",
+          "owner_name": "主播名",
+          "owner_avatar": "https://example.douyu.com/avatar.jpg",
+          "show_details": "房间简介",
+          "show_status": 1,
+          "videoLoop": 0,
+          "room_biz_all": {
+            "hot": "12.3万"
+          }
+        }
+      },
+      "expected": {
+        "room_id": "252140",
+        "title": "测试房间",
+        "cover": "https://example.douyu.com/pic.jpg",
+        "user_name": "主播名",
+        "user_avatar": "https://example.douyu.com/avatar.jpg",
+        "introduction": "房间简介",
+        "notice": "",
+        "status": true,
+        "is_record": false,
+        "online": 0,
+        "url": "https://www.douyu.com/252140",
+        "danmaku_data": "252140",
+        "data": ""
+      },
+      "note": "online 来自 `room_biz_all.hot`（如 '12.3万'）经 int.tryParse ——**'12.3万' 不是合法整数字面量，tryParse 失败 -> 0**。见 hot 变体。这是既有 Dart 行为，实现须一致（不要「顺手修好」，那会造成与 Dart 不一致）。",
+      "verify_note": "**错误流**：房间不存在时服务端返回什么形态（无 room 键 / room=null / 非 JSON）**待抓包确认**；Dart :282-286 对 String/Map 两种形态都做了处理，缺失 room 时 roomInfo 为 null，后续取键会抛。实现须抛类型化错误而非 panic。",
+      "variants": [
+        {
+          "name": "未开播（show_status=0）",
+          "response": {
+            "room": {
+              "room_id": "252140",
+              "room_name": "测试房间",
+              "room_pic": "https://example.douyu.com/pic.jpg",
+              "owner_name": "主播名",
+              "owner_avatar": "https://example.douyu.com/avatar.jpg",
+              "show_details": "房间简介",
+              "show_status": 0,
+              "videoLoop": 0,
+              "room_biz_all": {
+                "hot": "12.3万"
+              }
+            }
+          },
+          "expected": {
+            "status": false,
+            "danmaku_data": "252140",
+            "note": "不抛，仍返回可用弹幕参数；url 不变"
+          }
+        },
+        {
+          "name": "回放（videoLoop=1）-> status=false 且 is_record=true",
+          "response": {
+            "room": {
+              "room_id": "252140",
+              "room_name": "测试房间",
+              "room_pic": "https://example.douyu.com/pic.jpg",
+              "owner_name": "主播名",
+              "owner_avatar": "https://example.douyu.com/avatar.jpg",
+              "show_details": "房间简介",
+              "show_status": 1,
+              "videoLoop": 1,
+              "room_biz_all": {
+                "hot": "12.3万"
+              }
+            }
+          },
+          "expected": {
+            "status": false,
+            "is_record": true,
+            "danmaku_data": "252140"
+          }
+        },
+        {
+          "name": "标题带【回放】前缀 -> 视为未开播",
+          "response": {
+            "room": {
+              "room_id": "252140",
+              "room_name": "【回放】某场录像",
+              "room_pic": "https://example.douyu.com/pic.jpg",
+              "owner_name": "主播名",
+              "owner_avatar": "https://example.douyu.com/avatar.jpg",
+              "show_details": "房间简介",
+              "show_status": 1,
+              "videoLoop": 0,
+              "room_biz_all": {
+                "hot": "12.3万"
+              }
+            }
+          },
+          "expected": {
+            "status": false,
+            "is_record": false,
+            "note": "dart:231 `!room_name.startsWith('【回放】')`"
+          }
+        },
+        {
+          "name": "hot 为非数字（'12.3万'）-> online 回落 0",
+          "response": {
+            "room": {
+              "room_id": "252140",
+              "room_name": "测试房间",
+              "room_pic": "https://example.douyu.com/pic.jpg",
+              "owner_name": "主播名",
+              "owner_avatar": "https://example.douyu.com/avatar.jpg",
+              "show_details": "房间简介",
+              "show_status": 1,
+              "videoLoop": 0,
+              "room_biz_all": {
+                "hot": "12.3万"
+              }
+            }
+          },
+          "expected": {
+            "online": 0
+          }
+        },
+        {
+          "name": "hot 为纯数字字符串 -> 正常解析",
+          "response": {
+            "room": {
+              "room_id": "252140",
+              "room_name": "测试房间",
+              "room_pic": "https://example.douyu.com/pic.jpg",
+              "owner_name": "主播名",
+              "owner_avatar": "https://example.douyu.com/avatar.jpg",
+              "show_details": "房间简介",
+              "show_status": 1,
+              "videoLoop": 0,
+              "room_biz_all": {
+                "hot": "12345"
+              }
+            }
+          },
+          "expected": {
+            "online": 12345
+          }
+        }
+      ]
+    },
+    "www_douyu_com_lapi_live_getH5PlayV1": {
+      "endpoint": "https://www.douyu.com/lapi/live/getH5PlayV1/{roomId}",
+      "method": "POST",
+      "dart_source": "douyu_site.dart:87-119（清晰度）/ :164-174（取流）",
+      "target_ac": [
+        "IP-3-HTTP-PLAY"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.cdnsWithName[].cdn": "dart:98-100（收集线路）",
+        "cdns 排序": "dart:103-110 以 'scdn' 开头的排**最后**",
+        "data.multirates[].name": "dart:114（清晰度名）",
+        "data.multirates[].rate": "dart:115（进 DouyuPlayData）",
+        "data.rtmp_url": "dart:173（拼 url 前缀）",
+        "data.rtmp_live": "dart:173（经 HtmlUnescape 后拼后缀）"
+      },
+      "response": {
+        "error": 0,
+        "data": {
+          "cdnsWithName": [
+            {
+              "cdn": "scdn-aaa"
+            },
+            {
+              "cdn": "hw-h5"
+            },
+            {
+              "cdn": "tct-h5"
+            },
+            {
+              "cdn": "ws-h5"
+            }
+          ],
+          "multirates": [
+            {
+              "name": "原画",
+              "rate": 0
+            },
+            {
+              "name": "高清",
+              "rate": 900
+            },
+            {
+              "name": "蓝光",
+              "rate": 3000
+            }
+          ]
+        }
+      },
+      "expected": {
+        "qualities": [
+          {
+            "quality": "原画",
+            "rate": 0
+          },
+          {
+            "quality": "高清",
+            "rate": 900
+          },
+          {
+            "quality": "蓝光",
+            "rate": 3000
+          }
+        ],
+        "cdns_sorted": [
+          "hw-h5",
+          "tct-h5",
+          "ws-h5",
+          "scdn-aaa"
+        ],
+        "urls": [
+          "https://cdn.example.com/live/252140.flv?wsAuth=a1",
+          "https://cdn.example.com/live/252140.flv?wsAuth=a2",
+          "https://cdn.example.com/live/252140.flv?wsAuth=a3",
+          "https://cdn.example.com/live/252140.flv?wsAuth=a4"
+        ],
+        "renewers": "每条 **.flv** 线路一个续流回调（Dart:138-142）；非 flv 为 null",
+        "expire_workaround": "url 含 'expire=300' 且含 'fcdn=ws' 时追加 '&expire=0'（Dart:154-162，海外兜底）"
+      },
+      "note": "⚠️ 线路排序规则：scdn* 排最后（Dart:103-110）——注意 Dart 用的是 **不稳定排序**，同层顺序不保证保持；实现若改用稳定排序不违反契约，但夹具断言只钉「scdn 在后」。",
+      "verify_note": "**错误流**：`error != 0` 时的响应形态（data 为 null？msg 字段名？）待抓包；Dart getPlayUrl 不检查 error 直接取键，**风控时可能拿到 null 崩溃**——实现须抛类型化错误（不得 panic），且**不得自动重试**。",
+      "variants": [
+        {
+          "name": "非 flv 线路（m3u8）-> renewers 整体为 null",
+          "response": {
+            "error": 0,
+            "data": {
+              "cdnsWithName": [
+                {
+                  "cdn": "hw-h5"
+                }
+              ],
+              "multirates": [
+                {
+                  "name": "高清",
+                  "rate": 900
+                }
+              ]
+            }
+          },
+          "expected": {
+            "urls": [
+              "https://cdn.example.com/live/252140.m3u8?wsAuth=hls"
+            ],
+            "renewers": null,
+            "note": "Dart:147 renewers.every(x==null) ? null : renewers"
+          }
+        },
+        {
+          "name": "海外 ws 线路 + expire=300 -> 追加 expire=0",
+          "response": {
+            "error": 0,
+            "data": {
+              "cdnsWithName": [
+                {
+                  "cdn": "hw-h5"
+                }
+              ],
+              "multirates": [
+                {
+                  "name": "高清",
+                  "rate": 900
+                }
+              ]
+            }
+          },
+          "expected": {
+            "urls": [
+              "https://cdn.example.com/live/252140.flv?wsAuth=ws&expire=300&fcdn=ws&expire=0"
+            ],
+            "note": "Dart:158 同时含 expire=300 与 fcdn=ws 才追加"
+          }
+        }
+      ]
+    },
+    "www_douyu_com_wgapi_livenc_liveweb_websec_getEncryption": {
+      "endpoint": "https://www.douyu.com/wgapi/livenc/liveweb/websec/getEncryption",
+      "method": "GET",
+      "dart_source": "douyu_utils.dart:109-126（缓存 + 解析）",
+      "target_ac": [
+        "IP-3-SIGN"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.rand_str": "douyu_utils.dart:132（secret 迭代种子）",
+        "data.enc_time": "douyu_utils.dart:133（md5 迭代次数）",
+        "data.is_special": "douyu_utils.dart:134（==1 时 salt 为空）",
+        "data.key": "douyu_utils.dart:135",
+        "data.enc_data": "douyu_utils.dart:145（原样进请求体）",
+        "expire_at": "douyu_utils.dart:124（服务端下发，本地再覆盖为 now+300）"
+      },
+      "response": {
+        "error": 0,
+        "msg": "正常",
+        "data": {
+          "key": "PTcTgd7tjMi1FPi0Peac677995",
+          "rand_str": "gmQeBkpbfH3PczvB",
+          "enc_time": 1,
+          "expire_at": 1773213677,
+          "is_special": 0,
+          "enc_data": "eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1IiwicmFuZF9zdHIiOiJnbVFlQmtwYmZIM1BjenZCIiwiZW5jX3RpbWUiOjEsImV4cGlyZV9hdCI6MTc3MzIxMzY3Nywic2lnbiI6ImY0MTRmMzA2YmY4ODZmODViZjY2ZDljMGI3OTNlMWY1Iiwib3AiOnsiZGlkIjoiMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAxNTAxIiwiaXAiOiIxMTMuMjcuMjcuMTAwIiwidHMiOjE3NzMyMTMwNzcsInVhIjoiTW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkgQXBwbGVXZWJLaXQvNTM3LjM2IChLSVRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzExNC4wLjAuMCBTYWZhcmkvNTM3LjM2IEVkZ2UvMTE0LjAuMC4wLjE4MjMuNDMifSwiY3BwIjp7ImRhbm11Ijp7ImtleV92ZXIiOiIxLjAiLCJrZXkiOiJNS3k2OHRURDQxWW12Slp3Z1ZLUSJ9LCJoZWFydGJlYXQiOnsia2V5X3ZlciI6IjEuMSIsImtleSI6IjY4cmRWb3ptZUx3aGdQb2FHQUJIIn19fQ=="
+        }
+      },
+      "expected": {
+        "rand_str": "gmQeBkpbfH3PczvB",
+        "key": "PTcTgd7tjMi1FPi0Peac677995",
+        "enc_time": 1,
+        "is_special": false,
+        "expire_at_local": "now + 300（douyu_utils.dart:124 覆盖服务端值）"
+      },
+      "note": "**本夹具的 enc_data / key / rand_str 来自 Dart 测试资产 `simple_live_core/test/douyu_enc.json`（真实抓包）**，仅保留 sign() 实际读取的字段（cpp 子弹已裁剪）。",
+      "verify_note": "风控错误码取值范围待抓包（Dart 未对 getEncryption 的 error 做判断，直接取 res['data'] 会 NPE —— 实现须补上，但**错误码集合以抓包为准**）。",
+      "variants": [
+        {
+          "name": "错误流：error=1001（风控/失败）",
+          "response": {
+            "error": 1001,
+            "msg": "系统繁忙",
+            "data": null
+          },
+          "expected": {
+            "error": "抛类型化错误（不得 panic、不得静默当空 key）"
+          }
+        }
+      ]
+    },
+    "www_douyu_com_japi_search_api_searchShow": {
+      "endpoint": "https://www.douyu.com/japi/search/api/searchShow",
+      "method": "GET",
+      "dart_source": "douyu_site.dart:240-272",
+      "target_ac": [
+        "IP-3-HTTP-SEARCH-ROOMS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "error": "dart:256 `!= 0` -> throw Exception(msg)",
+        "msg": "dart:257（错误信息）",
+        "data.relateShow[].rid": "dart:262",
+        "data.relateShow[].roomName": "dart:263",
+        "data.relateShow[].roomSrc": "dart:264（封面）",
+        "data.relateShow[].nickName": "dart:265",
+        "data.relateShow[].hot": "dart:266 经 parseHotNum（万换算*10000，失败 -999）",
+        "hasMore": "dart:270 `relateShow.isNotEmpty`"
+      },
+      "response": {
+        "error": 0,
+        "msg": "正常",
+        "data": {
+          "relateShow": [
+            {
+              "rid": 252140,
+              "roomName": "英雄联盟教学",
+              "roomSrc": "https://example.douyu.com/s.jpg",
+              "nickName": "某主播",
+              "hot": "12.3万"
+            },
+            {
+              "rid": 252141,
+              "roomName": "普通房间",
+              "roomSrc": "https://example.douyu.com/s2.jpg",
+              "nickName": "另一主播",
+              "hot": "1000"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items": [
+          {
+            "room_id": "252140",
+            "title": "英雄联盟教学",
+            "cover": "https://example.douyu.com/s.jpg",
+            "user_name": "某主播",
+            "online": 123000
+          },
+          {
+            "room_id": "252141",
+            "title": "普通房间",
+            "cover": "https://example.douyu.com/s2.jpg",
+            "user_name": "另一主播",
+            "online": 1000
+          }
+        ]
+      },
+      "note": "parseHotNum（dart:342-352）：'12.3万' -> double.parse('12.3')*10000 = 123000；无法解析 -> **-999**（不是 0）。",
+      "variants": [
+        {
+          "name": "错误流：error!=0 -> 抛错",
+          "response": {
+            "error": 3,
+            "msg": "搜索过于频繁",
+            "data": null
+          },
+          "expected": {
+            "error": "抛错，message 含 '搜索过于频繁'；不得返回空列表"
+          }
+        },
+        {
+          "name": "空结果",
+          "response": {
+            "error": 0,
+            "msg": "正常",
+            "data": {
+              "relateShow": []
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "hot 无法解析 -> online=-999",
+          "response": {
+            "error": 0,
+            "msg": "ok",
+            "data": {
+              "relateShow": [
+                {
+                  "rid": 1,
+                  "roomName": "t",
+                  "roomSrc": "c",
+                  "nickName": "n",
+                  "hot": "热门"
+                }
+              ]
+            }
+          },
+          "expected": {
+            "has_more": true,
+            "items": [
+              {
+                "room_id": "1",
+                "title": "t",
+                "cover": "c",
+                "user_name": "n",
+                "online": -999
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "www_douyu_com_japi_search_api_searchUser": {
+      "endpoint": "https://www.douyu.com/japi/search/api/searchUser",
+      "method": "GET",
+      "dart_source": "douyu_site.dart:302-334",
+      "target_ac": [
+        "IP-3-HTTP-SEARCH-ANCHORS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.relateUser[].anchorInfo.rid": "dart:325",
+        "data.relateUser[].anchorInfo.avatar": "dart:326",
+        "data.relateUser[].anchorInfo.nickName": "dart:327",
+        "data.relateUser[].anchorInfo.isLive": "dart:322 int.tryParse==1",
+        "data.relateUser[].anchorInfo.roomType": "dart:323；**liveStatus = isLive && roomType==0**"
+      },
+      "response": {
+        "error": 0,
+        "msg": "正常",
+        "data": {
+          "relateUser": [
+            {
+              "anchorInfo": {
+                "rid": 252140,
+                "avatar": "https://example.douyu.com/a.jpg",
+                "nickName": "主播甲",
+                "isLive": "1",
+                "roomType": "0"
+              }
+            },
+            {
+              "anchorInfo": {
+                "rid": 252141,
+                "avatar": "https://example.douyu.com/b.jpg",
+                "nickName": "主播乙",
+                "isLive": "1",
+                "roomType": "1"
+              }
+            }
+          ]
+        }
+      },
+      "expected": {
+        "has_more": true,
+        "items": [
+          {
+            "room_id": "252140",
+            "avatar": "https://example.douyu.com/a.jpg",
+            "user_name": "主播甲",
+            "live_status": true
+          },
+          {
+            "room_id": "252141",
+            "avatar": "https://example.douyu.com/b.jpg",
+            "user_name": "主播乙",
+            "live_status": false
+          }
+        ]
+      },
+      "note": "⚠️ `liveStatus = isLive==1 && roomType==0`（dart:322-328）：第二个样本 isLive=1 但roomType=1 -> **live_status=false**。两个条件缺一不可，是易错点。",
+      "verify_note": "`isLive` / `roomType` 的真实类型（字符串 \"1\" vs 数字 1）**待抓包核实**；Dart 用 `int.tryParse(..toString())` 兼容两种（dart:322-323），实现须同样宽容。",
+      "variants": [
+        {
+          "name": "空结果",
+          "response": {
+            "error": 0,
+            "msg": "ok",
+            "data": {
+              "relateUser": []
+            }
+          },
+          "expected": {
+            "has_more": false,
+            "items": []
+          }
+        },
+        {
+          "name": "错误流：error!=0",
+          "response": {
+            "error": 3,
+            "msg": "搜索过于频繁",
+            "data": null
+          },
+          "expected": {
+            "error": "抛错（Dart:322-323 对 anchorInfo 逐字段 int.tryParse；data 为 null 时须抛类型化错误而非 panic）"
+          }
+        },
+        {
+          "name": "错误流：缺 anchorInfo 字段（isLive 非法 -> 视作未开播）",
+          "response": {
+            "error": 0,
+            "msg": "ok",
+            "data": {
+              "relateUser": [
+                {
+                  "anchorInfo": {
+                    "rid": 1,
+                    "avatar": "a",
+                    "nickName": "n"
+                  }
+                }
+              ]
+            }
+          },
+          "expected": {
+            "has_more": true,
+            "items": [
+              {
+                "room_id": "1",
+                "avatar": "a",
+                "user_name": "n",
+                "live_status": false
+              }
+            ]
+          },
+          "note": "Dart:322-323 用 int.tryParse(..toString()) ?? 0，缺字段视作 0 -> isLive=0 -> live_status=false。实现须同样宽容。"
+        }
+      ]
+    },
+    "passport_douyu_com_scan_generateCode": {
+      "endpoint": "https://passport.douyu.com/scan/generateCode",
+      "method": "POST",
+      "dart_source": "douyu_site.dart:413-428",
+      "target_ac": [
+        "IP-3-ACCOUNT-QR"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "error": "dart:419 `!= 0` -> throw result['data']",
+        "data.code": "dart:424（QRCode.key）",
+        "data.url": "dart:425（二维码内容）",
+        "expireAt": "dart:423 = now(秒) + 300"
+      },
+      "response": {
+        "error": 0,
+        "data": {
+          "code": "qr-key-abc123",
+          "url": "https://passport.douyu.com/scan/qrcode?key=qr-key-abc123"
+        }
+      },
+      "expected": {
+        "key": "qr-key-abc123",
+        "url": "https://passport.douyu.com/scan/qrcode?key=qr-key-abc123",
+        "expire_at": "now_secs + 300"
+      },
+      "variants": [
+        {
+          "name": "错误流：error!=0 -> 抛 data",
+          "response": {
+            "error": 1,
+            "data": "生成失败"
+          },
+          "expected": {
+            "error": "抛错，message 含 '生成失败'"
+          }
+        }
+      ]
+    },
+    "passport_douyu_com_japi_scan_auth": {
+      "endpoint": "https://passport.douyu.com/japi/scan/auth",
+      "method": "GET",
+      "dart_source": "douyu_site.dart:431-473",
+      "target_ac": [
+        "IP-3-ACCOUNT-QR-POLL"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "error": "dart:445 switch：-2=unscanned / 1=scanned / -1=expired / 0=已确认",
+        "msg": "dart:448/451/454（各状态 message）",
+        "data.url": "dart:456（error==0 时必须非空，否则 StateError）",
+        "set-cookie(LTP0)": "dart:462-463 从响应头取 LTP0，再 refreshCookie"
+      },
+      "response": {
+        "error": 1,
+        "msg": "扫码成功，请确认"
+      },
+      "expected": {
+        "status": "scanned",
+        "message": "扫码成功，请确认"
+      },
+      "note": "四种 error 码各有独立 expected，见 variants。error==0 分支还要读 set-cookie 头，夹具通过 mock 的 set_cookie 参数提供（不体现在 response JSON 里）。",
+      "variants": [
+        {
+          "name": "error=-2 未扫码",
+          "response": {
+            "error": -2,
+            "msg": "二维码未扫码"
+          },
+          "expected": {
+            "status": "unscanned",
+            "message": "二维码未扫码"
+          }
+        },
+        {
+          "name": "error=1 已扫码待确认",
+          "response": {
+            "error": 1,
+            "msg": "扫码成功，请确认"
+          },
+          "expected": {
+            "status": "scanned",
+            "message": "扫码成功，请确认"
+          }
+        },
+        {
+          "name": "error=-1 已过期",
+          "response": {
+            "error": -1,
+            "msg": "二维码已过期"
+          },
+          "expected": {
+            "status": "expired",
+            "message": "二维码已过期"
+          }
+        },
+        {
+          "name": "error=0 确认成功（需 set-cookie: LTP0）",
+          "response": {
+            "error": 0,
+            "msg": "ok",
+            "data": {
+              "url": "https://passport.douyu.com/confirm?x=1"
+            }
+          },
+          "mock_set_cookie": [
+            "LTP0=ltp0-value; Path=/; HttpOnly",
+            "acf_uid=998877; Path=/"
+          ],
+          "expected": {
+            "status": "scanned",
+            "credential_keys": [
+              "dy_did",
+              "LTP0",
+              "cookie"
+            ],
+            "note": "Dart:466 credential = {dy_did, LTP0, cookie}"
+          }
+        },
+        {
+          "name": "错误流：error=0 但 data.url 缺失 -> StateError",
+          "response": {
+            "error": 0,
+            "msg": "ok",
+            "data": {}
+          },
+          "expected": {
+            "error": "抛错（Dart:458 StateError「斗鱼未返回登录确认地址」）"
+          }
+        },
+        {
+          "name": "错误流：未知 error 码（如 99）-> StateError",
+          "response": {
+            "error": 99,
+            "msg": "未知"
+          },
+          "expected": {
+            "error": "抛错（Dart:470 default 分支「斗鱼暂时无法确认登录」）"
+          }
+        }
+      ]
+    },
+    "passport_douyu_com_lapi_passport_iframe_safeAuth": {
+      "endpoint": "https://passport.douyu.com/lapi/passport/iframe/safeAuth",
+      "method": "GET",
+      "dart_source": "douyu_utils.dart:54-80（refreshCookie）",
+      "target_ac": [
+        "IP-3-ACCOUNT-COOKIE"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "set-cookie": "douyu_utils.dart:71-74 取每条 `;` 前半段、含 '=' 的拼成 cookie 串",
+        "acf_jwt_token": "douyu_utils.dart:97-107 用于判过期（:83-95 解 JWT payload.exp）"
+      },
+      "response": {
+        "error": 0,
+        "msg": "ok"
+      },
+      "expected": {
+        "cookie": "acf_uid=998877; acf_nickname=%E4%B8%80%E4%B8%AA%E4%BA%BA; acf_jwt_token=<jwt>; acf_avatar=https://example.douyu.com/av.jpg"
+      },
+      "note": "本样本的 response 体几乎不被使用；**关键输入在 set-cookie 响应头**（见 mock_set_cookie）。Dart 用 acf_jwt_token 的 JWT payload.exp 判过期（douyu_utils.dart:83-95）。",
+      "variants": [
+        {
+          "name": "cookie 已过期（JWT exp 早于 now）-> refreshCookie 返回空串 -> isValid=false",
+          "response": {
+            "error": 0
+          },
+          "mock_set_cookie": [],
+          "expected": {
+            "cookie": "",
+            "is_valid": false
+          }
+        }
+      ]
+    }
+  }
+}

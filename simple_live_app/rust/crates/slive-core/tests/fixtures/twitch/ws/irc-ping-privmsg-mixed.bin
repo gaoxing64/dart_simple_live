@@ -1,0 +1,2 @@
+PING :tmi.twitch.tv
+@color=#123456;display-name=Grace;id=b1;room-id=1;user-id=7;user-type= :grace!grace@grace.tmi.twitch.tv PRIVMSG #1 :after ping

@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "douyu",
+    "synthetic": true,
+    "derivation": "照 Dart core douyu_danmaku.dart 的 STT 协议与 12 字节小端包头逐字段推导（行号见各帧 dart_source / note）；STT 语法与转义见 :196-228",
+    "needs_realtime_validation": true,
+    "frame_format_source": "simple_live_core/lib/src/platforms/douyu/douyu_danmaku.dart:152-193",
+    "realtime_validation_plan": "用 wscat/mitm 抓 wss://danmuproxy.douyu.com:8506 真实帧，核对 packType 取值（客户端 689 / 服务端实际值）、STT 字段名与转义出现频率；替换本目录 *.bin 并把 _meta.synthetic 改为 false。",
+    "target_ac": [
+      "IP-3-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyu::danmaku::decode::deserialize_douyu / stt::stt_to_json / parse::decode_message",
+    "note": "type=chatmsg 且 if='1'（fans）才产出；col=3 -> (122,200,75)。",
+    "stt_filter": "Dart 只在 jsonData['if'] == '1' 时产出 chat（Dart:81）"
+  },
+  "stt_body": "type@=chatmsg/nn@=观众A/txt@=你好世界/col@=3/",
+  "bytes_hex": "3c 00 00 00 3c 00 00 00 b1 02 00 00 74 79 70 65 40 3d 63 68 61 74 6d 73 67 2f 6e 6e 40 3d e8 a7 82 e4 bc 97 41 2f 74 78 74 40 3d e4 bd a0 e5 a5 bd e4 b8 96 e7 95 8c 2f 63 6f 6c 40 3d 33 2f 00",
+  "bytes_len": 64,
+  "expected": {
+    "messages": [
+      {
+        "type": "chat",
+        "user_name": "观众A",
+        "message": "你好世界",
+        "color": {
+          "r": 122,
+          "g": 200,
+          "b": 75
+        }
+      }
+    ]
+  }
+}

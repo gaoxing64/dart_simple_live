@@ -1,0 +1,393 @@
+{
+  "_meta": {
+    "kind": "http-samples",
+    "platform": "twitch",
+    "synthetic": true,
+    "derivation": "字段逐条对照 Dart core platforms/twitch/twitch_site.dart 与 twitch_models.dart 的解析行号（见各样本 field_sources）",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "①用真实 client-id POST gql.twitch.tv/gql 核对两个persisted query 的 sha256Hash 是否仍有效②录 usher.ttvnw.net 的 m3u8 主列表，核对 BANDWIDTH/URL 配对③核对 userLiveOn / display-name 等标签实际存在情况。替换后把 _meta.synthetic 改 false。",
+    "text_samples_note": "响应体为纯文本（m3u8）的样本用 `__raw_m3u8` 承载。",
+    "unsupported_by_dart": {
+      "get_categories": "Dart:67-70 直接返回空列表（「尚不支持」）——**无接口、无夹具**",
+      "get_category_rooms": "Dart:73-77 返回空结果",
+      "get_recommend_rooms": "Dart:202-204 **throw UnimplementedError**",
+      "search_rooms": "Dart:293-296 throw Exception（不支持搜索房间）",
+      "search_anchors": "Dart:288-290 throw Exception（不支持搜索主播）",
+      "get_super_chat_message": "Dart:282-285 返回空列表",
+      "get_account_info/get_qr_code/get_qr_poll_result": "Dart:304-319 throw UnimplementedError",
+      "set_site_attrs": "Dart:298-301 throw UnimplementedError",
+      "note": "以上为 **Dart 现状即不支持**。迁移必须保持同样的行为（抛同样的错 / 返回同样的空），**不得**在迁移中「顺手实现」——那会改变 App 行为并破坏 AC-30 回归为零。对应的 Rust 用例应断言「抛错」或「空列表」，而非跳过。"
+    }
+  },
+  "samples": {
+    "gql_twitch_tv_room_shell": {
+      "endpoint": "https://gql.twitch.tv/gql",
+      "method": "POST",
+      "dart_source": "twitch_site.dart:207-243（详情）/ :245-279（批量请求）/ twitch_models.dart",
+      "target_ac": [
+        "IP-5-HTTP-DETAIL",
+        "IP-5-HTTP-STATUS"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "[0].data.userOrError.__typename": "twitch_models.dart:74（User / UserNotFoundError）",
+        "[0].data.userOrError.displayName": ":70（**详情里的 userName 取这里**，:234）",
+        "[0].data.userOrError.profileImageURL": ":72（注意字段名是 URL 大写）",
+        "[1].data.user.profileImageURL": ":100（userAvatar）",
+        "[1].data.user.lastBroadcast.title": ":108（title，缺失回落 'null' 字符串 :229）",
+        "[1].data.user.stream.type": "twitch_site.dart:226 `== 'live'` 才算在播",
+        "[1].data.user.stream.viewersCount": ":236 online（**仅在播时取**）",
+        "url": "twitch_site.dart:238 = https://www.twitch.tv/{roomId}",
+        "danmakuData": ":241 = roomId（IRC JOIN 用的就是它）",
+        "data": ":242 = null（**Twitch 不走取流接口拼 URL**）"
+      },
+      "response": [
+        {
+          "data": {
+            "userOrError": {
+              "__typename": "User",
+              "id": "11111",
+              "login": "alice",
+              "displayName": "Alice",
+              "primaryColorHex": "FF0000",
+              "profileImageURL": "https://static-cdn.jtvnw.net/jtv_user_pictures/alice-profile.png",
+              "stream": {
+                "__typename": "Stream",
+                "id": "99999",
+                "viewersCount": 12345,
+                "type": "live",
+                "createdAt": "2026-10-16T08:00:00Z"
+              }
+            }
+          }
+        },
+        {
+          "data": {
+            "user": {
+              "__typename": "User",
+              "id": "11111",
+              "primaryColorHex": "FF0000",
+              "isPartner": true,
+              "profileImageURL": "https://static-cdn.jtvnw.net/jtv_user_pictures/alice-profile.png",
+              "channel": {
+                "__typename": "Channel",
+                "id": "11111",
+                "self": null,
+                "trailer": null
+              },
+              "lastBroadcast": {
+                "__typename": "Video",
+                "id": "v1",
+                "title": "今天的直播标题"
+              },
+              "stream": {
+                "__typename": "Stream",
+                "id": "99999",
+                "viewersCount": 12345,
+                "type": "live",
+                "createdAt": "2026-10-16T08:00:00Z"
+              }
+            }
+          }
+        }
+      ],
+      "expected": {
+        "room_id": "alice",
+        "title": "今天的直播标题",
+        "cover": "https://static-cdn.jtvnw.net/jtv_user_pictures/alice-profile.png",
+        "user_name": "Alice",
+        "user_avatar": "https://static-cdn.jtvnw.net/jtv_user_pictures/alice-profile.png",
+        "online": 12345,
+        "status": true,
+        "url": "https://www.twitch.tv/alice",
+        "introduction": "",
+        "notice": "",
+        "danmaku_data": "alice",
+        "data": null
+      },
+      "note": "⚠️ Twitch 详情一次请求拿**两个** persisted query（ChannelShell + StreamMetadata），响应是 **JSON 数组**且顺序固定：`_getRoomInfo` 取 `roomInfo.first` 与 `roomInfo[1]`（twitch_site.dart:208-210）—— **顺序颠倒会取错对象**。\nPersisted query 的 sha256Hash 硬编码在 Dart（:249 ChannelShell /:256 StreamMetadata），Twitch 若轮换 hash 会 400。",
+      "verify_note": "persisted query 的 sha256Hash 是否仍有效**必须抓包确认**（Twitch 会轮换）；字段名 profileImageURL（大写 URL）与 profileImageUrl 的差异已在夹具中如实反映。",
+      "variants": [
+        {
+          "name": "未开播（stream 为 null）",
+          "response": [
+            {
+              "data": {
+                "userOrError": {
+                  "__typename": "User",
+                  "id": "11111",
+                  "login": "alice",
+                  "displayName": "Alice",
+                  "primaryColorHex": "FF0000",
+                  "profileImageURL": "https://x/a.png",
+                  "stream": null
+                }
+              }
+            },
+            {
+              "data": {
+                "user": {
+                  "__typename": "User",
+                  "id": "11111",
+                  "primaryColorHex": "FF0000",
+                  "isPartner": true,
+                  "profileImageURL": "https://x/a.png",
+                  "channel": {
+                    "__typename": "Channel",
+                    "id": "11111"
+                  },
+                  "lastBroadcast": {
+                    "__typename": "Video",
+                    "id": "v1",
+                    "title": "上次的标题"
+                  },
+                  "stream": null
+                }
+              }
+            }
+          ],
+          "expected": {
+            "status": false,
+            "online": 0,
+            "note": "不在播时 online 强制 0（:236 `online ? viewersCount : 0`）"
+          }
+        },
+        {
+          "name": "无 lastBroadcast -> title 回落字符串 'null'",
+          "response": [
+            {
+              "data": {
+                "userOrError": {
+                  "__typename": "User",
+                  "id": "1",
+                  "login": "a",
+                  "displayName": "A",
+                  "profileImageURL": "p",
+                  "primaryColorHex": "",
+                  "stream": null
+                }
+              }
+            },
+            {
+              "data": {
+                "user": {
+                  "__typename": "User",
+                  "id": "1",
+                  "isPartner": false,
+                  "profileImageURL": "p",
+                  "primaryColorHex": "",
+                  "channel": {
+                    "__typename": "Channel",
+                    "id": "1"
+                  },
+                  "lastBroadcast": null,
+                  "stream": null
+                }
+              }
+            }
+          ],
+          "expected": {
+            "title": "null",
+            "note": "⚠️ Dart:229 `?? 'null'` 回落成**字符串 'null'**（不是空串）——照搬行为，实现不得「顺手改成空串」"
+          }
+        },
+        {
+          "name": "错误流：UserNotFoundError -> 抛异常",
+          "response": [
+            {
+              "data": {
+                "userOrError": {
+                  "__typename": "UserNotFoundError",
+                  "displayName": "nosuchuser"
+                }
+              }
+            },
+            {
+              "data": {
+                "user": null
+              }
+            }
+          ],
+          "expected": {
+            "error": "抛错（Dart:217 Exception('Could not find user_or_error')）"
+          }
+        },
+        {
+          "name": "错误流：user 为 null -> 抛异常",
+          "response": [
+            {
+              "data": {
+                "userOrError": {
+                  "__typename": "User",
+                  "displayName": "A",
+                  "profileImageURL": "p",
+                  "primaryColorHex": ""
+                }
+              }
+            },
+            {
+              "data": {
+                "user": null
+              }
+            }
+          ],
+          "expected": {
+            "error": "抛错（Dart:223 Exception('Could not find user')）"
+          }
+        },
+        {
+          "name": "错误流：响应数组长度 < 2",
+          "response": [
+            {
+              "data": {
+                "userOrError": {
+                  "__typename": "User",
+                  "displayName": "A",
+                  "profileImageURL": "p",
+                  "primaryColorHex": ""
+                }
+              }
+            }
+          ],
+          "expected": {
+            "error": "Dart:275-277 只记 CoreLog.error 后继续，随后 roomInfo[1] 会RangeError -> 实现须抛 CoreError"
+          }
+        }
+      ]
+    },
+    "gql_twitch_tv_playback_access_token": {
+      "endpoint": "https://gql.twitch.tv/gql",
+      "method": "POST",
+      "dart_source": "twitch_site.dart:90-179",
+      "target_ac": [
+        "IP-5-PLAY"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "data.streamPlaybackAccessToken.value": "twitch_site.dart:111（token）",
+        "data.streamPlaybackAccessToken.signature": ":112（sig）",
+        "未开播时": ":114 `if (liveStatus)` 为假 -> **返回空清晰度列表**（不请求 m3u8）"
+      },
+      "response": {
+        "data": {
+          "streamPlaybackAccessToken": {
+            "value": "token-abc123",
+            "signature": "sig-xyz789"
+          }
+        }
+      },
+      "expected": {
+        "token": "token-abc123",
+        "signature": "sig-xyz789",
+        "qualities": "见 m3u8 样本"
+      },
+      "note": "清晰度不是由该接口给出，而是**解析 usher m3u8 主列表**（twitch_site.dart:136-176）—— 本样本只提供取 m3u8 所需的 token/sig。",
+      "variants": [
+        {
+          "name": "错误流：字段缺失",
+          "response": {
+            "data": {}
+          },
+          "expected": {
+            "error": "抛 CoreError（不得 panic）"
+          }
+        }
+      ]
+    },
+    "usher_ttvnw_net_master_m3u8": {
+      "endpoint": "https://usher.ttvnw.net/api/channel/hls/{roomId}.m3u8",
+      "method": "GET",
+      "dart_source": "twitch_site.dart:135-176",
+      "target_ac": [
+        "IP-5-PLAY-QUALITY",
+        "IP-5-PLAY-URL"
+      ],
+      "synthetic": true,
+      "field_sources": {
+        "BANDWIDTH 抽取": "twitch_site.dart:159-160 正则 r'BANDWIDTH=(\\d+)' **按出现顺序**",
+        "URL 抽取": ":145-149 以 'https://' 开头的行（**主过滤条件**）",
+        "URL 与 BANDWIDTH 的配对": ":163-166 按**下标**配对 `urlToBandwidth[url_i] = bandwidth_i`",
+        "排序": ":167 按 bandwidth **降序**",
+        "清晰度名": ":182-188 阈值表（见 golden/golden-quality-name.json）",
+        "兜底分支": ":151-157 无 'https://' 行时改取以 'm3u8' 结尾的行"
+      },
+      "response": {
+        "__raw_m3u8": "#EXTM3U\n#EXT-X-TWITCH-INFO:NODE=\"TRANSCODESTREAM\",\"TRANSCODESTREAM_NAME=\"1080p60 (source)\",\"BPS=\"6000000,\"RESOLUTION=\"1920x1080\n#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"chunked\",NAME=\"1080p60 (source)\",AUTOSELECT=YES,DEFAULT=YES\n#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,CODECS=\"avc1.64002A,mp4a.40.2\"\nhttps://video-edge-1.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720,CODECS=\"avc1.4D402A,mp4a.40.2\"\nhttps://video-edge-2.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=1500000,RESOLUTION=852x480,CODECS=\"avc1.4D401F,mp4a.40.2\"\nhttps://video-edge-3.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=600000,RESOLUTION=640x360,CODECS=\"avc1.4D401E,mp4a.40.2\"\nhttps://video-edge-4.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\n"
+      },
+      "expected": {
+        "qualities": [
+          {
+            "quality": "1080P",
+            "sort": 6000000,
+            "url": "https://video-edge-1.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8"
+          },
+          {
+            "quality": "720P",
+            "sort": 3000000,
+            "url": "https://video-edge-2.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8"
+          },
+          {
+            "quality": "480P",
+            "sort": 1500000,
+            "url": "https://video-edge-3.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8"
+          },
+          {
+            "quality": "360P",
+            "sort": 600000,
+            "url": "https://video-edge-4.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8"
+          }
+        ]
+      },
+      "note": "⚠️ **下标配对是脆弱点**：URL 行与 BANDWIDTH 行必须**严格一一对应且顺序一致**，否则清晰度会整体错位（Dart:163-166 用的是下标而非就近匹配）。本夹具的 4 组严格对齐，可用于击穿「按RESOLUTION 猜清晰度」的特判式实现。\n另外 Twitch 在同一 URL 上用**不同 query 区分码率**（见本样本的 URL 形态），Dart 直接把整行当 URL（:147），故本夹具给出的是完整 URL 行。",
+      "verify_note": "真实 m3u8 里BANDWIDTH 与 URL 行的**相对顺序**是否稳定待抓包；若 Twitch 改为先列全部 EXT-X-STREAM-INF 再列 URL，本实现（Dart 口径）会整体错位。",
+      "variants": [
+        {
+          "name": "无 'https://' 行（相对路径）-> 走 m3u8 结尾兜底",
+          "expected": {
+            "qualities": "同主样本（兜底分支取到同样的 4 条）"
+          },
+          "response": {
+            "__raw_m3u8": "#EXTM3U\n#EXT-X-TWITCH-INFO:NODE=\"TRANSCODESTREAM\",\"TRANSCODESTREAM_NAME=\"1080p60 (source)\",\"BPS=\"6000000,\"RESOLUTION=\"1920x1080\n#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"chunked\",NAME=\"1080p60 (source)\",AUTOSELECT=YES,DEFAULT=YES\n#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,CODECS=\"avc1.64002A,mp4a.40.2\"\nchunked/index-dvr.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720,CODECS=\"avc1.4D402A,mp4a.40.2\"\nchunked/index-dvr2.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=1500000,RESOLUTION=852x480,CODECS=\"avc1.4D401F,mp4a.40.2\"\nchunked/index-dvr3.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=600000,RESOLUTION=640x360,CODECS=\"avc1.4D401E,mp4a.40.2\"\nchunked/index-dvr4.m3u8\n"
+          },
+          "mutation_applied": "urls_relative"
+        },
+        {
+          "name": "只有一条线路",
+          "expected": {
+            "qualities": [
+              {
+                "quality": "1080P",
+                "sort": 6000000
+              }
+            ]
+          },
+          "response": {
+            "__raw_m3u8": "#EXTM3U\n#EXT-X-TWITCH-INFO:NODE=\"TRANSCODESTREAM\",\"TRANSCODESTREAM_NAME=\"1080p60 (source)\",\"BPS=\"6000000,\"RESOLUTION=\"1920x1080\n#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"chunked\",NAME=\"1080p60 (source)\",AUTOSELECT=YES,DEFAULT=YES\n#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,CODECS=\"avc1.64002A,mp4a.40.2\"\nhttps://video-edge-1.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720,CODECS=\"avc1.4D402A,mp4a.40.2\"\n"
+          },
+          "mutation_applied": "single"
+        },
+        {
+          "name": "空清单（未开播/断流）",
+          "expected": {
+            "qualities": [],
+            "note": "不抛；App 侧表现为无清晰度可用"
+          },
+          "response": {
+            "__raw_m3u8": "#EXTM3U\n"
+          },
+          "mutation_applied": "empty"
+        },
+        {
+          "name": "BANDWIDTH 少于 URL 数（错位边界）",
+          "expected": {
+            "note": "Dart:164 `i < bandwidthList.length ? parse : 0` —— 多出的 URL 拿 bandwidth=0 -> quality='自动'、sort=0，且因降序排序会排到最后。"
+          },
+          "response": {
+            "__raw_m3u8": "#EXTM3U\n#EXT-X-TWITCH-INFO:NODE=\"TRANSCODESTREAM\",\"TRANSCODESTREAM_NAME=\"1080p60 (source)\",\"BPS=\"6000000,\"RESOLUTION=\"1920x1080\n#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"chunked\",NAME=\"1080p60 (source)\",AUTOSELECT=YES,DEFAULT=YES\n#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,CODECS=\"avc1.64002A,mp4a.40.2\"\nhttps://video-edge-1.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720,CODECS=\"avc1.4D402A,mp4a.40.2\"\nhttps://video-edge-2.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=1500000,RESOLUTION=852x480,CODECS=\"avc1.4D401F,mp4a.40.2\"\nhttps://video-edge-3.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\nhttps://video-edge-4.example.chuigo.tvlive.tv/chunked/index-dvr.m3u8\n"
+          },
+          "mutation_applied": "mismatch"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "synthetic": true,
+    "frame_format_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_danmaku.dart:119-145,147-184,241-261",
+    "note": "帧头 16 字节：len(u32 BE)/hdrlen(u16=16)/protover(u16)/op(u32)/seq(u32)。内容为合成，待真实抓包替换。",
+    "target_ac": [
+      "AC-13"
+    ],
+    "op": 5,
+    "protover_header": 2,
+    "body_decoded": "zlib(json)",
+    "note_extra": "zlib 为公共压缩格式，压缩负载为合成 JSON；brotli(ver3) 帧待实现期用 brotli crate 生成或抓包。"
+  },
+  "bytes_hex": "00 00 00 5e 00 10 00 02 00 00 00 05 00 00 00 01 78 9c ab 56 4a ce 4d 51 b2 52 72 71 f4 f3 0d 8d f7 0d 76 57 d2 51 ca cc 4b cb 57 b2 8a 8e 36 d0 01 41 43 33 73 73 73 23 43 d3 58 1d a5 8c d4 9c 9c 7c 85 f2 fc a2 9c 14 25 1d a0 b4 52 49 6a 71 49 6a 91 52 ac 8e 41 6c 2d 00 09 37 15 6b",
+  "expected": {
+    "messages": [
+      {
+        "type": "chat",
+        "user_name": "tester",
+        "message": "hello world",
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        },
+        "emoticons": null,
+        "data": null
+      }
+    ]
+  }
+}

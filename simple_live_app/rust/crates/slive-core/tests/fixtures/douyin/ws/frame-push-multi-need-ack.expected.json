@@ -1,0 +1,69 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "douyin",
+    "synthetic": true,
+    "derivation": "照 douyin.proto 字段号手写 protobuf 编码（varint + length-delimited，proto3 默认值省略），外层包 gzip(mtime=0保证字节确定)；消息分发逻辑对照 douyin_danmaku.dart:133-196",
+    "frame_format_source": "simple_live_core/lib/src/platforms/douyin/proto/douyin.proto",
+    "needs_realtime_validation": true,
+    "realtime_validation_plan": "连 wss://webcast100-ws-web-lq.douyin.com/webcast/im/push/v2/（需带 ttwid cookie 与 X-Bogus signature，见 douyin_danmaku.dart:51-92），录制真实帧，核对：①payloadEncoding 是否恒为 gzip（是否有 'none'）②PushFrame.headersList(service/method) 实际取值 ③needAck 触发频率与 ack 包形态 ④是否混入 WebcastControlMessage 等第三类 method。替换后把 _meta.synthetic 改 false。",
+    "gzip_determinism": "gzip mtime=0，保证重复生成字节一致（夹具可入版本库比对）。",
+    "target_ac": [
+      "IP-6-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyin::danmaku::decode::decode_message（prost 解 PushFrame/Response，见 danmaku/proto.rs）",
+    "note": "一条 Response 含多条 message + needAck=true：必须**按顺序**产出 3 条（2 聊天 + 1 在线），并触发一次 ack（Dart:141-144）。顺序错/漏条即失败。",
+    "dart_source": "douyin_danmaku.dart:140-152,184-190",
+    "pinned_dart_behavior": true
+  },
+  "bytes_hex": "08 01 10 db 36 32 04 67 7a 69 70 3a 03 6d 73 67 42 ad 01 1f 8b 08 00 00 00 00 00 02 ff e3 32 e1 12 0a 4f 4d 4a 4e 2c 2e 71 ce 48 2c f1 4d 2d 2e 4e 4c 4f 15 92 11 e2 e7 68 7f c2 26 c5 f9 62 79 d3 93 3d d3 9f 4f d9 24 c5 f9 7c cd 9a 27 3b 1a 9e cd 5d 28 c1 c8 45 94 ae 27 3b 67 42 74 ed ea 01 e9 62 e2 d2 e5 92 84 ea 0a ca cf cf 0d 2d 4e 2d 0a 4e 2d 84 69 e6 93 d8 99 60 b1 33 c1 89 cd 50 cf e8 c9 8e 76 09 66 85 03 c7 76 3e db 6b ac a5 52 5e 5c 1c 5f 50 5a 9c 11 5f 04 d4 15 9f 99 62 65 6e 6c 61 64 6e 6c 6a 6c 6c 61 68 60 68 6c 64 61 66 61 e0 c1 08 00 f8 56 6d 31 ca 00 00 00",
+  "bytes_len": 192,
+  "expected": {
+    "push_frame": {
+      "seq_id": 1,
+      "log_id": 7003,
+      "payload_type": "msg",
+      "payload_encoding": "gzip"
+    },
+    "need_ack": true,
+    "ack": {
+      "payload_type": "internalExt",
+      "log_id": 7003,
+      "internal_ext": "wss_push_room_id:7382735338101328680",
+      "dart_quirk": "Dart sendAck（:184-190）先 `payloadType='ack'` 再`payloadType=internalExt`，**第二次赋值覆盖了第一次**，故实际发出的 PushFrame.payloadType == internalExt 的值。本夹具按 Dart 现状锁定；若判定为 Dart 既有缺陷需单独立项修复，不得在迁移中静默改变（会与 Dart 行为不一致 → 回归风险）。"
+    },
+    "messages": [
+      {
+        "type": "chat",
+        "user_name": "观众甲",
+        "message": "第一条",
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        }
+      },
+      {
+        "type": "chat",
+        "user_name": "观众乙",
+        "message": "第二条",
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        }
+      },
+      {
+        "type": "online",
+        "data_int": 12345,
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        },
+        "user_name": "",
+        "message": ""
+      }
+    ]
+  }
+}

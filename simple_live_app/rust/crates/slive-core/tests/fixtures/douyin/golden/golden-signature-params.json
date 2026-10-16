@@ -1,0 +1,60 @@
+{
+  "_meta": {
+    "kind": "golden",
+    "platform": "douyin",
+    "synthetic": true,
+    "derivation": "照 Dart douyin_danmaku.dart:210-238 getSignature 的参数表与拼接方式（逗号连接、固定键序）独立推导；md5 用 Python 重算",
+    "target_ac": [
+      "IP-6-DANMAKU-SIGN"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyin::danmaku::sign::signature_params / md5_sig_param",
+    "needs_realtime_validation": false,
+    "realtime_note": "sigParam 与其 md5 是确定性的，可 golden。**generateXBogus 本身含 Random.secure()（xbogus.dart:92-95），输出不可 golden** —— 只断言「输入前两位参数正确 + 长度/字符集合法」。",
+    "nondeterministic_fields": [
+      "signature(X-Bogus)"
+    ],
+    "nondeterministic_reason": "xbogus.dart:92 用 Random.secure() 生成 random1/random2，同一输入多次调用输出不同 -> 不能进 golden。",
+    "key_order_pinned": [
+      "live_id",
+      "aid",
+      "version_code",
+      "webcast_sdk_version",
+      "room_id",
+      "sub_room_id",
+      "sub_channel_id",
+      "did_rule",
+      "user_unique_id",
+      "device_platform",
+      "device_type",
+      "ac",
+      "identity"
+    ]
+  },
+  "input": {
+    "params": {
+      "live_id": "1",
+      "aid": "6383",
+      "version_code": "180800",
+      "webcast_sdk_version": "1.0.14-beta.0",
+      "room_id": "7382735338101328680",
+      "sub_room_id": "",
+      "sub_channel_id": "",
+      "did_rule": "3",
+      "user_unique_id": "7382872326016435738",
+      "device_platform": "web",
+      "device_type": "",
+      "ac": "",
+      "identity": "audience"
+    },
+    "counter": 1
+  },
+  "expect": {
+    "sig_param": "live_id=1,aid=6383,version_code=180800,webcast_sdk_version=1.0.14-beta.0,room_id=7382735338101328680,sub_room_id=,sub_channel_id=,did_rule=3,user_unique_id=7382872326016435738,device_platform=web,device_type=,ac=,identity=audience",
+    "md5_sig_param": "3d83bf953ce382fb15fdc79ca8a626ec",
+    "signature_shape": {
+      "min_len": 28,
+      "charset": "X-Bogus 自定义字母表（xbogus.dart:5 xbogusAlphabet）",
+      "note": "不断言具体值"
+    }
+  }
+}

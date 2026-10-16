@@ -4,10 +4,27 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/danmaku_mask.dart';
+import 'api/slive/danmaku.dart';
+import 'api/slive/douyin.dart';
+import 'api/slive/douyu.dart';
+import 'api/slive/error.dart';
+import 'api/slive/huya.dart';
+import 'api/slive/huya_site.dart';
+import 'api/slive/models/account.dart';
+import 'api/slive/models/category.dart';
+import 'api/slive/models/danmu.dart';
+import 'api/slive/models/message.dart';
+import 'api/slive/models/play.dart';
+import 'api/slive/models/result.dart';
+import 'api/slive/models/room.dart';
+import 'api/slive/site.dart';
+import 'api/slive/twitch/danmaku.dart';
+import 'api/slive/twitch/site.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
-import 'frb_generated.io.dart' if (dart.library.js_interop) 'frb_generated.web.dart';
+import 'frb_generated.io.dart'
+    if (dart.library.js_interop) 'frb_generated.web.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -49,10 +66,12 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   static void dispose() => instance.disposeImpl();
 
   @override
-  ApiImplConstructor<RustLibApiImpl, RustLibWire> get apiImplConstructor => RustLibApiImpl.new;
+  ApiImplConstructor<RustLibApiImpl, RustLibWire> get apiImplConstructor =>
+      RustLibApiImpl.new;
 
   @override
-  WireConstructor<RustLibWire> get wireConstructor => RustLibWire.fromExternalLibrary;
+  WireConstructor<RustLibWire> get wireConstructor =>
+      RustLibWire.fromExternalLibrary;
 
   @override
   Future<void> executeRustInitializers() async {
@@ -60,15 +79,17 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   }
 
   @override
-  ExternalLibraryLoaderConfig get defaultExternalLibraryLoaderConfig => kDefaultExternalLibraryLoaderConfig;
+  ExternalLibraryLoaderConfig get defaultExternalLibraryLoaderConfig =>
+      kDefaultExternalLibraryLoaderConfig;
 
   @override
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1540820557;
+  int get rustContentHash => 1476899255;
 
-  static const kDefaultExternalLibraryLoaderConfig = ExternalLibraryLoaderConfig(
+  static const kDefaultExternalLibraryLoaderConfig =
+      ExternalLibraryLoaderConfig(
     stem: 'rust_lib_simple_live_app',
     ioDirectory: 'rust/target/release/',
     webPrefix: 'pkg/',
@@ -77,8 +98,13 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  void crateApiSliveDanmakuDanmakuConnectionStop(
+      {required DanmakuConnection that});
+
   Future<Uint8List> crateApiDanmakuMaskDanmakuMaskAllowListBatch(
-      {required DanmakuMask that, required List<String> texts, required BigInt nowMs});
+      {required DanmakuMask that,
+      required List<String> texts,
+      required BigInt nowMs});
 
   void crateApiDanmakuMaskDanmakuMaskDispose({required DanmakuMask that});
 
@@ -91,13 +117,408 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiDanmakuMaskDanmakuMaskReset({required DanmakuMask that});
 
+  Future<LiveBilibiliSite> crateApiSliveSiteLiveBilibiliSiteDefault();
+
+  Future<AccountInfo> crateApiSliveSiteLiveBilibiliSiteGetAccountInfo(
+      {required LiveBilibiliSite that, required String credential});
+
+  Future<List<LiveCategory>> crateApiSliveSiteLiveBilibiliSiteGetCategories(
+      {required LiveBilibiliSite that});
+
+  Future<LiveCategoryResult> crateApiSliveSiteLiveBilibiliSiteGetCategoryRooms(
+      {required LiveBilibiliSite that,
+      required LiveSubCategory category,
+      required int page,
+      int? pageSize});
+
+  Future<bool> crateApiSliveSiteLiveBilibiliSiteGetLiveStatus(
+      {required LiveBilibiliSite that, required String roomId});
+
+  Future<List<LivePlayQuality>>
+      crateApiSliveSiteLiveBilibiliSiteGetPlayQualities(
+          {required LiveBilibiliSite that, required LiveRoomDetail detail});
+
+  Future<LivePlayUrl> crateApiSliveSiteLiveBilibiliSiteGetPlayUrls(
+      {required LiveBilibiliSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality});
+
+  Future<QrCode> crateApiSliveSiteLiveBilibiliSiteGetQrCode(
+      {required LiveBilibiliSite that});
+
+  Future<QrPollResult> crateApiSliveSiteLiveBilibiliSiteGetQrPollResult(
+      {required LiveBilibiliSite that, required String qrcodeKey});
+
+  Future<LiveCategoryResult> crateApiSliveSiteLiveBilibiliSiteGetRecommendRooms(
+      {required LiveBilibiliSite that, required int page, int? pageSize});
+
+  Future<LiveRoomDetail> crateApiSliveSiteLiveBilibiliSiteGetRoomDetail(
+      {required LiveBilibiliSite that, required String roomId});
+
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveSiteLiveBilibiliSiteGetSuperChatMessages(
+          {required LiveBilibiliSite that, required String roomId});
+
+  String crateApiSliveSiteLiveBilibiliSiteId({required LiveBilibiliSite that});
+
+  String crateApiSliveSiteLiveBilibiliSiteName(
+      {required LiveBilibiliSite that});
+
+  LiveBilibiliSite crateApiSliveSiteLiveBilibiliSiteNew();
+
+  Future<LiveSearchAnchorResult> crateApiSliveSiteLiveBilibiliSiteSearchAnchors(
+      {required LiveBilibiliSite that,
+      required String keyword,
+      required int page});
+
+  Future<LiveSearchRoomResult> crateApiSliveSiteLiveBilibiliSiteSearchRooms(
+      {required LiveBilibiliSite that,
+      required String keyword,
+      required int page});
+
+  void crateApiSliveSiteLiveBilibiliSiteSetSiteAttrs(
+      {required LiveBilibiliSite that, required String data});
+
+  Future<LiveDouyinSite> crateApiSliveDouyinLiveDouyinSiteDefault();
+
+  Future<AccountInfo> crateApiSliveDouyinLiveDouyinSiteGetAccountInfo(
+      {required LiveDouyinSite that, required String credential});
+
+  Future<List<LiveCategory>> crateApiSliveDouyinLiveDouyinSiteGetCategories(
+      {required LiveDouyinSite that});
+
+  Future<LiveCategoryResult> crateApiSliveDouyinLiveDouyinSiteGetCategoryRooms(
+      {required LiveDouyinSite that,
+      required LiveSubCategory category,
+      required int page,
+      int? pageSize});
+
+  Future<bool> crateApiSliveDouyinLiveDouyinSiteGetLiveStatus(
+      {required LiveDouyinSite that, required String roomId});
+
+  Future<List<LivePlayQuality>>
+      crateApiSliveDouyinLiveDouyinSiteGetPlayQualities(
+          {required LiveDouyinSite that, required LiveRoomDetail detail});
+
+  Future<LivePlayUrl> crateApiSliveDouyinLiveDouyinSiteGetPlayUrls(
+      {required LiveDouyinSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality});
+
+  Future<QrCode> crateApiSliveDouyinLiveDouyinSiteGetQrCode(
+      {required LiveDouyinSite that});
+
+  Future<QrPollResult> crateApiSliveDouyinLiveDouyinSiteGetQrPollResult(
+      {required LiveDouyinSite that, required String qrcodeKey});
+
+  Future<LiveCategoryResult> crateApiSliveDouyinLiveDouyinSiteGetRecommendRooms(
+      {required LiveDouyinSite that, required int page, int? pageSize});
+
+  Future<LiveRoomDetail> crateApiSliveDouyinLiveDouyinSiteGetRoomDetail(
+      {required LiveDouyinSite that, required String roomId});
+
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveDouyinLiveDouyinSiteGetSuperChatMessages(
+          {required LiveDouyinSite that, required String roomId});
+
+  String crateApiSliveDouyinLiveDouyinSiteId({required LiveDouyinSite that});
+
+  String crateApiSliveDouyinLiveDouyinSiteName({required LiveDouyinSite that});
+
+  LiveDouyinSite crateApiSliveDouyinLiveDouyinSiteNew();
+
+  Future<LiveSearchAnchorResult> crateApiSliveDouyinLiveDouyinSiteSearchAnchors(
+      {required LiveDouyinSite that,
+      required String keyword,
+      required int page});
+
+  Future<LiveSearchRoomResult> crateApiSliveDouyinLiveDouyinSiteSearchRooms(
+      {required LiveDouyinSite that,
+      required String keyword,
+      required int page});
+
+  void crateApiSliveDouyinLiveDouyinSiteSetSiteAttrs(
+      {required LiveDouyinSite that, required String data});
+
+  Future<LiveDouyuSite> crateApiSliveDouyuLiveDouyuSiteDefault();
+
+  Future<AccountInfo> crateApiSliveDouyuLiveDouyuSiteGetAccountInfo(
+      {required LiveDouyuSite that, required String credential});
+
+  Future<List<LiveCategory>> crateApiSliveDouyuLiveDouyuSiteGetCategories(
+      {required LiveDouyuSite that});
+
+  Future<LiveCategoryResult> crateApiSliveDouyuLiveDouyuSiteGetCategoryRooms(
+      {required LiveDouyuSite that,
+      required LiveSubCategory category,
+      required int page,
+      int? pageSize});
+
+  Future<bool> crateApiSliveDouyuLiveDouyuSiteGetLiveStatus(
+      {required LiveDouyuSite that, required String roomId});
+
+  Future<List<LivePlayQuality>> crateApiSliveDouyuLiveDouyuSiteGetPlayQualities(
+      {required LiveDouyuSite that, required LiveRoomDetail detail});
+
+  Future<LivePlayUrl> crateApiSliveDouyuLiveDouyuSiteGetPlayUrls(
+      {required LiveDouyuSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality});
+
+  Future<QrCode> crateApiSliveDouyuLiveDouyuSiteGetQrCode(
+      {required LiveDouyuSite that});
+
+  Future<QrPollResult> crateApiSliveDouyuLiveDouyuSiteGetQrPollResult(
+      {required LiveDouyuSite that, required String qrcodeKey});
+
+  Future<LiveCategoryResult> crateApiSliveDouyuLiveDouyuSiteGetRecommendRooms(
+      {required LiveDouyuSite that, required int page, int? pageSize});
+
+  Future<LiveRoomDetail> crateApiSliveDouyuLiveDouyuSiteGetRoomDetail(
+      {required LiveDouyuSite that, required String roomId});
+
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveDouyuLiveDouyuSiteGetSuperChatMessages(
+          {required LiveDouyuSite that, required String roomId});
+
+  String crateApiSliveDouyuLiveDouyuSiteId({required LiveDouyuSite that});
+
+  String crateApiSliveDouyuLiveDouyuSiteName({required LiveDouyuSite that});
+
+  LiveDouyuSite crateApiSliveDouyuLiveDouyuSiteNew();
+
+  Future<String> crateApiSliveDouyuLiveDouyuSiteRefreshCookie(
+      {required LiveDouyuSite that,
+      required String dyDid,
+      required String ltp0});
+
+  Future<LiveSearchAnchorResult> crateApiSliveDouyuLiveDouyuSiteSearchAnchors(
+      {required LiveDouyuSite that,
+      required String keyword,
+      required int page});
+
+  Future<LiveSearchRoomResult> crateApiSliveDouyuLiveDouyuSiteSearchRooms(
+      {required LiveDouyuSite that,
+      required String keyword,
+      required int page});
+
+  void crateApiSliveDouyuLiveDouyuSiteSetSiteAttrs(
+      {required LiveDouyuSite that, required String data});
+
+  Future<LiveHuyaSite> crateApiSliveHuyaSiteLiveHuyaSiteDefault();
+
+  Future<AccountInfo> crateApiSliveHuyaSiteLiveHuyaSiteGetAccountInfo(
+      {required LiveHuyaSite that, required String credential});
+
+  Future<List<LiveCategory>> crateApiSliveHuyaSiteLiveHuyaSiteGetCategories(
+      {required LiveHuyaSite that});
+
+  Future<LiveCategoryResult> crateApiSliveHuyaSiteLiveHuyaSiteGetCategoryRooms(
+      {required LiveHuyaSite that,
+      required LiveSubCategory category,
+      required int page,
+      int? pageSize});
+
+  Future<bool> crateApiSliveHuyaSiteLiveHuyaSiteGetLiveStatus(
+      {required LiveHuyaSite that, required String roomId});
+
+  Future<List<LivePlayQuality>>
+      crateApiSliveHuyaSiteLiveHuyaSiteGetPlayQualities(
+          {required LiveHuyaSite that, required LiveRoomDetail detail});
+
+  Future<LivePlayUrl> crateApiSliveHuyaSiteLiveHuyaSiteGetPlayUrls(
+      {required LiveHuyaSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality});
+
+  Future<QrCode> crateApiSliveHuyaSiteLiveHuyaSiteGetQrCode(
+      {required LiveHuyaSite that});
+
+  Future<QrPollResult> crateApiSliveHuyaSiteLiveHuyaSiteGetQrPollResult(
+      {required LiveHuyaSite that, required String qrcodeKey});
+
+  Future<LiveCategoryResult> crateApiSliveHuyaSiteLiveHuyaSiteGetRecommendRooms(
+      {required LiveHuyaSite that, required int page, int? pageSize});
+
+  Future<LiveRoomDetail> crateApiSliveHuyaSiteLiveHuyaSiteGetRoomDetail(
+      {required LiveHuyaSite that, required String roomId});
+
+  Future<List<LiveSubCategory>>
+      crateApiSliveHuyaSiteLiveHuyaSiteGetSubCategories(
+          {required LiveHuyaSite that, required String parentId});
+
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveHuyaSiteLiveHuyaSiteGetSuperChatMessages(
+          {required LiveHuyaSite that, required String roomId});
+
+  String crateApiSliveHuyaSiteLiveHuyaSiteId({required LiveHuyaSite that});
+
+  String crateApiSliveHuyaSiteLiveHuyaSiteName({required LiveHuyaSite that});
+
+  LiveHuyaSite crateApiSliveHuyaSiteLiveHuyaSiteNew();
+
+  Future<LiveSearchAnchorResult> crateApiSliveHuyaSiteLiveHuyaSiteSearchAnchors(
+      {required LiveHuyaSite that, required String keyword, required int page});
+
+  Future<LiveSearchRoomResult> crateApiSliveHuyaSiteLiveHuyaSiteSearchRooms(
+      {required LiveHuyaSite that, required String keyword, required int page});
+
+  void crateApiSliveHuyaSiteLiveHuyaSiteSetSiteAttrs(
+      {required LiveHuyaSite that, required String data});
+
+  Future<LiveTwitchSite> crateApiSliveTwitchSiteLiveTwitchSiteDefault();
+
+  Future<AccountInfo> crateApiSliveTwitchSiteLiveTwitchSiteGetAccountInfo(
+      {required LiveTwitchSite that, required String credential});
+
+  Future<List<LiveCategory>> crateApiSliveTwitchSiteLiveTwitchSiteGetCategories(
+      {required LiveTwitchSite that});
+
+  Future<LiveCategoryResult>
+      crateApiSliveTwitchSiteLiveTwitchSiteGetCategoryRooms(
+          {required LiveTwitchSite that,
+          required LiveSubCategory category,
+          required int page,
+          int? pageSize});
+
+  Future<bool> crateApiSliveTwitchSiteLiveTwitchSiteGetLiveStatus(
+      {required LiveTwitchSite that, required String roomId});
+
+  Future<List<LivePlayQuality>>
+      crateApiSliveTwitchSiteLiveTwitchSiteGetPlayQualities(
+          {required LiveTwitchSite that, required LiveRoomDetail detail});
+
+  Future<LivePlayUrl> crateApiSliveTwitchSiteLiveTwitchSiteGetPlayUrls(
+      {required LiveTwitchSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality});
+
+  Future<QrCode> crateApiSliveTwitchSiteLiveTwitchSiteGetQrCode(
+      {required LiveTwitchSite that});
+
+  Future<QrPollResult> crateApiSliveTwitchSiteLiveTwitchSiteGetQrPollResult(
+      {required LiveTwitchSite that, required String qrcodeKey});
+
+  Future<LiveCategoryResult>
+      crateApiSliveTwitchSiteLiveTwitchSiteGetRecommendRooms(
+          {required LiveTwitchSite that, required int page, int? pageSize});
+
+  Future<LiveRoomDetail> crateApiSliveTwitchSiteLiveTwitchSiteGetRoomDetail(
+      {required LiveTwitchSite that, required String roomId});
+
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveTwitchSiteLiveTwitchSiteGetSuperChatMessages(
+          {required LiveTwitchSite that, required String roomId});
+
+  String crateApiSliveTwitchSiteLiveTwitchSiteId(
+      {required LiveTwitchSite that});
+
+  String crateApiSliveTwitchSiteLiveTwitchSiteName(
+      {required LiveTwitchSite that});
+
+  LiveTwitchSite crateApiSliveTwitchSiteLiveTwitchSiteNew();
+
+  Future<LiveSearchAnchorResult>
+      crateApiSliveTwitchSiteLiveTwitchSiteSearchAnchors(
+          {required LiveTwitchSite that,
+          required String keyword,
+          required int page});
+
+  Future<LiveSearchRoomResult> crateApiSliveTwitchSiteLiveTwitchSiteSearchRooms(
+      {required LiveTwitchSite that,
+      required String keyword,
+      required int page});
+
+  void crateApiSliveTwitchSiteLiveTwitchSiteSetSiteAttrs(
+      {required LiveTwitchSite that, required String data});
+
   Future<void> crateApiSimpleInitApp();
 
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_DanmakuMask;
+  Stream<LiveDanmuItem> crateApiSliveDanmakuStartDanmaku(
+      {required String argsJson});
 
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_DanmakuMask;
+  Stream<LiveDanmuItem> crateApiSliveDouyinStartDouyinDanmaku(
+      {required String argsJson});
+
+  Stream<LiveDanmuItem> crateApiSliveDouyuStartDouyuDanmaku(
+      {required String roomId});
+
+  Stream<LiveDanmuItem> crateApiSliveHuyaStartHuyaDanmaku(
+      {required String argsJson});
+
+  Stream<LiveDanmuItem> crateApiSliveTwitchDanmakuStartTwitchDanmaku(
+      {required String channelOrArgs});
+
+  void crateApiSliveDanmakuStopDanmaku();
+
+  void crateApiSliveDouyinStopDouyinDanmaku();
+
+  void crateApiSliveDouyuStopDouyuDanmaku();
+
+  void crateApiSliveHuyaStopHuyaDanmaku();
+
+  void crateApiSliveTwitchDanmakuStopTwitchDanmaku();
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_DanmakuConnection;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_DanmakuConnection;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_DanmakuConnectionPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_DanmakuMask;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_DanmakuMask;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_DanmakuMaskPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveBilibiliSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveBilibiliSite;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveBilibiliSitePtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveDouyinSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveDouyinSite;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveDouyinSitePtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveDouyuSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveDouyuSite;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveDouyuSitePtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveHuyaSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveHuyaSite;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_LiveHuyaSitePtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveTwitchSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveTwitchSite;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveTwitchSitePtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -109,8 +530,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  void crateApiSliveDanmakuDanmakuConnectionStop(
+      {required DanmakuConnection that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDanmakuDanmakuConnectionStopConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDanmakuDanmakuConnectionStopConstMeta =>
+      const TaskConstMeta(
+        debugName: "DanmakuConnection_stop",
+        argNames: ["that"],
+      );
+
+  @override
   Future<Uint8List> crateApiDanmakuMaskDanmakuMaskAllowListBatch(
-      {required DanmakuMask that, required List<String> texts, required BigInt nowMs}) {
+      {required DanmakuMask that,
+      required List<String> texts,
+      required BigInt nowMs}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -118,7 +567,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that, serializer);
         sse_encode_list_String(texts, serializer);
         sse_encode_u_64(nowMs, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1, port: port_);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 2, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_prim_u_8_strict,
@@ -130,7 +580,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     ));
   }
 
-  TaskConstMeta get kCrateApiDanmakuMaskDanmakuMaskAllowListBatchConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiDanmakuMaskDanmakuMaskAllowListBatchConstMeta =>
+      const TaskConstMeta(
         debugName: "DanmakuMask_allow_list_batch",
         argNames: ["that", "texts", "nowMs"],
       );
@@ -142,7 +593,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -154,7 +605,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     ));
   }
 
-  TaskConstMeta get kCrateApiDanmakuMaskDanmakuMaskDisposeConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiDanmakuMaskDanmakuMaskDisposeConstMeta =>
+      const TaskConstMeta(
         debugName: "DanmakuMask_dispose",
         argNames: ["that"],
       );
@@ -174,7 +626,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_bool(useNormalization, serializer);
         sse_encode_bool(useFrequencyControl, serializer);
         sse_encode_u_16(maxFrequency, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -182,14 +634,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeErrorData: null,
       ),
       constMeta: kCrateApiDanmakuMaskDanmakuMaskNewConstMeta,
-      argValues: [baseWindowMs, bucketCount, useNormalization, useFrequencyControl, maxFrequency],
+      argValues: [
+        baseWindowMs,
+        bucketCount,
+        useNormalization,
+        useFrequencyControl,
+        maxFrequency
+      ],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateApiDanmakuMaskDanmakuMaskNewConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiDanmakuMaskDanmakuMaskNewConstMeta =>
+      const TaskConstMeta(
         debugName: "DanmakuMask_new",
-        argNames: ["baseWindowMs", "bucketCount", "useNormalization", "useFrequencyControl", "maxFrequency"],
+        argNames: [
+          "baseWindowMs",
+          "bucketCount",
+          "useNormalization",
+          "useFrequencyControl",
+          "maxFrequency"
+        ],
       );
 
   @override
@@ -199,7 +664,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -211,17 +676,2647 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     ));
   }
 
-  TaskConstMeta get kCrateApiDanmakuMaskDanmakuMaskResetConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiDanmakuMaskDanmakuMaskResetConstMeta =>
+      const TaskConstMeta(
         debugName: "DanmakuMask_reset",
         argNames: ["that"],
       );
+
+  @override
+  Future<LiveBilibiliSite> crateApiSliveSiteLiveBilibiliSiteDefault() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 6, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteDefaultConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_default",
+        argNames: [],
+      );
+
+  @override
+  Future<AccountInfo> crateApiSliveSiteLiveBilibiliSiteGetAccountInfo(
+      {required LiveBilibiliSite that, required String credential}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_String(credential, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 7, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_account_info,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetAccountInfoConstMeta,
+      argValues: [that, credential],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteGetAccountInfoConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_get_account_info",
+        argNames: ["that", "credential"],
+      );
+
+  @override
+  Future<List<LiveCategory>> crateApiSliveSiteLiveBilibiliSiteGetCategories(
+      {required LiveBilibiliSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 8, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_category,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetCategoriesConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteGetCategoriesConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_get_categories",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<LiveCategoryResult> crateApiSliveSiteLiveBilibiliSiteGetCategoryRooms(
+      {required LiveBilibiliSite that,
+      required LiveSubCategory category,
+      required int page,
+      int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_sub_category(category, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 9, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetCategoryRoomsConstMeta,
+      argValues: [that, category, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveSiteLiveBilibiliSiteGetCategoryRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveBilibiliSite_get_category_rooms",
+            argNames: ["that", "category", "page", "pageSize"],
+          );
+
+  @override
+  Future<bool> crateApiSliveSiteLiveBilibiliSiteGetLiveStatus(
+      {required LiveBilibiliSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 10, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetLiveStatusConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteGetLiveStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_get_live_status",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  Future<List<LivePlayQuality>>
+      crateApiSliveSiteLiveBilibiliSiteGetPlayQualities(
+          {required LiveBilibiliSite that, required LiveRoomDetail detail}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 11, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_play_quality,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetPlayQualitiesConstMeta,
+      argValues: [that, detail],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveSiteLiveBilibiliSiteGetPlayQualitiesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveBilibiliSite_get_play_qualities",
+            argNames: ["that", "detail"],
+          );
+
+  @override
+  Future<LivePlayUrl> crateApiSliveSiteLiveBilibiliSiteGetPlayUrls(
+      {required LiveBilibiliSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        sse_encode_box_autoadd_live_play_quality(quality, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 12, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_play_url,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetPlayUrlsConstMeta,
+      argValues: [that, detail, quality],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteGetPlayUrlsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_get_play_urls",
+        argNames: ["that", "detail", "quality"],
+      );
+
+  @override
+  Future<QrCode> crateApiSliveSiteLiveBilibiliSiteGetQrCode(
+      {required LiveBilibiliSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 13, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_code,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetQrCodeConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteGetQrCodeConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_get_qr_code",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<QrPollResult> crateApiSliveSiteLiveBilibiliSiteGetQrPollResult(
+      {required LiveBilibiliSite that, required String qrcodeKey}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_String(qrcodeKey, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 14, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_poll_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetQrPollResultConstMeta,
+      argValues: [that, qrcodeKey],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveSiteLiveBilibiliSiteGetQrPollResultConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveBilibiliSite_get_qr_poll_result",
+            argNames: ["that", "qrcodeKey"],
+          );
+
+  @override
+  Future<LiveCategoryResult> crateApiSliveSiteLiveBilibiliSiteGetRecommendRooms(
+      {required LiveBilibiliSite that, required int page, int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 15, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetRecommendRoomsConstMeta,
+      argValues: [that, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveSiteLiveBilibiliSiteGetRecommendRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveBilibiliSite_get_recommend_rooms",
+            argNames: ["that", "page", "pageSize"],
+          );
+
+  @override
+  Future<LiveRoomDetail> crateApiSliveSiteLiveBilibiliSiteGetRoomDetail(
+      {required LiveBilibiliSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 16, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_room_detail,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteGetRoomDetailConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteGetRoomDetailConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_get_room_detail",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveSiteLiveBilibiliSiteGetSuperChatMessages(
+          {required LiveBilibiliSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 17, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_super_chat_message,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta:
+          kCrateApiSliveSiteLiveBilibiliSiteGetSuperChatMessagesConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveSiteLiveBilibiliSiteGetSuperChatMessagesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveBilibiliSite_get_super_chat_messages",
+            argNames: ["that", "roomId"],
+          );
+
+  @override
+  String crateApiSliveSiteLiveBilibiliSiteId({required LiveBilibiliSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteIdConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteIdConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_id",
+        argNames: ["that"],
+      );
+
+  @override
+  String crateApiSliveSiteLiveBilibiliSiteName(
+      {required LiveBilibiliSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteNameConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteNameConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_name",
+        argNames: ["that"],
+      );
+
+  @override
+  LiveBilibiliSite crateApiSliveSiteLiveBilibiliSiteNew() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteNewConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteNewConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_new",
+        argNames: [],
+      );
+
+  @override
+  Future<LiveSearchAnchorResult> crateApiSliveSiteLiveBilibiliSiteSearchAnchors(
+      {required LiveBilibiliSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 21, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_anchor_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteSearchAnchorsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteSearchAnchorsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_search_anchors",
+        argNames: ["that", "keyword", "page"],
+      );
+
+  @override
+  Future<LiveSearchRoomResult> crateApiSliveSiteLiveBilibiliSiteSearchRooms(
+      {required LiveBilibiliSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 22, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_room_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteSearchRoomsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteSearchRoomsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_search_rooms",
+        argNames: ["that", "keyword", "page"],
+      );
+
+  @override
+  void crateApiSliveSiteLiveBilibiliSiteSetSiteAttrs(
+      {required LiveBilibiliSite that, required String data}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+            that, serializer);
+        sse_encode_String(data, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveSiteLiveBilibiliSiteSetSiteAttrsConstMeta,
+      argValues: [that, data],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveSiteLiveBilibiliSiteSetSiteAttrsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveBilibiliSite_set_site_attrs",
+        argNames: ["that", "data"],
+      );
+
+  @override
+  Future<LiveDouyinSite> crateApiSliveDouyinLiveDouyinSiteDefault() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 24, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteDefaultConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_default",
+        argNames: [],
+      );
+
+  @override
+  Future<AccountInfo> crateApiSliveDouyinLiveDouyinSiteGetAccountInfo(
+      {required LiveDouyinSite that, required String credential}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_String(credential, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 25, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_account_info,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetAccountInfoConstMeta,
+      argValues: [that, credential],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteGetAccountInfoConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_get_account_info",
+        argNames: ["that", "credential"],
+      );
+
+  @override
+  Future<List<LiveCategory>> crateApiSliveDouyinLiveDouyinSiteGetCategories(
+      {required LiveDouyinSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 26, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_category,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetCategoriesConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteGetCategoriesConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_get_categories",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<LiveCategoryResult> crateApiSliveDouyinLiveDouyinSiteGetCategoryRooms(
+      {required LiveDouyinSite that,
+      required LiveSubCategory category,
+      required int page,
+      int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_sub_category(category, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 27, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetCategoryRoomsConstMeta,
+      argValues: [that, category, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveDouyinLiveDouyinSiteGetCategoryRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveDouyinSite_get_category_rooms",
+            argNames: ["that", "category", "page", "pageSize"],
+          );
+
+  @override
+  Future<bool> crateApiSliveDouyinLiveDouyinSiteGetLiveStatus(
+      {required LiveDouyinSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 28, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetLiveStatusConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteGetLiveStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_get_live_status",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  Future<List<LivePlayQuality>>
+      crateApiSliveDouyinLiveDouyinSiteGetPlayQualities(
+          {required LiveDouyinSite that, required LiveRoomDetail detail}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 29, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_play_quality,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetPlayQualitiesConstMeta,
+      argValues: [that, detail],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveDouyinLiveDouyinSiteGetPlayQualitiesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveDouyinSite_get_play_qualities",
+            argNames: ["that", "detail"],
+          );
+
+  @override
+  Future<LivePlayUrl> crateApiSliveDouyinLiveDouyinSiteGetPlayUrls(
+      {required LiveDouyinSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        sse_encode_box_autoadd_live_play_quality(quality, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 30, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_play_url,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetPlayUrlsConstMeta,
+      argValues: [that, detail, quality],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteGetPlayUrlsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_get_play_urls",
+        argNames: ["that", "detail", "quality"],
+      );
+
+  @override
+  Future<QrCode> crateApiSliveDouyinLiveDouyinSiteGetQrCode(
+      {required LiveDouyinSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 31, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_code,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetQrCodeConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteGetQrCodeConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_get_qr_code",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<QrPollResult> crateApiSliveDouyinLiveDouyinSiteGetQrPollResult(
+      {required LiveDouyinSite that, required String qrcodeKey}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_String(qrcodeKey, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 32, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_poll_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetQrPollResultConstMeta,
+      argValues: [that, qrcodeKey],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveDouyinLiveDouyinSiteGetQrPollResultConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveDouyinSite_get_qr_poll_result",
+            argNames: ["that", "qrcodeKey"],
+          );
+
+  @override
+  Future<LiveCategoryResult> crateApiSliveDouyinLiveDouyinSiteGetRecommendRooms(
+      {required LiveDouyinSite that, required int page, int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 33, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetRecommendRoomsConstMeta,
+      argValues: [that, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveDouyinLiveDouyinSiteGetRecommendRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveDouyinSite_get_recommend_rooms",
+            argNames: ["that", "page", "pageSize"],
+          );
+
+  @override
+  Future<LiveRoomDetail> crateApiSliveDouyinLiveDouyinSiteGetRoomDetail(
+      {required LiveDouyinSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 34, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_room_detail,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteGetRoomDetailConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteGetRoomDetailConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_get_room_detail",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveDouyinLiveDouyinSiteGetSuperChatMessages(
+          {required LiveDouyinSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 35, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_super_chat_message,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta:
+          kCrateApiSliveDouyinLiveDouyinSiteGetSuperChatMessagesConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveDouyinLiveDouyinSiteGetSuperChatMessagesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveDouyinSite_get_super_chat_messages",
+            argNames: ["that", "roomId"],
+          );
+
+  @override
+  String crateApiSliveDouyinLiveDouyinSiteId({required LiveDouyinSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteIdConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteIdConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_id",
+        argNames: ["that"],
+      );
+
+  @override
+  String crateApiSliveDouyinLiveDouyinSiteName({required LiveDouyinSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteNameConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteNameConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_name",
+        argNames: ["that"],
+      );
+
+  @override
+  LiveDouyinSite crateApiSliveDouyinLiveDouyinSiteNew() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteNewConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteNewConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_new",
+        argNames: [],
+      );
+
+  @override
+  Future<LiveSearchAnchorResult> crateApiSliveDouyinLiveDouyinSiteSearchAnchors(
+      {required LiveDouyinSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 39, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_anchor_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteSearchAnchorsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteSearchAnchorsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_search_anchors",
+        argNames: ["that", "keyword", "page"],
+      );
+
+  @override
+  Future<LiveSearchRoomResult> crateApiSliveDouyinLiveDouyinSiteSearchRooms(
+      {required LiveDouyinSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 40, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_room_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteSearchRoomsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteSearchRoomsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_search_rooms",
+        argNames: ["that", "keyword", "page"],
+      );
+
+  @override
+  void crateApiSliveDouyinLiveDouyinSiteSetSiteAttrs(
+      {required LiveDouyinSite that, required String data}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+            that, serializer);
+        sse_encode_String(data, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinLiveDouyinSiteSetSiteAttrsConstMeta,
+      argValues: [that, data],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinLiveDouyinSiteSetSiteAttrsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyinSite_set_site_attrs",
+        argNames: ["that", "data"],
+      );
+
+  @override
+  Future<LiveDouyuSite> crateApiSliveDouyuLiveDouyuSiteDefault() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 42, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteDefaultConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_default",
+        argNames: [],
+      );
+
+  @override
+  Future<AccountInfo> crateApiSliveDouyuLiveDouyuSiteGetAccountInfo(
+      {required LiveDouyuSite that, required String credential}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(credential, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 43, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_account_info,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetAccountInfoConstMeta,
+      argValues: [that, credential],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetAccountInfoConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_account_info",
+        argNames: ["that", "credential"],
+      );
+
+  @override
+  Future<List<LiveCategory>> crateApiSliveDouyuLiveDouyuSiteGetCategories(
+      {required LiveDouyuSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 44, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_category,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetCategoriesConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetCategoriesConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_categories",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<LiveCategoryResult> crateApiSliveDouyuLiveDouyuSiteGetCategoryRooms(
+      {required LiveDouyuSite that,
+      required LiveSubCategory category,
+      required int page,
+      int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_sub_category(category, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 45, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetCategoryRoomsConstMeta,
+      argValues: [that, category, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetCategoryRoomsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_category_rooms",
+        argNames: ["that", "category", "page", "pageSize"],
+      );
+
+  @override
+  Future<bool> crateApiSliveDouyuLiveDouyuSiteGetLiveStatus(
+      {required LiveDouyuSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 46, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetLiveStatusConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetLiveStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_live_status",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  Future<List<LivePlayQuality>> crateApiSliveDouyuLiveDouyuSiteGetPlayQualities(
+      {required LiveDouyuSite that, required LiveRoomDetail detail}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 47, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_play_quality,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetPlayQualitiesConstMeta,
+      argValues: [that, detail],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetPlayQualitiesConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_play_qualities",
+        argNames: ["that", "detail"],
+      );
+
+  @override
+  Future<LivePlayUrl> crateApiSliveDouyuLiveDouyuSiteGetPlayUrls(
+      {required LiveDouyuSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        sse_encode_box_autoadd_live_play_quality(quality, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 48, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_play_url,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetPlayUrlsConstMeta,
+      argValues: [that, detail, quality],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetPlayUrlsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_play_urls",
+        argNames: ["that", "detail", "quality"],
+      );
+
+  @override
+  Future<QrCode> crateApiSliveDouyuLiveDouyuSiteGetQrCode(
+      {required LiveDouyuSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 49, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_code,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetQrCodeConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetQrCodeConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_qr_code",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<QrPollResult> crateApiSliveDouyuLiveDouyuSiteGetQrPollResult(
+      {required LiveDouyuSite that, required String qrcodeKey}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(qrcodeKey, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 50, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_poll_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetQrPollResultConstMeta,
+      argValues: [that, qrcodeKey],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetQrPollResultConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_qr_poll_result",
+        argNames: ["that", "qrcodeKey"],
+      );
+
+  @override
+  Future<LiveCategoryResult> crateApiSliveDouyuLiveDouyuSiteGetRecommendRooms(
+      {required LiveDouyuSite that, required int page, int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 51, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetRecommendRoomsConstMeta,
+      argValues: [that, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveDouyuLiveDouyuSiteGetRecommendRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveDouyuSite_get_recommend_rooms",
+            argNames: ["that", "page", "pageSize"],
+          );
+
+  @override
+  Future<LiveRoomDetail> crateApiSliveDouyuLiveDouyuSiteGetRoomDetail(
+      {required LiveDouyuSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 52, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_room_detail,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetRoomDetailConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteGetRoomDetailConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_get_room_detail",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveDouyuLiveDouyuSiteGetSuperChatMessages(
+          {required LiveDouyuSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 53, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_super_chat_message,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteGetSuperChatMessagesConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveDouyuLiveDouyuSiteGetSuperChatMessagesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveDouyuSite_get_super_chat_messages",
+            argNames: ["that", "roomId"],
+          );
+
+  @override
+  String crateApiSliveDouyuLiveDouyuSiteId({required LiveDouyuSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 54)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteIdConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteIdConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_id",
+        argNames: ["that"],
+      );
+
+  @override
+  String crateApiSliveDouyuLiveDouyuSiteName({required LiveDouyuSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 55)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteNameConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteNameConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_name",
+        argNames: ["that"],
+      );
+
+  @override
+  LiveDouyuSite crateApiSliveDouyuLiveDouyuSiteNew() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 56)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteNewConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteNewConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_new",
+        argNames: [],
+      );
+
+  @override
+  Future<String> crateApiSliveDouyuLiveDouyuSiteRefreshCookie(
+      {required LiveDouyuSite that,
+      required String dyDid,
+      required String ltp0}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(dyDid, serializer);
+        sse_encode_String(ltp0, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 57, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteRefreshCookieConstMeta,
+      argValues: [that, dyDid, ltp0],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteRefreshCookieConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_refresh_cookie",
+        argNames: ["that", "dyDid", "ltp0"],
+      );
+
+  @override
+  Future<LiveSearchAnchorResult> crateApiSliveDouyuLiveDouyuSiteSearchAnchors(
+      {required LiveDouyuSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 58, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_anchor_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteSearchAnchorsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteSearchAnchorsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_search_anchors",
+        argNames: ["that", "keyword", "page"],
+      );
+
+  @override
+  Future<LiveSearchRoomResult> crateApiSliveDouyuLiveDouyuSiteSearchRooms(
+      {required LiveDouyuSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 59, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_room_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteSearchRoomsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteSearchRoomsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_search_rooms",
+        argNames: ["that", "keyword", "page"],
+      );
+
+  @override
+  void crateApiSliveDouyuLiveDouyuSiteSetSiteAttrs(
+      {required LiveDouyuSite that, required String data}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+            that, serializer);
+        sse_encode_String(data, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 60)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuLiveDouyuSiteSetSiteAttrsConstMeta,
+      argValues: [that, data],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuLiveDouyuSiteSetSiteAttrsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveDouyuSite_set_site_attrs",
+        argNames: ["that", "data"],
+      );
+
+  @override
+  Future<LiveHuyaSite> crateApiSliveHuyaSiteLiveHuyaSiteDefault() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 61, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteDefaultConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_default",
+        argNames: [],
+      );
+
+  @override
+  Future<AccountInfo> crateApiSliveHuyaSiteLiveHuyaSiteGetAccountInfo(
+      {required LiveHuyaSite that, required String credential}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(credential, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 62, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_account_info,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetAccountInfoConstMeta,
+      argValues: [that, credential],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteGetAccountInfoConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_get_account_info",
+        argNames: ["that", "credential"],
+      );
+
+  @override
+  Future<List<LiveCategory>> crateApiSliveHuyaSiteLiveHuyaSiteGetCategories(
+      {required LiveHuyaSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 63, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_category,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetCategoriesConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteGetCategoriesConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_get_categories",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<LiveCategoryResult> crateApiSliveHuyaSiteLiveHuyaSiteGetCategoryRooms(
+      {required LiveHuyaSite that,
+      required LiveSubCategory category,
+      required int page,
+      int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_sub_category(category, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 64, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetCategoryRoomsConstMeta,
+      argValues: [that, category, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveHuyaSiteLiveHuyaSiteGetCategoryRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveHuyaSite_get_category_rooms",
+            argNames: ["that", "category", "page", "pageSize"],
+          );
+
+  @override
+  Future<bool> crateApiSliveHuyaSiteLiveHuyaSiteGetLiveStatus(
+      {required LiveHuyaSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 65, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetLiveStatusConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteGetLiveStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_get_live_status",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  Future<List<LivePlayQuality>>
+      crateApiSliveHuyaSiteLiveHuyaSiteGetPlayQualities(
+          {required LiveHuyaSite that, required LiveRoomDetail detail}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 66, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_play_quality,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetPlayQualitiesConstMeta,
+      argValues: [that, detail],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveHuyaSiteLiveHuyaSiteGetPlayQualitiesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveHuyaSite_get_play_qualities",
+            argNames: ["that", "detail"],
+          );
+
+  @override
+  Future<LivePlayUrl> crateApiSliveHuyaSiteLiveHuyaSiteGetPlayUrls(
+      {required LiveHuyaSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        sse_encode_box_autoadd_live_play_quality(quality, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 67, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_play_url,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetPlayUrlsConstMeta,
+      argValues: [that, detail, quality],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteGetPlayUrlsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_get_play_urls",
+        argNames: ["that", "detail", "quality"],
+      );
+
+  @override
+  Future<QrCode> crateApiSliveHuyaSiteLiveHuyaSiteGetQrCode(
+      {required LiveHuyaSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 68, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_code,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetQrCodeConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteGetQrCodeConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_get_qr_code",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<QrPollResult> crateApiSliveHuyaSiteLiveHuyaSiteGetQrPollResult(
+      {required LiveHuyaSite that, required String qrcodeKey}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(qrcodeKey, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 69, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_poll_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetQrPollResultConstMeta,
+      argValues: [that, qrcodeKey],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveHuyaSiteLiveHuyaSiteGetQrPollResultConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveHuyaSite_get_qr_poll_result",
+            argNames: ["that", "qrcodeKey"],
+          );
+
+  @override
+  Future<LiveCategoryResult> crateApiSliveHuyaSiteLiveHuyaSiteGetRecommendRooms(
+      {required LiveHuyaSite that, required int page, int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 70, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetRecommendRoomsConstMeta,
+      argValues: [that, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveHuyaSiteLiveHuyaSiteGetRecommendRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveHuyaSite_get_recommend_rooms",
+            argNames: ["that", "page", "pageSize"],
+          );
+
+  @override
+  Future<LiveRoomDetail> crateApiSliveHuyaSiteLiveHuyaSiteGetRoomDetail(
+      {required LiveHuyaSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 71, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_room_detail,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetRoomDetailConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteGetRoomDetailConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_get_room_detail",
+        argNames: ["that", "roomId"],
+      );
+
+  @override
+  Future<List<LiveSubCategory>>
+      crateApiSliveHuyaSiteLiveHuyaSiteGetSubCategories(
+          {required LiveHuyaSite that, required String parentId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(parentId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 72, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_sub_category,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteGetSubCategoriesConstMeta,
+      argValues: [that, parentId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveHuyaSiteLiveHuyaSiteGetSubCategoriesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveHuyaSite_get_sub_categories",
+            argNames: ["that", "parentId"],
+          );
+
+  @override
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveHuyaSiteLiveHuyaSiteGetSuperChatMessages(
+          {required LiveHuyaSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 73, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_super_chat_message,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta:
+          kCrateApiSliveHuyaSiteLiveHuyaSiteGetSuperChatMessagesConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveHuyaSiteLiveHuyaSiteGetSuperChatMessagesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveHuyaSite_get_super_chat_messages",
+            argNames: ["that", "roomId"],
+          );
+
+  @override
+  String crateApiSliveHuyaSiteLiveHuyaSiteId({required LiveHuyaSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 74)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteIdConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteIdConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_id",
+        argNames: ["that"],
+      );
+
+  @override
+  String crateApiSliveHuyaSiteLiveHuyaSiteName({required LiveHuyaSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 75)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteNameConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteNameConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_name",
+        argNames: ["that"],
+      );
+
+  @override
+  LiveHuyaSite crateApiSliveHuyaSiteLiveHuyaSiteNew() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 76)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteNewConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteNewConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_new",
+        argNames: [],
+      );
+
+  @override
+  Future<LiveSearchAnchorResult> crateApiSliveHuyaSiteLiveHuyaSiteSearchAnchors(
+      {required LiveHuyaSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 77, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_anchor_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteSearchAnchorsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteSearchAnchorsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_search_anchors",
+        argNames: ["that", "keyword", "page"],
+      );
+
+  @override
+  Future<LiveSearchRoomResult> crateApiSliveHuyaSiteLiveHuyaSiteSearchRooms(
+      {required LiveHuyaSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 78, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_room_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteSearchRoomsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteSearchRoomsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_search_rooms",
+        argNames: ["that", "keyword", "page"],
+      );
+
+  @override
+  void crateApiSliveHuyaSiteLiveHuyaSiteSetSiteAttrs(
+      {required LiveHuyaSite that, required String data}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+            that, serializer);
+        sse_encode_String(data, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 79)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaSiteLiveHuyaSiteSetSiteAttrsConstMeta,
+      argValues: [that, data],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaSiteLiveHuyaSiteSetSiteAttrsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveHuyaSite_set_site_attrs",
+        argNames: ["that", "data"],
+      );
+
+  @override
+  Future<LiveTwitchSite> crateApiSliveTwitchSiteLiveTwitchSiteDefault() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 80, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteDefaultConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveTwitchSiteLiveTwitchSiteDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveTwitchSite_default",
+        argNames: [],
+      );
+
+  @override
+  Future<AccountInfo> crateApiSliveTwitchSiteLiveTwitchSiteGetAccountInfo(
+      {required LiveTwitchSite that, required String credential}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_String(credential, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 81, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_account_info,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteGetAccountInfoConstMeta,
+      argValues: [that, credential],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetAccountInfoConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_account_info",
+            argNames: ["that", "credential"],
+          );
+
+  @override
+  Future<List<LiveCategory>> crateApiSliveTwitchSiteLiveTwitchSiteGetCategories(
+      {required LiveTwitchSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 82, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_category,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteGetCategoriesConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetCategoriesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_categories",
+            argNames: ["that"],
+          );
+
+  @override
+  Future<LiveCategoryResult>
+      crateApiSliveTwitchSiteLiveTwitchSiteGetCategoryRooms(
+          {required LiveTwitchSite that,
+          required LiveSubCategory category,
+          required int page,
+          int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_sub_category(category, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 83, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta:
+          kCrateApiSliveTwitchSiteLiveTwitchSiteGetCategoryRoomsConstMeta,
+      argValues: [that, category, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetCategoryRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_category_rooms",
+            argNames: ["that", "category", "page", "pageSize"],
+          );
+
+  @override
+  Future<bool> crateApiSliveTwitchSiteLiveTwitchSiteGetLiveStatus(
+      {required LiveTwitchSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 84, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_bool,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteGetLiveStatusConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetLiveStatusConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_live_status",
+            argNames: ["that", "roomId"],
+          );
+
+  @override
+  Future<List<LivePlayQuality>>
+      crateApiSliveTwitchSiteLiveTwitchSiteGetPlayQualities(
+          {required LiveTwitchSite that, required LiveRoomDetail detail}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 85, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_play_quality,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta:
+          kCrateApiSliveTwitchSiteLiveTwitchSiteGetPlayQualitiesConstMeta,
+      argValues: [that, detail],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetPlayQualitiesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_play_qualities",
+            argNames: ["that", "detail"],
+          );
+
+  @override
+  Future<LivePlayUrl> crateApiSliveTwitchSiteLiveTwitchSiteGetPlayUrls(
+      {required LiveTwitchSite that,
+      required LiveRoomDetail detail,
+      required LivePlayQuality quality}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_box_autoadd_live_room_detail(detail, serializer);
+        sse_encode_box_autoadd_live_play_quality(quality, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 86, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_play_url,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteGetPlayUrlsConstMeta,
+      argValues: [that, detail, quality],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetPlayUrlsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_play_urls",
+            argNames: ["that", "detail", "quality"],
+          );
+
+  @override
+  Future<QrCode> crateApiSliveTwitchSiteLiveTwitchSiteGetQrCode(
+      {required LiveTwitchSite that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 87, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_code,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteGetQrCodeConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveTwitchSiteLiveTwitchSiteGetQrCodeConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveTwitchSite_get_qr_code",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<QrPollResult> crateApiSliveTwitchSiteLiveTwitchSiteGetQrPollResult(
+      {required LiveTwitchSite that, required String qrcodeKey}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_String(qrcodeKey, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 88, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_qr_poll_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteGetQrPollResultConstMeta,
+      argValues: [that, qrcodeKey],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetQrPollResultConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_qr_poll_result",
+            argNames: ["that", "qrcodeKey"],
+          );
+
+  @override
+  Future<LiveCategoryResult>
+      crateApiSliveTwitchSiteLiveTwitchSiteGetRecommendRooms(
+          {required LiveTwitchSite that, required int page, int? pageSize}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_i_32(page, serializer);
+        sse_encode_opt_box_autoadd_i_32(pageSize, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 89, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_category_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta:
+          kCrateApiSliveTwitchSiteLiveTwitchSiteGetRecommendRoomsConstMeta,
+      argValues: [that, page, pageSize],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetRecommendRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_recommend_rooms",
+            argNames: ["that", "page", "pageSize"],
+          );
+
+  @override
+  Future<LiveRoomDetail> crateApiSliveTwitchSiteLiveTwitchSiteGetRoomDetail(
+      {required LiveTwitchSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 90, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_room_detail,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteGetRoomDetailConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetRoomDetailConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_room_detail",
+            argNames: ["that", "roomId"],
+          );
+
+  @override
+  Future<List<LiveSuperChatMessage>>
+      crateApiSliveTwitchSiteLiveTwitchSiteGetSuperChatMessages(
+          {required LiveTwitchSite that, required String roomId}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_String(roomId, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 91, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_live_super_chat_message,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta:
+          kCrateApiSliveTwitchSiteLiveTwitchSiteGetSuperChatMessagesConstMeta,
+      argValues: [that, roomId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteGetSuperChatMessagesConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_get_super_chat_messages",
+            argNames: ["that", "roomId"],
+          );
+
+  @override
+  String crateApiSliveTwitchSiteLiveTwitchSiteId(
+      {required LiveTwitchSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 92)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteIdConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveTwitchSiteLiveTwitchSiteIdConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveTwitchSite_id",
+        argNames: ["that"],
+      );
+
+  @override
+  String crateApiSliveTwitchSiteLiveTwitchSiteName(
+      {required LiveTwitchSite that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 93)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteNameConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveTwitchSiteLiveTwitchSiteNameConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveTwitchSite_name",
+        argNames: ["that"],
+      );
+
+  @override
+  LiveTwitchSite crateApiSliveTwitchSiteLiveTwitchSiteNew() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 94)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteNewConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveTwitchSiteLiveTwitchSiteNewConstMeta =>
+      const TaskConstMeta(
+        debugName: "LiveTwitchSite_new",
+        argNames: [],
+      );
+
+  @override
+  Future<LiveSearchAnchorResult>
+      crateApiSliveTwitchSiteLiveTwitchSiteSearchAnchors(
+          {required LiveTwitchSite that,
+          required String keyword,
+          required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 95, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_anchor_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteSearchAnchorsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteSearchAnchorsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_search_anchors",
+            argNames: ["that", "keyword", "page"],
+          );
+
+  @override
+  Future<LiveSearchRoomResult> crateApiSliveTwitchSiteLiveTwitchSiteSearchRooms(
+      {required LiveTwitchSite that,
+      required String keyword,
+      required int page}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_String(keyword, serializer);
+        sse_encode_i_32(page, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 96, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_live_search_room_result,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteSearchRoomsConstMeta,
+      argValues: [that, keyword, page],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteSearchRoomsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_search_rooms",
+            argNames: ["that", "keyword", "page"],
+          );
+
+  @override
+  void crateApiSliveTwitchSiteLiveTwitchSiteSetSiteAttrs(
+      {required LiveTwitchSite that, required String data}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+            that, serializer);
+        sse_encode_String(data, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 97)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchSiteLiveTwitchSiteSetSiteAttrsConstMeta,
+      argValues: [that, data],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateApiSliveTwitchSiteLiveTwitchSiteSetSiteAttrsConstMeta =>
+          const TaskConstMeta(
+            debugName: "LiveTwitchSite_set_site_attrs",
+            argNames: ["that", "data"],
+          );
 
   @override
   Future<void> crateApiSimpleInitApp() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5, port: port_);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 98, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -238,30 +3333,514 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: [],
       );
 
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_DanmakuMask =>
-      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask;
+  @override
+  Stream<LiveDanmuItem> crateApiSliveDanmakuStartDanmaku(
+      {required String argsJson}) {
+    final sink = RustStreamSink<LiveDanmuItem>();
+    unawaited(handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(argsJson, serializer);
+        sse_encode_StreamSink_live_danmu_item_Sse(sink, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 99, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDanmakuStartDanmakuConstMeta,
+      argValues: [argsJson, sink],
+      apiImpl: this,
+    )));
+    return sink.stream;
+  }
 
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_DanmakuMask =>
-      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask;
+  TaskConstMeta get kCrateApiSliveDanmakuStartDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "start_danmaku",
+        argNames: ["argsJson", "sink"],
+      );
+
+  @override
+  Stream<LiveDanmuItem> crateApiSliveDouyinStartDouyinDanmaku(
+      {required String argsJson}) {
+    final sink = RustStreamSink<LiveDanmuItem>();
+    unawaited(handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(argsJson, serializer);
+        sse_encode_StreamSink_live_danmu_item_Sse(sink, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 100, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyinStartDouyinDanmakuConstMeta,
+      argValues: [argsJson, sink],
+      apiImpl: this,
+    )));
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinStartDouyinDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "start_douyin_danmaku",
+        argNames: ["argsJson", "sink"],
+      );
+
+  @override
+  Stream<LiveDanmuItem> crateApiSliveDouyuStartDouyuDanmaku(
+      {required String roomId}) {
+    final sink = RustStreamSink<LiveDanmuItem>();
+    unawaited(handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(roomId, serializer);
+        sse_encode_StreamSink_live_danmu_item_Sse(sink, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 101, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveDouyuStartDouyuDanmakuConstMeta,
+      argValues: [roomId, sink],
+      apiImpl: this,
+    )));
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuStartDouyuDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "start_douyu_danmaku",
+        argNames: ["roomId", "sink"],
+      );
+
+  @override
+  Stream<LiveDanmuItem> crateApiSliveHuyaStartHuyaDanmaku(
+      {required String argsJson}) {
+    final sink = RustStreamSink<LiveDanmuItem>();
+    unawaited(handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(argsJson, serializer);
+        sse_encode_StreamSink_live_danmu_item_Sse(sink, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 102, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveHuyaStartHuyaDanmakuConstMeta,
+      argValues: [argsJson, sink],
+      apiImpl: this,
+    )));
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaStartHuyaDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "start_huya_danmaku",
+        argNames: ["argsJson", "sink"],
+      );
+
+  @override
+  Stream<LiveDanmuItem> crateApiSliveTwitchDanmakuStartTwitchDanmaku(
+      {required String channelOrArgs}) {
+    final sink = RustStreamSink<LiveDanmuItem>();
+    unawaited(handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(channelOrArgs, serializer);
+        sse_encode_StreamSink_live_danmu_item_Sse(sink, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 103, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_core_error,
+      ),
+      constMeta: kCrateApiSliveTwitchDanmakuStartTwitchDanmakuConstMeta,
+      argValues: [channelOrArgs, sink],
+      apiImpl: this,
+    )));
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSliveTwitchDanmakuStartTwitchDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "start_twitch_danmaku",
+        argNames: ["channelOrArgs", "sink"],
+      );
+
+  @override
+  void crateApiSliveDanmakuStopDanmaku() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 104)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDanmakuStopDanmakuConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDanmakuStopDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "stop_danmaku",
+        argNames: [],
+      );
+
+  @override
+  void crateApiSliveDouyinStopDouyinDanmaku() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 105)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyinStopDouyinDanmakuConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyinStopDouyinDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "stop_douyin_danmaku",
+        argNames: [],
+      );
+
+  @override
+  void crateApiSliveDouyuStopDouyuDanmaku() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 106)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveDouyuStopDouyuDanmakuConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveDouyuStopDouyuDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "stop_douyu_danmaku",
+        argNames: [],
+      );
+
+  @override
+  void crateApiSliveHuyaStopHuyaDanmaku() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 107)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveHuyaStopHuyaDanmakuConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveHuyaStopHuyaDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "stop_huya_danmaku",
+        argNames: [],
+      );
+
+  @override
+  void crateApiSliveTwitchDanmakuStopTwitchDanmaku() {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 108)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiSliveTwitchDanmakuStopTwitchDanmakuConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiSliveTwitchDanmakuStopTwitchDanmakuConstMeta =>
+      const TaskConstMeta(
+        debugName: "stop_twitch_danmaku",
+        argNames: [],
+      );
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_DanmakuConnection => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_DanmakuConnection => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_DanmakuMask => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_DanmakuMask => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveBilibiliSite => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveBilibiliSite => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveDouyinSite => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveDouyinSite => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveDouyuSite => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveDouyuSite => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveHuyaSite => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveHuyaSite => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_LiveTwitchSite => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_LiveTwitchSite => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite;
 
   @protected
-  DanmakuMask dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      dynamic raw) {
+  AnyhowException dco_decode_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnyhowException(raw as String);
+  }
+
+  @protected
+  DanmakuConnection
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DanmakuConnectionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  DanmakuMask
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DanmakuMaskImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
-  DanmakuMask dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      dynamic raw) {
+  LiveBilibiliSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveBilibiliSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveDouyinSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveDouyinSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveDouyuSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveDouyuSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveHuyaSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveHuyaSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveTwitchSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveTwitchSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  DanmakuMask
+      dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DanmakuMaskImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
-  DanmakuMask dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(dynamic raw) {
+  DanmakuConnection
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DanmakuConnectionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveBilibiliSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveBilibiliSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveDouyinSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveDouyinSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveDouyuSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveDouyuSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveHuyaSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveHuyaSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveTwitchSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveTwitchSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  DateTime dco_decode_Chrono_Local(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeTimestamp(ts: dco_decode_i_64(raw).toInt(), isUtc: false);
+  }
+
+  @protected
+  Map<String, String> dco_decode_Map_String_String_None(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Map.fromEntries(dco_decode_list_record_string_string(raw)
+        .map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
+  DanmakuConnection
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DanmakuConnectionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  DanmakuMask
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DanmakuMaskImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveBilibiliSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveBilibiliSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveDouyinSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveDouyinSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveDouyuSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveDouyuSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveHuyaSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveHuyaSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LiveTwitchSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveTwitchSiteImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  RustStreamSink<LiveDanmuItem> dco_decode_StreamSink_live_danmu_item_Sse(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
   }
 
   @protected
@@ -271,9 +3850,104 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AccountInfo dco_decode_account_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return AccountInfo(
+      name: dco_decode_opt_String(arr[0]),
+      avatar: dco_decode_opt_String(arr[1]),
+      uid: dco_decode_opt_String(arr[2]),
+      credential: dco_decode_String(arr[3]),
+      isValid: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  int dco_decode_box_autoadd_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
+  }
+
+  @protected
+  LiveDanmuControlEvent dco_decode_box_autoadd_live_danmu_control_event(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_live_danmu_control_event(raw);
+  }
+
+  @protected
+  LiveMessageData dco_decode_box_autoadd_live_message_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_live_message_data(raw);
+  }
+
+  @protected
+  LivePlayQuality dco_decode_box_autoadd_live_play_quality(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_live_play_quality(raw);
+  }
+
+  @protected
+  LiveRoomDetail dco_decode_box_autoadd_live_room_detail(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_live_room_detail(raw);
+  }
+
+  @protected
+  LiveSubCategory dco_decode_box_autoadd_live_sub_category(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_live_sub_category(raw);
+  }
+
+  @protected
+  LiveSuperChatMessage dco_decode_box_autoadd_live_super_chat_message(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_live_super_chat_message(raw);
+  }
+
+  @protected
+  LiveMessage dco_decode_box_live_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_live_message(raw);
+  }
+
+  @protected
+  CoreError dco_decode_core_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CoreError(
+      message: dco_decode_String(arr[0]),
+      statusCode: dco_decode_i_32(arr[1]),
+    );
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
   }
 
   @protected
@@ -283,9 +3957,408 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LiveAnchorItem> dco_decode_list_live_anchor_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_live_anchor_item).toList();
+  }
+
+  @protected
+  List<LiveCategory> dco_decode_list_live_category(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_live_category).toList();
+  }
+
+  @protected
+  List<LiveMessageEmoticon> dco_decode_list_live_message_emoticon(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_live_message_emoticon)
+        .toList();
+  }
+
+  @protected
+  List<LivePlayQuality> dco_decode_list_live_play_quality(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_live_play_quality).toList();
+  }
+
+  @protected
+  List<LiveRoomItem> dco_decode_list_live_room_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_live_room_item).toList();
+  }
+
+  @protected
+  List<LiveSubCategory> dco_decode_list_live_sub_category(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_live_sub_category).toList();
+  }
+
+  @protected
+  List<LiveSuperChatMessage> dco_decode_list_live_super_chat_message(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_live_super_chat_message)
+        .toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  List<(String, String)> dco_decode_list_record_string_string(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_record_string_string).toList();
+  }
+
+  @protected
+  LiveAnchorItem dco_decode_live_anchor_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LiveAnchorItem(
+      roomId: dco_decode_String(arr[0]),
+      avatar: dco_decode_String(arr[1]),
+      userName: dco_decode_String(arr[2]),
+      liveStatus: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  LiveCategory dco_decode_live_category(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return LiveCategory(
+      name: dco_decode_String(arr[0]),
+      id: dco_decode_String(arr[1]),
+      children: dco_decode_list_live_sub_category(arr[2]),
+    );
+  }
+
+  @protected
+  LiveCategoryResult dco_decode_live_category_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return LiveCategoryResult(
+      hasMore: dco_decode_bool(arr[0]),
+      items: dco_decode_list_live_room_item(arr[1]),
+    );
+  }
+
+  @protected
+  LiveDanmuControlEvent dco_decode_live_danmu_control_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return LiveDanmuControlEvent_Ready();
+      case 1:
+        return LiveDanmuControlEvent_Reconnecting(
+          attempt: dco_decode_u_32(raw[1]),
+        );
+      case 2:
+        return LiveDanmuControlEvent_Closed(
+          dco_decode_String(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  LiveDanmuItem dco_decode_live_danmu_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return LiveDanmuItem_Message(
+          dco_decode_box_live_message(raw[1]),
+        );
+      case 1:
+        return LiveDanmuItem_Control(
+          dco_decode_box_autoadd_live_danmu_control_event(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  LiveMessage dco_decode_live_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return LiveMessage(
+      messageType: dco_decode_live_message_type(arr[0]),
+      userName: dco_decode_String(arr[1]),
+      userId: dco_decode_opt_String(arr[2]),
+      message: dco_decode_String(arr[3]),
+      data: dco_decode_opt_box_autoadd_live_message_data(arr[4]),
+      color: dco_decode_live_message_color(arr[5]),
+      emoticons: dco_decode_opt_list_live_message_emoticon(arr[6]),
+    );
+  }
+
+  @protected
+  LiveMessageColor dco_decode_live_message_color(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return LiveMessageColor(
+      r: dco_decode_i_32(arr[0]),
+      g: dco_decode_i_32(arr[1]),
+      b: dco_decode_i_32(arr[2]),
+    );
+  }
+
+  @protected
+  LiveMessageData dco_decode_live_message_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return LiveMessageData_Online(
+          dco_decode_i_32(raw[1]),
+        );
+      case 1:
+        return LiveMessageData_SuperChat(
+          dco_decode_box_autoadd_live_super_chat_message(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  LiveMessageEmoticon dco_decode_live_message_emoticon(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return LiveMessageEmoticon(
+      name: dco_decode_opt_String(arr[0]),
+      url: dco_decode_String(arr[1]),
+      width: dco_decode_opt_box_autoadd_i_32(arr[2]),
+      height: dco_decode_opt_box_autoadd_i_32(arr[3]),
+      large: dco_decode_bool(arr[4]),
+      emoticonUnique: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
+  LiveMessageType dco_decode_live_message_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LiveMessageType.values[raw as int];
+  }
+
+  @protected
+  LivePlayQuality dco_decode_live_play_quality(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return LivePlayQuality(
+      quality: dco_decode_String(arr[0]),
+      data: dco_decode_String(arr[1]),
+      sort: dco_decode_i_32(arr[2]),
+    );
+  }
+
+  @protected
+  LivePlayUrl dco_decode_live_play_url(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return LivePlayUrl(
+      urls: dco_decode_list_String(arr[0]),
+      headers: dco_decode_opt_Map_String_String_None(arr[1]),
+    );
+  }
+
+  @protected
+  LiveRoomDetail dco_decode_live_room_detail(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    return LiveRoomDetail(
+      roomId: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      cover: dco_decode_String(arr[2]),
+      userName: dco_decode_String(arr[3]),
+      userAvatar: dco_decode_String(arr[4]),
+      online: dco_decode_i_32(arr[5]),
+      introduction: dco_decode_opt_String(arr[6]),
+      notice: dco_decode_opt_String(arr[7]),
+      status: dco_decode_bool(arr[8]),
+      data: dco_decode_opt_String(arr[9]),
+      danmakuData: dco_decode_opt_String(arr[10]),
+      isRecord: dco_decode_bool(arr[11]),
+      url: dco_decode_String(arr[12]),
+    );
+  }
+
+  @protected
+  LiveRoomItem dco_decode_live_room_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return LiveRoomItem(
+      roomId: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      cover: dco_decode_String(arr[2]),
+      userName: dco_decode_String(arr[3]),
+      online: dco_decode_i_32(arr[4]),
+    );
+  }
+
+  @protected
+  LiveSearchAnchorResult dco_decode_live_search_anchor_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return LiveSearchAnchorResult(
+      hasMore: dco_decode_bool(arr[0]),
+      items: dco_decode_list_live_anchor_item(arr[1]),
+    );
+  }
+
+  @protected
+  LiveSearchRoomResult dco_decode_live_search_room_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return LiveSearchRoomResult(
+      hasMore: dco_decode_bool(arr[0]),
+      items: dco_decode_list_live_room_item(arr[1]),
+    );
+  }
+
+  @protected
+  LiveSubCategory dco_decode_live_sub_category(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LiveSubCategory(
+      name: dco_decode_String(arr[0]),
+      pic: dco_decode_opt_String(arr[1]),
+      id: dco_decode_String(arr[2]),
+      parentId: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  LiveSuperChatMessage dco_decode_live_super_chat_message(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return LiveSuperChatMessage(
+      userName: dco_decode_String(arr[0]),
+      face: dco_decode_String(arr[1]),
+      message: dco_decode_String(arr[2]),
+      price: dco_decode_i_32(arr[3]),
+      startTime: dco_decode_Chrono_Local(arr[4]),
+      endTime: dco_decode_Chrono_Local(arr[5]),
+      backgroundColor: dco_decode_String(arr[6]),
+      backgroundBottomColor: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
+  Map<String, String>? dco_decode_opt_Map_String_String_None(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_Map_String_String_None(raw);
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_32(raw);
+  }
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  LiveMessageData? dco_decode_opt_box_autoadd_live_message_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_live_message_data(raw);
+  }
+
+  @protected
+  List<LiveMessageEmoticon>? dco_decode_opt_list_live_message_emoticon(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_live_message_emoticon(raw);
+  }
+
+  @protected
+  QrCode dco_decode_qr_code(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return QrCode(
+      key: dco_decode_String(arr[0]),
+      url: dco_decode_String(arr[1]),
+      createdAt: dco_decode_opt_box_autoadd_i_64(arr[2]),
+      expireAt: dco_decode_opt_box_autoadd_i_64(arr[3]),
+    );
+  }
+
+  @protected
+  QrPollResult dco_decode_qr_poll_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return QrPollResult(
+      status: dco_decode_qr_status(arr[0]),
+      credential: dco_decode_String(arr[1]),
+      message: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  QrStatus dco_decode_qr_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return QrStatus.values[raw as int];
+  }
+
+  @protected
+  (String, String) dco_decode_record_string_string(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_String(arr[0]),
+      dco_decode_String(arr[1]),
+    );
   }
 
   @protected
@@ -325,24 +4398,221 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  DanmakuMask sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      SseDeserializer deserializer) {
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return DanmakuMaskImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+    var inner = sse_decode_String(deserializer);
+    return AnyhowException(inner);
   }
 
   @protected
-  DanmakuMask sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      SseDeserializer deserializer) {
+  DanmakuConnection
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return DanmakuMaskImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+    return DanmakuConnectionImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
   @protected
-  DanmakuMask sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+  DanmakuMask
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DanmakuMaskImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveBilibiliSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveBilibiliSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveDouyinSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveDouyinSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveDouyuSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveDouyuSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveHuyaSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveHuyaSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveTwitchSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveTwitchSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  DanmakuMask
+      sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DanmakuMaskImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  DanmakuConnection
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DanmakuConnectionImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveBilibiliSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveBilibiliSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveDouyinSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveDouyinSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveDouyuSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveDouyuSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveHuyaSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveHuyaSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveTwitchSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveTwitchSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  DateTime sse_decode_Chrono_Local(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_64(deserializer);
+    return DateTime.fromMicrosecondsSinceEpoch(inner.toInt(), isUtc: false);
+  }
+
+  @protected
+  Map<String, String> sse_decode_Map_String_String_None(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return DanmakuMaskImpl.frbInternalSseDecode(sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+    var inner = sse_decode_list_record_string_string(deserializer);
+    return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
+  DanmakuConnection
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DanmakuConnectionImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  DanmakuMask
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DanmakuMaskImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveBilibiliSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveBilibiliSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveDouyinSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveDouyinSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveDouyuSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveDouyuSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveHuyaSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveHuyaSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LiveTwitchSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LiveTwitchSiteImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  RustStreamSink<LiveDanmuItem> sse_decode_StreamSink_live_danmu_item_Sse(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
   }
 
   @protected
@@ -353,9 +4623,105 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AccountInfo sse_decode_account_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_opt_String(deserializer);
+    var var_avatar = sse_decode_opt_String(deserializer);
+    var var_uid = sse_decode_opt_String(deserializer);
+    var var_credential = sse_decode_String(deserializer);
+    var var_isValid = sse_decode_bool(deserializer);
+    return AccountInfo(
+        name: var_name,
+        avatar: var_avatar,
+        uid: var_uid,
+        credential: var_credential,
+        isValid: var_isValid);
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  int sse_decode_box_autoadd_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  LiveDanmuControlEvent sse_decode_box_autoadd_live_danmu_control_event(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_live_danmu_control_event(deserializer));
+  }
+
+  @protected
+  LiveMessageData sse_decode_box_autoadd_live_message_data(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_live_message_data(deserializer));
+  }
+
+  @protected
+  LivePlayQuality sse_decode_box_autoadd_live_play_quality(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_live_play_quality(deserializer));
+  }
+
+  @protected
+  LiveRoomDetail sse_decode_box_autoadd_live_room_detail(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_live_room_detail(deserializer));
+  }
+
+  @protected
+  LiveSubCategory sse_decode_box_autoadd_live_sub_category(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_live_sub_category(deserializer));
+  }
+
+  @protected
+  LiveSuperChatMessage sse_decode_box_autoadd_live_super_chat_message(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_live_super_chat_message(deserializer));
+  }
+
+  @protected
+  LiveMessage sse_decode_box_live_message(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_live_message(deserializer));
+  }
+
+  @protected
+  CoreError sse_decode_core_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_message = sse_decode_String(deserializer);
+    var var_statusCode = sse_decode_i_32(deserializer);
+    return CoreError(message: var_message, statusCode: var_statusCode);
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -371,10 +4737,484 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LiveAnchorItem> sse_decode_list_live_anchor_item(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LiveAnchorItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_live_anchor_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LiveCategory> sse_decode_list_live_category(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LiveCategory>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_live_category(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LiveMessageEmoticon> sse_decode_list_live_message_emoticon(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LiveMessageEmoticon>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_live_message_emoticon(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LivePlayQuality> sse_decode_list_live_play_quality(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LivePlayQuality>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_live_play_quality(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LiveRoomItem> sse_decode_list_live_room_item(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LiveRoomItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_live_room_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LiveSubCategory> sse_decode_list_live_sub_category(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LiveSubCategory>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_live_sub_category(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LiveSuperChatMessage> sse_decode_list_live_super_chat_message(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LiveSuperChatMessage>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_live_super_chat_message(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  List<(String, String)> sse_decode_list_record_string_string(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, String)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_string_string(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  LiveAnchorItem sse_decode_live_anchor_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_roomId = sse_decode_String(deserializer);
+    var var_avatar = sse_decode_String(deserializer);
+    var var_userName = sse_decode_String(deserializer);
+    var var_liveStatus = sse_decode_bool(deserializer);
+    return LiveAnchorItem(
+        roomId: var_roomId,
+        avatar: var_avatar,
+        userName: var_userName,
+        liveStatus: var_liveStatus);
+  }
+
+  @protected
+  LiveCategory sse_decode_live_category(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_children = sse_decode_list_live_sub_category(deserializer);
+    return LiveCategory(name: var_name, id: var_id, children: var_children);
+  }
+
+  @protected
+  LiveCategoryResult sse_decode_live_category_result(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hasMore = sse_decode_bool(deserializer);
+    var var_items = sse_decode_list_live_room_item(deserializer);
+    return LiveCategoryResult(hasMore: var_hasMore, items: var_items);
+  }
+
+  @protected
+  LiveDanmuControlEvent sse_decode_live_danmu_control_event(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return LiveDanmuControlEvent_Ready();
+      case 1:
+        var var_attempt = sse_decode_u_32(deserializer);
+        return LiveDanmuControlEvent_Reconnecting(attempt: var_attempt);
+      case 2:
+        var var_field0 = sse_decode_String(deserializer);
+        return LiveDanmuControlEvent_Closed(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  LiveDanmuItem sse_decode_live_danmu_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_box_live_message(deserializer);
+        return LiveDanmuItem_Message(var_field0);
+      case 1:
+        var var_field0 =
+            sse_decode_box_autoadd_live_danmu_control_event(deserializer);
+        return LiveDanmuItem_Control(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  LiveMessage sse_decode_live_message(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_messageType = sse_decode_live_message_type(deserializer);
+    var var_userName = sse_decode_String(deserializer);
+    var var_userId = sse_decode_opt_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    var var_data = sse_decode_opt_box_autoadd_live_message_data(deserializer);
+    var var_color = sse_decode_live_message_color(deserializer);
+    var var_emoticons = sse_decode_opt_list_live_message_emoticon(deserializer);
+    return LiveMessage(
+        messageType: var_messageType,
+        userName: var_userName,
+        userId: var_userId,
+        message: var_message,
+        data: var_data,
+        color: var_color,
+        emoticons: var_emoticons);
+  }
+
+  @protected
+  LiveMessageColor sse_decode_live_message_color(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_r = sse_decode_i_32(deserializer);
+    var var_g = sse_decode_i_32(deserializer);
+    var var_b = sse_decode_i_32(deserializer);
+    return LiveMessageColor(r: var_r, g: var_g, b: var_b);
+  }
+
+  @protected
+  LiveMessageData sse_decode_live_message_data(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_i_32(deserializer);
+        return LiveMessageData_Online(var_field0);
+      case 1:
+        var var_field0 =
+            sse_decode_box_autoadd_live_super_chat_message(deserializer);
+        return LiveMessageData_SuperChat(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  LiveMessageEmoticon sse_decode_live_message_emoticon(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_opt_String(deserializer);
+    var var_url = sse_decode_String(deserializer);
+    var var_width = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_large = sse_decode_bool(deserializer);
+    var var_emoticonUnique = sse_decode_opt_String(deserializer);
+    return LiveMessageEmoticon(
+        name: var_name,
+        url: var_url,
+        width: var_width,
+        height: var_height,
+        large: var_large,
+        emoticonUnique: var_emoticonUnique);
+  }
+
+  @protected
+  LiveMessageType sse_decode_live_message_type(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LiveMessageType.values[inner];
+  }
+
+  @protected
+  LivePlayQuality sse_decode_live_play_quality(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_quality = sse_decode_String(deserializer);
+    var var_data = sse_decode_String(deserializer);
+    var var_sort = sse_decode_i_32(deserializer);
+    return LivePlayQuality(
+        quality: var_quality, data: var_data, sort: var_sort);
+  }
+
+  @protected
+  LivePlayUrl sse_decode_live_play_url(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_urls = sse_decode_list_String(deserializer);
+    var var_headers = sse_decode_opt_Map_String_String_None(deserializer);
+    return LivePlayUrl(urls: var_urls, headers: var_headers);
+  }
+
+  @protected
+  LiveRoomDetail sse_decode_live_room_detail(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_roomId = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_cover = sse_decode_String(deserializer);
+    var var_userName = sse_decode_String(deserializer);
+    var var_userAvatar = sse_decode_String(deserializer);
+    var var_online = sse_decode_i_32(deserializer);
+    var var_introduction = sse_decode_opt_String(deserializer);
+    var var_notice = sse_decode_opt_String(deserializer);
+    var var_status = sse_decode_bool(deserializer);
+    var var_data = sse_decode_opt_String(deserializer);
+    var var_danmakuData = sse_decode_opt_String(deserializer);
+    var var_isRecord = sse_decode_bool(deserializer);
+    var var_url = sse_decode_String(deserializer);
+    return LiveRoomDetail(
+        roomId: var_roomId,
+        title: var_title,
+        cover: var_cover,
+        userName: var_userName,
+        userAvatar: var_userAvatar,
+        online: var_online,
+        introduction: var_introduction,
+        notice: var_notice,
+        status: var_status,
+        data: var_data,
+        danmakuData: var_danmakuData,
+        isRecord: var_isRecord,
+        url: var_url);
+  }
+
+  @protected
+  LiveRoomItem sse_decode_live_room_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_roomId = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_cover = sse_decode_String(deserializer);
+    var var_userName = sse_decode_String(deserializer);
+    var var_online = sse_decode_i_32(deserializer);
+    return LiveRoomItem(
+        roomId: var_roomId,
+        title: var_title,
+        cover: var_cover,
+        userName: var_userName,
+        online: var_online);
+  }
+
+  @protected
+  LiveSearchAnchorResult sse_decode_live_search_anchor_result(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hasMore = sse_decode_bool(deserializer);
+    var var_items = sse_decode_list_live_anchor_item(deserializer);
+    return LiveSearchAnchorResult(hasMore: var_hasMore, items: var_items);
+  }
+
+  @protected
+  LiveSearchRoomResult sse_decode_live_search_room_result(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hasMore = sse_decode_bool(deserializer);
+    var var_items = sse_decode_list_live_room_item(deserializer);
+    return LiveSearchRoomResult(hasMore: var_hasMore, items: var_items);
+  }
+
+  @protected
+  LiveSubCategory sse_decode_live_sub_category(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_pic = sse_decode_opt_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_parentId = sse_decode_String(deserializer);
+    return LiveSubCategory(
+        name: var_name, pic: var_pic, id: var_id, parentId: var_parentId);
+  }
+
+  @protected
+  LiveSuperChatMessage sse_decode_live_super_chat_message(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_userName = sse_decode_String(deserializer);
+    var var_face = sse_decode_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    var var_price = sse_decode_i_32(deserializer);
+    var var_startTime = sse_decode_Chrono_Local(deserializer);
+    var var_endTime = sse_decode_Chrono_Local(deserializer);
+    var var_backgroundColor = sse_decode_String(deserializer);
+    var var_backgroundBottomColor = sse_decode_String(deserializer);
+    return LiveSuperChatMessage(
+        userName: var_userName,
+        face: var_face,
+        message: var_message,
+        price: var_price,
+        startTime: var_startTime,
+        endTime: var_endTime,
+        backgroundColor: var_backgroundColor,
+        backgroundBottomColor: var_backgroundBottomColor);
+  }
+
+  @protected
+  Map<String, String>? sse_decode_opt_Map_String_String_None(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_Map_String_String_None(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  LiveMessageData? sse_decode_opt_box_autoadd_live_message_data(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_live_message_data(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  List<LiveMessageEmoticon>? sse_decode_opt_list_live_message_emoticon(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_live_message_emoticon(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  QrCode sse_decode_qr_code(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_key = sse_decode_String(deserializer);
+    var var_url = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_expireAt = sse_decode_opt_box_autoadd_i_64(deserializer);
+    return QrCode(
+        key: var_key,
+        url: var_url,
+        createdAt: var_createdAt,
+        expireAt: var_expireAt);
+  }
+
+  @protected
+  QrPollResult sse_decode_qr_poll_result(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_status = sse_decode_qr_status(deserializer);
+    var var_credential = sse_decode_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    return QrPollResult(
+        status: var_status, credential: var_credential, message: var_message);
+  }
+
+  @protected
+  QrStatus sse_decode_qr_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return QrStatus.values[inner];
+  }
+
+  @protected
+  (String, String) sse_decode_record_string_string(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_String(deserializer);
+    return (var_field0, var_field1);
   }
 
   @protected
@@ -413,30 +5253,246 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
+  void sse_encode_AnyhowException(
+      AnyhowException self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
+    sse_encode_String(self.message, serializer);
   }
 
   @protected
-  void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      DanmakuMask self, SseSerializer serializer) {
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          DanmakuConnection self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize((self as DanmakuMaskImpl).frbInternalSseEncode(move: true), serializer);
+    sse_encode_usize(
+        (self as DanmakuConnectionImpl).frbInternalSseEncode(move: true),
+        serializer);
   }
 
   @protected
-  void sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      DanmakuMask self, SseSerializer serializer) {
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          DanmakuMask self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize((self as DanmakuMaskImpl).frbInternalSseEncode(move: false), serializer);
+    sse_encode_usize(
+        (self as DanmakuMaskImpl).frbInternalSseEncode(move: true), serializer);
   }
 
   @protected
-  void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      DanmakuMask self, SseSerializer serializer) {
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          LiveBilibiliSite self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize((self as DanmakuMaskImpl).frbInternalSseEncode(move: null), serializer);
+    sse_encode_usize(
+        (self as LiveBilibiliSiteImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          LiveDouyinSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveDouyinSiteImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          LiveDouyuSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveDouyuSiteImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          LiveHuyaSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveHuyaSiteImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          LiveTwitchSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveTwitchSiteImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          DanmakuMask self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as DanmakuMaskImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          DanmakuConnection self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as DanmakuConnectionImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          LiveBilibiliSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveBilibiliSiteImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          LiveDouyinSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveDouyinSiteImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          LiveDouyuSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveDouyuSiteImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          LiveHuyaSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveHuyaSiteImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          LiveTwitchSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveTwitchSiteImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void sse_encode_Chrono_Local(DateTime self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(
+        PlatformInt64Util.from(self.microsecondsSinceEpoch), serializer);
+  }
+
+  @protected
+  void sse_encode_Map_String_String_None(
+      Map<String, String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_record_string_string(
+        self.entries.map((e) => (e.key, e.value)).toList(), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          DanmakuConnection self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as DanmakuConnectionImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          DanmakuMask self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as DanmakuMaskImpl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          LiveBilibiliSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveBilibiliSiteImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          LiveDouyinSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveDouyinSiteImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          LiveDouyuSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveDouyuSiteImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          LiveHuyaSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveHuyaSiteImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          LiveTwitchSite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as LiveTwitchSiteImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void sse_encode_StreamSink_live_danmu_item_Sse(
+      RustStreamSink<LiveDanmuItem> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+        self.setupAndSerialize(
+            codec: SseCodec(
+          decodeSuccessData: sse_decode_live_danmu_item,
+          decodeErrorData: sse_decode_AnyhowException,
+        )),
+        serializer);
   }
 
   @protected
@@ -446,9 +5502,99 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_account_info(AccountInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.name, serializer);
+    sse_encode_opt_String(self.avatar, serializer);
+    sse_encode_opt_String(self.uid, serializer);
+    sse_encode_String(self.credential, serializer);
+    sse_encode_bool(self.isValid, serializer);
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+      PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_live_danmu_control_event(
+      LiveDanmuControlEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_live_danmu_control_event(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_live_message_data(
+      LiveMessageData self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_live_message_data(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_live_play_quality(
+      LivePlayQuality self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_live_play_quality(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_live_room_detail(
+      LiveRoomDetail self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_live_room_detail(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_live_sub_category(
+      LiveSubCategory self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_live_sub_category(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_live_super_chat_message(
+      LiveSuperChatMessage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_live_super_chat_message(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_live_message(LiveMessage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_live_message(self, serializer);
+  }
+
+  @protected
+  void sse_encode_core_error(CoreError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.message, serializer);
+    sse_encode_i_32(self.statusCode, serializer);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
   }
 
   @protected
@@ -461,10 +5607,381 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_list_prim_u_8_strict(Uint8List self, SseSerializer serializer) {
+  void sse_encode_list_live_anchor_item(
+      List<LiveAnchorItem> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_live_anchor_item(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_live_category(
+      List<LiveCategory> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_live_category(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_live_message_emoticon(
+      List<LiveMessageEmoticon> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_live_message_emoticon(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_live_play_quality(
+      List<LivePlayQuality> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_live_play_quality(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_live_room_item(
+      List<LiveRoomItem> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_live_room_item(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_live_sub_category(
+      List<LiveSubCategory> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_live_sub_category(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_live_super_chat_message(
+      List<LiveSuperChatMessage> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_live_super_chat_message(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_prim_u_8_strict(
+      Uint8List self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_list_record_string_string(
+      List<(String, String)> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_string_string(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_live_anchor_item(
+      LiveAnchorItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.roomId, serializer);
+    sse_encode_String(self.avatar, serializer);
+    sse_encode_String(self.userName, serializer);
+    sse_encode_bool(self.liveStatus, serializer);
+  }
+
+  @protected
+  void sse_encode_live_category(LiveCategory self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.id, serializer);
+    sse_encode_list_live_sub_category(self.children, serializer);
+  }
+
+  @protected
+  void sse_encode_live_category_result(
+      LiveCategoryResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.hasMore, serializer);
+    sse_encode_list_live_room_item(self.items, serializer);
+  }
+
+  @protected
+  void sse_encode_live_danmu_control_event(
+      LiveDanmuControlEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case LiveDanmuControlEvent_Ready():
+        sse_encode_i_32(0, serializer);
+      case LiveDanmuControlEvent_Reconnecting(attempt: final attempt):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_32(attempt, serializer);
+      case LiveDanmuControlEvent_Closed(field0: final field0):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(field0, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_live_danmu_item(
+      LiveDanmuItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case LiveDanmuItem_Message(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_live_message(field0, serializer);
+      case LiveDanmuItem_Control(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_box_autoadd_live_danmu_control_event(field0, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_live_message(LiveMessage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_live_message_type(self.messageType, serializer);
+    sse_encode_String(self.userName, serializer);
+    sse_encode_opt_String(self.userId, serializer);
+    sse_encode_String(self.message, serializer);
+    sse_encode_opt_box_autoadd_live_message_data(self.data, serializer);
+    sse_encode_live_message_color(self.color, serializer);
+    sse_encode_opt_list_live_message_emoticon(self.emoticons, serializer);
+  }
+
+  @protected
+  void sse_encode_live_message_color(
+      LiveMessageColor self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.r, serializer);
+    sse_encode_i_32(self.g, serializer);
+    sse_encode_i_32(self.b, serializer);
+  }
+
+  @protected
+  void sse_encode_live_message_data(
+      LiveMessageData self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case LiveMessageData_Online(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_i_32(field0, serializer);
+      case LiveMessageData_SuperChat(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_box_autoadd_live_super_chat_message(field0, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_live_message_emoticon(
+      LiveMessageEmoticon self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.name, serializer);
+    sse_encode_String(self.url, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.width, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.height, serializer);
+    sse_encode_bool(self.large, serializer);
+    sse_encode_opt_String(self.emoticonUnique, serializer);
+  }
+
+  @protected
+  void sse_encode_live_message_type(
+      LiveMessageType self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_live_play_quality(
+      LivePlayQuality self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.quality, serializer);
+    sse_encode_String(self.data, serializer);
+    sse_encode_i_32(self.sort, serializer);
+  }
+
+  @protected
+  void sse_encode_live_play_url(LivePlayUrl self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.urls, serializer);
+    sse_encode_opt_Map_String_String_None(self.headers, serializer);
+  }
+
+  @protected
+  void sse_encode_live_room_detail(
+      LiveRoomDetail self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.roomId, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.cover, serializer);
+    sse_encode_String(self.userName, serializer);
+    sse_encode_String(self.userAvatar, serializer);
+    sse_encode_i_32(self.online, serializer);
+    sse_encode_opt_String(self.introduction, serializer);
+    sse_encode_opt_String(self.notice, serializer);
+    sse_encode_bool(self.status, serializer);
+    sse_encode_opt_String(self.data, serializer);
+    sse_encode_opt_String(self.danmakuData, serializer);
+    sse_encode_bool(self.isRecord, serializer);
+    sse_encode_String(self.url, serializer);
+  }
+
+  @protected
+  void sse_encode_live_room_item(LiveRoomItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.roomId, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.cover, serializer);
+    sse_encode_String(self.userName, serializer);
+    sse_encode_i_32(self.online, serializer);
+  }
+
+  @protected
+  void sse_encode_live_search_anchor_result(
+      LiveSearchAnchorResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.hasMore, serializer);
+    sse_encode_list_live_anchor_item(self.items, serializer);
+  }
+
+  @protected
+  void sse_encode_live_search_room_result(
+      LiveSearchRoomResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.hasMore, serializer);
+    sse_encode_list_live_room_item(self.items, serializer);
+  }
+
+  @protected
+  void sse_encode_live_sub_category(
+      LiveSubCategory self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_opt_String(self.pic, serializer);
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.parentId, serializer);
+  }
+
+  @protected
+  void sse_encode_live_super_chat_message(
+      LiveSuperChatMessage self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.userName, serializer);
+    sse_encode_String(self.face, serializer);
+    sse_encode_String(self.message, serializer);
+    sse_encode_i_32(self.price, serializer);
+    sse_encode_Chrono_Local(self.startTime, serializer);
+    sse_encode_Chrono_Local(self.endTime, serializer);
+    sse_encode_String(self.backgroundColor, serializer);
+    sse_encode_String(self.backgroundBottomColor, serializer);
+  }
+
+  @protected
+  void sse_encode_opt_Map_String_String_None(
+      Map<String, String>? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_Map_String_String_None(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+      PlatformInt64? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_live_message_data(
+      LiveMessageData? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_live_message_data(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_list_live_message_emoticon(
+      List<LiveMessageEmoticon>? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_live_message_emoticon(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_qr_code(QrCode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.key, serializer);
+    sse_encode_String(self.url, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.createdAt, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.expireAt, serializer);
+  }
+
+  @protected
+  void sse_encode_qr_poll_result(QrPollResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_qr_status(self.status, serializer);
+    sse_encode_String(self.credential, serializer);
+    sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_qr_status(QrStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_record_string_string(
+      (String, String) self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.$1, serializer);
+    sse_encode_String(self.$2, serializer);
   }
 
   @protected
@@ -501,33 +6018,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
   }
+}
 
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
-  }
+@sealed
+class DanmakuConnectionImpl extends RustOpaque implements DanmakuConnection {
+  // Not to be used by end users
+  DanmakuConnectionImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  DanmakuConnectionImpl.frbInternalSseDecode(
+      BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_DanmakuConnection,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_DanmakuConnection,
+    rustArcDecrementStrongCountPtr: RustLib
+        .instance.api.rust_arc_decrement_strong_count_DanmakuConnectionPtr,
+  );
+
+  /// 手动停止（对齐 Dart `LiveDanmaku.stop()`：发出 `Closed`，不再重连）。
+  void stop() => RustLib.instance.api.crateApiSliveDanmakuDanmakuConnectionStop(
+        that: this,
+      );
 }
 
 @sealed
 class DanmakuMaskImpl extends RustOpaque implements DanmakuMask {
   // Not to be used by end users
-  DanmakuMaskImpl.frbInternalDcoDecode(List<dynamic> wire) : super.frbInternalDcoDecode(wire, _kStaticData);
+  DanmakuMaskImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
   DanmakuMaskImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
       : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib.instance.api.rust_arc_increment_strong_count_DanmakuMask,
-    rustArcDecrementStrongCount: RustLib.instance.api.rust_arc_decrement_strong_count_DanmakuMask,
-    rustArcDecrementStrongCountPtr: RustLib.instance.api.rust_arc_decrement_strong_count_DanmakuMaskPtr,
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_DanmakuMask,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_DanmakuMask,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_DanmakuMaskPtr,
   );
 
   /// 批量判断是否允许
   /// 返回 Vec<u8>：1 = 允许，0 = 屏蔽
-  Future<Uint8List> allowListBatch({required List<String> texts, required BigInt nowMs}) =>
-      RustLib.instance.api.crateApiDanmakuMaskDanmakuMaskAllowListBatch(that: this, texts: texts, nowMs: nowMs);
+  Future<Uint8List> allowListBatch(
+          {required List<String> texts, required BigInt nowMs}) =>
+      RustLib.instance.api.crateApiDanmakuMaskDanmakuMaskAllowListBatch(
+          that: this, texts: texts, nowMs: nowMs);
 
   void dispose() => RustLib.instance.api.crateApiDanmakuMaskDanmakuMaskDispose(
         that: this,
@@ -537,4 +6080,573 @@ class DanmakuMaskImpl extends RustOpaque implements DanmakuMask {
   void reset() => RustLib.instance.api.crateApiDanmakuMaskDanmakuMaskReset(
         that: this,
       );
+}
+
+@sealed
+class LiveBilibiliSiteImpl extends RustOpaque implements LiveBilibiliSite {
+  // Not to be used by end users
+  LiveBilibiliSiteImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  LiveBilibiliSiteImpl.frbInternalSseDecode(
+      BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_LiveBilibiliSite,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveBilibiliSite,
+    rustArcDecrementStrongCountPtr: RustLib
+        .instance.api.rust_arc_decrement_strong_count_LiveBilibiliSitePtr,
+  );
+
+  /// F-20 账号信息（成功时回填 `user_id` 副作用）。
+  Future<AccountInfo> getAccountInfo({required String credential}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetAccountInfo(
+          that: this, credential: credential);
+
+  /// F-01 分类 A 列表。
+  Future<List<LiveCategory>> getCategories() =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetCategories(
+        that: this,
+      );
+
+  /// F-02 分类下房间。
+  Future<LiveCategoryResult> getCategoryRooms(
+          {required LiveSubCategory category,
+          required int page,
+          int? pageSize}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetCategoryRooms(
+          that: this, category: category, page: page, pageSize: pageSize);
+
+  /// F-09 直播状态。
+  Future<bool> getLiveStatus({required String roomId}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetLiveStatus(
+          that: this, roomId: roomId);
+
+  /// F-07 清晰度列表。
+  Future<List<LivePlayQuality>> getPlayQualities(
+          {required LiveRoomDetail detail}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetPlayQualities(
+          that: this, detail: detail);
+
+  /// F-08 播放地址。
+  Future<LivePlayUrl> getPlayUrls(
+          {required LiveRoomDetail detail, required LivePlayQuality quality}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetPlayUrls(
+          that: this, detail: detail, quality: quality);
+
+  /// F-18 生成登录二维码。
+  Future<QrCode> getQrCode() =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetQrCode(
+        that: this,
+      );
+
+  /// F-19 扫码轮询。
+  Future<QrPollResult> getQrPollResult({required String qrcodeKey}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetQrPollResult(
+          that: this, qrcodeKey: qrcodeKey);
+
+  /// F-03 推荐房间。
+  Future<LiveCategoryResult> getRecommendRooms(
+          {required int page, int? pageSize}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetRecommendRooms(
+          that: this, page: page, pageSize: pageSize);
+
+  /// F-06 房间详情（两步）。
+  Future<LiveRoomDetail> getRoomDetail({required String roomId}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteGetRoomDetail(
+          that: this, roomId: roomId);
+
+  /// F-10 房间 SC 列表（方法名复数，对齐上游；绑定层映射回 Dart 单数名，J-4/J-8）。
+  Future<List<LiveSuperChatMessage>> getSuperChatMessages(
+          {required String roomId}) =>
+      RustLib.instance.api
+          .crateApiSliveSiteLiveBilibiliSiteGetSuperChatMessages(
+              that: this, roomId: roomId);
+
+  /// 站点 ID（`"bilibili"`）。
+  String id() => RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteId(
+        that: this,
+      );
+
+  /// 站点名（`"哔哩哔哩直播"`）。
+  String name() => RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteName(
+        that: this,
+      );
+
+  /// F-05 搜索主播。
+  Future<LiveSearchAnchorResult> searchAnchors(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteSearchAnchors(
+          that: this, keyword: keyword, page: page);
+
+  /// F-04 搜索房间。
+  Future<LiveSearchRoomResult> searchRooms(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveSiteLiveBilibiliSiteSearchRooms(
+          that: this, keyword: keyword, page: page);
+
+  /// F-17 注入凭证。
+  void setSiteAttrs({required String data}) => RustLib.instance.api
+      .crateApiSliveSiteLiveBilibiliSiteSetSiteAttrs(that: this, data: data);
+}
+
+@sealed
+class LiveDouyinSiteImpl extends RustOpaque implements LiveDouyinSite {
+  // Not to be used by end users
+  LiveDouyinSiteImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  LiveDouyinSiteImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_LiveDouyinSite,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveDouyinSite,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveDouyinSitePtr,
+  );
+
+  /// 账号信息。
+  Future<AccountInfo> getAccountInfo({required String credential}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetAccountInfo(
+          that: this, credential: credential);
+
+  /// 分类 A 列表。
+  Future<List<LiveCategory>> getCategories() =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetCategories(
+        that: this,
+      );
+
+  /// 分类下房间（`page_size` 服务端不认，保留形参对齐 Dart 签名）。
+  Future<LiveCategoryResult> getCategoryRooms(
+          {required LiveSubCategory category,
+          required int page,
+          int? pageSize}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetCategoryRooms(
+          that: this, category: category, page: page, pageSize: pageSize);
+
+  /// 直播状态。
+  Future<bool> getLiveStatus({required String roomId}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetLiveStatus(
+          that: this, roomId: roomId);
+
+  /// 清晰度列表（本地计算，无网络请求）。
+  Future<List<LivePlayQuality>> getPlayQualities(
+          {required LiveRoomDetail detail}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetPlayQualities(
+          that: this, detail: detail);
+
+  /// 播放地址（本地计算，无网络请求）。
+  Future<LivePlayUrl> getPlayUrls(
+          {required LiveRoomDetail detail, required LivePlayQuality quality}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetPlayUrls(
+          that: this, detail: detail, quality: quality);
+
+  /// 登录二维码（抖音不支持扫码登录）。
+  Future<QrCode> getQrCode() =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetQrCode(
+        that: this,
+      );
+
+  /// 扫码轮询（抖音不支持扫码登录）。
+  Future<QrPollResult> getQrPollResult({required String qrcodeKey}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetQrPollResult(
+          that: this, qrcodeKey: qrcodeKey);
+
+  /// 推荐房间。
+  Future<LiveCategoryResult> getRecommendRooms(
+          {required int page, int? pageSize}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetRecommendRooms(
+          that: this, page: page, pageSize: pageSize);
+
+  /// 房间详情（三段降级）。
+  Future<LiveRoomDetail> getRoomDetail({required String roomId}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteGetRoomDetail(
+          that: this, roomId: roomId);
+
+  /// 房间 SC 列表（抖音无此能力，恒空）。
+  Future<List<LiveSuperChatMessage>> getSuperChatMessages(
+          {required String roomId}) =>
+      RustLib.instance.api
+          .crateApiSliveDouyinLiveDouyinSiteGetSuperChatMessages(
+              that: this, roomId: roomId);
+
+  /// 站点 ID（`"douyin"`）。
+  String id() => RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteId(
+        that: this,
+      );
+
+  /// 站点名（`"抖音直播"`）。
+  String name() => RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteName(
+        that: this,
+      );
+
+  /// 搜索主播（抖音不支持，恒报错）。
+  Future<LiveSearchAnchorResult> searchAnchors(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteSearchAnchors(
+          that: this, keyword: keyword, page: page);
+
+  /// 搜索直播间。
+  Future<LiveSearchRoomResult> searchRooms(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveDouyinLiveDouyinSiteSearchRooms(
+          that: this, keyword: keyword, page: page);
+
+  /// 注入凭证 / 配置（`{"cookie": "...", "hlsFirst": false}`）。
+  void setSiteAttrs({required String data}) => RustLib.instance.api
+      .crateApiSliveDouyinLiveDouyinSiteSetSiteAttrs(that: this, data: data);
+}
+
+@sealed
+class LiveDouyuSiteImpl extends RustOpaque implements LiveDouyuSite {
+  // Not to be used by end users
+  LiveDouyuSiteImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  LiveDouyuSiteImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_LiveDouyuSite,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveDouyuSite,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveDouyuSitePtr,
+  );
+
+  /// F-20 账号信息。
+  Future<AccountInfo> getAccountInfo({required String credential}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetAccountInfo(
+          that: this, credential: credential);
+
+  /// F-01 分类列表。
+  Future<List<LiveCategory>> getCategories() =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetCategories(
+        that: this,
+      );
+
+  /// F-02 分类下房间。
+  Future<LiveCategoryResult> getCategoryRooms(
+          {required LiveSubCategory category,
+          required int page,
+          int? pageSize}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetCategoryRooms(
+          that: this, category: category, page: page, pageSize: pageSize);
+
+  /// F-09 直播状态。
+  Future<bool> getLiveStatus({required String roomId}) => RustLib.instance.api
+      .crateApiSliveDouyuLiveDouyuSiteGetLiveStatus(that: this, roomId: roomId);
+
+  /// F-07 清晰度列表。
+  Future<List<LivePlayQuality>> getPlayQualities(
+          {required LiveRoomDetail detail}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetPlayQualities(
+          that: this, detail: detail);
+
+  /// F-08 播放地址。
+  Future<LivePlayUrl> getPlayUrls(
+          {required LiveRoomDetail detail, required LivePlayQuality quality}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetPlayUrls(
+          that: this, detail: detail, quality: quality);
+
+  /// F-18 生成登录二维码。
+  Future<QrCode> getQrCode() =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetQrCode(
+        that: this,
+      );
+
+  /// F-19 扫码轮询。
+  Future<QrPollResult> getQrPollResult({required String qrcodeKey}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetQrPollResult(
+          that: this, qrcodeKey: qrcodeKey);
+
+  /// F-03 推荐房间。
+  Future<LiveCategoryResult> getRecommendRooms(
+          {required int page, int? pageSize}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetRecommendRooms(
+          that: this, page: page, pageSize: pageSize);
+
+  /// F-06 房间详情。
+  Future<LiveRoomDetail> getRoomDetail({required String roomId}) => RustLib
+      .instance.api
+      .crateApiSliveDouyuLiveDouyuSiteGetRoomDetail(that: this, roomId: roomId);
+
+  /// F-10 房间 SC 列表（斗鱼 HTTP 侧不提供，恒空；绑定层映射回 Dart 单数名）。
+  Future<List<LiveSuperChatMessage>> getSuperChatMessages(
+          {required String roomId}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteGetSuperChatMessages(
+          that: this, roomId: roomId);
+
+  /// 站点 ID（`"douyu"`）。
+  String id() => RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteId(
+        that: this,
+      );
+
+  /// 站点名（`"斗鱼直播"`）。
+  String name() => RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteName(
+        that: this,
+      );
+
+  /// 刷新 cookie（`LTP0`/`dy_did` 留空则用句柄内已有值）。
+  Future<String> refreshCookie({required String dyDid, required String ltp0}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteRefreshCookie(
+          that: this, dyDid: dyDid, ltp0: ltp0);
+
+  /// F-05 搜索主播。
+  Future<LiveSearchAnchorResult> searchAnchors(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteSearchAnchors(
+          that: this, keyword: keyword, page: page);
+
+  /// F-04 搜索房间。
+  Future<LiveSearchRoomResult> searchRooms(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveDouyuLiveDouyuSiteSearchRooms(
+          that: this, keyword: keyword, page: page);
+
+  /// F-17 注入凭证（同步；绑定层用 pending 模式对齐 Dart 的 `setSiteAttrs`）。
+  void setSiteAttrs({required String data}) => RustLib.instance.api
+      .crateApiSliveDouyuLiveDouyuSiteSetSiteAttrs(that: this, data: data);
+}
+
+@sealed
+class LiveHuyaSiteImpl extends RustOpaque implements LiveHuyaSite {
+  // Not to be used by end users
+  LiveHuyaSiteImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  LiveHuyaSiteImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_LiveHuyaSite,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveHuyaSite,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveHuyaSitePtr,
+  );
+
+  /// F-20 账号信息（同上，Dart 未实现）。
+  Future<AccountInfo> getAccountInfo({required String credential}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetAccountInfo(
+          that: this, credential: credential);
+
+  /// F-01 分类 A 列表。
+  Future<List<LiveCategory>> getCategories() =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetCategories(
+        that: this,
+      );
+
+  /// F-02 分类下房间。
+  Future<LiveCategoryResult> getCategoryRooms(
+          {required LiveSubCategory category,
+          required int page,
+          int? pageSize}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetCategoryRooms(
+          that: this, category: category, page: page, pageSize: pageSize);
+
+  /// F-09 直播状态。
+  Future<bool> getLiveStatus({required String roomId}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetLiveStatus(
+          that: this, roomId: roomId);
+
+  /// F-07 清晰度列表（跳过 4K）。
+  Future<List<LivePlayQuality>> getPlayQualities(
+          {required LiveRoomDetail detail}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetPlayQualities(
+          that: this, detail: detail);
+
+  /// F-08 播放地址（逐线路换 TARS token）。
+  Future<LivePlayUrl> getPlayUrls(
+          {required LiveRoomDetail detail, required LivePlayQuality quality}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetPlayUrls(
+          that: this, detail: detail, quality: quality);
+
+  /// F-18 生成登录二维码（虎牙 Dart core 未实现 -> 抛 `CoreError`）。
+  Future<QrCode> getQrCode() =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetQrCode(
+        that: this,
+      );
+
+  /// F-19 扫码轮询（同上，Dart未实现）。
+  Future<QrPollResult> getQrPollResult({required String qrcodeKey}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetQrPollResult(
+          that: this, qrcodeKey: qrcodeKey);
+
+  /// F-03 推荐房间。
+  Future<LiveCategoryResult> getRecommendRooms(
+          {required int page, int? pageSize}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetRecommendRooms(
+          that: this, page: page, pageSize: pageSize);
+
+  /// F-06 房间详情（含弹幕参数与取流数据）。
+  Future<LiveRoomDetail> getRoomDetail({required String roomId}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetRoomDetail(
+          that: this, roomId: roomId);
+
+  /// F-01b 子分类（虎牙 core 的扩展方法，B站无此项）。
+  Future<List<LiveSubCategory>> getSubCategories({required String parentId}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteGetSubCategories(
+          that: this, parentId: parentId);
+
+  /// F-10 房间 SC 列表（方法名复数，对齐上游；绑定层映射回 Dart 单数名，J-4/J-8）。
+  Future<List<LiveSuperChatMessage>> getSuperChatMessages(
+          {required String roomId}) =>
+      RustLib.instance.api
+          .crateApiSliveHuyaSiteLiveHuyaSiteGetSuperChatMessages(
+              that: this, roomId: roomId);
+
+  /// 站点ID（`"huya"`）。
+  String id() => RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteId(
+        that: this,
+      );
+
+  /// 站点名（`"虎牙直播"`）。
+  String name() => RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteName(
+        that: this,
+      );
+
+  /// F-05 搜索主播。
+  Future<LiveSearchAnchorResult> searchAnchors(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteSearchAnchors(
+          that: this, keyword: keyword, page: page);
+
+  /// F-04 搜索房间。
+  Future<LiveSearchRoomResult> searchRooms(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveHuyaSiteLiveHuyaSiteSearchRooms(
+          that: this, keyword: keyword, page: page);
+
+  /// F-17 注入凭证（虎牙仅识别 `ua` 键）。
+  void setSiteAttrs({required String data}) => RustLib.instance.api
+      .crateApiSliveHuyaSiteLiveHuyaSiteSetSiteAttrs(that: this, data: data);
+}
+
+@sealed
+class LiveTwitchSiteImpl extends RustOpaque implements LiveTwitchSite {
+  // Not to be used by end users
+  LiveTwitchSiteImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  LiveTwitchSiteImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_LiveTwitchSite,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveTwitchSite,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LiveTwitchSitePtr,
+  );
+
+  /// F-20 账号信息（Twitch 不支持）。
+  Future<AccountInfo> getAccountInfo({required String credential}) =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteGetAccountInfo(
+          that: this, credential: credential);
+
+  /// F-01 分类（Twitch 恒空）。
+  Future<List<LiveCategory>> getCategories() =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteGetCategories(
+        that: this,
+      );
+
+  /// F-02 分类下房间（Twitch 恒空）。
+  Future<LiveCategoryResult> getCategoryRooms(
+          {required LiveSubCategory category,
+          required int page,
+          int? pageSize}) =>
+      RustLib.instance.api
+          .crateApiSliveTwitchSiteLiveTwitchSiteGetCategoryRooms(
+              that: this, category: category, page: page, pageSize: pageSize);
+
+  /// F-09 直播状态。
+  Future<bool> getLiveStatus({required String roomId}) =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteGetLiveStatus(
+          that: this, roomId: roomId);
+
+  /// F-07 清晰度列表（GQL token + usher m3u8 解析）。
+  Future<List<LivePlayQuality>> getPlayQualities(
+          {required LiveRoomDetail detail}) =>
+      RustLib.instance.api
+          .crateApiSliveTwitchSiteLiveTwitchSiteGetPlayQualities(
+              that: this, detail: detail);
+
+  /// F-08 播放地址。
+  Future<LivePlayUrl> getPlayUrls(
+          {required LiveRoomDetail detail, required LivePlayQuality quality}) =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteGetPlayUrls(
+          that: this, detail: detail, quality: quality);
+
+  /// F-18 二维码（Twitch 不支持）。
+  Future<QrCode> getQrCode() =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteGetQrCode(
+        that: this,
+      );
+
+  /// F-19 扫码轮询（Twitch 不支持）。
+  Future<QrPollResult> getQrPollResult({required String qrcodeKey}) =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteGetQrPollResult(
+          that: this, qrcodeKey: qrcodeKey);
+
+  /// F-03 推荐房间（Twitch 不支持）。
+  Future<LiveCategoryResult> getRecommendRooms(
+          {required int page, int? pageSize}) =>
+      RustLib.instance.api
+          .crateApiSliveTwitchSiteLiveTwitchSiteGetRecommendRooms(
+              that: this, page: page, pageSize: pageSize);
+
+  /// F-06 房间详情（`ChannelShell` + `StreamMetadata` 一次批量）。
+  Future<LiveRoomDetail> getRoomDetail({required String roomId}) =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteGetRoomDetail(
+          that: this, roomId: roomId);
+
+  /// F-10 SC 列表（Twitch 恒空；方法名复数，绑定层映射回 Dart 单数名，J-4/J-8）。
+  Future<List<LiveSuperChatMessage>> getSuperChatMessages(
+          {required String roomId}) =>
+      RustLib.instance.api
+          .crateApiSliveTwitchSiteLiveTwitchSiteGetSuperChatMessages(
+              that: this, roomId: roomId);
+
+  /// 站点 ID（`"twitch"`）。
+  String id() => RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteId(
+        that: this,
+      );
+
+  /// 站点名（`"Twitch"`）。
+  String name() =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteName(
+        that: this,
+      );
+
+  /// F-05 搜索主播（Twitch 不支持）。
+  Future<LiveSearchAnchorResult> searchAnchors(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteSearchAnchors(
+          that: this, keyword: keyword, page: page);
+
+  /// F-04 搜索房间（Twitch 不支持）。
+  Future<LiveSearchRoomResult> searchRooms(
+          {required String keyword, required int page}) =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteSearchRooms(
+          that: this, keyword: keyword, page: page);
+
+  /// F-17 注入凭证（Twitch 匿名链路不支持）。
+  void setSiteAttrs({required String data}) =>
+      RustLib.instance.api.crateApiSliveTwitchSiteLiveTwitchSiteSetSiteAttrs(
+          that: this, data: data);
 }

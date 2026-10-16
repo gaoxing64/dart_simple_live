@@ -1,0 +1,44 @@
+{
+  "status_code": 0,
+  "data": {
+    "data": [
+      {
+        "web_rid": "416144012050",
+        "room": {
+          "id_str": "7382735338101328680",
+          "title": "音乐直播间",
+          "status": 2,
+          "cover": { "url_list": ["https://p3.douyinpic.com/cover-a.jpeg", "https://p3.douyinpic.com/cover-b.jpeg"] },
+          "owner": {
+            "nickname": "主播A",
+            "signature": "欢迎来到直播间",
+            "web_rid": "416144012050",
+            "avatar_thumb": { "url_list": ["https://p3.douyinpic.com/avatar-a.jpeg"] }
+          },
+          "room_view_stats": { "display_value": 12345 }
+        }
+      },
+      {
+        "web_rid": "416144012051",
+        "room": {
+          "id_str": "7382735338101328681",
+          "title": "游戏直播间",
+          "status": 2,
+          "cover": { "url_list": ["https://p3.douyinpic.com/cover-c.jpeg"] },
+          "owner": {
+            "nickname": "主播B",
+            "signature": "",
+            "web_rid": "416144012051",
+            "avatar_thumb": { "url_list": ["https://p3.douyinpic.com/avatar-b.jpeg"] }
+          },
+          "room_view_stats": { "display_value": 999 }
+        }
+      },
+      {
+        "room": {
+          "title": "缺 web_rid 的脏条目，应被跳过"
+        }
+      }
+    ]
+  }
+}

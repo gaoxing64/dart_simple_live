@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "platform": "douyu",
+    "synthetic": true,
+    "derivation": "照 Dart core douyu_danmaku.dart 的 STT 协议与 12 字节小端包头逐字段推导（行号见各帧 dart_source / note）；STT 语法与转义见 :196-228",
+    "needs_realtime_validation": true,
+    "frame_format_source": "simple_live_core/lib/src/platforms/douyu/douyu_danmaku.dart:152-193",
+    "realtime_validation_plan": "用 wscat/mitm 抓 wss://danmuproxy.douyu.com:8506 真实帧，核对 packType 取值（客户端 689 / 服务端实际值）、STT 字段名与转义出现频率；替换本目录 *.bin 并把 _meta.synthetic 改为 false。",
+    "target_ac": [
+      "IP-3-DANMAKU"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyu::danmaku::decode::deserialize_douyu / stt::stt_to_json / parse::decode_message",
+    "note": "cprice=5000(分) -> price=50；now(ms) 为起点，cet=300(秒) 为时长；配色为 Dart 硬编码紫系（斗鱼不下发颜色）。",
+    "dart_source": "douyu_danmaku.dart:89-117"
+  },
+  "stt_body": "type@=comm_chatmsg/nn@=榜一大哥/txt@=SUPER_CHAT_MESSAGE/now@=1768936072000/cet@=300/cprice@=5000/chatmsg@=nn@=榜一大哥/txt@=恭喜发财/ic@=face_abc123/",
+  "bytes_hex": "aa 00 00 00 aa 00 00 00 b1 02 00 00 74 79 70 65 40 3d 63 6f 6d 6d 5f 63 68 61 74 6d 73 67 2f 6e 6e 40 3d e6 a6 9c e4 b8 80 e5 a4 a7 e5 93 a5 2f 74 78 74 40 3d 53 55 50 45 52 5f 43 48 41 54 5f 4d 45 53 53 41 47 45 2f 6e 6f 77 40 3d 31 37 36 38 39 33 36 30 37 32 30 30 30 2f 63 65 74 40 3d 33 30 30 2f 63 70 72 69 63 65 40 3d 35 30 30 30 2f 63 68 61 74 6d 73 67 40 3d 6e 6e 40 3d e6 a6 9c e4 b8 80 e5 a4 a7 e5 93 a5 2f 74 78 74 40 3d e6 81 ad e5 96 9c e5 8f 91 e8 b4 a2 2f 69 63 40 3d 66 61 63 65 5f 61 62 63 31 32 33 2f 00",
+  "bytes_len": 174,
+  "expected": {
+    "messages": [
+      {
+        "type": "superChat",
+        "user_name": "SUPER_CHAT_MESSAGE",
+        "message": "SUPER_CHAT_MESSAGE",
+        "color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        },
+        "data": {
+          "kind": "SuperChat",
+          "user_name": "榜一大哥",
+          "message": "恭喜发财",
+          "price": 50,
+          "start_time_ms": 1768936072000,
+          "end_time_ms": 1768936372000,
+          "face": "https://apic.douyucdn.cn/upload/face_abc123_small.jpg",
+          "background_color": "#c1c1ff",
+          "background_bottom_color": "#292a60"
+        }
+      }
+    ]
+  }
+}

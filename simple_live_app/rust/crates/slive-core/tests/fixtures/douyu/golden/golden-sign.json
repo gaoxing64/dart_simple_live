@@ -1,0 +1,116 @@
+{
+  "_meta": {
+    "kind": "golden",
+    "platform": "douyu",
+    "synthetic": true,
+    "derivation": "照 Dart douyu_utils.dart:129-158 的 sign() 用 Python 独立重算（md5 迭代 + Uri(queryParameters) 键序 + percent-encoding）",
+    "target_ac": [
+      "IP-3-SIGN"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyu::sign::build_sign",
+    "needs_realtime_validation": false,
+    "realtime_note": "本golden **不需要**抓包校验：算法确定性，期望值由 Dart 逻辑独立推导。真实抓包只用于校验 getEncryption 返回的字段名/类型（见 http 样本）。",
+    "key_order_pinned": [
+      "enc_data",
+      "tt",
+      "did",
+      "auth",
+      "cdn",
+      "ver",
+      "rate",
+      "hevc",
+      "fa",
+      "ive"
+    ]
+  },
+  "cases": [
+    {
+      "name": "default-rate-900-cdn-hw-h5",
+      "input": {
+        "room_id": "252140",
+        "ts": 1700000000,
+        "did": "10000000000000000000000000001501",
+        "rate": 900,
+        "cdn": "hw-h5",
+        "enc_key": {
+          "rand_str": "gmQeBkpbfH3PczvB",
+          "key": "PTcTgd7tjMi1FPi0Peac677995",
+          "enc_time": 1,
+          "is_special": 0,
+          "enc_data": "eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1In0="
+        }
+      },
+      "expect": {
+        "secret_after_iterations": "fbcaee406573255feea7277080e3764f",
+        "auth": "42c02afad65f8e2c97d077ff4612799b",
+        "request_body": "enc_data=eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1In0%3D&tt=1700000000&did=10000000000000000000000000001501&auth=42c02afad65f8e2c97d077ff4612799b&cdn=hw-h5&ver=Douyu_new&rate=900&hevc=1&fa=0&ive=0"
+      }
+    },
+    {
+      "name": "rate-0-original-quality",
+      "input": {
+        "room_id": "252140",
+        "ts": 1700000000,
+        "did": "10000000000000000000000000001501",
+        "rate": 0,
+        "cdn": "hw-h5",
+        "enc_key": {
+          "rand_str": "gmQeBkpbfH3PczvB",
+          "key": "PTcTgd7tjMi1FPi0Peac677995",
+          "enc_time": 1,
+          "is_special": 0,
+          "enc_data": "eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1In0="
+        }
+      },
+      "expect": {
+        "secret_after_iterations": "fbcaee406573255feea7277080e3764f",
+        "auth": "42c02afad65f8e2c97d077ff4612799b",
+        "request_body": "enc_data=eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1In0%3D&tt=1700000000&did=10000000000000000000000000001501&auth=42c02afad65f8e2c97d077ff4612799b&cdn=hw-h5&ver=Douyu_new&rate=0&hevc=1&fa=0&ive=0"
+      }
+    },
+    {
+      "name": "is-special-1-empty-salt",
+      "input": {
+        "room_id": "252140",
+        "ts": 1700000000,
+        "did": "10000000000000000000000000001501",
+        "rate": 900,
+        "cdn": "hw-h5",
+        "enc_key": {
+          "rand_str": "gmQeBkpbfH3PczvB",
+          "key": "PTcTgd7tjMi1FPi0Peac677995",
+          "enc_time": 1,
+          "is_special": 1,
+          "enc_data": "eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1In0="
+        }
+      },
+      "expect": {
+        "secret_after_iterations": "fbcaee406573255feea7277080e3764f",
+        "auth": "e2f32a9546099578e7890030a039e1c8",
+        "request_body": "enc_data=eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1In0%3D&tt=1700000000&did=10000000000000000000000000001501&auth=e2f32a9546099578e7890030a039e1c8&cdn=hw-h5&ver=Douyu_new&rate=900&hevc=1&fa=0&ive=0"
+      }
+    },
+    {
+      "name": "enc-time-3-multi-iteration",
+      "input": {
+        "room_id": "999",
+        "ts": 1700000000,
+        "did": "10000000000000000000000000001501",
+        "rate": 2000,
+        "cdn": "tct-h5",
+        "enc_key": {
+          "rand_str": "gmQeBkpbfH3PczvB",
+          "key": "PTcTgd7tjMi1FPi0Peac677995",
+          "enc_time": 3,
+          "is_special": 0,
+          "enc_data": "eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1In0="
+        }
+      },
+      "expect": {
+        "secret_after_iterations": "0fd2c51ff792b6e1cf754079d5556ef9",
+        "auth": "593046c7fa43d82d0faa6b9575ced151",
+        "request_body": "enc_data=eyJhbGdfdmVyIjoxLCJrZXlfdmVyIjo5NjcsImtleSI6IlBUY1RnZDd0ak1pMUZQaTBQZWFjNjc3OTk1In0%3D&tt=1700000000&did=10000000000000000000000000001501&auth=593046c7fa43d82d0faa6b9575ced151&cdn=tct-h5&ver=Douyu_new&rate=2000&hevc=1&fa=0&ive=0"
+      }
+    }
+  ]
+}

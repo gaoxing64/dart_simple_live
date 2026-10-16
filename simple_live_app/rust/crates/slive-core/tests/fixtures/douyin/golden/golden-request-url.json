@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "kind": "golden",
+    "platform": "douyin",
+    "synthetic": true,
+    "derivation": "照 Dart douyin_utils.dart:26-43 buildRequestUrl 推导：在调用方参数之后**追加固定 6 项**（aid/compress/device_platform/browser_language/browser_platform/browser_name/browser_version），再补 msToken（随机，不入 golden）",
+    "target_ac": [
+      "IP-6-HTTP"
+    ],
+    "target_rust_fn": "slive_core::platforms::douyin::util::build_request_url",
+    "needs_realtime_validation": false,
+    "realtime_note": "msToken 与 A-Bogus 签名随机；本 golden 只钉**固定参数集合与键序**。",
+    "nondeterministic_fields": [
+      "msToken",
+      "a_bogus"
+    ]
+  },
+  "fixed_params_appended": {
+    "aid": "6383",
+    "compress": "gzip",
+    "device_platform": "web",
+    "browser_language": "zh-CN",
+    "browser_platform": "Win32",
+    "browser_name": "Edge",
+    "browser_version": "125.0.0.0"
+  },
+  "msToken_note": "getMSToken() 随机 184 字符（douyin_utils.dart:16-25），不入 golden。",
+  "assertions": [
+    "调用方传入的参数全部保留",
+    "固定 7 项（aid/compress/device_platform/browser_language/browser_platform/browser_name/browser_version）存在且值正确",
+    "msToken 键存在",
+    "最终 query 以 a_bogus 结尾（Dart:40 `signedQueryStr` 是完整 query string）"
+  ]
+}
