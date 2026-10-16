@@ -4,6 +4,22 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/danmaku_mask.dart';
+import 'api/slive/danmaku.dart';
+import 'api/slive/douyin.dart';
+import 'api/slive/douyu.dart';
+import 'api/slive/error.dart';
+import 'api/slive/huya.dart';
+import 'api/slive/huya_site.dart';
+import 'api/slive/models/account.dart';
+import 'api/slive/models/category.dart';
+import 'api/slive/models/danmu.dart';
+import 'api/slive/models/message.dart';
+import 'api/slive/models/play.dart';
+import 'api/slive/models/result.dart';
+import 'api/slive/models/room.dart';
+import 'api/slive/site.dart';
+import 'api/slive/twitch/danmaku.dart';
+import 'api/slive/twitch/site.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -18,31 +34,314 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_DanmakuMaskPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMaskPtr;
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_DanmakuConnectionPtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnectionPtr;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_DanmakuMaskPtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMaskPtr;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveBilibiliSitePtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSitePtr;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveDouyinSitePtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSitePtr;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveDouyuSitePtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSitePtr;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveHuyaSitePtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSitePtr;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_LiveTwitchSitePtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSitePtr;
 
   @protected
-  DanmakuMask dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+  AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  DanmakuConnection
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          dynamic raw);
+
+  @protected
+  DanmakuMask
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          dynamic raw);
+
+  @protected
+  LiveBilibiliSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          dynamic raw);
+
+  @protected
+  LiveDouyinSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          dynamic raw);
+
+  @protected
+  LiveDouyuSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          dynamic raw);
+
+  @protected
+  LiveHuyaSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          dynamic raw);
+
+  @protected
+  LiveTwitchSite
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          dynamic raw);
+
+  @protected
+  DanmakuMask
+      dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          dynamic raw);
+
+  @protected
+  DanmakuConnection
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          dynamic raw);
+
+  @protected
+  LiveBilibiliSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          dynamic raw);
+
+  @protected
+  LiveDouyinSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          dynamic raw);
+
+  @protected
+  LiveDouyuSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          dynamic raw);
+
+  @protected
+  LiveHuyaSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          dynamic raw);
+
+  @protected
+  LiveTwitchSite
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          dynamic raw);
+
+  @protected
+  DateTime dco_decode_Chrono_Local(dynamic raw);
+
+  @protected
+  Map<String, String> dco_decode_Map_String_String_None(dynamic raw);
+
+  @protected
+  DanmakuConnection
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          dynamic raw);
+
+  @protected
+  DanmakuMask
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          dynamic raw);
+
+  @protected
+  LiveBilibiliSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          dynamic raw);
+
+  @protected
+  LiveDouyinSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          dynamic raw);
+
+  @protected
+  LiveDouyuSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          dynamic raw);
+
+  @protected
+  LiveHuyaSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          dynamic raw);
+
+  @protected
+  LiveTwitchSite
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          dynamic raw);
+
+  @protected
+  RustStreamSink<LiveDanmuItem> dco_decode_StreamSink_live_danmu_item_Sse(
       dynamic raw);
-
-  @protected
-  DanmakuMask dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      dynamic raw);
-
-  @protected
-  DanmakuMask dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
 
   @protected
+  AccountInfo dco_decode_account_info(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  LiveDanmuControlEvent dco_decode_box_autoadd_live_danmu_control_event(
+      dynamic raw);
+
+  @protected
+  LiveMessageData dco_decode_box_autoadd_live_message_data(dynamic raw);
+
+  @protected
+  LivePlayQuality dco_decode_box_autoadd_live_play_quality(dynamic raw);
+
+  @protected
+  LiveRoomDetail dco_decode_box_autoadd_live_room_detail(dynamic raw);
+
+  @protected
+  LiveSubCategory dco_decode_box_autoadd_live_sub_category(dynamic raw);
+
+  @protected
+  LiveSuperChatMessage dco_decode_box_autoadd_live_super_chat_message(
+      dynamic raw);
+
+  @protected
+  LiveMessage dco_decode_box_live_message(dynamic raw);
+
+  @protected
+  CoreError dco_decode_core_error(dynamic raw);
+
+  @protected
+  int dco_decode_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<LiveAnchorItem> dco_decode_list_live_anchor_item(dynamic raw);
+
+  @protected
+  List<LiveCategory> dco_decode_list_live_category(dynamic raw);
+
+  @protected
+  List<LiveMessageEmoticon> dco_decode_list_live_message_emoticon(dynamic raw);
+
+  @protected
+  List<LivePlayQuality> dco_decode_list_live_play_quality(dynamic raw);
+
+  @protected
+  List<LiveRoomItem> dco_decode_list_live_room_item(dynamic raw);
+
+  @protected
+  List<LiveSubCategory> dco_decode_list_live_sub_category(dynamic raw);
+
+  @protected
+  List<LiveSuperChatMessage> dco_decode_list_live_super_chat_message(
+      dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
+
+  @protected
+  LiveAnchorItem dco_decode_live_anchor_item(dynamic raw);
+
+  @protected
+  LiveCategory dco_decode_live_category(dynamic raw);
+
+  @protected
+  LiveCategoryResult dco_decode_live_category_result(dynamic raw);
+
+  @protected
+  LiveDanmuControlEvent dco_decode_live_danmu_control_event(dynamic raw);
+
+  @protected
+  LiveDanmuItem dco_decode_live_danmu_item(dynamic raw);
+
+  @protected
+  LiveMessage dco_decode_live_message(dynamic raw);
+
+  @protected
+  LiveMessageColor dco_decode_live_message_color(dynamic raw);
+
+  @protected
+  LiveMessageData dco_decode_live_message_data(dynamic raw);
+
+  @protected
+  LiveMessageEmoticon dco_decode_live_message_emoticon(dynamic raw);
+
+  @protected
+  LiveMessageType dco_decode_live_message_type(dynamic raw);
+
+  @protected
+  LivePlayQuality dco_decode_live_play_quality(dynamic raw);
+
+  @protected
+  LivePlayUrl dco_decode_live_play_url(dynamic raw);
+
+  @protected
+  LiveRoomDetail dco_decode_live_room_detail(dynamic raw);
+
+  @protected
+  LiveRoomItem dco_decode_live_room_item(dynamic raw);
+
+  @protected
+  LiveSearchAnchorResult dco_decode_live_search_anchor_result(dynamic raw);
+
+  @protected
+  LiveSearchRoomResult dco_decode_live_search_room_result(dynamic raw);
+
+  @protected
+  LiveSubCategory dco_decode_live_sub_category(dynamic raw);
+
+  @protected
+  LiveSuperChatMessage dco_decode_live_super_chat_message(dynamic raw);
+
+  @protected
+  Map<String, String>? dco_decode_opt_Map_String_String_None(dynamic raw);
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  LiveMessageData? dco_decode_opt_box_autoadd_live_message_data(dynamic raw);
+
+  @protected
+  List<LiveMessageEmoticon>? dco_decode_opt_list_live_message_emoticon(
+      dynamic raw);
+
+  @protected
+  QrCode dco_decode_qr_code(dynamic raw);
+
+  @protected
+  QrPollResult dco_decode_qr_poll_result(dynamic raw);
+
+  @protected
+  QrStatus dco_decode_qr_status(dynamic raw);
+
+  @protected
+  (String, String) dco_decode_record_string_string(dynamic raw);
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -63,28 +362,306 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
-  DanmakuMask sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  DanmakuConnection
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          SseDeserializer deserializer);
+
+  @protected
+  DanmakuMask
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveBilibiliSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveDouyinSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveDouyuSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveHuyaSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveTwitchSite
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          SseDeserializer deserializer);
+
+  @protected
+  DanmakuMask
+      sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          SseDeserializer deserializer);
+
+  @protected
+  DanmakuConnection
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveBilibiliSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveDouyinSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveDouyuSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveHuyaSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveTwitchSite
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          SseDeserializer deserializer);
+
+  @protected
+  DateTime sse_decode_Chrono_Local(SseDeserializer deserializer);
+
+  @protected
+  Map<String, String> sse_decode_Map_String_String_None(
       SseDeserializer deserializer);
 
   @protected
-  DanmakuMask sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      SseDeserializer deserializer);
+  DanmakuConnection
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          SseDeserializer deserializer);
 
   @protected
-  DanmakuMask sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+  DanmakuMask
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveBilibiliSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveDouyinSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveDouyuSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveHuyaSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          SseDeserializer deserializer);
+
+  @protected
+  LiveTwitchSite
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<LiveDanmuItem> sse_decode_StreamSink_live_danmu_item_Sse(
       SseDeserializer deserializer);
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  AccountInfo sse_decode_account_info(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_box_autoadd_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  LiveDanmuControlEvent sse_decode_box_autoadd_live_danmu_control_event(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveMessageData sse_decode_box_autoadd_live_message_data(
+      SseDeserializer deserializer);
+
+  @protected
+  LivePlayQuality sse_decode_box_autoadd_live_play_quality(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveRoomDetail sse_decode_box_autoadd_live_room_detail(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveSubCategory sse_decode_box_autoadd_live_sub_category(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveSuperChatMessage sse_decode_box_autoadd_live_super_chat_message(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveMessage sse_decode_box_live_message(SseDeserializer deserializer);
+
+  @protected
+  CoreError sse_decode_core_error(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<LiveAnchorItem> sse_decode_list_live_anchor_item(
+      SseDeserializer deserializer);
+
+  @protected
+  List<LiveCategory> sse_decode_list_live_category(
+      SseDeserializer deserializer);
+
+  @protected
+  List<LiveMessageEmoticon> sse_decode_list_live_message_emoticon(
+      SseDeserializer deserializer);
+
+  @protected
+  List<LivePlayQuality> sse_decode_list_live_play_quality(
+      SseDeserializer deserializer);
+
+  @protected
+  List<LiveRoomItem> sse_decode_list_live_room_item(
+      SseDeserializer deserializer);
+
+  @protected
+  List<LiveSubCategory> sse_decode_list_live_sub_category(
+      SseDeserializer deserializer);
+
+  @protected
+  List<LiveSuperChatMessage> sse_decode_list_live_super_chat_message(
+      SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<(String, String)> sse_decode_list_record_string_string(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveAnchorItem sse_decode_live_anchor_item(SseDeserializer deserializer);
+
+  @protected
+  LiveCategory sse_decode_live_category(SseDeserializer deserializer);
+
+  @protected
+  LiveCategoryResult sse_decode_live_category_result(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveDanmuControlEvent sse_decode_live_danmu_control_event(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveDanmuItem sse_decode_live_danmu_item(SseDeserializer deserializer);
+
+  @protected
+  LiveMessage sse_decode_live_message(SseDeserializer deserializer);
+
+  @protected
+  LiveMessageColor sse_decode_live_message_color(SseDeserializer deserializer);
+
+  @protected
+  LiveMessageData sse_decode_live_message_data(SseDeserializer deserializer);
+
+  @protected
+  LiveMessageEmoticon sse_decode_live_message_emoticon(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveMessageType sse_decode_live_message_type(SseDeserializer deserializer);
+
+  @protected
+  LivePlayQuality sse_decode_live_play_quality(SseDeserializer deserializer);
+
+  @protected
+  LivePlayUrl sse_decode_live_play_url(SseDeserializer deserializer);
+
+  @protected
+  LiveRoomDetail sse_decode_live_room_detail(SseDeserializer deserializer);
+
+  @protected
+  LiveRoomItem sse_decode_live_room_item(SseDeserializer deserializer);
+
+  @protected
+  LiveSearchAnchorResult sse_decode_live_search_anchor_result(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveSearchRoomResult sse_decode_live_search_room_result(
+      SseDeserializer deserializer);
+
+  @protected
+  LiveSubCategory sse_decode_live_sub_category(SseDeserializer deserializer);
+
+  @protected
+  LiveSuperChatMessage sse_decode_live_super_chat_message(
+      SseDeserializer deserializer);
+
+  @protected
+  Map<String, String>? sse_decode_opt_Map_String_String_None(
+      SseDeserializer deserializer);
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  LiveMessageData? sse_decode_opt_box_autoadd_live_message_data(
+      SseDeserializer deserializer);
+
+  @protected
+  List<LiveMessageEmoticon>? sse_decode_opt_list_live_message_emoticon(
+      SseDeserializer deserializer);
+
+  @protected
+  QrCode sse_decode_qr_code(SseDeserializer deserializer);
+
+  @protected
+  QrPollResult sse_decode_qr_poll_result(SseDeserializer deserializer);
+
+  @protected
+  QrStatus sse_decode_qr_status(SseDeserializer deserializer);
+
+  @protected
+  (String, String) sse_decode_record_string_string(
+      SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -105,31 +682,317 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
+  void sse_encode_AnyhowException(
+      AnyhowException self, SseSerializer serializer);
 
   @protected
-  void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      DanmakuMask self, SseSerializer serializer);
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          DanmakuConnection self, SseSerializer serializer);
 
   @protected
-  void sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      DanmakuMask self, SseSerializer serializer);
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          DanmakuMask self, SseSerializer serializer);
 
   @protected
-  void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
-      DanmakuMask self, SseSerializer serializer);
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          LiveBilibiliSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          LiveDouyinSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          LiveDouyuSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          LiveHuyaSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          LiveTwitchSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          DanmakuMask self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          DanmakuConnection self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          LiveBilibiliSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          LiveDouyinSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          LiveDouyuSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          LiveHuyaSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          LiveTwitchSite self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_Chrono_Local(DateTime self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_Map_String_String_None(
+      Map<String, String> self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+          DanmakuConnection self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+          DanmakuMask self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+          LiveBilibiliSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+          LiveDouyinSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+          LiveDouyuSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+          LiveHuyaSite self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+          LiveTwitchSite self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_StreamSink_live_danmu_item_Sse(
+      RustStreamSink<LiveDanmuItem> self, SseSerializer serializer);
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_account_info(AccountInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+      PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_live_danmu_control_event(
+      LiveDanmuControlEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_live_message_data(
+      LiveMessageData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_live_play_quality(
+      LivePlayQuality self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_live_room_detail(
+      LiveRoomDetail self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_live_sub_category(
+      LiveSubCategory self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_live_super_chat_message(
+      LiveSuperChatMessage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_live_message(LiveMessage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_core_error(CoreError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
-  void sse_encode_list_prim_u_8_strict(Uint8List self, SseSerializer serializer);
+  void sse_encode_list_live_anchor_item(
+      List<LiveAnchorItem> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_live_category(
+      List<LiveCategory> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_live_message_emoticon(
+      List<LiveMessageEmoticon> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_live_play_quality(
+      List<LivePlayQuality> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_live_room_item(
+      List<LiveRoomItem> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_live_sub_category(
+      List<LiveSubCategory> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_live_super_chat_message(
+      List<LiveSuperChatMessage> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_prim_u_8_strict(
+      Uint8List self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_record_string_string(
+      List<(String, String)> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_anchor_item(
+      LiveAnchorItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_category(LiveCategory self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_category_result(
+      LiveCategoryResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_danmu_control_event(
+      LiveDanmuControlEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_danmu_item(LiveDanmuItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_message(LiveMessage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_message_color(
+      LiveMessageColor self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_message_data(
+      LiveMessageData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_message_emoticon(
+      LiveMessageEmoticon self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_message_type(
+      LiveMessageType self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_play_quality(
+      LivePlayQuality self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_play_url(LivePlayUrl self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_room_detail(
+      LiveRoomDetail self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_room_item(LiveRoomItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_search_anchor_result(
+      LiveSearchAnchorResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_search_room_result(
+      LiveSearchRoomResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_sub_category(
+      LiveSubCategory self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_live_super_chat_message(
+      LiveSuperChatMessage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_Map_String_String_None(
+      Map<String, String>? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+      PlatformInt64? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_live_message_data(
+      LiveMessageData? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_list_live_message_emoticon(
+      List<LiveMessageEmoticon>? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_qr_code(QrCode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_qr_poll_result(QrPollResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_qr_status(QrStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_record_string_string(
+      (String, String) self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);
@@ -148,23 +1011,56 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class
 
 class RustLibWire implements BaseWire {
-  factory RustLibWire.fromExternalLibrary(ExternalLibrary lib) => RustLibWire(lib.ffiDynamicLibrary);
+  factory RustLibWire.fromExternalLibrary(ExternalLibrary lib) =>
+      RustLibWire(lib.ffiDynamicLibrary);
 
   /// Holds the symbol lookup function.
-  final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) _lookup;
+  final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
+      _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
-  RustLibWire(ffi.DynamicLibrary dynamicLibrary) : _lookup = dynamicLibrary.lookup;
+  RustLibWire(ffi.DynamicLibrary dynamicLibrary)
+      : _lookup = dynamicLibrary.lookup;
 
-  void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnectionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnectionPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnectionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnection =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuConnectionPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
     ffi.Pointer<ffi.Void> ptr,
   ) {
     return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
@@ -179,7 +1075,8 @@ class RustLibWire implements BaseWire {
       _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMaskPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
-  void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
     ffi.Pointer<ffi.Void> ptr,
   ) {
     return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask(
@@ -192,5 +1089,165 @@ class RustLibWire implements BaseWire {
           'frbgen_simple_live_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask');
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMask =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDanmakuMaskPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSite =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveBilibiliSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSite =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyinSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSite =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveDouyuSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSite =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveHuyaSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSitePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSitePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_simple_live_app_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSite =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLiveTwitchSitePtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

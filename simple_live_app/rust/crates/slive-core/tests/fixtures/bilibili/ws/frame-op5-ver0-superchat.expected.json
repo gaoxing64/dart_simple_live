@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "synthetic": true,
+    "frame_format_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_danmaku.dart:119-145,147-184,241-261",
+    "note": "帧头 16 字节：len(u32 BE)/hdrlen(u16=16)/protover(u16)/op(u32)/seq(u32)。内容为合成，待真实抓包替换。",
+    "target_ac": [
+      "AC-15"
+    ],
+    "op": 5,
+    "protover_header": 0,
+    "body_decoded": "json (unicode)"
+  },
+  "bytes_hex": "00 00 01 13 00 10 00 00 00 00 00 05 00 00 00 01 7b 22 63 6d 64 22 3a 22 53 55 50 45 52 5f 43 48 41 54 5f 4d 45 53 53 41 47 45 22 2c 22 64 61 74 61 22 3a 7b 22 62 61 63 6b 67 72 6f 75 6e 64 5f 62 6f 74 74 6f 6d 5f 63 6f 6c 6f 72 22 3a 22 23 32 41 36 30 42 32 22 2c 22 62 61 63 6b 67 72 6f 75 6e 64 5f 63 6f 6c 6f 72 22 3a 22 23 45 44 46 35 46 46 22 2c 22 65 6e 64 5f 74 69 6d 65 22 3a 31 37 30 30 30 30 30 30 36 30 2c 22 6d 65 73 73 61 67 65 22 3a 22 73 63 20 6d 65 73 73 61 67 65 22 2c 22 70 72 69 63 65 22 3a 33 30 2c 22 73 74 61 72 74 5f 74 69 6d 65 22 3a 31 37 30 30 30 30 30 30 30 30 2c 22 75 73 65 72 5f 69 6e 66 6f 22 3a 7b 22 66 61 63 65 22 3a 22 68 74 74 70 73 3a 2f 2f 69 30 2e 68 64 73 6c 62 2e 63 6f 6d 2f 62 66 73 2f 66 61 63 65 2f 78 2e 6a 70 67 22 2c 22 75 6e 61 6d 65 22 3a 22 73 63 5f 75 73 65 72 22 7d 7d 7d",
+  "expected": {
+    "messages": [
+      {
+        "type": "superChat",
+        "user_name": "SUPER_CHAT_MESSAGE",
+        "message": "SUPER_CHAT_MESSAGE",
+        "data": {
+          "user_name": "sc_user",
+          "face": "https://i0.hdslb.com/bfs/face/x.jpg@200w.jpg",
+          "message": "sc message",
+          "price": 30,
+          "start_time_ms": 1700000000000,
+          "end_time_ms": 1700000060000,
+          "background_color": "#EDF5FF",
+          "background_bottom_color": "#2A60B2"
+        }
+      }
+    ]
+  }
+}

@@ -4,13 +4,24 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib", "staticlib"]
+# rlib 供集成测试（manual_e2e 等）链接；cargokit 的移动端构建不受影响
+crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
-flutter_rust_bridge = "=2.13.0"
+flutter_rust_bridge = { version = "=2.13.0", features = ["chrono"] }
 regex = "1.12.2"
 xxhash-rust = { version = "0.8.5", features = ["xxh3"] }
 lazy_static = "1.4.0"
+chrono = "0.4"
+slive-core = { path = "crates/slive-core" }
+async-trait = "0.1"
+futures-util = "0.3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "net", "time"] }
+# 弹幕生产连接：rustls（与 reqwest 0.12 的 rustls 0.22 同栈，见 ADR-003）
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+
+[workspace]
+members = ["crates/slive-core"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

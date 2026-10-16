@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "kind": "deterministic-golden",
+    "synthetic": true,
+    "derivation": "由 bilibili_site.dart:418-483 (mixinKeyEncTab) / :505-508 (getMixinKey) / :510-534 (getWbiSign) 的确定性算法推导，非抓包",
+    "target_ac": [
+      "AC-21"
+    ],
+    "target_rust_fn": "slive_core::wbi::{get_mixin_key, get_wbi_sign}",
+    "img_key_sub_key_source": "bilibili-API-collect 公开示例 key（非真实用户凭证）"
+  },
+  "input": {
+    "img_key": "7cd084941338484aae1ad9425b84077c",
+    "sub_key": "4932caff0ff746eab6f01bf08b70ac45",
+    "wts": "1700000000",
+    "params_before_sign": {
+      "room_id": "6"
+    },
+    "filtered_chars": "!'()*"
+  },
+  "expect": {
+    "mixin_key": "ea1db124af3c7062474693fa704f4ff8",
+    "query": "room_id=6&wts=1700000000",
+    "w_rid": "46e0afca2af785f6dbdc24935d856d79",
+    "params_after_sign": {
+      "room_id": "6",
+      "wts": "1700000000",
+      "w_rid": "46e0afca2af785f6dbdc24935d856d79"
+    }
+  },
+  "extra_case": {
+    "description": "排序 + 过滤 + 空格编码路径；由第三方独立实现（Python hashlib/quote_plus）交叉推导（2026-10-16），非 Rust 实现自证 —— AC-35",
+    "wts": "1700000000",
+    "params_before_sign": {
+      "keyword": "hello world!(*",
+      "type": "live"
+    },
+    "query": "keyword=hello+world&type=live&wts=1700000000",
+    "w_rid": "36f2993f8ab0d9b86c6fdb4718e8b045"
+  }
+}
