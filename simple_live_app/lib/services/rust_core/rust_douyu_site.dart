@@ -13,6 +13,7 @@ import 'package:simple_live_app/src/rust/api/slive/models/danmu.dart' as rust_da
 import 'package:simple_live_core/simple_live_core.dart';
 
 import 'rust_douyu_models.dart';
+import 'package:flutter/foundation.dart';
 
 /// 斗鱼的 Rust Core 站点实现（D2：Dart 直连 FRB API，无 Dart 协议实现）。
 class RustDouyuSite extends LiveSite {
@@ -178,7 +179,7 @@ class RustDouyuDanmaku extends LiveDanmaku {
       onError: (Object e) {
         // 流级错误（解码失败等）不中断弹幕，记录即可
         // ignore: avoid_print
-        print('[rust-douyu-danmaku] stream ERROR: $e');
+        debugPrint('[rust-douyu-danmaku] stream ERROR: $e');
       },
       cancelOnError: false,
     );

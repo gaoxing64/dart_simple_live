@@ -1,7 +1,8 @@
 //! 斗鱼夹具契约用例（IP-3 夹具基线 · QA 产出）。
 //!
-//! **「平台行为」用例全部 `#[ignore]`** —— `platforms::douyu` 由 IP-3 填充，
-//! 解除方式见 `docs/rust-core/18-fixtures-multiplatform.md §7`。
+//! 本文件只保留**夹具自身契约**（元数据/字节布局/转义/过滤等）；「平台行为」断言已由
+//! 各平台实现测试取代（`ac_douyu_http.rs` 等）；原「待 IP-x 接入后解除」的 `#[ignore]`
+//! 骨架已于 2026-10-17 合并前评审移除（理由已失真且被取代）。
 //!
 //! 本文件**不 import 任何平台函数**：只读夹具 + 校验字节布局。
 //! 这样 IP-3 正在改 `site.rs` / `sign.rs` 的签名时，本文件不会连带编译失败。
@@ -187,59 +188,4 @@ fn mock_transport_can_serve_douyu_samples() {
         "尚未发起请求时计数应为 0"
     );
     assert!(mock.requests().is_empty());
-}
-
-// =====================================================================
-// 五、待 IP-3 实现接入后解除的用例（当前 #[ignore]）
-// =====================================================================
-
-/// **待 IP-3 接入后解除**：详情 —— `betard` 样本应产出下述字段。
-#[test]
-#[ignore = "待 IP-3（斗鱼实现）接入后解除；期望值见 http-samples.json 的 expected"]
-fn ac3_room_detail_fields() {
-    let exp = sample(PLATFORM, "www_douyu_com_betard")["expected"].clone();
-    assert_eq!(exp["room_id"], "252140");
-    assert_eq!(exp["url"], "https://www.douyu.com/252140");
-    assert_eq!(exp["danmaku_data"], "252140");
-    assert_eq!(exp["status"], true);
-    assert_eq!(exp["online"], 0, "格式化热度解析失败回落 0");
-}
-
-/// **待 IP-3 接入后解除**：取流线路排序 —— `scdn*` 排最后（:103-110）。
-#[test]
-#[ignore = "待 IP-3 接入后解除；线路排序 + renewers"]
-fn ac3_play_urls_scdn_last_and_renewers() {
-    let exp = sample(PLATFORM, "www_douyu_com_lapi_live_getH5PlayV1")["expected"].clone();
-    let cdns = exp["cdns_sorted"].as_array().expect("cdns_sorted");
-    assert_eq!(cdns.last().expect("非空"), &Value::from("scdn-aaa"));
-    assert!(exp["renewers"].as_str().is_some(), "flv 线路须有续流回调");
-}
-
-/// **待 IP-3 接入后解除**：非 flv 线路的 `renewers` 整体为 null（:147）。
-#[test]
-#[ignore = "待 IP-3 接入后解除；非 flv 不登记续流"]
-fn ac3_non_flv_has_no_renewers() {
-    let s = sample(PLATFORM, "www_douyu_com_lapi_live_getH5PlayV1");
-    let v = s["variants"]
-        .as_array()
-        .expect("variants")
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("m3u8")))
-        .expect("缺 m3u8 变体");
-    assert!(v["expected"]["renewers"].is_null());
-}
-
-/// **待 IP-3 接入后解除**：风控 `error != 0` 必须抛错且**不重试**（请求次数 == 1）。
-#[test]
-#[ignore = "待 IP-3 接入后解除；需用 MockDouyuPost 断言请求次数 == 1"]
-fn ac3_search_error_no_retry() {
-    let variants = sample(PLATFORM, "www_douyu_com_japi_search_api_searchShow")["variants"]
-        .as_array()
-        .expect("variants")
-        .clone();
-    let err = variants
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("error!=0")))
-        .expect("存在 error!=0 变体");
-    assert!(err["expected"]["error"].as_str().is_some());
 }

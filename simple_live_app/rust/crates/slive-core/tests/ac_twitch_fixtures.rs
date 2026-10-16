@@ -1,7 +1,8 @@
 //! Twitch 夹具契约用例（IP-5 夹具基线 · QA 产出）。
 //!
-//! **「平台行为」用例全部 `#[ignore]`** —— `platforms::twitch` 由 IP-5 填充，
-//! 解除方式见 `docs/rust-core/18-fixtures-multiplatform.md §7`。
+//! 本文件只保留**夹具自身契约**（元数据/字节布局/转义/过滤等）；「平台行为」断言已由
+//! 各平台实现测试取代（`ac_douyu_http.rs` 等）；原「待 IP-x 接入后解除」的 `#[ignore]`
+//! 骨架已于 2026-10-17 合并前评审移除（理由已失真且被取代）。
 //! 本文件**不 import 平台函数**；golden 与 HTTP quirks 见 `ac_twitch_golden.rs`。
 //!
 //! 纪律：**Dart 现状即「不支持」的能力，迁移必须同样不支持**（见
@@ -242,60 +243,4 @@ fn m3u8_base_expectation_is_bandwidth_descending() {
     for q in &qs {
         assert!(q["url"].as_str().is_some_and(|u| !u.is_empty()));
     }
-}
-
-// =====================================================================
-// 四、待 IP-5 实现接入后解除的用例（当前 #[ignore]）
-// =====================================================================
-/// **待 IP-5 接入后解除**：m3u8 清晰度按带宽降序 + 阈值命名。
-#[test]
-#[ignore = "待 IP-5（Twitch 实现）接入后解除"]
-fn ac5_play_qualities_from_m3u8() {
-    let qs = sample(PLATFORM, "usher_ttvnw_net_master_m3u8")["expected"]["qualities"]
-        .as_array()
-        .expect("qualities")
-        .clone();
-    assert_eq!(qs.len(), 4);
-    assert_eq!(qs[0]["quality"], "1080P");
-}
-
-/// **待 IP-5 接入后解除**：未开播时清晰度为空列表，且**不请求** m3u8。
-#[test]
-#[ignore = "待 IP-5 接入后解除；未开播分支"]
-fn ac5_offline_returns_empty_qualities() {
-    let variants = sample(PLATFORM, "gql_twitch_tv_room_shell")["variants"]
-        .as_array()
-        .expect("variants")
-        .clone();
-    let off = variants
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("未开播")))
-        .expect("存在未开播变体");
-    assert_eq!(off["expected"]["status"], false);
-    assert_eq!(off["expected"]["online"], 0, "未播时 online 强制 0");
-}
-
-/// **待 IP-5 接入后解除**：不存在的频道抛错（Dart:217/223）。
-#[test]
-#[ignore = "待 IP-5 接入后解除；错误流"]
-fn ac5_user_not_found_throws() {
-    let variants = sample(PLATFORM, "gql_twitch_tv_room_shell")["variants"]
-        .as_array()
-        .expect("variants")
-        .clone();
-    let nf = variants
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("UserNotFound")))
-        .expect("存在 UserNotFound 变体");
-    assert!(nf["expected"]["error"].as_str().is_some());
-}
-
-/// **待 IP-5 接入后解除**：搜索能力保持「不支持」（抛错）。
-#[test]
-#[ignore = "待 IP-5 接入后解除；不支持的能力必须保持抛错"]
-fn ac5_search_stays_unsupported() {
-    let un = &fxcommon::http_samples(PLATFORM)["_meta"]["unsupported_by_dart"];
-    assert!(un["search_rooms"].as_str().is_some());
-    assert!(un["search_anchors"].as_str().is_some());
-    assert!(un["get_recommend_rooms"].as_str().is_some());
 }

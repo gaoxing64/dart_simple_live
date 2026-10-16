@@ -17,8 +17,15 @@ slive-core = { path = "crates/slive-core" }
 async-trait = "0.1"
 futures-util = "0.3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "net", "time"] }
-# 弹幕生产连接：rustls（与 reqwest 0.12 的 rustls 0.22 同栈，见 ADR-003）
+
+# 弹幕 WSS 的 TLS 后端按平台分层（ADR-013，supersedes ADR-003#2）：
+# 桌面 native-tls —— 斗鱼弹幕服务器对 rustls ClientHello 指纹风控，仅放行系统 TLS
+# （2026-10-17 真机实证）；移动 rustls —— 保「移动端零 OpenSSL/NDK C 依赖」。
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
 
 [workspace]
 members = ["crates/slive-core"]

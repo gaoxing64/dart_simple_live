@@ -1,7 +1,8 @@
 //! 抖音夹具契约用例（IP-6 夹具基线 · QA 产出）。
 //!
-//! **「平台行为」用例全部 `#[ignore]`** —— `platforms::douyin` 由 IP-6 填充，
-//! 解除方式见 `docs/rust-core/18-fixtures-multiplatform.md §7`。
+//! 本文件只保留**夹具自身契约**（元数据/字节布局/转义/过滤等）；「平台行为」断言已由
+//! 各平台实现测试取代（`ac_douyu_http.rs` 等）；原「待 IP-x 接入后解除」的 `#[ignore]`
+//! 骨架已于 2026-10-17 合并前评审移除（理由已失真且被取代）。
 //! 本文件**不 import 平台函数**，只读夹具 + 校验 protobuf 帧结构；
 //! golden 与 HTTP quirks 见 `ac_douyin_golden.rs`。本文件锁住：
 //! `PushFrame` 字段号与 gzip 载荷、`room_id` 的webRid/roomId 两形态、
@@ -235,65 +236,4 @@ fn gzip_payload_is_deterministic() {
     let a = read_bytes(PLATFORM, "ws/frame-push-chat.bin");
     let b = read_bytes(PLATFORM, "ws/frame-push-chat.bin");
     assert_eq!(a, b);
-}
-
-// =====================================================================
-// 三、待 IP-6 实现接入后解除的用例（当前 #[ignore]）
-// =====================================================================
-/// **待 IP-6 接入后解除**：详情返回的 room_id 是 **webRid**，不是 19 位 roomId。
-#[test]
-#[ignore = "待 IP-6（抖音实现）接入后解除"]
-fn ac6_detail_room_id_is_web_rid() {
-    let exp = fxcommon::sample(PLATFORM, "live_douyin_com_webcast_room_web_enter")["expected"].clone();
-    assert_eq!(exp["room_id"], "416144012050");
-    assert!(
-        exp["room_id"].as_str().expect("room_id").len() <= 16,
-        "room_id 必须是 webRid（11-12 位）"
-    );
-    assert_eq!(exp["danmaku_data"]["roomId"], "7376429659866598196");
-}
-
-/// **待 IP-6 接入后解除**：弹幕颜色恒为白色，不得自行上色。
-#[test]
-#[ignore = "待 IP-6 接入后解除；Q9 颜色写死白色"]
-fn ac6_danmaku_color_always_white() {
-    let msgs = expected_doc("frame-push-chat")["expected"]["messages"]
-        .as_array()
-        .expect("messages")
-        .clone();
-    assert_eq!(msgs[0]["color"]["r"], 255);
-    assert_eq!(msgs[0]["color"]["g"], 255);
-    assert_eq!(msgs[0]["color"]["b"], 255);
-}
-
-/// **待 IP-6 接入后解除**：风控返回纯文本 `blocked` 时抛「搜索被限制」。
-#[test]
-#[ignore = "待 IP-6 接入后解除；非 JSON 响应不能报 JSON 解析错"]
-fn ac6_search_blocked_throws_typed_error() {
-    let variants = fxcommon::sample(PLATFORM, "www_douyin_com_aweme_v1_web_live_search")["variants"]
-        .as_array()
-        .expect("variants")
-        .clone();
-    let v = variants
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("blocked")))
-        .expect("缺 blocked 变体");
-    assert_eq!(v["__mock_text"], "blocked");
-    assert!(v["expected"]["error"].as_str().is_some());
-}
-
-/// **待 IP-6 接入后解除**：降级骨架（stream_url 空）须发第二次请求查 reflow/info。
-#[test]
-#[ignore = "待 IP-6 接入后解除；连麦房间降级补救"]
-fn ac6_degraded_room_triggers_reflow() {
-    let variants =
-        fxcommon::sample(PLATFORM, "live_douyin_com_webcast_room_web_enter")["variants"]
-            .as_array()
-            .expect("variants")
-            .clone();
-    let v = variants
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("降级")))
-        .expect("缺降级变体");
-    assert_eq!(v["expected"]["request_count"], 2);
 }

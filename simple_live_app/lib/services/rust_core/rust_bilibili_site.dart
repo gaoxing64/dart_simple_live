@@ -2,8 +2,9 @@
 //!
 //! 纪律（AC-39 / 裁决 J-6 / R-13）：本层**只做类型翻译与转发**，零协议逻辑 ——
 //! 不得出现 URL 拼接 / 签名 / 解析 / 重试；一切协议能力在 `slive-core`（Rust）。
-//! 由 `sites.dart` 的开关 `Constant.kUseRustBilibili` 分派（默认关 = 走 Dart core，
-//! 可一键回退 —— AC-31）；Dart core 的 B站实现仅作回退目标保留（AC-34）。
+//! 由 `sites.dart` 的开关 `Constant.kUseRustBilibili` 分派（**体验版起默认 true =
+//! 走 Rust Core**，J-9 判据①；翻 false 一键回退 Dart core —— AC-31）；
+//! Dart core 的 B站实现仅作回退目标保留（AC-34）。
 
 import 'dart:async';
 import 'dart:convert';
@@ -15,6 +16,7 @@ import 'package:simple_live_app/src/rust/api/slive/models/danmu.dart' as rust_da
 import 'package:simple_live_core/simple_live_core.dart';
 
 import 'rust_site_models.dart';
+import 'package:flutter/foundation.dart';
 
 /// B站的 Rust Core 站点实现（D2：Dart 直连 FRB API，无 Dart 协议实现）。
 class RustBilibiliSite extends LiveSite {
@@ -171,7 +173,7 @@ class RustLiveDanmaku extends LiveDanmaku {
       onError: (Object e) {
         // 流级错误（解码失败等）不中断弹幕，记录即可
         // ignore: avoid_print
-        print('[rust-danmaku] stream ERROR: $e');
+        debugPrint('[rust-danmaku] stream ERROR: $e');
       },
       cancelOnError: false,
     );

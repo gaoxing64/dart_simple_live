@@ -1,7 +1,8 @@
 //! 虎牙夹具契约用例（IP-4 夹具基线 · QA 产出）。
 //!
-//! **「平台行为」用例全部 `#[ignore]`** —— `platforms::huya` 由 IP-4 填充，
-//! 解除方式见 `docs/rust-core/18-fixtures-multiplatform.md §7`。
+//! 本文件只保留**夹具自身契约**（元数据/字节布局/转义/过滤等）；「平台行为」断言已由
+//! 各平台实现测试取代（`ac_douyu_http.rs` 等）；原「待 IP-x 接入后解除」的 `#[ignore]`
+//! 骨架已于 2026-10-17 合并前评审移除（理由已失真且被取代）。
 //!
 //! 本文件**不 import 任何平台函数**，只读夹具 + 校验 TARS 字节布局。
 //! 因此 IP-4 调整 `site.rs` / `danmaku` 的内部签名时本文件不会连带编译失败。
@@ -221,71 +222,4 @@ fn hdr_and_4k_qualities_are_excluded_from_expectation() {
         2,
         "flv 与 hls 都非空时应产出 2 条线路"
     );
-}
-
-// =====================================================================
-// 五、待 IP-4 实现接入后解除的用例（当前 #[ignore]）
-// =====================================================================
-/// **待 IP-4 接入后解除**：未开播时弹幕参数必须是 `{0,0,0}` 而非 null。
-///
-/// Dart:325-333 注释指出 App 的 live-controller 会无条件用它启动弹幕，
-/// 置 null 会抛类型错。
-#[test]
-#[ignore = "待 IP-4（虎牙实现）接入后解除"]
-fn ac4_offline_room_danmaku_args_not_null() {
-    let variants = sample(PLATFORM, "www_huya_com_room_html")["variants"]
-        .as_array()
-        .expect("variants")
-        .clone();
-    let off = variants
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("未开播")))
-        .expect("存在未开播变体");
-    assert_eq!(off["expected"]["danmaku_data"]["topSid"], 0);
-    assert_eq!(off["expected"]["danmaku_data"]["subSid"], 0);
-}
-
-/// **待 IP-4 接入后解除**：gid 四种类型都要处理（Q5）。
-#[test]
-#[ignore = "待 IP-4 接入后解除；gid 四类型分支"]
-fn ac4_gid_four_types() {
-    let variants = sample(PLATFORM, "live_cdn_huya_com_liveconfig_game_bussLive")["variants"]
-        .as_array()
-        .expect("variants")
-        .clone();
-    let names: Vec<&str> = variants.iter().filter_map(|v| v["name"].as_str()).collect();
-    assert!(names.iter().any(|n| n.contains("字符串")), "缺 gid 为字符串的变体");
-    assert!(names.iter().any(|n| n.contains("null")), "缺 gid 为 null 的变体");
-    // Q5：null 时 pic 拼成 .../null-MS.jpg（Dart:83,90）
-    let null_case = variants
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("null")))
-        .expect("缺 null 变体");
-    assert_eq!(
-        null_case["expected"]["sub_categories"][0]["pic"],
-        "https://huyaimg.msstatic.com/cdnimage/game/null-MS.jpg"
-    );
-}
-
-/// **待 IP-4 接入后解除**：搜索房间的 roomId 带 `yy/` 前缀（Q6）。
-#[test]
-#[ignore = "待 IP-4 接入后解除；roomId 前缀"]
-fn ac4_search_room_id_has_yy_prefix() {
-    let exp = sample(PLATFORM, "search_cdn_huya_com_rooms")["expected"].clone();
-    assert_eq!(exp["items"][0]["room_id"], "yy/660000");
-}
-
-/// **待 IP-4 接入后解除**：缺 TT_ROOM_DATA 时抛类型化错误而非 panic。
-#[test]
-#[ignore = "待 IP-4 接入后解除；错误流"]
-fn ac4_missing_room_data_typed_error() {
-    let variants = sample(PLATFORM, "www_huya_com_room_html")["variants"]
-        .as_array()
-        .expect("variants")
-        .clone();
-    let miss = variants
-        .iter()
-        .find(|v| v["name"].as_str().is_some_and(|n| n.contains("缺少 TT_ROOM_DATA")))
-        .expect("存在缺 TT_ROOM_DATA 变体");
-    assert!(miss["expected"]["error"].as_str().is_some());
 }
