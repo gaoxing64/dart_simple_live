@@ -237,13 +237,16 @@ class LiveRoomController extends PlayerController
 
   /// 下发给播放器的地址（与 [playUrls] 一一对应）。
   ///
-  /// 带时效的直链（斗鱼，见 [LivePlayUrl.renewers]）由 [buildPlayerUrls] 替换为
-  /// 本地续流中转地址，播放器实际拉的是中转流；[playUrls] 始终保留真实直链，
-  /// 供线路列表展示与复制链接使用。
+  /// 斗鱼的直链带 300 秒硬寿命，由 [buildPlayerUrls] 替换为本地续流中转地址，
+  /// 播放器实际拉的是中转流；[playUrls] 始终保留真实直链，供线路列表展示与
+  /// 复制链接使用。
   List<String> playerUrls = [];
 
-  /// 最近一次取流返回的续流回调（与 [playUrls] 一一对应），平台不支持续流时为 null。
-  List<LivePlayUrlRenewer?>? _playUrlRenewers;
+  /// 每条线路的续流上下文（与 [playUrls] 一一对应），平台不支持续流时为 null。
+  ///
+  /// 与 DTV 同构：这里只登记「房间 + 清晰度 + 线路 + 取流入口」，中转到期时
+  /// 自己调 core 重新取流。Rust 化后 core 不再产出 `LivePlayUrl.renewers`（O-7）。
+  List<StreamRenewContext>? _playUrlRenewContexts;
 
   /// 本控制器登记的续流会话（本地中转地址），换流与销毁时统一回收。
   final List<String> _relaySessions = [];
@@ -819,12 +822,36 @@ class LiveRoomController extends PlayerController
     }
     playUrls.assignAll(playUrl.urls); // 深拷贝
     playHeaders = playUrl.headers;
-    _playUrlRenewers = playUrl.renewers;
+    _playUrlRenewContexts = _buildRenewContexts();
     currentLineIndex = 0;
     currentLineInfo.value = "线路${currentLineIndex + 1}";
     //重置错误次数
     mediaErrorRetryCount = 0;
     initPlaylist();
+  }
+
+  /// 斗鱼直链 300 秒后会被 CDN 主动断开，为每条线路登记续流上下文，
+  /// 交给中转在到期前自行重取；其余平台不经过中转。
+  List<StreamRenewContext>? _buildRenewContexts() {
+    if (site.id != Constant.kDouyu) {
+      return null;
+    }
+    final roomDetail = detail.value!;
+    final quality = qualities[currentQuality];
+    return List.generate(playUrls.length, (line) {
+      return StreamRenewContext(
+        roomId: roomDetail.roomId,
+        quality: quality.quality,
+        line: line,
+        fetchUrls: () async {
+          final fresh = await site.liveSite.getPlayUrls(
+            detail: roomDetail,
+            quality: quality,
+          );
+          return fresh.urls;
+        },
+      );
+    });
   }
 
   void changePlayLine(int index) {
@@ -876,24 +903,21 @@ class LiveRoomController extends PlayerController
     final urls = List<String>.from(playUrls);
     playerUrls = urls;
 
-    final renewers = _playUrlRenewers;
-    if (renewers == null) {
+    final renewContexts = _playUrlRenewContexts;
+    if (renewContexts == null) {
       return;
     }
 
     final relay = StreamRelayService.instance;
     final forceHttps = AppSettingsController.instance.playerForceHttps.value;
     final registered = <String>[];
-    for (var i = 0; i < urls.length && i < renewers.length; i++) {
-      final renewer = renewers[i];
-      if (renewer == null) {
-        continue;
-      }
+    for (var i = 0; i < urls.length && i < renewContexts.length; i++) {
+      final renew = renewContexts[i];
       try {
         final upstreamUrl = forceHttps ? urls[i].replaceAll("http://", "https://") : urls[i];
         final localUrl = await relay.register(
           url: upstreamUrl,
-          renewer: renewer,
+          renew: renew,
           headers: playHeaders,
         );
         urls[i] = localUrl;

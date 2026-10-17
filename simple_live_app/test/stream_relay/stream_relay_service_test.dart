@@ -187,7 +187,42 @@ Future<void> _waitFor(bool Function() condition, {Duration timeout = const Durat
   }
 }
 
+/// 与控制器登记方式一致的续流上下文：重取时始终返回同一条线路。
+StreamRenewContext _renewContext(String url, {int line = 0}) => StreamRenewContext(
+      roomId: "9999",
+      quality: "原画",
+      line: line,
+      fetchUrls: () async => [url],
+    );
+
 void main() {
+  test('续流上下文按线路取对应直链，线路数变少时退回第一条', () async {
+    final urls = <String>["a", "b", "c"];
+    var calls = 0;
+    StreamRenewContext context(int line) => StreamRenewContext(
+          roomId: "1",
+          quality: "原画",
+          line: line,
+          fetchUrls: () async {
+            calls += 1;
+            return urls;
+          },
+        );
+
+    expect(await context(2).resolve(), "c");
+    expect(await context(1).resolve(), "b");
+    urls.removeLast();
+    expect(await context(2).resolve(), "a", reason: "线路数变少时退回第一条");
+    expect(calls, 3);
+
+    final empty = StreamRenewContext(
+      roomId: "1",
+      quality: "原画",
+      line: 0,
+      fetchUrls: () async => [],
+    );
+    expect(empty.resolve(), throwsStateError, reason: "取流接口返回空列表应报错，交给重试");
+  });
   test('直链到期后自动续流：对播放器表现为一条连续的 FLV', () async {
     final cdn = _FakeCdn(segmentLifetime: const Duration(milliseconds: 700));
     await cdn.start();
@@ -201,7 +236,7 @@ void main() {
       ..keyframeWaitTimeout = const Duration(seconds: 5);
     addTearDown(relay.shutdown);
 
-    final relayUrl = await relay.register(url: cdn.url, renewer: () async => cdn.url);
+    final relayUrl = await relay.register(url: cdn.url, renew: _renewContext(cdn.url));
     final collected = await _collect(relayUrl, const Duration(milliseconds: 2400));
 
     expect(collected.statusCode, 200);
@@ -237,11 +272,13 @@ void main() {
 
     expect(sequenceHeaders, 2, reason: "接续段的初始化 tag 必须被丢弃");
     expect(videoTs.length, greaterThan(50), reason: "输出应覆盖多段上游流");
+    // 允许「相等」：接续边界可能与已发帧同毫秒（FlvTimeline.isNotBehind 刻意
+    // 不按严格大于过滤，否则真实斗鱼流里同毫秒的音频 tag 会被当回吐丢掉）。
     for (var i = 1; i < videoTs.length; i++) {
-      expect(videoTs[i], greaterThan(videoTs[i - 1]), reason: "视频时间戳必须严格递增");
+      expect(videoTs[i], greaterThanOrEqualTo(videoTs[i - 1]), reason: "视频时间戳不得倒退");
     }
     for (var i = 1; i < audioTs.length; i++) {
-      expect(audioTs[i], greaterThan(audioTs[i - 1]), reason: "音频时间戳必须严格递增");
+      expect(audioTs[i], greaterThanOrEqualTo(audioTs[i - 1]), reason: "音频时间戳不得倒退");
     }
   });
 
@@ -279,7 +316,12 @@ void main() {
 
     final relayUrl = await relay.register(
       url: cdn.url,
-      renewer: () async => throw StateError("取流接口挂了"),
+      renew: StreamRenewContext(
+        roomId: "9999",
+        quality: "原画",
+        line: 0,
+        fetchUrls: () async => throw StateError("取流接口挂了"),
+      ),
     );
     final collected = await _collect(relayUrl, const Duration(milliseconds: 1500));
 
@@ -302,7 +344,7 @@ void main() {
       ..readTimeout = const Duration(seconds: 5);
     addTearDown(relay.shutdown);
 
-    final relayUrl = await relay.register(url: cdn.url, renewer: () async => cdn.url);
+    final relayUrl = await relay.register(url: cdn.url, renew: _renewContext(cdn.url));
     final collected = await _collect(relayUrl, const Duration(milliseconds: 1500));
 
     expect(collected.statusCode, 200);
@@ -328,7 +370,7 @@ void main() {
       ..keyframeWaitTimeout = const Duration(milliseconds: 500);
     addTearDown(relay.shutdown);
 
-    final relayUrl = await relay.register(url: cdn.url, renewer: () async => cdn.url);
+    final relayUrl = await relay.register(url: cdn.url, renew: _renewContext(cdn.url));
     final collected = await _collect(relayUrl, const Duration(milliseconds: 2000));
 
     expect(collected.statusCode, 200);
@@ -345,7 +387,7 @@ void main() {
     final relay = StreamRelayService()..readTimeout = const Duration(seconds: 5);
     addTearDown(relay.shutdown);
 
-    final relayUrl = await relay.register(url: cdn.url, renewer: () async => cdn.url);
+    final relayUrl = await relay.register(url: cdn.url, renew: _renewContext(cdn.url));
 
     final client = HttpClient();
     final request = await client.getUrl(Uri.parse(relayUrl));

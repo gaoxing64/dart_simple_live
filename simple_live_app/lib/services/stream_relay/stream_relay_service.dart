@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/services/stream_relay/flv_demuxer.dart';
-import 'package:simple_live_core/simple_live_core.dart';
 import 'package:uuid/uuid.dart';
 
 /// 本地「续流中转」服务。
@@ -19,6 +18,10 @@ import 'package:uuid/uuid.dart';
 /// 短效直链，不处理的话播放约 5 分钟就会停在最后一帧。斗鱼官方网页端的
 /// 做法就是每 ~300 秒重新调一次取流接口续签，这里做的是同一件事。
 /// 参考 DTV 项目的 flv_relay 实现（commit ae4b425f）。
+///
+/// 续流来源与 DTV 同构：上层只登记 [StreamRenewContext]（房间 / 清晰度 / 线路
+/// + 取流入口），到期时由中转自己重取直链。不依赖 core 下发 renewer 回调——
+/// Rust 化后 `LivePlayUrl.renewers` 已无人产出（O-7）。
 ///
 /// 接续之所以成立：斗鱼 flv tag 用推流会话的绝对时间戳，重新取流后时间轴
 /// 延续而非归零，因此不需要改写时间戳，只要丢掉新流的文件头与初始化 tag，
@@ -67,15 +70,15 @@ class StreamRelayService extends GetxService {
 
   /// 登记一条直链的续流会话，返回应下发给播放器的本地地址。
   ///
-  /// [renewer] 为空时退化为纯转发（上游结束即结束），行为与直连一致。
+  /// [renew] 为空时退化为纯转发（上游结束即结束），行为与直连一致。
   Future<String> register({
     required String url,
-    LivePlayUrlRenewer? renewer,
+    StreamRenewContext? renew,
     Map<String, String>? headers,
   }) async {
     await _ensureServer();
     final token = const Uuid().v4().replaceAll("-", "");
-    _sessions[token] = _RelaySession(this, token, url, renewer, headers);
+    _sessions[token] = _RelaySession(this, token, url, renew, headers);
     return "http://127.0.0.1:$_port/s/$token.flv";
   }
 
@@ -155,12 +158,52 @@ class StreamRelayService extends GetxService {
   }
 }
 
+/// 续流上下文：中转在旧流到期前据此重新取一条直链。
+///
+/// 与 DTV 的 `StreamRenewContext` 同构——上层只登记「重取需要什么」（房间、
+/// 清晰度、线路）和取流入口，由中转自己调用；core 不再需要下发 renewer。
+class StreamRenewContext {
+  StreamRenewContext({
+    required this.roomId,
+    required this.quality,
+    required this.line,
+    required Future<List<String>> Function() fetchUrls,
+  }) : _fetchUrls = fetchUrls;
+
+  /// 房间号（日志用）。
+  final String roomId;
+
+  /// 清晰度名（日志用）。
+  final String quality;
+
+  /// 线路下标，与注册时 `urls` 的顺序一致。
+  final int line;
+
+  /// 重新取流的入口：返回该清晰度下的全部线路地址。
+  final Future<List<String>> Function() _fetchUrls;
+
+  /// 取回本线路的新直链。
+  ///
+  /// 线路顺序由 core 按同一份 cdns 稳定排序，正常情况下下标一一对应；
+  /// 线路数变少时退回第一条，至少保证拿到同清晰度的可用直链。
+  Future<String> resolve() async {
+    final urls = await _fetchUrls();
+    if (urls.isEmpty) {
+      throw StateError("续流失败：取流接口没有返回播放地址（房间 $roomId）");
+    }
+    return urls[line < urls.length ? line : 0];
+  }
+
+  @override
+  String toString() => "StreamRenewContext(room: $roomId, quality: $quality, line: $line)";
+}
+
 /// 一条直链的续流会话：保存重新取流所需的信息，派发并发的中转请求。
 ///
 /// 会话本身不持有连接；每个 HTTP 请求对应一个独立的 [_RelayPipe]，
 /// 与直连时播放器对同一 URL 建多条连接的行为一致。
 class _RelaySession {
-  _RelaySession(this.service, this.token, this.initialUrl, this.renewer, this.headers);
+  _RelaySession(this.service, this.token, this.initialUrl, this.renew, this.headers);
 
   final StreamRelayService service;
   final String token;
@@ -169,8 +212,8 @@ class _RelaySession {
   /// 进入房间的等待不变），之后一律重新取流，避免拿到过期直链。
   final String initialUrl;
 
-  /// 重新取流的回调；为空时退化为纯转发。
-  final LivePlayUrlRenewer? renewer;
+  /// 续流上下文；为空时退化为纯转发。
+  final StreamRenewContext? renew;
 
   /// 转发给上游的请求头。
   final Map<String, String>? headers;
@@ -207,11 +250,11 @@ class _RelaySession {
       _initialUrlAvailable = false;
       return initialUrl;
     }
-    final renewer = this.renewer;
-    if (renewer == null) {
+    final renew = this.renew;
+    if (renew == null) {
       return initialUrl;
     }
-    return await renewer();
+    return await renew.resolve();
   }
 
   void dispose() {
@@ -242,7 +285,7 @@ class _RelayPipe {
 
   bool _finished = false;
 
-  bool get _renewable => session.renewer != null;
+  bool get _renewable => session.renew != null;
 
   Future<void> run(HttpResponse response) async {
     _response = response;
