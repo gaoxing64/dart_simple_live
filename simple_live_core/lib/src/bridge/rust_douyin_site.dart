@@ -2,8 +2,7 @@
 //!
 //! 纪律（AC-39 / 裁决 J-6 / R-13）：本层**只做类型翻译与转发**，零协议逻辑 ——
 //! 不得出现 URL 拼接 / a_bogus 签名 / protobuf 编解码 / 重连；一切协议能力在
-//! `slive-core`（Rust）。分派开关由总监在 `sites.dart` 接线（默认关 = 走 Dart core，
-//! 可一键回退 —— AC-31）。
+//! `slive-core`（Rust）。回退窗口已结束（ADR-008）：`sites.dart` 直连本绑定层。
 //!
 //! 与 `RustBilibiliSite` 的三处差异：
 //! 1. `getDanmaku()` 返回抖音专属适配器（protobuf over WS 的参数契约键名不同）；
@@ -14,9 +13,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:simple_live_app/app/constant.dart';
-import 'package:simple_live_app/src/rust/api/slive/douyin.dart' as rust_douyin;
-import 'package:simple_live_app/src/rust/api/slive/models/danmu.dart' as rust_danmu;
+import 'package:simple_live_core/src/rust/api/slive/douyin.dart' as rust_douyin;
+import 'package:simple_live_core/src/rust/api/slive/models/danmu.dart' as rust_danmu;
 import 'package:simple_live_core/simple_live_core.dart';
 
 import 'rust_douyin_models.dart';
@@ -26,7 +24,7 @@ import 'package:flutter/foundation.dart';
 /// 抖音的 Rust Core 站点实现（类型翻译 + 转发，零协议逻辑）。
 class RustDouyinSite extends LiveSite {
   RustDouyinSite() {
-    id = Constant.kDouyin;
+    id = "douyin";
     name = "抖音直播";
   }
 

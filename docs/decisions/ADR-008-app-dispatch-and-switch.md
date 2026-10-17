@@ -1,7 +1,10 @@
 # ADR-008: App 侧单点分派 + 绑定层适配 + 默认关闭的运行时开关
 
 ## Status
-Accepted (2026-10-16)
+Accepted (2026-10-16) — **回退窗口已关闭（2026-10-17）**：`Constant.kUseRust*` 五个开关与
+`sites.dart` 二元分派已删除，五平台直连绑定层；绑定层下沉 `simple_live_core/lib/src/bridge/`
+（见 ADR-014）。Dart core 平台实现不再有 App/TV 消费者，仅 `simple_live_console` 仍走 Dart
+路径（保留至下轮迁移），届时整删。
 
 ## Background
 D2 要求「Dart 直连 FRB API，不保留 Dart 薄壳；B站整体切 Rust」。但 AC-31 要求「B站开关置于 Dart 时仍可用（可回退）」、AC-32 要求「无 UI 文件改动」、AC-34 要求「Dart B站代码保留至回退窗口结束」。App 的 Site 注册点是 `simple_live_app/lib/app/sites.dart:10-16`（`Site.liveSite` 类型为 `simple_live_core::LiveSite`）。

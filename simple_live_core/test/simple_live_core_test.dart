@@ -5,9 +5,6 @@ import 'package:test/test.dart';
 void testSite(LiveSite site) async {
   var rooms = <LiveRoomItem>[];
   test('getRecommendRooms', () async {
-    if (site is TwitchSite) {
-      return;
-    }
     final result = await site.getRecommendRooms();
     expect(result, isNotNull);
     expect(result.items, isNotEmpty);
@@ -23,9 +20,6 @@ void testSite(LiveSite site) async {
 
   var categores = <LiveCategory>[];
   test('getCategories', () async {
-    if (site is TwitchSite) {
-      return;
-    }
     categores = await site.getCategories();
     expect(categores, isNotEmpty);
     for (var item in categores) {
@@ -40,9 +34,6 @@ void testSite(LiveSite site) async {
   });
 
   test('getCategoryRooms', () async {
-    if (site is TwitchSite) {
-      return;
-    }
     var result = await site.getCategoryRooms(categores.first.children.first);
     expect(result, isNotNull);
     expect(result.items, isNotEmpty);
@@ -56,9 +47,6 @@ void testSite(LiveSite site) async {
   });
 
   test('searchRooms', () async {
-    if (site is TwitchSite) {
-      return;
-    }
     var result = await site.searchRooms('LOL');
     expect(result, isNotNull);
     expect(result.items, isNotEmpty);
@@ -74,9 +62,6 @@ void testSite(LiveSite site) async {
   test('searchAnchors', () async {
     // 跳过抖音测试此项
     if (site is DouyinSite) {
-      return;
-    }
-    if (site is TwitchSite) {
       return;
     }
     var result = await site.searchAnchors('联盟');
@@ -118,9 +103,6 @@ void testSite(LiveSite site) async {
   });
 
   test('getDanmaku', () async {
-    if (site is TwitchSite) {
-      return;
-    }
     var danmaku = site.getDanmaku();
     expect(danmaku, isNotNull);
     expect(danmaku, isA<LiveDanmaku>());

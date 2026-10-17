@@ -12,10 +12,10 @@
 
 import 'dart:convert';
 
-import 'package:simple_live_app/src/rust/api/slive/models/account.dart' as rust_acc;
-import 'package:simple_live_app/src/rust/api/slive/models/message.dart' as rust_msg;
-import 'package:simple_live_app/src/rust/api/slive/models/play.dart' as rust_play;
-import 'package:simple_live_app/src/rust/api/slive/models/room.dart' as rust_room;
+import 'package:simple_live_core/src/rust/api/slive/models/account.dart' as rust_acc;
+import 'package:simple_live_core/src/rust/api/slive/models/message.dart' as rust_msg;
+import 'package:simple_live_core/src/rust/api/slive/models/play.dart' as rust_play;
+import 'package:simple_live_core/src/rust/api/slive/models/room.dart' as rust_room;
 import 'package:simple_live_core/simple_live_core.dart';
 
 /// 抖音专用的 Rust <-> core 模型翻译（纯静态函数，零协议逻辑）。

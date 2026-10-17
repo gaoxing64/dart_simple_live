@@ -196,12 +196,18 @@
 - `code-review-future-branch.md` 的 P1/P2/P3/N1–N6 **已全部落地**（见 `code-review-remediation-applied.md`），未收。
 - 历史 OCR 评审（记录已不在仓库）的高/中优先级绝大多数**已修复或已确认为误报**：`app_scroll_behavior.dart` 的 `-delta`（复核为与框架默认一致，误报）、`indexed_controller.dart`（`jumpToPage` + `_instantiated.add` 置后 + release 兜底）、`page_grid_view.dart`（构造函数已补 assert）、`app_style.dart`（`main.dart` 已覆盖 `backgroundColor`）、`live_room_card.dart`（胶囊已始终渲染）、`settings_switch.dart`（`width` 已夹取 + locked 断言）、`duration_2_str_utils.dart`（0 值返回空串）。**仅**表情开关（P0-5）作为残留登记。`[review]`
 
-### P2-13 `analysis_options.yaml` 未排除 `rust_builder/`，`flutter analyze` 带出 43 个存量 error
+### P2-13 `analysis_options.yaml` 未排除 `rust_builder/`，`flutter analyze` 带出 43 个存量 error —— **已消解（2026-10-17）**
 
 - 现象：`flutter analyze` 除 app 代码外，还报 `rust_builder/cargokit/build_tool/**` 的 **43 个 error**；这些是 frb 构建 glue 的存量问题，与 2026-10-12 的合并无关，但污染分析输出、抬高信噪比（app 代码本身无 error）。
 - 证据：`simple_live_app/analysis_options.yaml` 的 `analyzer.exclude` 仅列 `**/frb_generated.web.dart`、`build/**`、`android/**`、`ios/**`、`web/**`、`windows/**`、`macos/**`、`linux/**`，**未含** `rust_builder/**`。
-- 建议：在 `analyzer.exclude` 增补 `"rust_builder/**"`（或至少 `rust_builder/cargokit/**`），并在 PR 说明排除理由；改后重跑 `flutter analyze` 应只剩 app 代码结果。
-- 影响：分析器噪音、CI 判定口径。
+- **消解方式**：`rust_builder/` 随 Rust workspace 迁入 `simple_live_core/`（ADR-014），App 分析范围已不含该目录；core 包 `analysis_options.yaml` 同步排除 `rust_builder/**` 与 `**/frb_generated.web.dart`（与 App 同口径）。app/core/tv 三包 `flutter analyze` 均 0 error。
+
+### P2-14 `simple_live_console` 迁移 Rust core（Dart core 整删的前置）
+
+- 现状（2026-10-17）：console（`simple_live_console/`，纯 Dart CLI：`-i` 取播放直链 / `-d` 输出弹幕）是 Dart core 四平台实现的**唯一剩余消费者**——其存在使 `simple_live_core/lib/src/platforms/`（bilibili/douyin/douyu/huya）、common 工具、tars/proto、相关 pubspec 依赖无法删除（ADR-014 决策 4 两步走的第二步）。
+- 附加事实：console 的 `environment.sdk`（`>=2.19.1 <3.0.0`）与 core 包（`>=3.0.5 <4.0.0`）**已冲突**，当前本就无法 `pub get`，属既存死代码；保留未增加新坏债。
+- 建议：用 `slive-core`（Rust）写等效 CLI（clap 子命令：`info <url>` / `danmaku <url>`），或直接删除 console（git 历史可找回，但已发布的 `simple_live.exe` 用户会失去维护）；完成后整删 Dart core 剩余部分 + core pubspec 死依赖 + `packages/tars_dart`。
+- 用户决策（2026-10-17）：console 保留，下轮处理。
 
 ## 4. 建议的推进批次
 
@@ -215,7 +221,7 @@
 | 6 | P2-1 / P2-2 / P2-4 / P2-5 | 结构性整理，配合下一次功能改动一起做 |
 | 7 | 其余 P2 | 按产品优先级取舍 |
 | 8 | P1-7（真机/桌面复跑 `flutter test`，分流存量红灯） | 本机红灯掩盖回归，先恢复可信基线 |
-| 9 | P2-13（`analysis_options.yaml` 排除 `rust_builder/**`） | 零风险、只降噪，可随手做 |
+| 9 | ~~P2-13（`analysis_options.yaml` 排除 `rust_builder/**`）~~ **已消解**（rust_builder 迁入 core 后 App 分析范围已不含；core 侧已排除，见 ADR-014） | — |
 
 ## 5. 已决策的取舍（不修，记录原因）
 

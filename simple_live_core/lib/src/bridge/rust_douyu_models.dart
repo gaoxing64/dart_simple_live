@@ -7,12 +7,12 @@
 //!
 //! 与 B站 `rust_site_models.dart` 的差别：独立文件、只服务斗鱼（多平台并行期间互不覆盖）。
 
-import 'package:simple_live_app/src/rust/api/slive/models/account.dart' as rust_acc;
-import 'package:simple_live_app/src/rust/api/slive/models/category.dart' as rust_cat;
-import 'package:simple_live_app/src/rust/api/slive/models/message.dart' as rust_msg;
-import 'package:simple_live_app/src/rust/api/slive/models/play.dart' as rust_play;
-import 'package:simple_live_app/src/rust/api/slive/models/result.dart' as rust_result;
-import 'package:simple_live_app/src/rust/api/slive/models/room.dart' as rust_room;
+import 'package:simple_live_core/src/rust/api/slive/models/account.dart' as rust_acc;
+import 'package:simple_live_core/src/rust/api/slive/models/category.dart' as rust_cat;
+import 'package:simple_live_core/src/rust/api/slive/models/message.dart' as rust_msg;
+import 'package:simple_live_core/src/rust/api/slive/models/play.dart' as rust_play;
+import 'package:simple_live_core/src/rust/api/slive/models/result.dart' as rust_result;
+import 'package:simple_live_core/src/rust/api/slive/models/room.dart' as rust_room;
 import 'package:simple_live_core/simple_live_core.dart';
 
 /// 斗鱼的 Rust -> core 模型映射集合（纯静态函数）。

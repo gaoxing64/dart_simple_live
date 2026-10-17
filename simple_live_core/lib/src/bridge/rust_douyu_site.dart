@@ -2,14 +2,12 @@
 //!
 //! 纪律（AC-39 / 裁决 J-6 / R-13）：本层**只做类型翻译与转发**，零协议逻辑 ——
 //! 不得出现 URL 拼接 / 签名 / STT 解析 / 重试；一切协议能力在 `slive-core`（Rust）。
-//! 由 `sites.dart` 的开关 `Constant.kUseRustDouyu` 分派（默认 true = 走 Rust Core，
-//! 与 B站同路径；关闭即回退 Dart core，可一键回退 —— AC-31）。
+//! 回退窗口已结束（ADR-008）：`sites.dart` 直连本绑定层，无运行时开关。
 
 import 'dart:async';
 
-import 'package:simple_live_app/app/constant.dart';
-import 'package:simple_live_app/src/rust/api/slive/douyu.dart' as rust_douyu;
-import 'package:simple_live_app/src/rust/api/slive/models/danmu.dart' as rust_danmu;
+import 'package:simple_live_core/src/rust/api/slive/douyu.dart' as rust_douyu;
+import 'package:simple_live_core/src/rust/api/slive/models/danmu.dart' as rust_danmu;
 import 'package:simple_live_core/simple_live_core.dart';
 
 import 'rust_douyu_models.dart';
@@ -18,7 +16,7 @@ import 'package:flutter/foundation.dart';
 /// 斗鱼的 Rust Core 站点实现（D2：Dart 直连 FRB API，无 Dart 协议实现）。
 class RustDouyuSite extends LiveSite {
   RustDouyuSite() {
-    id = Constant.kDouyu;
+    id = "douyu";
     name = "斗鱼直播";
   }
 

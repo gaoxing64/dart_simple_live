@@ -3,11 +3,6 @@ import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/icons/live_icons.dart';
-import 'package:simple_live_app/services/rust_core/rust_bilibili_site.dart';
-import 'package:simple_live_app/services/rust_core/rust_douyu_site.dart';
-import 'package:simple_live_app/services/rust_core/rust_huya_site.dart';
-import 'package:simple_live_app/services/rust_core/rust_douyin_site.dart';
-import 'package:simple_live_app/services/rust_core/rust_twitch_site.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 
 class Sites {
@@ -17,35 +12,35 @@ class Sites {
       iconData: RemixIcons.bilibili_line,
       logo: "assets/images/bilibili_2.png",
       name: "哔哩哔哩",
-      liveSite: Constant.kUseRustBilibili ? RustBilibiliSite() : BiliBiliSite(),
+      liveSite: RustBilibiliSite(),
     ),
     Constant.kDouyu: Site(
       id: Constant.kDouyu,
       iconData: LiveIcons.douyu,
       logo: "assets/images/douyu.png",
       name: "斗鱼直播",
-      liveSite: Constant.kUseRustDouyu ? RustDouyuSite() : DouyuSite(),
+      liveSite: RustDouyuSite(),
     ),
     Constant.kHuya: Site(
       id: Constant.kHuya,
       iconData: LiveIcons.huya,
       logo: "assets/images/huya.png",
       name: "虎牙直播",
-      liveSite: Constant.kUseRustHuya ? RustHuyaSite() : HuyaSite(),
+      liveSite: RustHuyaSite(),
     ),
     Constant.kDouyin: Site(
       id: Constant.kDouyin,
       iconData: RemixIcons.tiktok_line,
       logo: "assets/images/douyin.png",
       name: "抖音直播",
-      liveSite: Constant.kUseRustDouyin ? RustDouyinSite() : DouyinSite(),
+      liveSite: RustDouyinSite(),
     ),
     Constant.kTwitch: Site(
       id: Constant.kTwitch,
       iconData: RemixIcons.twitch_line,
       logo: "assets/images/Twitch.png",
       name: "Twitch",
-      liveSite: Constant.kUseRustTwitch ? RustTwitchSite() : TwitchSite(),
+      liveSite: RustTwitchSite(),
     )
   };
 

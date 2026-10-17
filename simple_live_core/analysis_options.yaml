@@ -12,6 +12,9 @@
 # The core lints are also what is used by pub.dev for scoring packages.
 
 analyzer:
+  errors:
+    # FRB 生成物 doc comment 含 <...>（与主 App 同口径）
+    unintended_html_in_doc_comment: ignore
   exclude:
     - build/**
     - android/**
@@ -20,6 +23,11 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # cargokit vendored 包（自带 pubspec 的构建工具，非 core 源码；与 App 侧同口径）
+    - rust_builder/**
+    # FRB web 生成物：inline-class 需 Dart>=3.3 语言特性，本包 SDK 下限 3.0.5；
+    # 两 App 均不构建 web 目标（与主 App analysis_options 同口径排除）
+    - "**/frb_generated.web.dart"
 include: package:lints/recommended.yaml
 
 # Uncomment the following section to specify additional rules.

@@ -20,6 +20,12 @@ dependencies:
     path: ./packages/tars_dart
   fixnum: ^1.1.1
   dart_sm: ^0.1.5
+  # FRB Dart 运行时：lib/src/rust（frb_generated）+ lib/src/bridge（绑定层）所需
+  # 精确钉版本：两侧（Rust Cargo.toml）版本漂移会让 RustLib.init() 静默抛异常（Spec §10 / advisory-3）
+  flutter_rust_bridge: 2.13.0
+  # FRB 枚举 -> Dart sealed class 的生成依赖（LiveDanmuItem / LiveMessageData 等，对齐上游 slive_core 实践）
+  # 3.x：FRB 2.13 生成物为 `@freezed sealed class` 风格，与 3.x 兼容；2.x 与 hive_ce_generator(build^4) 冲突
+  freezed_annotation: ^3.0.0
 
 dev_dependencies: 
   lints: ^6.0.0

@@ -1,38 +1,41 @@
-//! B站的 Rust Core 绑定层：`RustBilibiliSite implements LiveSite`。
+//! 虎牙的 Rust Core 绑定层：`RustHuyaSite implements LiveSite`。
 //!
 //! 纪律（AC-39 / 裁决 J-6 / R-13）：本层**只做类型翻译与转发**，零协议逻辑 ——
-//! 不得出现 URL 拼接 / 签名 / 解析 / 重试；一切协议能力在 `slive-core`（Rust）。
-//! 由 `sites.dart` 的开关 `Constant.kUseRustBilibili` 分派（**体验版起默认 true =
-//! 走 Rust Core**，J-9 判据①；翻 false 一键回退 Dart core —— AC-31）；
-//! Dart core 的 B站实现仅作回退目标保留（AC-34）。
+//! 不得出现 URL 拼接 / 签名 / TARS 解析 / 正则 / 重试；一切协议能力在
+//! `slive-core`（Rust）。回退窗口已结束（ADR-008）：`sites.dart` 直连本绑定层。
+//!
+//! 与 B站绑定的差异：虎牙 `detail.danmakuData` / `quality.data` 在 Rust 侧是
+//! **JSON 串**（`schema_version` 契约），本层**原样透传**，不解析 ——
+//! App 侧 `liveDanmaku.start(detail.danmakuData)` 与
+//! `getPlayUrls(detail:, quality:)` 会把它带回 Rust（J-10：
+//! 任何 Dart 消费者解析失败必须抛 `FormatException`，不得静默兜底）。
 
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:simple_live_app/app/constant.dart';
-import 'package:simple_live_app/src/rust/api/slive/danmaku.dart' as rust_danmaku;
-import 'package:simple_live_app/src/rust/api/slive/site.dart' as rust_site;
-import 'package:simple_live_app/src/rust/api/slive/models/danmu.dart' as rust_danmu;
+import 'package:simple_live_core/src/rust/api/slive/huya.dart' as rust_huya_danmaku;
+import 'package:simple_live_core/src/rust/api/slive/huya_site.dart'
+    as rust_huya;
+import 'package:simple_live_core/src/rust/api/slive/models/danmu.dart' as rust_danmu;
 import 'package:simple_live_core/simple_live_core.dart';
 
 import 'rust_site_models.dart';
 import 'package:flutter/foundation.dart';
 
-/// B站的 Rust Core 站点实现（D2：Dart 直连 FRB API，无 Dart 协议实现）。
-class RustBilibiliSite extends LiveSite {
-  RustBilibiliSite() {
-    id = Constant.kBiliBili;
-    name = "哔哩哔哩直播";
+/// 虎牙的 Rust Core 站点实现（D2：Dart 直连 FRB API，无 Dart 协议实现）。
+class RustHuyaSite extends LiveSite {
+  RustHuyaSite() {
+    id = "huya";
+    name = "虎牙直播";
   }
 
-  Future<rust_site.LiveBilibiliSite>? _siteFuture;
+  Future<rust_huya.LiveHuyaSite>? _siteFuture;
 
   /// `setSiteAttrs` 是同步接口而 FRB 句柄初始化是异步 —— 暂存凭证，
   /// 下一次 `_site()` 调用前应用（App 流程 setSiteAttrs 后必跟异步请求，语义等价）。
   String? _pendingAttrs;
 
-  Future<rust_site.LiveBilibiliSite> _site() async {
-    final site = await (_siteFuture ??= rust_site.LiveBilibiliSite.default_());
+  Future<rust_huya.LiveHuyaSite> _site() async {
+    final site = await (_siteFuture ??= rust_huya.LiveHuyaSite.default_());
     final pending = _pendingAttrs;
     if (pending != null) {
       site.setSiteAttrs(data: pending);
@@ -42,7 +45,7 @@ class RustBilibiliSite extends LiveSite {
   }
 
   @override
-  LiveDanmaku getDanmaku() => RustLiveDanmaku();
+  LiveDanmaku getDanmaku() => RustHuyaDanmaku();
 
   @override
   Future<List<LiveCategory>> getCategories() async {
@@ -91,7 +94,7 @@ class RustBilibiliSite extends LiveSite {
 
   @override
   Future<List<LivePlayQuality>> getPlayQualities(
-      {required LiveRoomDetail detail}) async =>
+          {required LiveRoomDetail detail}) async =>
       (await (await _site()).getPlayQualities(
         detail: RustSiteModels.toRustRoomDetail(detail),
       ))
@@ -100,7 +103,7 @@ class RustBilibiliSite extends LiveSite {
 
   @override
   Future<LivePlayUrl> getPlayUrls(
-      {required LiveRoomDetail detail, required LivePlayQuality quality}) async =>
+          {required LiveRoomDetail detail, required LivePlayQuality quality}) async =>
       RustSiteModels.toCorePlayUrl(
         await (await _site()).getPlayUrls(
           detail: RustSiteModels.toRustRoomDetail(detail),
@@ -114,13 +117,27 @@ class RustBilibiliSite extends LiveSite {
 
   @override
   Future<List<LiveSuperChatMessage>> getSuperChatMessage(
-      {required String roomId}) async =>
+          {required String roomId}) async =>
       (await (await _site()).getSuperChatMessages(roomId: roomId))
           .map(RustSiteModels.toCoreSuperChat)
           .toList();
 
   @override
-  void setSiteAttrs(String data) => _pendingAttrs = data;
+  @override
+  void setSiteAttrs(String data) {
+    // 空串 = 未登录账号的 credential（`accountLogin` 既有路径）。空串不是合法
+    // JSON：Rust 侧解析报错，且会把 `_updateXxxAttr` 暂存的有效 attrs 覆盖成空
+    // （竞态：谁后谁赢，导致首页请求带着空 attrs 去炸 Rust）。core 层虽已容错，
+    // 这里仍显式跳过 —— 暂存语义只接受有效 JSON。
+    if (data.isEmpty) return;
+    _pendingAttrs = data;
+  }
+
+  @override
+  Future<AccountInfo> getAccountInfo({required String credential}) async =>
+      RustSiteModels.toCoreAccountInfo(
+        await (await _site()).getAccountInfo(credential: credential),
+      );
 
   @override
   Future<QRCode> getQRCode() async =>
@@ -131,30 +148,27 @@ class RustBilibiliSite extends LiveSite {
       RustSiteModels.toCoreQrPollResult(
         await (await _site()).getQrPollResult(qrcodeKey: qrcodeKey),
       );
-
-  @override
-  Future<AccountInfo> getAccountInfo({required String credential}) async =>
-      RustSiteModels.toCoreAccountInfo(
-        await (await _site()).getAccountInfo(credential: credential),
-      );
 }
 
 /// 弹幕适配：core 的回调式 `LiveDanmaku` -> Rust 的 Stream。
 ///
 /// `start(args)` 的 `args` 为 `detail.danmakuData` 原样透传（JSON 串，
 /// Rust 侧 `from_json` 解析失败抛 `CoreError` —— J-10）。
-class RustLiveDanmaku extends LiveDanmaku {
+/// 心跳由 Rust 会话内部管理（60s），Dart 侧 `heartbeat()` / `heartbeatTime` 不参与。
+class RustHuyaDanmaku extends LiveDanmaku {
   StreamSubscription<rust_danmu.LiveDanmuItem>? _subscription;
-
-  // 心跳由 Rust 会话内部管理（60s），Dart 侧 heartbeat()/heartbeatTime 不参与。
 
   @override
   Future<void> start(dynamic args) async {
-    final argsJson = args is String
-        ? args
-        : _argsToJson(args as BiliBiliDanmakuArgs);
+    if (args is! String) {
+      throw ArgumentError.value(
+        args,
+        'args',
+        '虎牙弹幕参数应为 Rust 契约的 JSON 串（detail.danmakuData）',
+      );
+    }
     await _subscription?.cancel();
-    _subscription = rust_danmaku.startDanmaku(argsJson: argsJson).listen(
+    _subscription = rust_huya_danmaku.startHuyaDanmaku(argsJson: args).listen(
       (item) {
         switch (item) {
           case rust_danmu.LiveDanmuItem_Message(:final field0):
@@ -173,7 +187,7 @@ class RustLiveDanmaku extends LiveDanmaku {
       onError: (Object e) {
         // 流级错误（解码失败等）不中断弹幕，记录即可
         // ignore: avoid_print
-        debugPrint('[rust-danmaku] stream ERROR: $e');
+        debugPrint('[rust-huya-danmaku] stream ERROR: $e');
       },
       cancelOnError: false,
     );
@@ -181,21 +195,8 @@ class RustLiveDanmaku extends LiveDanmaku {
 
   @override
   Future<void> stop() async {
-    rust_danmaku.stopDanmaku();
+    rust_huya_danmaku.stopHuyaDanmaku();
     await _subscription?.cancel();
     _subscription = null;
   }
-
-  /// core 的 `BiliBiliDanmakuArgs` -> Rust 契约 JSON 串
-  /// （键 `room_id/uid/token/server_host/buvid/cookie`，Spec §4.4；不使用
-  /// core 的 `toString()` —— 它的键序是 camelCase，与 Rust serde 契约不符）。
-  String _argsToJson(BiliBiliDanmakuArgs args) => jsonEncode({
-        'schema_version': 1,
-        'room_id': args.roomId,
-        'uid': args.uid,
-        'token': args.token,
-        'server_host': args.serverHost,
-        'buvid': args.buvid,
-        'cookie': args.cookie,
-      });
 }

@@ -4,12 +4,12 @@
 //! `quality.data` **原样透传**（App 侧 `liveDanmaku.start(detail.danmakuData)`
 //! 直接消费，不在绑定层解析 —— J-10 解析责任在 Rust 侧 `CoreError`）。
 
-import 'package:simple_live_app/src/rust/api/slive/models/account.dart' as rust_acc;
-import 'package:simple_live_app/src/rust/api/slive/models/category.dart' as rust_cat;
-import 'package:simple_live_app/src/rust/api/slive/models/message.dart' as rust_msg;
-import 'package:simple_live_app/src/rust/api/slive/models/play.dart' as rust_play;
-import 'package:simple_live_app/src/rust/api/slive/models/result.dart' as rust_result;
-import 'package:simple_live_app/src/rust/api/slive/models/room.dart' as rust_room;
+import 'package:simple_live_core/src/rust/api/slive/models/account.dart' as rust_acc;
+import 'package:simple_live_core/src/rust/api/slive/models/category.dart' as rust_cat;
+import 'package:simple_live_core/src/rust/api/slive/models/message.dart' as rust_msg;
+import 'package:simple_live_core/src/rust/api/slive/models/play.dart' as rust_play;
+import 'package:simple_live_core/src/rust/api/slive/models/result.dart' as rust_result;
+import 'package:simple_live_core/src/rust/api/slive/models/room.dart' as rust_room;
 import 'package:simple_live_core/simple_live_core.dart';
 
 /// Rust -> core 的模型映射集合（纯静态函数）。

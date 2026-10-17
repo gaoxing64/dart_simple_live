@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:simple_live_app/main.dart';
-import 'package:simple_live_app/src/rust/frb_generated.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:simple_live_app/main.dart';
+import 'package:simple_live_core/simple_live_core.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

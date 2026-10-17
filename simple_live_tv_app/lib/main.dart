@@ -27,6 +27,8 @@ import 'package:simple_live_tv_app/services/sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Rust Core：FFI 动态库加载，必须先于任何站点调用
+  await RustLib.init();
   MediaKit.ensureInitialized();
   await Hive.initFlutter();
   //初始化服务
