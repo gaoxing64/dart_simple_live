@@ -25,10 +25,7 @@ simple_live_app/
 ├── lib/routes/                   # 路由表 + 导航封装 + 参数对象
 ├── lib/models/                   # Hive 模型（follow_user/history/follow_snapshot…）+ 枚举/账号模型
 ├── lib/requests/                 # App 自身 HTTP（dio 封装 + CustomLogInterceptor + HttpError）
-├── lib/src/rust/                 # flutter_rust_bridge 生成物 + danmaku_mask 包装
 ├── lib/spike/                    # 多开性能探针（一次性脚本，见 §7）
-├── rust/                         # Rust crate：DanmakuMask（滑动窗口去重/频控）
-├── rust_builder/                 # frb 构建 glue（路径依赖名 rust_lib_simple_live_app）
 ├── android/ windows/ linux/ macos/ ios/   # 原生宿主
 └── test/                         # 51 个测试文件（纯函数与 widget 为主）
 ```
@@ -41,7 +38,7 @@ simple_live_app/
 | 模块层 | `modules/*` 页面与页面级 Controller | → app、services、widgets、core | 高（功能驱动） |
 | 服务层 | `services/*` 全局单例（存储 / DB / 账号 / 同步 / 窗口 / 播放） | → app、models、core | 中 |
 | 基础层 | `app/`（设置、事件总线、基类、工具）、`requests/`、`models/`、`widgets/` | → 仅 Dart/Flutter | 中 |
-| 桥接层 | `src/rust` + `rust/`（FRB）、`services/playback`（audio_service 投影面） | → 原生/系统 | 低 |
+| 桥接层 | `simple_live_core/lib/src/{rust,bridge}`（FRB 生成物 + Dart 绑定层，随 core 包引入）、`services/playback`（audio_service 投影面） | → 原生/系统 | 低 |
 
 **铁律**：`services/` 绝不 import `modules/`（会成环）。后台播放为此专门抽出 `LivePlaybackTarget` 抽象（`services/playback/live_playback_target.dart:1-13`），由 `modules/live_room` 侧实现。
 
@@ -148,14 +145,14 @@ simple_live_app/
 | `stream_relay/stream_relay_service.dart` | GetxService | **斗鱼直链续流中转**（2026-10-16）：本地 `127.0.0.1` HTTP 服务（惰性启停），把带硬性寿命的直链包成对播放器不中断的一条流——到期前 5s 预取新流、旧流 EOF/超时后按 FLV tag 边界接续（丢文件头与初始化 tag、对齐关键帧、丢重复 GOP）；只有提供 `LivePlayUrl.renewers` 的线路（当前=斗鱼 flv）才走它 | `stream_relay_service.dart:26-106`（`register:71` / `release:83` / `shutdown:97`）、`_RelayPipe._pump:271`、`_schedulePrefetch:330`、`_forwardContinuation:435` |
 | `stream_relay/flv_demuxer.dart` | 纯类 | 增量 FLV 解析（tag 类型/时间戳/关键帧/初始化 tag/失同步兜底）+ `FlvTimeline`（音视频分开记 last ts，「未落后于旧位置」才转发；相等时间戳也算未落后，避免丢真实流里同毫秒的帧）；零 IO、可直接单测 | `flv_demuxer.dart:54-215`（`FlvDemuxer:54`、`nextTag:128`、`FlvTimeline:183`、`isNotBehind:204`） |
 
-### 4.4 `lib/widgets` / `lib/routes` / `lib/models` / `lib/requests` / `lib/src/rust`
+### 4.4 `lib/widgets` / `lib/routes` / `lib/models` / `lib/requests`
 
 - **widgets**：`page_list_view` / `page_grid_view`（列表基座，接 `AutoLoadOnScroll`）、`skeleton`、`live_room_card`、`keep_alive_wrapper`、`collapsible_top_bar_scaffold`、`settings/*`、`status/*`、`ui/*`。
 - **routes**：`app_pages.dart`（GetPage 表）、`route_path.dart`（路径常量）、`app_navigation.dart`（带参导航封装）、`live_room_route_args.dart`（`LiveRoomRouteArgs`）、`app_analytics_observer.dart`。
 - **models**：`db/follow_user.dart` + `.g.dart`（`followUserTag/history/follow_snapshot/follow_user_block/**account**` 同理，由 `hive_ce_generator` 生成）、`enum/danmaku_font_size_enum.dart`、`font(s)_model`、`version_model`。（旧的 `models/account/` 目录已随账号迁 core 删除。）
   `FollowUser` 的 `@HiveField(7) String tag` **已删除**（`follow_user.dart:50-53` 留注说明旧记录 field 7 读取时被忽略、旧版本 app 读新记录回退「全部」）；归属的唯一真源是 `FollowUserTag.userId` 成员表（`follow_user_tag.dart:16`，配套 `contains:53`/`addMember:56`）。
 - **requests**：App 自身 dio 单例 `HttpClient`（20s 三超时 + `CustomLogInterceptor`，`http_client.dart:7-25`），错误收敛为 `HttpError`；另有 `common_request`/`sync_client_request`/`webdav_client`。
-- **src/rust**：`frb_generated.dart`（生成物）+ `api/danmaku_mask.dart`（`DanmakuMask` 包装）+ `api/simple.dart`（占位）。
+- **FRB 桥（2026-10-17 起位于 core 包）**：`simple_live_core/lib/src/rust/`（`frb_generated.dart` 生成物 + `api/danmaku_mask.dart` 的 `DanmakuMask`）+ `simple_live_core/lib/src/bridge/`（五平台 `Rust*Site` 绑定层，经 `simple_live_core.dart` 出口暴露）。App 侧 `import 'package:simple_live_core/simple_live_core.dart'` 即可用。
 
 ## 5. 路由方案
 
@@ -183,10 +180,11 @@ media_kit_libs_*_video（各平台预编译 libmpv 产物）
 
 ## 7. Rust 桥（flutter_rust_bridge 2.13.0）
 
-- **用途**：弹幕**去重 + 频控**。`DanmakuMask`（`rust/src/api/danmaku_mask.rs:5-29`）用「滑动窗口 + 分桶 + xxh3 哈希」批量判重（`Cargo.toml:12` 引 `xxhash-rust`）。
-- **调用点**：`LiveRoomController._initDanmakuMask()`（`live_room_controller.dart:331-352`）按设置构造；`_processDanmakuBuffer()` 每 500ms 批调 `allowListBatch`，返回 `Vec<u8>`（1 允许 / 0 屏蔽，`src/rust/api/danmaku_mask.dart:15`）；换台 `reset()`（`:1543`）、退出 `dispose()`（`:1754`）。
-- **生成方式**：`main.dart:70` `RustLib.init()`；`pubspec.yaml:46-48` 路径依赖 `rust_builder` + `flutter_rust_bridge`。`lib/src/rust/api/simple.dart` 是当前**空占位**（`frb_generated.rs` 亦为生成物）。
-- **来源**：上游提交 `1c4fbce7`/`f709a21c`（`SlotSun`）；不是本 fork 新增。
+- **用途**：弹幕**去重 + 频控** + **五平台站点能力**（bilibili/douyu/huya/douyin/twitch 全量迁移，见 `docs/decisions/ADR-014`）。`DanmakuMask`（`simple_live_core/src/api/danmaku_mask.rs`）用「滑动窗口 + 分桶 + xxh3 哈希」批量判重。
+- **调用点**：`LiveRoomController._initDanmakuMask()` 按设置构造；`_processDanmakuBuffer()` 每 500ms 批调 `allowListBatch`，返回 `Vec<u8>`（1 允许 / 0 屏蔽，`simple_live_core/lib/src/rust/api/danmaku_mask.dart`）；换台 `reset()`、退出 `dispose()`。
+- **站点分派**：`app/sites.dart` 五平台直连 `Rust*Site()`（`simple_live_core/lib/src/bridge/`）；2026-10-17 前为 `Constant.kUseRust*` 开关 + Dart/Rust 二元分派，回退窗口已关闭（ADR-008）。
+- **生成方式**：`main.dart:70` `RustLib.init()`（符号经 core 库出口提供）；`pubspec.yaml` 路径依赖 `rust_lib_simple_live_app`（→ `../simple_live_core/rust_builder`）；`flutter_rust_bridge` / `freezed_annotation` 运行依赖在 core 包 pubspec。
+- **来源**：上游提交 `1c4fbce7`/`f709a21c`（`SlotSun`）的 DanmakuMask；五平台迁移为本 fork 自研（决策链 `docs/decisions/`）。
 
 ## 8. 原生接线
 
@@ -209,7 +207,7 @@ media_kit_libs_*_video（各平台预编译 libmpv 产物）
 | `dio` | App 自身 HTTP（非 core 请求） | 中 |
 | `media_kit` 系（git fork） | 播放内核 + Video widget + libmpv | **极低**（滤镜依赖 fork 构建） |
 | `audio_service` 0.18.19 + `audio_session` 0.2.4 | 后台播放 / 系统媒体控制 / 音频会话 | 低（钉死精确版本；四条源码前提已内联在 backlog P0-2 与 [workflow-diagram.md](./workflow-diagram.md) §5） |
-| `flutter_rust_bridge` + `rust_builder` | 弹幕去重（Rust） | 中 |
+| `rust_lib_simple_live_app`（cargokit 插件，path → `../simple_live_core/rust_builder`） | Rust core 构建入口（弹幕去重 + 五平台站点）；`flutter_rust_bridge` 运行库由 core 包传递依赖 | 低 |
 | `canvas_danmaku` | 弹幕渲染轨 | 中 |
 | `easy_refresh` | 下拉刷新（footer 已被移除，仅刷新） | 中 |
 | `extended_image` / `flutter_staggered_grid_view` | 图片缓存 / 瀑布流 | 中 |
