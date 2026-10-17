@@ -32,16 +32,6 @@ class Constant {
 
   static const String kBiliBili = "bilibili";
 
-  /// B站是否走 Rust Core（D2 集成开关；构建体验版暂置 true —— 上手验证 Rust 路径；
-  /// 出问题改回 false 即回退 Dart core。稳定后按 J-9 判据定稿默认值）
-  static const bool kUseRustBilibili = true;
-  /// 斗鱼/虎牙/抖音/Twitch 是否走 Rust Core（IP-3~6）。
-  /// 四平台离线测试已全绿（898 passed / 0 failed）+ App 回归零新增失败
-  /// → 构建体验版翻 true 供真机验证；出问题改回 false 即回退 Dart core（AC-31）。
-  static const bool kUseRustDouyu = true;
-  static const bool kUseRustHuya = true;
-  static const bool kUseRustDouyin = true;
-  static const bool kUseRustTwitch = true;
   static const String kDouyu = "douyu";
   static const String kHuya = "huya";
   static const String kDouyin = "douyin";

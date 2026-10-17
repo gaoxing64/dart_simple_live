@@ -2,7 +2,7 @@
 //!
 //! 纪律（AC-39 / 裁决 J-6 / R-18）：本层**只做类型翻译与转发**，零协议逻辑 ——
 //! 不得出现 URL 拼接 / 哈希 / 签名 / 解析 / 重试；一切协议能力在 `slive-core`（Rust）。
-//! 由 `sites.dart` 的开关分派（接线由总监完成）；Dart core 的 Twitch 实现保留作回退目标。
+//! `sites.dart` 直连本绑定层（回退窗口已结束，ADR-008）；Dart core 的 Twitch 实现已删除。
 //!
 //! 与 B站绑定层（`rust_bilibili_site.dart`）的关系：**并列且独立**。
 //! 模型翻译复用 `rust_site_models.dart` 的纯映射函数（跨平台模型同构，无需 Twitch 专属翻译层），
@@ -22,9 +22,9 @@ import 'dart:convert';
 
 import 'package:simple_live_core/simple_live_core.dart';
 
-import 'package:simple_live_app/src/rust/api/slive/twitch/danmaku.dart' as rust_twitch_danmaku;
-import 'package:simple_live_app/src/rust/api/slive/twitch/site.dart' as rust_twitch_site;
-import 'package:simple_live_app/src/rust/api/slive/models/danmu.dart' as rust_danmu;
+import 'package:simple_live_core/src/rust/api/slive/twitch/danmaku.dart' as rust_twitch_danmaku;
+import 'package:simple_live_core/src/rust/api/slive/twitch/site.dart' as rust_twitch_site;
+import 'package:simple_live_core/src/rust/api/slive/models/danmu.dart' as rust_danmu;
 
 import 'rust_site_models.dart';
 import 'package:flutter/foundation.dart';

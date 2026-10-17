@@ -11,6 +11,8 @@ analyzer:
   errors:
     unintended_html_in_doc_comment: ignore
     deprecated_member_use_from_same_package: warning
+    # FRB 生成物（simple_live_core/lib/src/rust）即 Rust 桥公共 API，深导入属既定用法
+    implementation_imports: ignore
   exclude:
     - "**/frb_generated.web.dart"
     - build/**

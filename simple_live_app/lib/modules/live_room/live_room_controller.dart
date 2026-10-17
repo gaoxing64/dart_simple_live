@@ -33,7 +33,6 @@ import 'package:simple_live_app/services/history_service.dart';
 import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
 import 'package:simple_live_app/services/playback/live_playback_target.dart';
 import 'package:simple_live_app/services/stream_relay/stream_relay_service.dart';
-import 'package:simple_live_app/src/rust/api/danmaku_mask.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
