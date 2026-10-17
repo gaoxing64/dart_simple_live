@@ -95,6 +95,25 @@ void main() {
       );
     });
 
+    testWidgets('缺尺寸的大表情按两行高 + 图片固有比例', (tester) async {
+      // 抖音会员表情 / 守护表情都不下发宽高，且画布比例并不统一
+      // （会员表情 170x128、守护表情 331x116）；高度走大表情的两行上限，
+      // 宽度交给解码后的固有比例，不能按 1:1 硬定宽把图片压扁。
+      const noDims = LiveMessageEmoticon(
+        name: '[表情]',
+        url: 'https://example.com/emoji.png',
+        large: true,
+      );
+      await tester.pumpWidget(_host(_message('[表情]', const [noDims])));
+
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(
+        image.height,
+        closeTo(_fontSize * 1.2 * kMaxEmoteLines, 0.001),
+      );
+      expect(image.width, isNull, reason: '宽度应由解码后的图片固有比例决定');
+    });
+
     testWidgets('没有表情的消息返回纯文本', (tester) async {
       await tester.pumpWidget(_host(_message('哈哈哈笑死', null)));
 

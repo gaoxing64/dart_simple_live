@@ -64,7 +64,7 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 | | `desktop_scroll_behavior_test.dart` | 7 | 桌面 `dragDevices` 放开 |
 | | `ticker_offstage_test.dart` | 4 | `TickerOffstage`（常驻 Offstage 时停动画） |
 | **弹幕 / 表情渲染** | `danmaku_emoticon_test.dart` | 18 | 弹幕表情分段、`canRender`、图源句柄生命周期、`apply`、大表情位图高度 |
-| | `chat_emoticon_span_test.dart` | 14 | 聊天区消息 span 构建、上下文菜单判据 |
+| | `chat_emoticon_span_test.dart` | 15 | 聊天区消息 span 构建、缺尺寸时按图片固有比例、上下文菜单判据 |
 | **关注页** | `follow_search_test.dart` | 5 | 搜索过滤 |
 | | `follow_grouped_view_test.dart` | 17 | 分组卡片/计数 pill/折叠、拖头像换组、拖把手调序、视图切换；**多归属**：拖进别组=加入且原组仍可见、已在组内的成员拖回本组不高亮、空分组+选择态计数 Obx 不抛「没有可观察变量」 |
 | | `follow_group_filter_test.dart` | 8 | **分组胶囊筛选 + 模式切换**（2026-10-15 新增）：无自定义分组不出胶囊行、点胶囊=平铺该组成员（别的组/未分组不可见）、多归属筛选态去重、筛选态隐藏折叠全部按钮、筛选态搜索无匹配浮层、幽灵 id 回落总览、「模式切换」仅筛选态出现且紧凑/卡片切换生效、跨 tab 保持、卡片模式落存储 |

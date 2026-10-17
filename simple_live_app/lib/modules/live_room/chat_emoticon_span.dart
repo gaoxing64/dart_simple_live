@@ -61,6 +61,7 @@ List<InlineSpan> buildChatMessageSpans(
       dpr: dpr,
       maxHeight: fontSize * 1.2 * kMaxEmoteLines,
     );
+    final hasServerSize = emoticon.width != null && emoticon.height != null;
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
       child: Padding(
@@ -68,10 +69,10 @@ List<InlineSpan> buildChatMessageSpans(
         child: Image.network(
           emoticon.url,
           height: emoteHeight,
-          // 解码完成前 RenderImage 的宽度是 0，不预留宽度会让这一行在图片到达后
-          // 重新排版（聊天列表里表现为文字跳变）。服务端给了原始宽高就按它定宽，
-          // 与弹幕渲染器的宽高比口径保持一致。
-          width: _emoteWidth(emoticon, emoteHeight),
+          // 服务端给了原始宽高就按它定宽，图片到达前即可占位，与弹幕渲染器口径一致。
+          // 抖音会员表情 / 守护表情不带尺寸，只能交给解码后的图片固有比例：
+          // 整条消息就是一个表情，宽度变化不会带动后续文字，不会出现混排时的文字跳变。
+          width: hasServerSize ? _emoteWidth(emoticon, emoteHeight) : null,
           fit: BoxFit.contain,
           alignment: Alignment.centerLeft,
           // 不开 gaplessPlayback：聊天列表项无 key 且会从头部淘汰复用，
