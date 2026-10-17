@@ -64,11 +64,35 @@ jobs:
           cd simple_live_app
           flutter pub get
 
+      # 读取版本号（产物命名用）
+      - name: Read version
+        id: version
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: assets/app_version.json
+
+      # 生成产物命名元数据：VERSION + BUILD_TS（东八区 YYMMDDHHMMSS）
+      - name: Prepare artifact naming metadata
+        shell: bash
+        run: |
+          echo "VERSION=${{ fromJson(steps.version.outputs.content).version }}" >> "$GITHUB_ENV"
+          echo "BUILD_TS=$(TZ=Asia/Shanghai date +%y%m%d%H%M%S)" >> "$GITHUB_ENV"
+
       # 打包 APK
       - name: Build APK
         run: |
           cd simple_live_app
           flutter build apk --release --split-per-abi
+
+      # 按 {产品名}_V{版本号}_{平台}_{代号}_({语言})_{构建类型}_{发布编号}_(Build{构建时间}) 规范重命名
+      - name: Rename APK artifacts
+        shell: bash
+        run: |
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            src="simple_live_app/build/app/outputs/flutter-apk/app-$abi-release.apk"
+            dst="simple_live_app/build/app/outputs/flutter-apk/Slive_V${VERSION}_android-$abi_app_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).apk"
+            mv "$src" "$dst"
+          done
 
       # 上传 Artifacts
       - name: Upload APK to Artifacts
@@ -76,9 +100,7 @@ jobs:
         with:
           name: android
           path: |
-            simple_live_app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-            simple_live_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-            simple_live_app/build/app/outputs/flutter-apk/app-x86_64-release.apk
+            simple_live_app/build/app/outputs/flutter-apk/Slive_*.apk
 
 
   # 打包iOS、Mac
@@ -118,6 +140,20 @@ jobs:
           cd simple_live_app
           flutter pub get
 
+      # 读取版本号（产物命名用）
+      - name: Read version
+        id: version
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: assets/app_version.json
+
+      # 生成产物命名元数据：VERSION + BUILD_TS（东八区 YYMMDDHHMMSS）
+      - name: Prepare artifact naming metadata
+        shell: bash
+        run: |
+          echo "VERSION=${{ fromJson(steps.version.outputs.content).version }}" >> "$GITHUB_ENV"
+          echo "BUILD_TS=$(TZ=Asia/Shanghai date +%y%m%d%H%M%S)" >> "$GITHUB_ENV"
+
       # 安装 appdmg npm install -g appdmg
       - name: Install appdmg
         run: npm install -g appdmg
@@ -144,6 +180,7 @@ jobs:
           cp -R build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/Runner.app
           cd build/ios/iphoneos/
           zip -q -r ios_no_sign.ipa Payload
+          mv ios_no_sign.ipa "Slive_V${VERSION}_ios_app_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).ipa"
           cd ../../..
 
       # 上传 IPA 至 Artifacts
@@ -152,13 +189,17 @@ jobs:
         with:
           name: ios
           path: |
-            simple_live_app/build/ios/iphoneos/ios_no_sign.ipa
+            simple_live_app/build/ios/iphoneos/Slive_*.ipa
 
       # 打包 MAC
       - name: Build MacOS
         run: |
           cd simple_live_app
           fastforge package --platform macos --targets dmg,zip --skip-clean
+          for f in build/dist/*/*.dmg build/dist/*/*.zip; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f%/*}/Slive_V${VERSION}_macos_app_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).${f##*.}"
+          done
 
       # 上传 MAC 至 Artifacts
       - name: Upload MacOS to Artifacts
@@ -228,14 +269,26 @@ jobs:
           cd fastforge
           dart pub global activate melos
           melos run activate
+      # 读取版本号与构建时间（产物命名用）
+      - name: Read version
+        id: version
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: assets/app_version.json
+      - name: Prepare artifact naming metadata
+        shell: bash
+        run: |
+          echo "VERSION=${{ fromJson(steps.version.outputs.content).version }}" >> "$GITHUB_ENV"
+          echo "BUILD_TS=$(TZ=Asia/Shanghai date +%y%m%d%H%M%S)" >> "$GITHUB_ENV"
+
       # build Linux DEB \ ZIP
       - name: Build Linux
         run: |
           cd simple_live_app
           fastforge package --platform linux --targets deb,zip --skip-clean
           cd build/dist/*
-          mv simple_live_app-*-linux.deb Slive-${{ matrix.arch }}-linux.deb
-          mv simple_live_app-*-linux.zip Slive-${{ matrix.arch }}-linux.zip
+          mv simple_live_app-*-linux.deb "Slive_V${VERSION}_linux-${{ matrix.arch }}_app_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).deb"
+          mv simple_live_app-*-linux.zip "Slive_V${VERSION}_linux-${{ matrix.arch }}_app_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).zip"
       # 上传 Linux 包至 Artifacts
       - name: Upload Linux APP to Artifacts
         uses: actions/upload-artifact@v4
@@ -286,6 +339,18 @@ jobs:
           cd simple_live_app
           Copy-Item "windows/packaging/exe/ChineseSimplified.isl" "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
         shell: powershell
+      # 读取版本号与构建时间（产物命名用）
+      - name: Read version
+        id: version
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: assets/app_version.json
+      - name: Prepare artifact naming metadata
+        shell: bash
+        run: |
+          echo "VERSION=${{ fromJson(steps.version.outputs.content).version }}" >> "$GITHUB_ENV"
+          echo "BUILD_TS=$(TZ=Asia/Shanghai date +%y%m%d%H%M%S)" >> "$GITHUB_ENV"
+
       # build Windows ZIP\MSIX\EXE
       - name: Build Windows
         run: |
@@ -293,7 +358,7 @@ jobs:
           fastforge package --platform windows --targets msix,zip,exe --skip-clean
           cd build/dist/*
           Get-ChildItem "simple_live_app-*" | ForEach-Object {
-              $newName = $_.Name -replace '^simple_live_app', 'Slive'
+              $newName = "Slive_V${env:VERSION}_windows_app_(zh-cn)_release_${{ github.run_number }}_(Build${env:BUILD_TS})$($_.Extension)"
               Rename-Item $_ -NewName $newName
           }
         shell: pwsh
@@ -334,6 +399,18 @@ jobs:
           sudo apt-get install -y flatpak flatpak-builder ca-certificates gnupg software-properties-common
           flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           git config --global protocol.file.allow always
+      # 读取版本号与构建时间（产物命名用）
+      - name: Read version
+        id: version
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: assets/app_version.json
+      - name: Prepare artifact naming metadata
+        shell: bash
+        run: |
+          echo "VERSION=${{ fromJson(steps.version.outputs.content).version }}" >> "$GITHUB_ENV"
+          echo "BUILD_TS=$(TZ=Asia/Shanghai date +%y%m%d%H%M%S)" >> "$GITHUB_ENV"
+
       # 构建 Flatpak bundle
       - name: Build flatpak bundle
         run: |
@@ -345,7 +422,7 @@ jobs:
             --install-deps-from=flathub \
             --ccache \
             --disable-rofiles-fuse
-          flatpak build-bundle ${{ matrix.arch }} Slive-${{ matrix.arch }}.flatpak io.github.SlotSun.Slive
+          flatpak build-bundle ${{ matrix.arch }} "Slive_V${VERSION}_linux-${{ matrix.arch }}_flatpak_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).flatpak" io.github.SlotSun.Slive
 
       # 上传 Flatpak 包至 Artifacts
       - name: Upload linux flatpak to artifacts

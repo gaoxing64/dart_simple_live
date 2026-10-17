@@ -60,8 +60,30 @@ jobs:
           cd simple_live_tv_app
           flutter pub get
 
+      # 读取版本号与构建时间（产物命名用）
+      - name: Read version
+        id: version
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: assets/tv_app_version.json
+      - name: Prepare artifact naming metadata
+        shell: bash
+        run: |
+          echo "VERSION=${{ fromJson(steps.version.outputs.content).version }}" >> "$GITHUB_ENV"
+          echo "BUILD_TS=$(TZ=Asia/Shanghai date +%y%m%d%H%M%S)" >> "$GITHUB_ENV"
+
       # 打包 APK
       - name: Build APK
         run: |
           cd simple_live_tv_app
           flutter build apk --release --split-per-abi
+
+      # 按 {产品名}_V{版本号}_{平台}_{代号}_({语言})_{构建类型}_{发布编号}_(Build{构建时间}) 规范重命名
+      - name: Rename APK artifacts
+        shell: bash
+        run: |
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            src="simple_live_tv_app/build/app/outputs/flutter-apk/app-$abi-release.apk"
+            dst="simple_live_tv_app/build/app/outputs/flutter-apk/Slive_V${VERSION}_android-$abi_tv_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).apk"
+            mv "$src" "$dst"
+          done
