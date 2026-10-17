@@ -51,7 +51,7 @@ pub fn contains_super_chat_marker(content: &str) -> bool {
 /// 拉取醒目留言并映射为消息（无钩子或空列表 -> 空序列）。
 ///
 /// `pub`：会话循环与集成测试（夹具回归）都要复用同一路径。
-pub fn super_chat_items(
+pub async fn super_chat_items(
     top_sid: i64,
     fetch_super_chat: Option<&SuperChatFetcher>,
 ) -> Vec<LiveDanmuItem> {
@@ -61,7 +61,7 @@ pub fn super_chat_items(
     if top_sid == 0 {
         return Vec::new();
     }
-    let list = fetch(top_sid);
+    let list = fetch(top_sid).await;
     match list.into_iter().next() {
         // 对齐 Dart：增量 SC 只取最新一条
         Some(sc) => vec![LiveDanmuItem::Message(Box::new(LiveMessage {

@@ -118,8 +118,8 @@ fn ac_huya_ws_online_frame_maps_int_data() {
 // V2 推送
 // ---------------------------------------------------------------------------
 
-#[test]
-fn ac_huya_ws_v2_superchat_uri_triggers_fetch() {
+#[tokio::test]
+async fn ac_huya_ws_v2_superchat_uri_triggers_fetch() {
     let expected = read_expected("frame-push-v2-uri2001317-superchat-trigger")["expected"].clone();
     let trigger = &expected["triggers"][0];
     assert_eq!(trigger["iUri"].as_i64().unwrap(), frames::URI_SUPER_CHAT);
@@ -128,7 +128,7 @@ fn ac_huya_ws_v2_superchat_uri_triggers_fetch() {
     let counter = Arc::clone(&called);
     let fetcher: SuperChatFetcher = Arc::new(move |pid| {
         counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        vec![sample_sc(pid)]
+        Box::pin(async move { vec![sample_sc(pid)] })
     });
 
     // 夹具口径：本帧只置触发位、不产消息（expected.messages 为空）
@@ -144,7 +144,8 @@ fn ac_huya_ws_v2_superchat_uri_triggers_fetch() {
     let items = slive_core::platforms::huya::danmaku::super_chat_map::super_chat_items(
         66_0000,
         Some(&fetcher),
-    );
+    )
+    .await;
     assert_eq!(
         called.load(std::sync::atomic::Ordering::SeqCst),
         1,
@@ -367,6 +368,67 @@ async fn ac_huya_session_reconnects_five_times_then_closes() {
         })
         .count();
     assert_eq!(reconnects, 5, "5s × 5 重连（对齐 B站 runner 语义）");
+}
+
+/// 回归（2026-10-18 虎牙弹幕停更）：SC 拉取必须作为 future 在会话 runtime 内 await。
+///
+/// 旧实现把同步闭包注入会话，桥层在闭包里又 `block_on` 一个 runtime —— Tokio 直接
+/// panic（"Cannot start a runtime from within a runtime"），弹幕线程静默退出。
+#[tokio::test]
+async fn ac_huya_session_super_chat_fetch_awaits_inside_session_runtime() {
+    let mut queue = std::collections::VecDeque::new();
+    queue.push_back(Box::new(ScriptedFrameSource::new(vec![
+        read_bytes("frame-push-v2-uri2001317-superchat-trigger.bin"),
+        read_bytes("frame-push-uri8006-online.bin"),
+    ])) as Box<dyn slive_core::ws::FrameSource>);
+
+    let connect: ConnectFactory = Box::new(move || {
+        let next = queue.pop_front();
+        Box::pin(async move {
+            next.ok_or_else(|| slive_core::error::SliveError::network("无更多连接"))
+        })
+    });
+
+    let items: Arc<std::sync::Mutex<Vec<LiveDanmuItem>>> =
+        Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = Arc::clone(&items);
+    let in_runtime = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let fetch_flag = Arc::clone(&in_runtime);
+    let fetcher: SuperChatFetcher = Arc::new(move |pid| {
+        let flag = Arc::clone(&fetch_flag);
+        Box::pin(async move {
+            flag.store(
+                tokio::runtime::Handle::try_current().is_ok(),
+                std::sync::atomic::Ordering::SeqCst,
+            );
+            vec![sample_sc(pid)]
+        })
+    });
+    let (_stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+
+    slive_core::platforms::huya::danmaku::run_session(
+        HuyaDanmakuArgs::new(1, 66_0000, 66_0001),
+        connect,
+        Arc::new(FakeTime::new(0)),
+        SessionTuning::bilibili(),
+        stop_rx,
+        Some(fetcher),
+        move |item| sink.lock().expect("锁").push(item),
+    )
+    .await;
+
+    assert!(
+        in_runtime.load(std::sync::atomic::Ordering::SeqCst),
+        "SC 拉取必须在会话 runtime 内 await（不得嵌套 block_on）"
+    );
+    let got = items.lock().expect("锁").clone();
+    assert!(
+        got.iter().any(|item| matches!(
+            item,
+            LiveDanmuItem::Message(m) if m.message_type == LiveMessageType::SuperChat
+        )),
+        "SC 触发帧经异步拉取后应产出 SuperChat 消息"
+    );
 }
 
 #[tokio::test]

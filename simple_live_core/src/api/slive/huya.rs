@@ -16,7 +16,9 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
 
 use slive_core::error::SliveError;
-use slive_core::platforms::huya::danmaku::{run_session, ConnectFactory, HuyaDanmakuArgs};
+use slive_core::platforms::huya::danmaku::{
+    run_session, ConnectFactory, HuyaDanmakuArgs, SuperChatFetcher,
+};
 use slive_core::platforms::huya::HuyaSite;
 use slive_core::time::SystemClock;
 use slive_core::ws::{FrameSource, SessionTuning};
@@ -129,18 +131,12 @@ pub fn start_huya_danmaku(
 
     // 醒目留言增量拉取：借一个独立句柄走 core 的 TUP 链路（core 不持有 HTTP 连接，
     // 故此处注入生产传输；SC 拉取失败返回空列表，不影响弹幕主循环 —— 对齐 Dart 的 try/catch）。
+    // 钩子必须是异步 future：它会在会话的 tokio runtime 内被 await；
+    // 在此再 block_on 另一个 runtime 会 panic（2026-10-18 弹幕停更根因）。
     let sc_site = Arc::new(HuyaSite::new());
-    let fetch_super_chat = Arc::new(move |pid: i64| {
+    let fetch_super_chat: SuperChatFetcher = Arc::new(move |pid: i64| {
         let site = Arc::clone(&sc_site);
-        // 同步上下文（FRB 回调在会话线程内）：用阻塞 runtime 执行异步 TUP 调用
-        let rt = match tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-        {
-            Ok(rt) => rt,
-            Err(_) => return Vec::new(),
-        };
-        rt.block_on(async move {
+        Box::pin(async move {
             match slive_core::platforms::huya::super_chat::fetch_by_pid(&site, pid, false).await {
                 Ok(list) => list,
                 Err(e) => {

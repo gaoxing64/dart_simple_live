@@ -157,6 +157,7 @@ class RustHuyaSite extends LiveSite {
 /// 心跳由 Rust 会话内部管理（60s），Dart 侧 `heartbeat()` / `heartbeatTime` 不参与。
 class RustHuyaDanmaku extends LiveDanmaku {
   StreamSubscription<rust_danmu.LiveDanmuItem>? _subscription;
+  bool _stopped = true;
 
   @override
   Future<void> start(dynamic args) async {
@@ -167,7 +168,9 @@ class RustHuyaDanmaku extends LiveDanmaku {
         '虎牙弹幕参数应为 Rust 契约的 JSON 串（detail.danmakuData）',
       );
     }
+    _stopped = true;
     await _subscription?.cancel();
+    _stopped = false;
     _subscription = rust_huya_danmaku.startHuyaDanmaku(argsJson: args).listen(
       (item) {
         switch (item) {
@@ -189,12 +192,20 @@ class RustHuyaDanmaku extends LiveDanmaku {
         // ignore: avoid_print
         debugPrint('[rust-huya-danmaku] stream ERROR: $e');
       },
+      // Rust 会话异常退出（如线程 panic）时 sink 被 drop，流会静默 onDone；
+      // 不接这个回调的话 UI 看起来就是"弹幕卡住"，没有任何提示。
+      onDone: () {
+        if (!_stopped) {
+          onClose?.call('弹幕连接已断开');
+        }
+      },
       cancelOnError: false,
     );
   }
 
   @override
   Future<void> stop() async {
+    _stopped = true;
     rust_huya_danmaku.stopHuyaDanmaku();
     await _subscription?.cancel();
     _subscription = null;

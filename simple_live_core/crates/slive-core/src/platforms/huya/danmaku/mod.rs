@@ -41,13 +41,21 @@ pub type ConnectFactory = Box<
         + Send,
 >;
 
-/// 醒目留言事件的拉取钩子。
+/// 醒目留言事件的拉取钩子（异步）。
 ///
 /// 虎牙的 SC 不随弹幕下发：收到 V2 `iUri=2001317` 事件时（2026-10-17 上游同步：
 /// 旧「文案含 `(来自 xx 上头条)`」文本路径已弃用，见 dev 97413c60）
 /// 才去拉一次列表（对齐 Dart `callSc`）。core 不直接发 HTTP，故由调用方注入。
 /// `pub`：桥层（FRB）注入生产实现时会用到本类型名。
-pub type SuperChatFetcher = Arc<dyn Fn(i64) -> Vec<crate::models::LiveSuperChatMessage> + Send + Sync>;
+///
+/// **必须是异步钩子**：会话循环本身运行在 tokio runtime 内，若钩子在内部再
+/// `block_on` 一个 runtime 会 panic（"Cannot start a runtime from within a runtime"），
+/// 整个弹幕线程会静默退出（真机 2026-10-18 虎牙弹幕停更事故）。
+pub type SuperChatFetcher = Arc<
+    dyn Fn(i64) -> Pin<Box<dyn Future<Output = Vec<crate::models::LiveSuperChatMessage>> + Send>>
+        + Send
+        + Sync,
+>;
 
 /// 会话主循环。`on_item` 依次收到 `Ready` / `Message` / `Reconnecting` / `Closed`。
 ///
@@ -152,7 +160,9 @@ pub async fn run_session(
                 on_item(item);
             }
             if decoded.super_chat_triggered {
-                for item in super_chat_map::super_chat_items(args.top_sid, fetch_super_chat.as_ref()) {
+                let items =
+                    super_chat_map::super_chat_items(args.top_sid, fetch_super_chat.as_ref()).await;
+                for item in items {
                     on_item(item);
                 }
             }
