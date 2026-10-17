@@ -193,9 +193,13 @@ class RustDouyinDanmaku extends LiveDanmaku {
 
   @override
   Future<void> start(dynamic args) async {
+    // `args` 只接受 `detail.danmakuData` 原样透传的 JSON 串（Rust 契约）。
+    // Dart 侧已无 `DouyinDanmakuArgs` 类型（ADR-014 删除 Dart core 实现）。
     final argsJson = args is String
         ? args
-        : _argsToJson(args as DouyinDanmakuArgs);
+        : throw ArgumentError(
+            'RustDouyinDanmaku.start 需要 danmakuData JSON 串，收到 ${args.runtimeType}',
+          );
     await _subscription?.cancel();
     _subscription = rust_douyin.startDouyinDanmaku(argsJson: argsJson).listen(
       (item) {
@@ -228,15 +232,4 @@ class RustDouyinDanmaku extends LiveDanmaku {
     await _subscription?.cancel();
     _subscription = null;
   }
-
-  /// core 的 `DouyinDanmakuArgs` -> Rust 契约 JSON 串
-  /// （键 `web_rid/room_id/user_id/cookie`；不使用 core 的 `toString()` ——
-  /// 它的键序是 camelCase，与 Rust serde 契约不符）。
-  String _argsToJson(DouyinDanmakuArgs args) => jsonEncode({
-        'schema_version': 1,
-        'web_rid': args.webRid,
-        'room_id': args.roomId,
-        'user_id': args.userId,
-        'cookie': args.cookie,
-      });
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:canvas_danmaku/canvas_danmaku.dart';
@@ -1593,6 +1594,23 @@ class LiveRoomController extends PlayerController
     );
   }
 
+  /// 解析 `danmakuData`（Rust 契约 JSON 串，键为 snake_case）。
+  ///
+  /// Dart 侧的 `DouyinDanmakuArgs` / `HuyaDanmakuArgs` 已随 ADR-014 删除，
+  /// 这里直接读 JSON；缺字段时返回空 Map，让深链退化为浏览器打开。
+  Map<String, dynamic> _danmakuArgsMap() {
+    final raw = detail.value?.danmakuData;
+    if (raw == null || raw.isEmpty) {
+      return const {};
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : const {};
+    } catch (_) {
+      return const {};
+    }
+  }
+
   void openNaviteAPP() async {
     var naviteUrl = "";
     var webUrl = "";
@@ -1600,13 +1618,15 @@ class LiveRoomController extends PlayerController
       naviteUrl = "bilibili://live/${detail.value?.roomId}";
       webUrl = "https://live.bilibili.com/${detail.value?.roomId}";
     } else if (site.id == Constant.kDouyin) {
-      var args = detail.value?.danmakuData as DouyinDanmakuArgs;
-      naviteUrl = "snssdk1128://webcast_room?room_id=${args.roomId}";
-      webUrl = "https://live.douyin.com/${args.webRid}";
+      // danmakuData 是 Rust 契约 JSON 串（Dart 侧 args 类已随 ADR-014 删除）。
+      final args = _danmakuArgsMap();
+      naviteUrl = "snssdk1128://webcast_room?room_id=${args['room_id']}";
+      webUrl = "https://live.douyin.com/${args['web_rid']}";
     } else if (site.id == Constant.kHuya) {
-      var args = detail.value?.danmakuData as HuyaDanmakuArgs;
+      final args = _danmakuArgsMap();
+      final subSid = args['sub_sid'];
       naviteUrl =
-          "yykiwi://homepage/index.html?banneraction=https%3A%2F%2Fdiy-front.cdn.huya.com%2Fzt%2Ffrontpage%2Fcc%2Fupdate.html%3Fhyaction%3Dlive%26channelid%3D${args.subSid}%26subid%3D${args.subSid}%26liveuid%3D${args.subSid}%26screentype%3D1%26sourcetype%3D0%26fromapp%3Dhuya_wap%252Fclick%252Fopen_app_guide%26&fromapp=huya_wap/click/open_app_guide";
+          "yykiwi://homepage/index.html?banneraction=https%3A%2F%2Fdiy-front.cdn.huya.com%2Fzt%2Ffrontpage%2Fcc%2Fupdate.html%3Fhyaction%3Dlive%26channelid%3D$subSid%26subid%3D$subSid%26liveuid%3D$subSid%26screentype%3D1%26sourcetype%3D0%26fromapp%3Dhuya_wap%252Fclick%252Fopen_app_guide%26&fromapp=huya_wap/click/open_app_guide";
       webUrl = "https://www.huya.com/${detail.value?.roomId}";
     } else if (site.id == Constant.kDouyu) {
       naviteUrl =

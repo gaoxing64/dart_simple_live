@@ -33,14 +33,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
-  brotli:
-    dependency: transitive
-    description:
-      name: brotli
-      sha256: "7f891558ed779aab2bed874f0a36b8123f9ff3f19cf6efbee89e18ed294945ae"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.0"
   build_cli_annotations:
     dependency: transitive
     description:
@@ -97,14 +89,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.8"
-  dart_sm:
-    dependency: transitive
-    description:
-      name: dart_sm
-      sha256: "98051cca380155c21dc33aef8425d4877f44e857801fd622914bd07d9c06d3dc"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.5"
   dbus:
     dependency: transitive
     description:
@@ -296,14 +280,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
-  html_unescape:
-    dependency: transitive
-    description:
-      name: html_unescape
-      sha256: "15362d7a18f19d7b742ef8dcb811f5fd2a2df98db9f80ea393c075189e0b61e3"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.0"
   http:
     dependency: transitive
     description:
@@ -672,14 +648,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.3"
-  protobuf:
-    dependency: transitive
-    description:
-      name: protobuf
-      sha256: "75ec242d22e950bdcc79ee38dd520ce4ee0bc491d7fadc4ea47694604d22bf06"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.0.0"
   qr:
     dependency: transitive
     description:
@@ -835,13 +803,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.4.0"
-  tars_dart:
-    dependency: transitive
-    description:
-      path: "../simple_live_core/packages/tars_dart"
-      relative: true
-    source: path
-    version: "0.1.0"
   term_glyph:
     dependency: transitive
     description:

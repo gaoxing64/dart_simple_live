@@ -6,7 +6,6 @@
 //! Dart core 的 B站实现待 console 迁移后删除（console 暂留 Dart 路径）。
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:simple_live_core/src/rust/api/slive/danmaku.dart' as rust_danmaku;
 import 'package:simple_live_core/src/rust/api/slive/site.dart' as rust_site;
@@ -148,9 +147,13 @@ class RustLiveDanmaku extends LiveDanmaku {
 
   @override
   Future<void> start(dynamic args) async {
+    // `args` 只接受 `detail.danmakuData` 原样透传的 JSON 串（Rust 契约）。
+    // Dart 侧已无 `BiliBiliDanmakuArgs` 类型（ADR-014 删除 Dart core 实现）。
     final argsJson = args is String
         ? args
-        : _argsToJson(args as BiliBiliDanmakuArgs);
+        : throw ArgumentError(
+            'RustLiveDanmaku.start 需要 danmakuData JSON 串，收到 ${args.runtimeType}',
+          );
     await _subscription?.cancel();
     _subscription = rust_danmaku.startDanmaku(argsJson: argsJson).listen(
       (item) {
@@ -183,17 +186,4 @@ class RustLiveDanmaku extends LiveDanmaku {
     await _subscription?.cancel();
     _subscription = null;
   }
-
-  /// core 的 `BiliBiliDanmakuArgs` -> Rust 契约 JSON 串
-  /// （键 `room_id/uid/token/server_host/buvid/cookie`，Spec §4.4；不使用
-  /// core 的 `toString()` —— 它的键序是 camelCase，与 Rust serde 契约不符）。
-  String _argsToJson(BiliBiliDanmakuArgs args) => jsonEncode({
-        'schema_version': 1,
-        'room_id': args.roomId,
-        'uid': args.uid,
-        'token': args.token,
-        'server_host': args.serverHost,
-        'buvid': args.buvid,
-        'cookie': args.cookie,
-      });
 }
