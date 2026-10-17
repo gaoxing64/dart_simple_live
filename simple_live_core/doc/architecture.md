@@ -1,167 +1,168 @@
 # simple_live_core 架构与选型对照
 
-> 版本锚点：`simple_live_core` v1.1.0 · future 分支 `5ae375f1`（2026-10-14）
-> 2026-10-18 复核：`setSiteAttrs`/`LivePlayUrl` 契约相关行按 HEAD `7b31c568` 核对；其余段落仍以锚点为准。
-> 配套文档：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
+> 版本锚点：future `4795b165` + 2026-10-18 Dart core 清理（删除全部 Dart 平台实现与 `simple_live_console`）
+> 覆盖范围：Rust 核心 `crates/slive-core`｜FRB 门面 `src/api/slive`｜Dart 绑定层 `lib/src/bridge`｜CLI `crates/slive-cli`
+> 配套：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
+
+## 0. 结论速览
+
+| 问题 | 答案 |
+| --- | --- |
+| 协议实现（签名/解析/重连）在哪 | `crates/slive-core`，纯 Rust，**零 FRB 依赖** |
+| Dart 侧还剩什么 | 模型 683 行 + 接口 147 行 + 绑定层 1,663 行 + FRB 生成物 10,846 行 |
+| App / TV 怎么接 | `sites.dart` 直接 `new Rust*Site()`，**无运行时开关**（ADR-008 回退窗口关闭） |
+| 命令行怎么接 | `crates/slive-cli`（产物 `slive`）直接依赖 `slive-core`，**完全绕开 FRB** |
+| 弹幕怎么出 | Rust `StreamSink<LiveDanmuItem>` → Dart `Stream` → `LiveDanmaku` 回调 |
+| 为什么保留 Dart 模型 | App/TV 全量消费 `LiveRoomDetail` 等，桥层做 1:1 翻译；删掉会波及 34 个调用点 |
 
 ## 1. 模块全景
 
 ```
 simple_live_core/
-├── lib/simple_live_core.dart        # barrel 导出（5 个 Site + 5 个 Danmaku + 模型 + 账号模型/枚举）
-├── lib/src/interface/
-│   ├── live_site.dart               # LiveSite：全平台统一接口（具体类，默认空实现；含账号三接口）
-│   └── live_danmaku.dart            # LiveDanmaku：弹幕长连接抽象接口
-├── lib/src/common/
-│   ├── http_client.dart             # Dio 单例（connect/receive/send=20s）
-│   ├── custom_interceptor.dart      # 统一请求/响应/错误日志（带耗时）
-│   ├── core_error.dart              # 统一错误类型（message + statusCode）
-│   ├── core_log.dart                # 可插拔日志（onPrintLog 钩子，App 接管输出）
-│   ├── web_socket_util.dart         # WS 封装：心跳、断线重连、backupUrl
-│   ├── binary_writer.dart           # 大小端二进制读写（bilibili/douyu 分包）
-│   ├── qr_status.dart               # 账号扫码状态枚举（loading/unscanned/scanned/expired/failed）
-│   ├── common_asT.dart              # 安全类型转换 `asT<T>()`（账号模型解析用）
-│   └── parse_cookie.dart / convert_helper.dart
-├── lib/src/model/                   # 跨平台模型（见 §3.4）
-│   ├── account_info.dart            # 账号信息（name/avatar/uid/credential/isValid）
-│   └── account_qr_code.dart         # QRCode（key/url/expireAt）+ QRPollResult（status/credential/message）
-├── lib/src/platforms/
-│   ├── bilibili/ douyu/ huya/ douyin/ twitch/    # 每平台：site + danmaku (+ utils/signing + model/)
-│   │   ├── bilibili/model/bilibili_user_info.dart   # 账号信息解析（新增）
-│   │   ├── douyin/model/douyin_user_info.dart        # 账号信息解析（新增）
-│   │   └── huya/model/huya_damaku_model.dart         # 虎牙弹幕模型
-│   └── readme.md                    # “json to dart model”与三段式取流的口径说明
-├── packages/tars_dart/              # 内置包：Tars/TUP 编解码（虎牙必需）
-├── test/                            # 6 个测试文件（`ls test/*.dart`；离线回归 + 联网冒烟，见 test-suite.md）
-└── example/simple_live_core_example.dart
+├── crates/slive-core/                 # ★ 纯核心 crate（rlib，可被 Tauri 等复用）
+│   ├── src/platforms/{bilibili,douyu,huya,douyin,twitch}/
+│   ├── src/tars/                      # 手写 TARS/TUP 编解码（虎牙/斗鱼）
+│   ├── src/ws/                        # 帧编解码 + 会话骨架 + run_session 主循环
+│   ├── src/http.rs                    # HttpTransport trait + ReqwestTransport(rustls)
+│   ├── src/time.rs                    # TimeSource trait（生产真实睡眠 / 测试立即返回）
+│   ├── src/models/                    # 跨平台模型（room/play/message/danmu/account/category）
+│   ├── src/wbi.rs / util.rs / error.rs / logging.rs
+│   └── tests/                         # 集成用例 + 离线夹具 fixtures/{platform}/
+├── crates/slive-cli/                  # ★ 命令行（bin `slive`），只依赖 slive-core
+├── src/api/slive/                     # FRB 门面：opaque 句柄 + JSON args + StreamSink
+├── src/frb_generated.rs               # FRB 生成物（9,122 行，入库）
+├── lib/src/bridge/                    # Dart 绑定层：rust_*_site.dart（1,663 行，零协议逻辑）
+├── lib/src/rust/                      # FRB Dart 生成物（10,846 行，入库）
+├── lib/src/interface/                 # LiveSite / LiveDanmaku 契约（147 行）
+├── lib/src/model/                     # 跨平台 Dart 模型（683 行）
+├── lib/src/common/                    # 只剩 core_log.dart + qr_status.dart
+├── rust_builder/                      # cargokit 构建插件（5 平台）
+└── Cargo.toml                         # workspace：[slive-core, slive-cli]
 ```
 
-依赖方向：`platforms → interface/model/common`，`interface → model`；`common` 不依赖 `platforms`。**没有任何反向依赖**，也没有对 `simple_live_app` 的依赖。
+**已删除**（2026-10-18，ADR-014 决策 4 落地）：`lib/src/platforms/**`（34 文件 / 15,286 行，含抖音 proto 8,004 行与虎牙 TARS 1,005 行）、`lib/src/common/` 的 HTTP/WS 工具 8 个文件、`packages/tars_dart`（26 文件）、`test/*.dart`（9 个）、`assets/js`、`example/`，以及整仓的 `simple_live_console/`。
 
-## 2. 分层
+## 2. 分层与边界
 
-| 层 | 职责 | 变更频率 |
+| 层 | 位置 | 职责 | 硬纪律 |
+| --- | --- | --- | --- |
+| Dart 绑定层 | `lib/src/bridge/rust_*_site.dart` | `implements LiveSite`；FRB 模型 ↔ Dart 模型 1:1 翻译 | **零协议逻辑**：不得出现 URL 拼接 / 签名 / 解析 / 重试（AC-39 / J-6 / R-13） |
+| FFI 边界 | `lib/src/rust/` + `src/frb_generated.rs` | FRB 2.13.0 codegen，两侧均入库 | 版本两侧必须精确一致（`=2.13.0`），漂移会让 `RustLib.init()` 静默抛异常 |
+| FRB 门面 | `src/api/slive/**`（1,771 行） | `#[frb(opaque)]` 站点句柄、`StreamSink` 弹幕、`SliveError → CoreError` 映射 | 同样只翻译转发；`#[frb(ignore)]` 标记内部管线函数 |
+| Rust 核心 | `crates/slive-core/` | 协议全套：签名、分页、解码、心跳、重连 | 不得依赖 FRB / Flutter |
+| 构建 | `rust_builder/`（cargokit） | App 与 TV 共用同一 crate、同一份生成物 | 包名固定 `rust_lib_simple_live_app` |
+
+依赖方向单行：`bridge → api → slive-core`；`bridge` 另外依赖 `model/interface`。**不存在核心反向依赖应用的情况。**
+
+## 3. Rust 核心内部结构
+
+### 3.1 平台层
+
+五个平台目录结构同构但深度不同：`site.rs`（站点句柄 + 全部对外方法）+ 按能力拆分的模块（`detail/` `play/` `rooms/` `search/` `categories/` `danmaku/` `signature/` `account/`）。
+
+| 平台 | 行数（含内联测试） | 目录特征 |
 | --- | --- | --- |
-| 接口层 | 定义契约与默认行为，决定下游兼容性 | 极低（改动即破坏性，见 §3.1） |
-| 平台层 | 逆向平台协议：签名、分页、解码、特例兜底 | 高（平台改版驱动） |
-| 模型层 | 跨平台数据结构；平台私有数据用 `dynamic` 通道携带 | 低 |
-| 基础层 | HTTP/WS/日志/错误/二进制工具 | 低 |
+| bilibili | 2,054 | `wbi.rs` `buvid.rs` `cookie.rs` `super_chat.rs` `emoticon.rs`；弹幕 `args/decode/parse` 三分 |
+| douyu | 4,078 | `sign.rs`（enc 链）`transport.rs` `api_code.rs`；弹幕 `protocol/session/parse`；`super_chat.rs` |
+| huya | 4,952 | `anti_code.rs` `tup.rs` `vip_room_id.rs` `detail_parse.rs`；弹幕 8 文件（`bare/frames/tars_*`） |
+| douyin | 7,561 | `signature/`（abogus + x_bogus + sm3 + tables，10 文件）、`detail/{enter,reflow,html,builder}`、`play/branches`、手写 `danmaku/proto` |
+| twitch | 2,476 | `gql.rs` `m3u8.rs` `unsupported.rs`；IRC 文本帧 `danmaku/{parse,session}` |
 
-## 3. 关键设计决策与对照
+`unsupported.rs` 是 Twitch 的显式能力声明：分类/分类下房间/SC **恒返回空**，推荐/搜索/凭证/账号 **恒报错**（`SliveError::InvalidInput` / `Api{code:-1}`），**不静默兜底** —— 与 Dart core 原语义逐条对齐。
 
-### 3.1 `LiveSite` 是具体类 + 默认空实现（而不是 `abstract class`）
+### 3.2 基础设施
 
-- **现状**：`class LiveSite`，所有方法都有默认返回（空列表 / `false` / 空 `LiveRoomDetail`）；5 个平台 `implements LiveSite` 而不是 `extends`。
-- **备选**：`abstract class` + 各平台 `extends`，编译器强制实现全部方法。
-- **选择理由**：新增能力（如 `getSuperChatMessage`、`setSiteAttrs`）时，不必同时改 5 个平台；未实现的平台「静默不支持」而不是编译失败。`implements` 则保证平台层不会意外继承出错误的默认行为（必须显式覆写才生效）。
-- **代价**：接口变更对「实现方」是破坏性的——v1.1.0 给 `getCategoryRooms/getRecommendRooms` 加 `pageSize` 具名参数时，5 个平台实现必须同步补参数（调用方不受影响）。这是历史遗留的显式取舍，参见 `simple_live_core/CHANGELOG.md` 1.1.0 条目。
+- **`tars/`**：手写 TARS/TUP 编解码（`buffer/{reader,writer}` `decoder` `encoder` `packet` `uni_packet` `value`…）。**不用 `tars-stream` crate**：它依赖 nightly 的 `specialization`，stable 编不过（见 `docs/rust-core/17-tars-module.md`）。
+- **`ws/`**：`frame.rs` 负责 B站 16 字节大端包头；`session.rs` 定义 `FrameSource`（事件源）与 `SessionTuning`（心跳/重连参数）；`runner.rs` 是会话主循环（`Ready → Message → Reconnecting → Closed`）。各平台另有自己的 `run_session`（帧格式差异大，不强行抽象）。
+- **`http.rs`**：`HttpTransport` trait 只有一个 `get(&HttpRequest)`；生产实现 `ReqwestTransport`，**统一 rustls**（避免 Android OpenSSL/NDK C 依赖）。
+- **`time.rs`**：`TimeSource` 注入 —— 生产 `SystemClock` 真实睡眠，测试实现立即返回，是「重连 5 次/心跳到期」这类用例不 flaky 的前提。
+- **可测性 seam**：每个 `*Site` 都有 `with_deps(http, time, post…)`，集成测试注入假传输与假时钟，无需联网。
 
-### 3.2 回调式弹幕（`onMessage/onClose/onReady`）而不是 `Stream`
+### 3.3 弹幕会话的一生
 
-- **选择理由**：弹幕是「一条长连接 + 高频单向事件」，回调最直接；App 层可直接把回调桥接到自己的事件总线/状态管理，不需要在 core 里引入 `StreamController` 生命周期管理。
-- **代价**：无法用 `Stream` 的操作符（节流、背压）；同一实例只能挂一个消费者（业务上够用，App 只有一个直播间消费弹幕）。
-- **重连集中在基础层**：`WebScoketUtils` 负责心跳定时器、5s×5 次重连、`backupUrl` 切换；平台实现只提供 URL/headers/heartbeat 间隔和「鉴权包」逻辑。5 个平台心跳间隔：bilibili 60s / douyu 45s / huya 60s / douyin 10s / twitch 40s。
+```
+start_*_danmaku(args_json, sink)          # FRB 门面（或 CLI 直接装配）
+  → args from_json（失败 → CoreError）
+  → 单房间语义：激活新会话前，向旧会话的 watch::Sender 发 true
+  → std::thread::spawn + 自建 current_thread runtime   ← FRB 的 FFI 线程没有 reactor，tokio::spawn 会 panic
+  → run_session(args, ConnectFactory, TimeSource, Tuning, stop_rx, on_item)
+       ├─ connect 失败 → 退避 5s，最多 5 次 → Closed
+       ├─ 连接成功 → on_item(Ready) → 发 join 帧
+       ├─ 收帧 → 解码 → on_item(Message)
+       └─ 每帧处理后检查心跳到期 → 发心跳
+  → sink.add(item) / CLI 打印
+```
 
-### 3.3 HTTP：Dio 单例 + 拦截器 + 统一错误
-
-- **现状**：`HttpClient.instance`（懒加载单例）持有 `Dio`，挂 `CustomInterceptor`（记录耗时、按 `CoreLog.requestLogType` 分级打印）；所有失败收敛为 `CoreError`（带 `statusCode`），App 直接展示其 `message`。
-- **对照**：用 `package:http` 或每平台自建 client → 会散落超时/日志/错误处理。集中单例让「注入 HttpClientAdapter 跑离线测试」也变成可能（见 test-suite.md），这是测试策略的地基。
-- **代价**：全局单例不便于并行隔离/多账号；测试必须记得还原 adapter。
-
-### 3.4 平台私有数据用 `dynamic` 双通道携带
-
-- `LiveRoomDetail.data`：详情页中间态（虎牙 `HuyaUrlDataModel`、抖音 stream 数据、douyu 无）。
-- `LiveRoomDetail.danmakuData`：弹幕连接参数（`BiliBiliDanmakuArgs` / `HuyaDanmakuArgs` / 抖音房间号字符串 / douyu 房间号）。
-- `LivePlayQuality.data`：清晰度与地址的中间态（bilibili 用 `qn` 整数、douyu 用 `DouyuPlayData(rate, cdns)`、虎牙用 `{urls, bitRate}`）。
-- **对照**：全强类型（泛型化 `LiveRoomDetail<T, D>`）会污染所有跨平台调用点；早期新平台曾走「json_to_dart model」（见 `lib/src/platforms/readme.md`）。
-- **代价**：类型不安全，靠约定 + 各平台自己的 model 类兜底；跨平台误传会运行时报错。`updateData()/updateDanmakuData()` 是唯一的替换入口。
-
-### 3.5 JS 引擎的剥离（重要历史选型）
-
-上游早期用 `flutter_qjs`（内嵌 JS 引擎）执行平台侧脚本做签名/加密，后逐步「逆写」成纯 Dart：
-
-| 时间 | 提交 | 内容 |
-| --- | --- | --- |
-| 2025-09 | `4802e965` / `38bdefb2` | 测试斗鱼/抖音本地签名 |
-| 2026-03 | `dd44a80e` | 斗鱼逆写 JS，逐步剥离 `flutter_qjs` |
-| 2026-06 | `0509f173`、`1c9d1714` | 抖音弹幕 xbogus 替换 JS 引擎；移除 JS 插件 |
-| fork | 保留 `assets/js/*.js` 历史文件为参考 | — |
-
-**收益**：去掉平台侧 JS 引擎依赖后，core 只依赖 Dart 生态（dio/crypto/dart_sm…），体积与启动成本下降，纯 Dart 可测（离线用例不再需要 JS 运行时）。**代价**：平台算法变更时需要人工跟踪逆写（如 abogus 的 SM3+RC4 实现）。
-
-### 3.6 虎牙引入 `tars_dart`（内置包）
-
-虎牙的拉流 token 与弹幕走腾讯 Tars/TUP 协议，Dart 生态没有可用实现，因此以 `path` 依赖内置 `packages/tars_dart`。这是一个「协议适配必须自己造」的案例：`BaseTarsHttp`（WUP over HTTP，取 `sFlvToken`）+ `TarsInputStream/OutputStream`（WS 弹幕帧解码）。
-
-### 3.7 账号体系下沉到 core（上游 v1.8.15，`abca65f8`）
-
-- **背景**：账号登录（扫码 / webLogin / cookie 校验）原本在 `simple_live_app` 侧实现，各端（app/tv_app/console）各自维护。上游 v1.8.15 把账号能力下沉到 core，统一入口。
-- **接口新增**（`live_site.dart`）：`getQRCode()`（生成登录二维码，返回 `QRCode`）、`getQRPollResult({qrcodeKey})`（轮询扫码状态，返回 `QRPollResult`）、`getAccountInfo({credential})`（用凭证校验并换回 `AccountInfo`）。三者都在 `LiveSite` 上带默认空实现（`live_site.dart:107-121`），未实现的平台「静默不支持」。
-- **`setSiteAttrs` 契约变化**：由 fork 早期的 `Map<String, dynamic>` 改为上游的 **`String`**（`live_site.dart:103`）。各平台用 `jsonDecode`（string2json）解析统一 credential：**bilibili 现在也按 JSON 取 `cookie` 键，与其他平台一致**（自 `5ae375f1`／上游 `57d8f86d`，`bilibili_site.dart:553-558`；此前是把整串当裸 cookie，和扫码流程产出的 JSON credential（`bilibili_site.dart:600`）配不上对）；douyu 读 `cookie`/`dy_did`/`LTP0`（`douyu_site.dart:344-356`）、douyin 读 `cookie`/`hlsFirst`（`douyin_site.dart:1233-1246`）、huya 只读 `ua`（`huya_site.dart:559-564`）。这是**对实现方的破坏性变更**（5 平台签名同步改回 String）。
-- **数据模型**：新增 `AccountInfo`（`name/avatar/uid/credential/isValid`，`account_info.dart`）、`QRCode`+`QRPollResult`（`account_qr_code.dart`）、`QRStatus` 枚举（`qr_status.dart`）；平台侧用户信息模型 `BiliBiliUserInfoModel`、`DouyinUserInfoModel`（用 `asT<T>` 安全转换，`common_asT.dart`）。
-- **链路约定**（`live_site.dart:115-118` 注释）：`login/init → getQRCode → 轮询 getQRPollResult(QRStatus) → getAccountInfo(credential) 校验 → isValid 则保存 → setSiteAttrs 注入`；因各 Site 是单例，注入后全局生效。
-- **`getAccountInfo` 不止返回值**（`5ae375f1`，上游 `03c4493a`）：bilibili 校验成功时会把账号 uid 写进站点单例字段（`bilibili_site.dart:622` `userId = info.mid!`），`getRoomDetail` 再把它填进 `BiliBiliDanmakuArgs.uid`（`bilibili_site.dart:250-257`）；弹幕 WS 的 join 包带的就是 `"uid": args.uid`（`bilibili_danmaku.dart:91`），cookie 走握手头（`bilibili_danmaku.dart:63-67`），两者必须是同一个账号的一对。改动前 `userId` 在本文件无写入点，join 包恒为 0。core 没有弹幕发送接口（`live_danmaku.dart:5-25`），所以这条只影响握手，不影响下行解码。
-- **实现分叉**：抖音 `setSiteAttrs` 采用上游的 `String` 契约，但实现保留 fork 的 `headers['cookie']` 语义，**未采用**上游的 `_cookie` 字段 + `_updateDouyinCookie()`（`douyin_site.dart:1233`）。详见 §6 与 backlog。
-- **当前进度**：仅 bilibili / douyu 全实现；douyin 的 `getAccountInfo` 已实现，`getQRCode/getQRPollResult` 仍是 `UnimplementedError` 桩；huya 三接口、twitch 三接口 + `setSiteAttrs` 均为桩。
-
-### 3.8 统一格式约定：`dart format`（上游 `63a3055c`）
-
-- 上游随 v1.8.15 引入一次全库 `dart format .`（合并后 core 26 个文件被重排），并在 `analysis_options.yaml` 固化 `formatter: {trailing_commas: preserve, page_width: 120}`（`analysis_options.yaml:31-33`）。
-- **影响**：随后任何 core 改动都应遵循该格式，避免制造无关 diff；本次合并中抖音 `douyin.pb*.dart` 因 format 产生的重排量最大（diff 噪声，非逻辑变更）。
-
-## 4. 平台实现对照表（选型全景）
+## 4. 平台实现对照表
 
 | 维度 | bilibili | douyu | huya | douyin | twitch |
 | --- | --- | --- | --- | --- | --- |
-| 详情获取 | JSON API | `betard/{roomId}` JSON | **网页 HTML 正则** | JSON（reflow/web-enter/网页三级） | gql |
+| 详情来源 | JSON API | `betard/{roomId}` JSON | 网页 HTML 正则 | JSON（reflow / web-enter / html 三级） | GQL |
 | 列表分页 | 服务端 `has_more` / 本页非空 | 类目 `pgcnt` / 推荐本页非空 | `page < totalPage` | offset+count（满页判据） | 不支持 |
-| 取流签名 | wbi（md5 + 重排表） | `getEncryption` + md5 链（5min 缓存） | tars `getCdnTokenInfoEx` + antiCode（md5/rotl64） | 无（本地组装） | 无 |
-| 反爬（HTTP） | buvid3/4 + wbi | dy_did/acf_did + enc_data | 匿名 uid + 固定 cookie/guid（temp） | **abogus**（SM3+RC4，`aid=6383`） | 无需 |
-| 弹幕传输 | WSS 自定义二进制 | WSS + 自制 STT 文本帧 | WSS + tars | WSS + protobuf(gzip) | WSS + IRC |
-| 弹幕鉴权 | 16 字节包头 + token JSON | loginreq/joingroup | RegisterGroupReq(cmd16) | 长 query + **xbogus 签名** | 匿名 justinfan |
-| 心跳 | 60s（JSON 包） | 45s（mrkl） | 60s（cmd20） | 10s（PushFrame hb）+ needAck 回执 | 40s（PONG） |
-| 弹幕支持面 | chat/online/SC/**表情** | chat(仅粉丝)/SC（无 online） | chat/online/SC/**表情** | chat/online/**会员表情 + 标准表情** | 仅 chat |
-| 表情包 | `parseBilibiliEmoticons`（fork 新增） | — | `huya_emoticon.dart`（103 个 `[xx]` 映射） | Rust core：`WebcastEmojiChatMessage`（会员/守护表情）+ 214 项标准 `[码]` 表 | — |
-| SC 路径 | WS 下行解析 | WS 下行解析 | **WS 信号 + HTTP 拉取** | 不支持 | 不支持 |
-| 搜索 | 房间+主播 | 房间+主播 | 房间（yyid） | 仅房间（主播接口抛异常） | 不支持 |
-| 特殊兜底 | mcdn 线路后置 | cookie JWT 续期；海外 `expire=0`；flv 线路带**续流回调** `renewers`（2026-10-18 起 App 已改登记 `StreamRenewContext` 自取流，不再消费；Rust core 本就不产出，O-7） | 4K(HDR/VIP) 跳过；线路级容错 | 连麦房间 reflow 补查；脏数据单条跳过 | — |
-| **账号能力**（v1.8.15） | 已实现：扫码 `getQRCode/getQRPollResult` + `getAccountInfo`（cookie 校验） | 已实现：did 获取 + 扫码 + `refreshCookie`（LTP0/cookie） | **TODO 桩**：三接口均 `UnimplementedError` | `getAccountInfo` 已实现；`getQRCode/getQRPollResult` 为 TODO 桩 | **TODO 桩**：三接口 + `setSiteAttrs` 均未实现 |
+| 取流签名 | wbi（md5 + 重排表） | `getEncryption` + md5 链（5min 缓存） | tars `getCdnTokenInfoEx` + antiCode | 无（本地组装） | 无 |
+| 反爬 | buvid3/4 + wbi | dy_did/acf_did + enc_data | 匿名 uid + 固定 cookie/guid | **abogus**（SM3+RC4，aid=6383） | 无需 |
+| 弹幕传输 | WSS 自定义二进制 | WSS + 自制 STT 文本帧 | WSS + TARS | WSS + protobuf(gzip) | WSS + IRC |
+| 弹幕鉴权 | 16 字节包头 + token JSON | `loginreq`/`joingroup` | `RegisterGroupReq`(cmd16) | 长 query + **xbogus** | 匿名 `justinfan` |
+| 心跳 | 60s | 45s | 60s | 10s + needAck 回执 | 40s |
+| 重连 | 5s × 5 | 5s × 5 | 5s × 5 | 5s × 5 | 5s × 5（收到消息归零） |
+| 消息支持面 | chat / online / SC / 表情 | chat（仅粉丝）/ SC | chat / online / SC / 表情 | chat / online / 会员表情 + 标准表情 | 仅 chat |
+| SC 路径 | WS 下行解析 | WS 下行解析 | WS 信号 + HTTP 拉取（`SuperChatFetcher`） | 不支持 | 不支持 |
+| 搜索 | 房间 + 主播 | 房间 + 主播 | 房间 | 仅房间 | 不支持 |
+| 账号 | 扫码 + 校验 | did + 扫码 + `refreshCookie` | 桩 | `getAccountInfo` | 桩 |
+| 特殊兜底 | mcdn 线路后置 | 海外 `expire=0`、cookie JWT 续期 | 4K(HDR/VIP) 跳过、线路级容错 | 连麦房间 reflow 补查、脏数据单条跳过 | — |
 
-## 5. 依赖清单（`pubspec.yaml`）与用途
+## 5. 依赖清单
 
-| 依赖 | 用途 | 不可替代性 |
+### 5.1 Rust
+
+| crate | 版本/特性 | 用途 |
 | --- | --- | --- |
-| `flutter` (sdk) | 仅因 `web_socket_channel` 等生态；**不是 UI 组件库** | 让 core 无法作为纯 Dart 包发布（见 backlog） |
-| `dio` | HTTP（超时/拦截器/CancelToken） | 中 |
-| `web_socket_channel` | 5 平台弹幕长连接 | 高 |
-| `crypto` | md5（wbi/antiCode/douyu auth） | 高 |
-| `dart_sm` | SM3（抖音 abogus） | 高 |
-| `protobuf` | 抖音弹幕帧 | 高 |
-| `brotli` | bilibili 协议压缩版本 3 | 高 |
-| `html_unescape` | 斗鱼 rtmp_live 反转义 | 低 |
-| `logger` | 日志输出（可被 `CoreLog.onPrintLog` 接管） | 低 |
-| `fixnum` | protobuf/tars 的 64 位整数 | 高 |
-| `tars_dart` (path) | 虎牙 Tars/TUP | 高（自研内置） |
+| `reqwest` | 0.12，`rustls-tls/json/cookies/gzip/brotli` | HTTP，全平台 rustls |
+| `tokio` | 1，`rt-multi-thread/macros/time/sync` | 异步运行时 |
+| `prost` | 0.12 | 抖音 protobuf（手写结构，免 protoc） |
+| `flate2`（`rust_backend`）+ `brotli` | — | B站 op5 载荷解压（ver2 zlib / ver3 brotli） |
+| `md-5` / `chrono` / `serde` / `thiserror` / `once_cell` / `regex` / `log` | — | 通用 |
+| `flutter_rust_bridge` | `=2.13.0`（仅根 crate） | FFI 门面与 codegen |
+| `tokio-tungstenite` | 0.21，**桌面 `native-tls` / 移动 `rustls`** | 弹幕 WS（ADR-013） |
 
-## 6. fork 与上游的差异对照（future vs fork-parent/dev）
+CLI 只额外用 `tokio-tungstenite` + `async-trait` + `futures-util`，**参数解析手写**（零 clap 依赖）。
 
-| 差异 | fork 实现 | 上游行为 | 兼容性 |
-| --- | --- | --- | --- |
-| `pageSize` 具名参数 | 新增（v1.1.0），bilibili 推荐流真正使用，其余忽略；`abca65f8` 同步时**再次作为冲突点保留 fork 版** | 无此参数（`origin/dev` 的 `live_site.dart` 无 `pageSize`） | **对实现方破坏性**（5 个内置实现已同步） |
-| 分页判据 | 收敛为「服务端字段或退化判据」+ 回归测试（`e1f7a75c`） | 各自为政，douyu 推荐依赖失效的 `pgcnt` | 调用方无感 |
-| B 站表情包 | `LiveMessage.emoticons` + `LiveMessageEmoticon`（含 `large`/`emoticonUnique`）+ 解析器 + 31 条离线用例（`grep -c 'test(' test/bilibili_emoticon_test.dart`） | 无 | 模型新增字段，向后兼容 |
-| 抖音表情 | Rust core 解析 `WebcastEmojiChatMessage` → `LiveMessage.emoticons`（会员/守护表情）；`ChatMessage.content` 里的 214 个标准 `[码]` 由静态表映射成图片 | 无 | 模型复用，向后兼容 |
-| 抖音推荐流 | feed 首屏扇出 + 分区轮转真分页（`49eef9c3`） | 一次 feed 请求、无真分页 | 调用方无感（语义更接近「无限滚动」） |
-| 抖音连麦房间 | reflow 优先 + stream 缺失补查 + 全链路判空（`63c1eb8d`） | 空指针崩溃 | 调用方无感 |
-| 斗鱼推荐分页 | 弃用 `pgcnt`，本页非空即还有更多（`e1f7a75c`） | `page < pgcnt`（恒 false，卡第一页） | 调用方无感 |
-| 抖音 `setSiteAttrs` 实现 | `String` 契约 + `headers['cookie']` 语义（`douyin_site.dart:1233`）；无 `_cookie` 字段/`_updateDouyinCookie()` | 上游曾用 `_cookie` 字段 + `_updateDouyinCookie()` 维护 cookie 生命周期 | 语义分叉：若上游后续依赖 `_cookie` 字段（如 cookie 二次更新）需重新对齐（见 backlog） |
-| 账号体系位置 | 随上游下沉至 core（`abca65f8`）；实现进度见 §4 | 同在 core，但仅 bilibili/douyu 完整 | — |
+### 5.2 Dart（`pubspec.yaml`）
 
-## 7. 已知取舍与风险（详见 backlog.md）
+| 依赖 | 用途 |
+| --- | --- |
+| `flutter` (sdk) | 绑定层用 `foundation`（`debugPrint`）；core 仍非纯 Dart 包 |
+| `flutter_rust_bridge: 2.13.0` | FRB Dart 运行时（精确钉版） |
+| `freezed_annotation ^3.0.0` | FRB 枚举 → sealed class 生成依赖 |
+| `logger ^2.6.2` | `CoreLog` 实现（App/TV 用 `onPrintLog` 接管） |
 
-- `LiveSite` 默认空实现让「不支持」与「实现漏了」长得一样，调用方只能靠文档/测试区分。
-- `dynamic` 通道的数据形状没有运行时校验，平台改版后错误会在消费方炸开。
-- 虎牙依赖网页正则与硬编码 VIP 名单、弹幕 WS 使用 temp cookie/guid —— 平台反爬升级时最脆弱的一环。
-- 斗鱼弹幕只受理粉丝发言（历史行为），可能漏消息但避免了「阴间弹幕」。
-- 抖音 abogus 属于风控对抗，参数（aid、UA 指纹、白名单路径）随时可能失效；另有自部署签名服务方案（未启用，见 backlog）。
-- 测试覆盖偏斜：分页与表情包有大量离线回归；网络协议层（WS 解码）只有联网冒烟。
+已移除：`dio`、`web_socket_channel`、`html_unescape`、`protobuf`、`crypto`、`brotli`、`tars_dart`、`fixnum`、`dart_sm`，以及 dev 依赖 `test`。
+
+## 6. 关键设计决策（ADR 索引）
+
+| ADR | 结论 |
+| --- | --- |
+| ADR-001 | workspace 置于 `simple_live_core/`，根 crate 为 FRB 桥、`crates/slive-core` 为纯核心 |
+| ADR-002 | FRB **2.13.0** 精确钉版，生成物入库 |
+| ADR-003 | HTTP 全 rustls；压缩走纯 Rust 后端 |
+| ADR-004 | 弹幕用 `StreamSink` 推送（`LiveDanmuItem`：Message / Control） |
+| ADR-005 | 站点状态留在 Rust，Dart 只持 opaque 句柄 |
+| ADR-006 | `SliveError` → `CoreError` 统一映射 |
+| ADR-007 | 模型在 FRB 侧显式定义，不直接暴露 core 内部类型 |
+| ADR-008 | App/TV 直连绑定层，**无运行时开关**（回退窗口已关闭） |
+| ADR-009 | 不依赖上游 parser crate，协议自研 |
+| ADR-011 | 离线夹具 + held-out 留出集（`--features heldout`） |
+| ADR-012 | D4 数据通道对齐（`data` / `danmaku_data` JSON 契约） |
+| ADR-013 | WSS TLS 分平台：桌面 native-tls（斗鱼指纹风控）、移动 rustls |
+| ADR-014 | **全面采用 Rust core**；Dart 实现仅为 console 保留，console 迁移后整删（本次已执行） |
+
+## 7. 已知取舍与风险
+
+1. **双份模型**：Rust `models/*` 与 Dart `lib/src/model/*` 是同一套数据的两种声明，靠 `rust_site_models.dart` 手写翻译维持一致。新增字段要同时改三处（Rust 模型 / FRB 生成 / Dart 模型）。
+2. **FRB 版本锚定是硬约束**：两侧版本漂移不会编译报错，而是运行时 `RustLib.init()` 抛异常，排查成本高。
+3. **抖音是最大单点**：7,561 行、签名全在本地（abogus/x_bogus/sm3），平台风控一变即失效，且难以离线验证。
+4. **虎牙最脆弱**：详情靠网页正则 + 硬编码 VIP 名单，弹幕 WS 用 temp cookie/guid。
+5. **斗鱼弹幕只受理粉丝发言**（历史行为），会漏消息。
+6. **Tab 与 TARS 全靠手写**：协议变更需人工跟踪，无第三方库兜底。
+7. **测试偏斜**：抖音 180 条、虎牙 93 条、斗鱼 80 条、Twitch 50 条、B站仅 20 条内联用例；B站主要靠集成夹具覆盖。
+8. **当前 8 条红灯**：Twitch 夹具被 Windows CRLF 污染（`.gitattributes` 的 `* text=auto` 把 `.bin` 当文本），非逻辑缺陷，见 backlog。

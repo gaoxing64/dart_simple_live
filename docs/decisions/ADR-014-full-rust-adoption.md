@@ -1,7 +1,7 @@
 # ADR-014: 全面采用 Rust core —— 开关移除 / 绑定层下沉 / TV 迁移
 
 ## Status
-Accepted (2026-10-17)
+Accepted (2026-10-17) · **Implemented (2026-10-18)**
 
 ## Background
 Rust Core 化前 13 个 ADR 落地后（骨架 + 五平台迁移 + 四平台绑定层集成），`Constant.kUseRust*`
@@ -33,6 +33,22 @@ Rust Core 化前 13 个 ADR 落地后（骨架 + 五平台迁移 + 四平台绑�
      依赖（dio/protobuf/brotli/crypto/dart_sm/fixnum/tars_dart 等）+ Dart 测试一次性整删。
 5. **console 暂留 Dart 路径**（用户决策，下轮处理）。注意其 SDK 约束（`<3.0.0`）与本包
    （`>=3.0.5`）已冲突，当前本就无法 `pub get`，属既存死代码；保留不增加新坏债。
+
+## Implementation (2026-10-18)
+
+决策 4 的「下轮」已执行，且 console 处理方式由用户重新决策为「先写 Rust CLI 再删」：
+
+- 新增 `crates/slive-cli`（bin `slive`）：只依赖 `slive-core`，不经 FRB；`info` 输出详情/清晰度/直链，
+  `danmaku` 持续打印弹幕。端到端已在 B站真实房间验证。
+- 删除 `simple_live_console/`（整目录，125 行）：其 SDK 约束 `<3.0.0` 与 core 早已冲突，属死代码。
+- 删除 `lib/src/platforms/**`（34 文件 / 15,286 行）、`lib/src/common/` 的 8 个 HTTP/WS 工具、
+  `packages/tars_dart`（26 文件）、`test/*.dart`（9 个）、`assets/js`、`example/`。
+- `lib/simple_live_core.dart` 去掉 8 条 export；`pubspec.yaml` 依赖收敛为
+  `flutter` + `flutter_rust_bridge` + `freezed_annotation` + `logger`。
+- 绑定层的 `_argsToJson` 兼容分支随 Dart args 类一并删除，`start(args)` 现在只接受
+  `detail.danmakuData` 的 JSON 串（传其他类型抛 `ArgumentError`）。
+- 验证：`core/app/tv` 三个包 `flutter analyze` 均 0 error；`cargo test -p slive-core` 918/910（8 条为
+  Twitch 夹具 CRLF 既有红灯，非本次引入）。
 
 ## Consequences
 **正面**
