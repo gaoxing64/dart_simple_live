@@ -28,7 +28,7 @@ tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
 tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
 
 [workspace]
-members = ["crates/slive-core"]
+members = ["crates/slive-core", "crates/slive-cli"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

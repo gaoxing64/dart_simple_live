@@ -1,0 +1,23 @@
+[package]
+name = "slive-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Simple Live 命令行工具：直连 slive-core，不经 FRB"
+publish = false
+
+[[bin]]
+name = "slive"
+path = "src/main.rs"
+
+[dependencies]
+slive-core = { path = "../slive-core" }
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "macros",
+    "time",
+    "sync",
+    "signal",
+] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
+async-trait = "0.1"
