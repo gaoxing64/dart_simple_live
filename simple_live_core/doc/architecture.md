@@ -1,6 +1,7 @@
 # simple_live_core 架构与选型对照
 
 > 版本锚点：`simple_live_core` v1.1.0 · future 分支 `5ae375f1`（2026-10-14）
+> 2026-10-18 复核：`setSiteAttrs`/`LivePlayUrl` 契约相关行按 HEAD `7b31c568` 核对；其余段落仍以锚点为准。
 > 配套文档：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 
 ## 1. 模块全景
@@ -123,7 +124,7 @@ simple_live_core/
 | 表情包 | `parseBilibiliEmoticons`（fork 新增） | — | `huya_emoticon.dart`（103 个 `[xx]` 映射） | Rust core：`WebcastEmojiChatMessage`（会员/守护表情）+ 214 项标准 `[码]` 表 | — |
 | SC 路径 | WS 下行解析 | WS 下行解析 | **WS 信号 + HTTP 拉取** | 不支持 | 不支持 |
 | 搜索 | 房间+主播 | 房间+主播 | 房间（yyid） | 仅房间（主播接口抛异常） | 不支持 |
-| 特殊兜底 | mcdn 线路后置 | cookie JWT 续期；海外 `expire=0`；flv 线路带**续流回调** `renewers` | 4K(HDR/VIP) 跳过；线路级容错 | 连麦房间 reflow 补查；脏数据单条跳过 | — |
+| 特殊兜底 | mcdn 线路后置 | cookie JWT 续期；海外 `expire=0`；flv 线路带**续流回调** `renewers`（2026-10-18 起 App 已改登记 `StreamRenewContext` 自取流，不再消费；Rust core 本就不产出，O-7） | 4K(HDR/VIP) 跳过；线路级容错 | 连麦房间 reflow 补查；脏数据单条跳过 | — |
 | **账号能力**（v1.8.15） | 已实现：扫码 `getQRCode/getQRPollResult` + `getAccountInfo`（cookie 校验） | 已实现：did 获取 + 扫码 + `refreshCookie`（LTP0/cookie） | **TODO 桩**：三接口均 `UnimplementedError` | `getAccountInfo` 已实现；`getQRCode/getQRPollResult` 为 TODO 桩 | **TODO 桩**：三接口 + `setSiteAttrs` 均未实现 |
 
 ## 5. 依赖清单（`pubspec.yaml`）与用途

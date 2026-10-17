@@ -37,7 +37,7 @@ fvm flutter test --plain-name "首屏"              # 按用例名过滤
 
 > **2026-10-12 同步（`abca65f8`）后未新增任何测试文件**：账号体系下沉 core 只带来源码与模型（`account_info.dart` 等），core 侧未跑测试、App 侧仅做适配。账号接口用例全部为【待补】（见 §4.7）。
 > **2026-10-14 同步（`5ae375f1`）同样没有 core 测试变动**：`git diff --stat 8fd14a9f..HEAD -- simple_live_core/test` 输出为空；`grep -rn "setSiteAttrs" simple_live_core/test` 无命中，因此本轮改的 B 站凭证 JSON 解析目前**零覆盖**。
-> **2026-10-16 斗鱼续流新增 `douyu_play_url_renew_test.dart`（2 条离线用例）**：配套 App 侧 `stream_relay/` 的 15 条，并补上 §4.5 TC-I08。同机 core 全量实测 82 执行 / 79 通过 / 3 失败（3 条均为 `huya tests` 联网用例：房间未开播，与既有口径一致）。
+> **2026-10-16 斗鱼续流新增 `douyu_play_url_renew_test.dart`（2 条离线用例）**：配套 App 侧 `stream_relay/` 的 16 条（2026-10-18 起），并补上 §4.5 TC-I08。同机 core 全量实测 82 执行 / 79 通过 / 3 失败（3 条均为 `huya tests` 联网用例：房间未开播，与既有口径一致）。
 
 ## 3. 覆盖矩阵
 

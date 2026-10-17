@@ -20,7 +20,13 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 
 ## 2. 现有测试资产
 
-`simple_live_app/test/` 共 **56 个 `.dart`**（`find simple_live_app/test -name '*.dart' | wc -l`）：**55 个含用例文件**（静态声明 **538** 个 `test`/`testWidgets`）+ 1 个共享 harness（`follow_test_harness.dart`）。`fvm flutter test --no-pub` 本次**执行 564 条**（数据驱动循环用例使运行条数多于静态声明数）：**549 通过 / 15 失败**（2026-10-16 同机实测；红灯清单见 §7）。另有 `integration_test/simple_test.dart`（1 个用例，需设备）。
+`simple_live_app/test/` 共 **56 个 `.dart`**（`find simple_live_app/test -name '*.dart' | wc -l`）：**55 个含用例文件**（静态声明 **540** 个 `test`/`testWidgets`）+ 1 个共享 harness（`follow_test_harness.dart`）。`fvm flutter test --no-pub` 本次**执行 566 条**（数据驱动循环用例使运行条数多于静态声明数）：**551 通过 / 15 失败**（2026-10-18 同机实测；红灯清单见 §7）。另有 `integration_test/simple_test.dart`（1 个用例，需设备）。
+
+> 2026-10-18 的增量：斗鱼续流改「上下文驱动」（`StreamRenewContext`，见 architecture §4.3），
+> `stream_relay_service_test.dart` +1 条（按线路取直链 / 线路变少回退 / 空列表报错），静态声明 540；
+> 同机全量 **566 执行 / 551 通过 / 15 失败**，失败清单与 §7 逐条一致。顺带修掉该文件里
+> 「时间戳严格递增」的抖动断言——HEAD 上同机 6 次跑 5 次红，根因是接续边界允许同毫秒
+> （`FlvTimeline.isNotBehind` 的刻意设计），断言改为「不得倒退」。
 
 > 2026-10-16 的增量：斗鱼「游客模式播放 5 分钟断流」修复（`lib/services/stream_relay/`，参考 DTV `ae4b425f`）
 > 带入 2 个文件 / 15 条用例（`stream_relay/`，见下表末），静态声明 523→538。同机全量实测
@@ -91,7 +97,7 @@ fvm flutter test integration_test/simple_test.dart -d windows   # 集成测试�
 | | `room_watch_clock_test.dart` | 6 | 观看计时 |
 | | `widget_test.dart` | 1 | 脚手架残留 smoke（`Counter increments smoke test`），**历来失败**，与业务无关 |
 | **续流中转（斗鱼直链 300s 到期续流）** | `stream_relay/flv_demuxer_test.dart` | 9 | FLV 增量解析（分片/时间戳/关键帧/初始化 tag/失同步兜底）与 `FlvTimeline` 去重判据 |
-| | `stream_relay/stream_relay_service_test.dart` | 6 | 端到端（本地假 CDN + 短 TTL）：到期自动接续成一条连续 FLV、无续流能力时直通、续流失败放弃、预取挂久放弃、时间轴重置放弃、释放会话 404 |
+| | `stream_relay/stream_relay_service_test.dart` | 7 | 端到端（本地假 CDN + 短 TTL）：到期自动接续成一条连续 FLV、无续流能力时直通、续流失败放弃、预取挂久放弃、时间轴重置放弃、释放会话 404；续流上下文按线路取对应直链（线路变少回退第一条、空列表报错） |
 | **harness（无用例）** | `follow_test_harness.dart` | 0 | 关注页 widget 测试的共享 fake + 泵取工具 |
 | **集成测试** | `integration_test/simple_test.dart` | 1 | Rust 桥（`RustLib.init` + `MyApp`），需设备 |
 

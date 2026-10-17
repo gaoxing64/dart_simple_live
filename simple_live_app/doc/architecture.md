@@ -1,6 +1,7 @@
 # simple_live_app 架构与选型对照
 
 > 版本锚点：`simple_live_app` v1.8.15+10815 · future 分支 `5ae375f1`（2026-10-14）
+> 2026-10-18 复核：续流相关证据（`stream_relay/*`、`live_room_controller` 取流/中转段）按 HEAD `7b31c568` 核对；其余段落仍以锚点为准（本批改动未提交）。
 > 配套文档：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)｜上游依赖：[simple_live_core 知识库](../../simple_live_core/doc/workflow-diagram.md)
 
 ## 1. 模块全景
@@ -142,7 +143,7 @@ simple_live_app/
 | `playback/live_playback_audio_handler.dart` | BaseAudioHandler | 投影到系统媒体控制面（通知/锁屏/耳机键） | `live_playback_audio_handler.dart:22-300` |
 | `playback/live_audio_session.dart` | 单例类 | 音频会话：iOS `playback` 类别 / Android 焦点与中断 | `live_audio_session.dart:25-119` |
 | `playback/live_playback_target.dart` | 抽象接口 | services↔modules 的唯一契约（防依赖环） | `live_playback_target.dart:13-50` |
-| `stream_relay/stream_relay_service.dart` | GetxService | **斗鱼直链续流中转**（2026-10-16）：本地 `127.0.0.1` HTTP 服务（惰性启停），把带硬性寿命的直链包成对播放器不中断的一条流——到期前 5s 预取新流、旧流 EOF/超时后按 FLV tag 边界接续（丢文件头与初始化 tag、对齐关键帧、丢重复 GOP）；只有提供 `LivePlayUrl.renewers` 的线路（当前=斗鱼 flv）才走它 | `stream_relay_service.dart:26-106`（`register:71` / `release:83` / `shutdown:97`）、`_RelayPipe._pump:271`、`_schedulePrefetch:330`、`_forwardContinuation:435` |
+| `stream_relay/stream_relay_service.dart` | GetxService | **斗鱼直链续流中转**（2026-10-16，2026-10-18 改为上下文驱动）：本地 `127.0.0.1` HTTP 服务（惰性启停），把带硬性寿命的直链包成对播放器不中断的一条流——到期前 5s 预取新流、旧流 EOF/超时后按 FLV tag 边界接续（丢文件头与初始化 tag、对齐关键帧、丢重复 GOP）；只有控制器登记了 `StreamRenewContext` 的线路（当前=斗鱼）才走它，到期时由中转按「房间 + 清晰度 + 线路」自己调 core 重取（`StreamRenewContext.resolve`），**不依赖 `LivePlayUrl.renewers`**（Rust core 不产出，O-7） | `stream_relay_service.dart`（`register:74` / `release:86` / `shutdown:100` / `StreamRenewContext:165` / `resolve:189`）、`_RelayPipe._pump:314`、`_schedulePrefetch:373`、`_forwardContinuation:478` |
 | `stream_relay/flv_demuxer.dart` | 纯类 | 增量 FLV 解析（tag 类型/时间戳/关键帧/初始化 tag/失同步兜底）+ `FlvTimeline`（音视频分开记 last ts，「未落后于旧位置」才转发；相等时间戳也算未落后，避免丢真实流里同毫秒的帧）；零 IO、可直接单测 | `flv_demuxer.dart:54-215`（`FlvDemuxer:54`、`nextTag:128`、`FlvTimeline:183`、`isNotBehind:204`） |
 
 ### 4.4 `lib/widgets` / `lib/routes` / `lib/models` / `lib/requests`
@@ -176,7 +177,7 @@ media_kit_libs_*_video（各平台预编译 libmpv 产物）
 - **全部走 fork**：`pubspec.yaml:99-160` 把 `media_kit` / `media_kit_video` / `media_kit_libs_video` 及 5 个平台 libs 全部钉到 **`github.com/gaoxing64/media-kit@23ec6b9c`**（`dependency_overrides` 里 6 个 libs 也一并指向它）。
 - **为何 fork**：官方（Predidit）的「仅视频」libmpv 构建 ffmpeg `--disable-filters`，**不含 `loudnorm`/`dynaudnorm`**；挂载音量均衡的 `af` 链会导致音频轨被禁（静音）。fork 分支 `feat/audio-filters` 编入了这些滤镜，运行时仍保留「回读 + 自愈 + 重连」（`player_controller.dart:33-60,241-257` 挂载与回读；`live_room_controller.dart:901-908` 不可用时重连当前线路）。取证（已内联）：对官方构建产物做符号/字符串扫描，`loudnorm` 相关符号 0 命中（带阳性对照）。
 - **供应链说明**：media-kit 的 fork **不是主仓库的一部分**——`git ls-files media-kit` 为 0、非 submodule（仓库根有一份独立 clone，非跟踪）。锁定的是**远程仓库 + 精确 commit**，bump 需同时改 8 处引用。
-- **输入源在斗鱼上多一层本地中转**：mpv 拿到的不是 CDN 直链，而是 `StreamRelayService` 的 `127.0.0.1` 地址（仅对带 `LivePlayUrl.renewers` 的线路生效）。它只搬运字节、不改播放栈：到期前重新取流 + FLV tag 边界接续，见 §4.3 与 §11。
+- **输入源在斗鱼上多一层本地中转**：mpv 拿到的不是 CDN 直链，而是 `StreamRelayService` 的 `127.0.0.1` 地址（仅对控制器登记了续流上下文的线路生效，当前=斗鱼）。它只搬运字节、不改播放栈：到期前重新取流 + FLV tag 边界接续，见 §4.3 与 §11。
 
 ## 7. Rust 桥（flutter_rust_bridge 2.13.0）
 

@@ -1,6 +1,7 @@
 # simple_live_core 工作流程图
 
 > 版本锚点：`simple_live_core` v1.1.0 · future 分支 `5ae375f1`（2026-10-14）
+> 2026-10-18 复核：取流/续流段落按 HEAD `7b31c568` 核对（App 已改 `StreamRenewContext`）；其余段落仍以锚点为准。
 > 配套文档：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 
 ## 0. 定位与调用边界
@@ -76,7 +77,8 @@ sequenceDiagram
     S->>H: 取流地址（bilibili/douyu/huya 需要请求；douyin 本地组装）
     H-->>S: 播放地址
     S-->>C: LivePlayUrl{urls, headers, renewers?}
-    C->>C: 交给播放器（media_kit），带 headers 播放；带 renewers 的线路（斗鱼 flv）先换成本地续流中转地址
+    C->>C: 交给播放器（media_kit），带 headers 播放
+    Note over C: 2026-10-18 起 App 侧斗鱼走 Rust core，桥不产出 renewers；续流改为控制器登记 StreamRenewContext，由本地中转自己重取
 ```
 
 分段职责与特例：
@@ -86,7 +88,7 @@ sequenceDiagram
 | `getRoomDetail` | 请求 JSON 接口 | 虎牙：抓网页 HTML 用正则抠 `TT_ROOM_DATA` / `stream`；抖音：`roomId` 位数分流 `reflow/info` 与 `web/enter`，连麦房间走补查 |
 | `getPlayQualities` | 请求接口拿清晰度列表 | 虎牙：从 `detail.data`（`HuyaUrlDataModel`）本地组装；抖音：解析 `live_core_sdk_data`，缺失时回退 `flv_pull_url`/`hls_pull_url_map` |
 | `getPlayUrls` | 接口换真实流地址 | 抖音：直接用清晰度阶段已带出的地址；虎牙：逐条线路请求 tars `getCdnTokenInfoEx` 再拼 antiCode |
-| 播放 | `LivePlayUrl.urls` 多条线路 | bilibili：把含 `mcdn` 的线路排到最后；douyu：`fcdn=ws & expire=300` 时追加 `&expire=0`（海外临时方案），并给每条 flv 线路附带 `renewers` 续流回调（App 层 `StreamRelayService` 在到期前重新取流、按 FLV tag 边界接续） |
+| 播放 | `LivePlayUrl.urls` 多条线路 | bilibili：把含 `mcdn` 的线路排到最后；douyu：`fcdn=ws & expire=300` 时追加 `&expire=0`（海外临时方案）。Dart core 仍给 flv 线路附带 `renewers` 回调，但 App 自 2026-10-18 起走 Rust `RustDouyuSite`（不产出 renewers），改由控制器登记 `StreamRenewContext` 让中转自行重取 |
 
 ## 3. 弹幕链路时序与状态机
 
@@ -198,11 +200,12 @@ flowchart TD
     E --> F["getPlayUrls 逐 CDN 请求 → rtmp_url + rtmp_live"]
     F --> G{"url 含 expire=300 且 fcdn=ws?"}
     G -- "是" --> H["追加 &expire=0（海外临时方案）"]
-    G -- "否" --> I["flv 线路附带 renewers 续流回调（续流走同一条兜底规则）"]
+    G -- "否" --> I["flv 线路附带 renewers 续流回调（Dart core；续流走同一条兜底规则）"]
     H --> I
 ```
 
-- **续流回调（2026-10-16）**：斗鱼下发的 flv 直链有硬性寿命（第三方 300s，到点 CDN 主动 EOF），游客模式只拿得到这种短效直链。`getPlayUrls` 因此为每条 **flv** 线路提供 `LivePlayUrl.renewers`（`live_play_url.dart` 的 `LivePlayUrlRenewer`），由消费方（App 的 `lib/services/stream_relay/`）在到期前调它重取；`expire=0` 兜底在首取与续流上共用同一条规则（`douyu_site.dart:_applyOverseaExpireWorkaround`）。非 flv 线路不给回调。
+- **续流回调（2026-10-16，Dart core）**：斗鱼下发的 flv 直链有硬性寿命（第三方 300s，到点 CDN 主动 EOF），游客模式只拿得到这种短效直链。Dart core 的 `getPlayUrls` 为每条 **flv** 线路提供 `LivePlayUrl.renewers`（`live_play_url.dart` 的 `LivePlayUrlRenewer`）；`expire=0` 兜底在首取与续流上共用同一条规则（`douyu_site.dart:_applyOverseaExpireWorkaround`）。非 flv 线路不给回调。
+- **App 侧现状（2026-10-18）**：App 的斗鱼已切到 Rust `RustDouyuSite`，桥 `toCorePlayUrl` 不产出 `renewers`（O-7）——续流改由控制器按「房间 + 清晰度 + 线路」登记 `StreamRenewContext`，中转到期时自己调 core 重取（见 `simple_live_app/doc/architecture.md` §4.3）。上面的 Dart core 回调目前无 App 消费者，`douyu_play_url_renew_test.dart` 仍守护该契约。
 
 - cookie：`DouyuUtils` 解析 `acf_jwt_token` 的 exp 判断过期，用 `safeAuth` 刷新（`douyu_utils.dart:49-90`）；`setSiteAttrs` 注入 JSON（键 `cookie`/`dy_did`/`LTP0`）并同步 `dy_did`。
 - 弹幕：`danmuproxy.douyu.com:8506`，自制 STT 文本协议；**只受理 `fans=='1'` 的弹幕**（历史行为，见 backlog）。
