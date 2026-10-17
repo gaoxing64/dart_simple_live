@@ -1,1 +1,4 @@
 ﻿* text=auto eol=lf
+# 二进制夹具必须原样保存：`* text=auto` 会把 .bin 当文本，Windows checkout 时转成 CRLF，
+# 导致 Twitch IRC 金标用例断言 `\n` 实际收到 `\r\n`（8 条恒红，2026-10-18 定位）。
+*.bin binary
