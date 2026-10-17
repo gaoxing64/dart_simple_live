@@ -12,6 +12,9 @@ dependencies:
     sdk: flutter
   simple_live_core:
     path: ../simple_live_core
+  # Rust Core（slive-core）FFI 构建插件 —— 与主 App 共用同一 crate
+  rust_lib_simple_live_app:
+    path: ../simple_live_core/rust_builder
   cupertino_icons: ^1.0.2
   remixicon: ^1.0.0 #Remix图标
 
