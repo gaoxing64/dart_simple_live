@@ -8,6 +8,7 @@
 
 pub mod args;
 pub mod decode;
+pub mod emoticon;
 pub mod proto;
 pub mod session;
 

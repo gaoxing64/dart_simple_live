@@ -4,9 +4,11 @@
 //! ```text
 //! PushFrame.fromBuffer(bytes) → gzip.decode(payload) → Response.fromBuffer
 //!   → needAck 则 sendAck(logId, internalExt)
-//   → messagesList 逐条按 method 分发：
-//!       WebcastChatMessage      → LiveMessage(type: chat,  color: white, message: content, userName: user.nickName)
-//       WebcastRoomUserSeqMessage→ LiveMessage(type: online, data: totalUser, color: white)
+//!   → messagesList 逐条按 method 分发：
+//!       WebcastChatMessage      → LiveMessage(type: chat,  color: white, message: content, userName: user.nickName,
+//!                                              emoticons: content 中的标准表情码)
+//!       WebcastRoomUserSeqMessage→ LiveMessage(type: online, data: totalUser, color: white)
+//!       WebcastEmojiChatMessage → LiveMessage(type: chat, emoticons: emojiContent 里的图片)
 // ```
 //!
 //! 未知 method **静默跳过**（Dart 的 if/else 链亦然；服务端会持续下发点赞/礼物/
@@ -18,9 +20,12 @@ use flate2::read::GzDecoder;
 use prost::Message as _;
 
 use crate::error::SliveError;
-use crate::models::{LiveMessage, LiveMessageColor, LiveMessageData, LiveMessageType};
+use crate::models::{
+    LiveMessage, LiveMessageColor, LiveMessageData, LiveMessageEmoticon, LiveMessageType,
+};
 
-use super::proto::{ChatMessage, PushFrame, Response, RoomUserSeqMessage};
+use super::emoticon::extract_emoticons;
+use super::proto::{ChatMessage, EmojiChatMessage, PushFrame, Response, RoomUserSeqMessage};
 
 /// 帧载荷类型：业务消息。
 pub const PAYLOAD_TYPE_MSG: &str = "msg";
@@ -33,6 +38,8 @@ pub const PAYLOAD_TYPE_ACK: &str = "ack";
 pub const METHOD_CHAT: &str = "WebcastChatMessage";
 /// 方法名：在线人数。
 pub const METHOD_ROOM_USER_SEQ: &str = "WebcastRoomUserSeqMessage";
+/// 方法名：会员表情 / 表情包弹幕。
+pub const METHOD_EMOJI_CHAT: &str = "WebcastEmojiChatMessage";
 
 /// 解码一帧为业务消息列表。
 ///
@@ -70,6 +77,7 @@ pub fn decode_response(payload: &[u8]) -> Result<Response, SliveError> {
 fn decode_payload(method: &str, payload: &[u8]) -> Option<LiveMessage> {
     match method {
         METHOD_CHAT => decode_chat(payload).ok(),
+        METHOD_EMOJI_CHAT => decode_emoji_chat(payload).ok(),
         METHOD_ROOM_USER_SEQ => decode_room_user_seq(payload).ok(),
         _ => None,
     }
@@ -79,6 +87,7 @@ fn decode_payload(method: &str, payload: &[u8]) -> Option<LiveMessage> {
 fn decode_chat(payload: &[u8]) -> Result<LiveMessage, SliveError> {
     let chat = ChatMessage::decode(payload)
         .map_err(|e| SliveError::decode(format!("ChatMessage 解码失败: {e}")))?;
+    let emoticons = extract_emoticons(&chat.content);
     Ok(LiveMessage {
         message_type: LiveMessageType::Chat,
         user_name: chat
@@ -90,8 +99,86 @@ fn decode_chat(payload: &[u8]) -> Result<LiveMessage, SliveError> {
         message: chat.content,
         data: None,
         color: LiveMessageColor::white(),
-        emoticons: None,
+        emoticons,
     })
+}
+
+/// `WebcastEmojiChatMessage` -> 聊天消息（表情图片挂在 `emoticons`）。
+///
+/// `defaultContent` 是占位文案（线上为 `[表情]`），首张图片用它做 name，
+/// 渲染层会把占位符替换成图片；没有图片时退化为普通文本，避免整条消息消失。
+fn decode_emoji_chat(payload: &[u8]) -> Result<LiveMessage, SliveError> {
+    let chat = EmojiChatMessage::decode(payload)
+        .map_err(|e| SliveError::decode(format!("EmojiChatMessage 解码失败: {e}")))?;
+    let mut emoticons = Vec::new();
+    let mut placeholder_used = false;
+    if let Some(content) = &chat.emoji_content {
+        for piece in &content.pieces_list {
+            let Some(image) = piece
+                .image_value
+                .as_ref()
+                .and_then(|value| value.image.as_ref())
+            else {
+                continue;
+            };
+            let Some(url) = pick_image_url(&image.url_list) else {
+                continue;
+            };
+            let name = if !placeholder_used && !chat.default_content.is_empty() {
+                placeholder_used = true;
+                Some(chat.default_content.clone())
+            } else {
+                None
+            };
+            emoticons.push(LiveMessageEmoticon {
+                name,
+                url,
+                // 线上会员表情 / 守护表情都不下发宽高；渲染层按图片固有比例处理。
+                // 整条消息就是一个独立表情，与大表情（B站 info[0][13]）同构。
+                width: image_dimension(image.width),
+                height: image_dimension(image.height),
+                large: true,
+                emoticon_unique: None,
+            });
+        }
+    }
+    let message = if chat.default_content.is_empty() && emoticons.is_empty() {
+        "[表情]".to_string()
+    } else {
+        chat.default_content
+    };
+    Ok(LiveMessage {
+        message_type: LiveMessageType::Chat,
+        user_name: chat
+            .user
+            .as_ref()
+            .map(|u| u.nick_name.clone())
+            .unwrap_or_default(),
+        user_id: None,
+        message,
+        data: None,
+        color: LiveMessageColor::white(),
+        emoticons: (!emoticons.is_empty()).then_some(emoticons),
+    })
+}
+
+/// 取第一张可用的 https 图片地址；`http://` 与协议相对地址统一升 https。
+fn pick_image_url(urls: &[String]) -> Option<String> {
+    urls.iter().find_map(|raw| {
+        let url = raw.trim();
+        if let Some(rest) = url.strip_prefix("https://") {
+            return Some(format!("https://{rest}"));
+        }
+        if let Some(rest) = url.strip_prefix("http://") {
+            return Some(format!("https://{rest}"));
+        }
+        url.strip_prefix("//").map(|_| format!("https:{url}"))
+    })
+}
+
+/// 服务端宽高（u64）-> 模型 i32；0 或缺省视为未知。
+fn image_dimension(value: u64) -> Option<i32> {
+    i32::try_from(value).ok().filter(|v| *v > 0)
 }
 
 /// `WebcastRoomUserSeqMessage` -> 在线人气（`total_user` 收敛为 i32，对齐 core 模型）。
@@ -164,7 +251,9 @@ mod tests {
     use flate2::Compression;
 
     use crate::models::LiveMessageType;
-    use crate::platforms::douyin::danmaku::proto::{ChatMessage, Message, User};
+    use crate::platforms::douyin::danmaku::proto::{
+        ChatMessage, EmojiChatMessage, Image, Message, Text, TextPiece, TextPieceImage, User,
+    };
     use std::io::Write;
 
     fn chat_payload(content: &str, nick: &str) -> Vec<u8> {
@@ -225,6 +314,43 @@ mod tests {
     }
 
     #[test]
+    fn decodes_standard_emoji_codes_in_chat() {
+        let msg = Message {
+            method: METHOD_CHAT.to_string(),
+            payload: chat_payload("哈喽[微笑][赞]", "小明"),
+            msg_id: 8,
+            msg_type: 0,
+        };
+        let got = decode_frame(&push_frame(14, vec![msg], false, ""))
+            .expect("应能解码")
+            .remove(0);
+        assert_eq!(got.message, "哈喽[微笑][赞]", "正文保持原样，由渲染层替换");
+        let emoticons = got.emoticons.expect("应带标准表情");
+        let names: Vec<&str> = emoticons
+            .iter()
+            .filter_map(|e| e.name.as_deref())
+            .collect();
+        assert_eq!(names, vec!["[微笑]", "[赞]"]);
+        assert!(emoticons.iter().all(|e| !e.large));
+        assert!(emoticons.iter().all(|e| e.url.starts_with("https://")));
+    }
+
+    #[test]
+    fn unknown_bracket_text_stays_plain() {
+        let msg = Message {
+            method: METHOD_CHAT.to_string(),
+            payload: chat_payload("[不存在]", "小明"),
+            msg_id: 9,
+            msg_type: 0,
+        };
+        let got = decode_frame(&push_frame(15, vec![msg], false, ""))
+            .expect("应能解码")
+            .remove(0);
+        assert_eq!(got.message, "[不存在]");
+        assert!(got.emoticons.is_none(), "表外方括号不得被吞掉");
+    }
+
+    #[test]
     fn decodes_room_user_seq_to_online() {
         let msg = Message {
             method: METHOD_ROOM_USER_SEQ.to_string(),
@@ -242,6 +368,131 @@ mod tests {
         assert_eq!(got.message_type, LiveMessageType::Online);
         assert_eq!(got.data, Some(LiveMessageData::Online(4321)));
         assert_eq!(got.user_name, "", "人气消息无用户名（Dart 传空串）");
+    }
+
+    fn emoji_chat_payload(
+        default_content: &str,
+        nick: &str,
+        images: Vec<(&str, u64, u64)>,
+    ) -> Vec<u8> {
+        EmojiChatMessage {
+            user: Some(User {
+                nick_name: nick.to_string(),
+                ..Default::default()
+            }),
+            default_content: default_content.to_string(),
+            emoji_content: Some(Text {
+                pieces_list: images
+                    .into_iter()
+                    .map(|(url, width, height)| TextPiece {
+                        r#type: 15,
+                        schema_key: "subscribe_emoji".to_string(),
+                        image_value: Some(TextPieceImage {
+                            image: Some(Image {
+                                url_list: vec![url.to_string()],
+                                width,
+                                height,
+                                ..Default::default()
+                            }),
+                            scaling_rate: 2.25,
+                        }),
+                        ..Default::default()
+                    })
+                    .collect(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+        .encode_to_vec()
+    }
+
+    #[test]
+    fn decodes_emoji_chat_to_chat_with_emoticon() {
+        let msg = Message {
+            method: METHOD_EMOJI_CHAT.to_string(),
+            payload: emoji_chat_payload("[表情]", "小明", vec![("https://cdn/a.png", 0, 0)]),
+            msg_id: 4,
+            msg_type: 0,
+        };
+        let got = decode_frame(&push_frame(10, vec![msg], false, ""))
+            .expect("应能解码")
+            .remove(0);
+        assert_eq!(got.message_type, LiveMessageType::Chat);
+        assert_eq!(got.message, "[表情]");
+        assert_eq!(got.user_name, "小明");
+        let emoticons = got.emoticons.expect("应带表情");
+        assert_eq!(emoticons.len(), 1);
+        assert_eq!(emoticons[0].name.as_deref(), Some("[表情]"));
+        assert_eq!(emoticons[0].url, "https://cdn/a.png");
+        assert_eq!(
+            (emoticons[0].width, emoticons[0].height),
+            (None, None),
+            "服务端不下发宽高，渲染层按图片固有比例处理"
+        );
+        assert!(
+            emoticons[0].large,
+            "整条消息就是一个独立表情，按大表情口径渲染（对齐 B 站 info[0][13]）"
+        );
+    }
+
+    #[test]
+    fn emoji_chat_uses_server_size_and_upgrades_http() {
+        let msg = Message {
+            method: METHOD_EMOJI_CHAT.to_string(),
+            payload: emoji_chat_payload("[表情]", "小明", vec![("http://cdn/a.png", 340, 256)]),
+            msg_id: 5,
+            msg_type: 0,
+        };
+        let got = decode_frame(&push_frame(11, vec![msg], false, ""))
+            .expect("应能解码")
+            .remove(0);
+        let emoticon = &got.emoticons.expect("应带表情")[0];
+        assert_eq!(emoticon.url, "https://cdn/a.png", "http 一律升 https");
+        assert_eq!((emoticon.width, emoticon.height), (Some(340), Some(256)));
+    }
+
+    #[test]
+    fn emoji_chat_with_multiple_images_names_only_the_first() {
+        let msg = Message {
+            method: METHOD_EMOJI_CHAT.to_string(),
+            payload: emoji_chat_payload(
+                "[表情]",
+                "小明",
+                vec![("https://cdn/a.png", 0, 0), ("https://cdn/b.png", 0, 0)],
+            ),
+            msg_id: 6,
+            msg_type: 0,
+        };
+        let got = decode_frame(&push_frame(12, vec![msg], false, ""))
+            .expect("应能解码")
+            .remove(0);
+        let emoticons = got.emoticons.expect("应带表情");
+        assert_eq!(emoticons.len(), 2);
+        assert_eq!(emoticons[0].name.as_deref(), Some("[表情]"));
+        assert!(emoticons[1].name.is_none(), "重复 name 会让第二张被丢弃");
+    }
+
+    #[test]
+    fn emoji_chat_without_image_falls_back_to_text() {
+        let msg = Message {
+            method: METHOD_EMOJI_CHAT.to_string(),
+            payload: EmojiChatMessage {
+                user: Some(User {
+                    nick_name: "小明".to_string(),
+                    ..Default::default()
+                }),
+                default_content: "[表情]".to_string(),
+                ..Default::default()
+            }
+            .encode_to_vec(),
+            msg_id: 7,
+            msg_type: 0,
+        };
+        let got = decode_frame(&push_frame(13, vec![msg], false, ""))
+            .expect("应能解码")
+            .remove(0);
+        assert_eq!(got.message, "[表情]");
+        assert!(got.emoticons.is_none());
     }
 
     #[test]

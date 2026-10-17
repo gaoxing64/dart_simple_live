@@ -8,7 +8,8 @@
 //!   又扩大出错面。这里只保留**链路必需 + 被消费的字段**，字段号与 proto 逐一对齐
 //!   （改号即与服务端不兼容，故每个字段都标注 tag）。
 //!
-//! 已覆盖的方法名：`WebcastChatMessage`（聊天）/ `WebcastRoomUserSeqMessage`（在线人气）。
+//! 已覆盖的方法名：`WebcastChatMessage`（聊天）/ `WebcastRoomUserSeqMessage`（在线人气）/
+//! `WebcastEmojiChatMessage`（会员表情，图片在 `emojiContent.piecesList[].imageValue`）。
 
 /// `PushFrame`：WS 二进制帧的最外层信封（payload 为 gzip 压缩的 `Response`）。
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -101,12 +102,24 @@ pub struct Common {
     pub create_time: u64,
 }
 
-/// `Image`：图片（仅 `urlList`，tag=1）。
+/// `Image`：图片（头像 / 礼物图 / 富文本表情图）。
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Image {
-    /// 地址列表（tag=1）。
+    /// 地址列表（tag=1，proto 字段名 `urlListList`）。
     #[prost(string, repeated, tag = "1")]
     pub url_list: Vec<String>,
+    /// 资源标识（tag=2）。
+    #[prost(string, tag = "2")]
+    pub uri: String,
+    /// 高（物理像素，tag=3）。
+    #[prost(uint64, tag = "3")]
+    pub height: u64,
+    /// 宽（物理像素，tag=4）。
+    #[prost(uint64, tag = "4")]
+    pub width: u64,
+    /// 平均色（tag=5）。
+    #[prost(string, tag = "5")]
+    pub avg_color: String,
 }
 
 /// `PublicAreaCommon`：公开区域公共信息（占位，保留字段号以免误判）。
@@ -164,6 +177,83 @@ pub struct ChatMessage {
     /// 事件时间（毫秒，tag=15）。
     #[prost(uint64, tag = "15")]
     pub event_time: u64,
+}
+
+/// `EmojiChatMessage`：`WebcastEmojiChatMessage` 的载荷（会员表情 / 表情包弹幕）。
+///
+/// 对照 2026-10 线上实测：`defaultContent` 为占位文案（如 `[表情]`），图片在
+/// `emojiContent.piecesList[].imageValue.image`；`emojiId` 多数情况下不下发。
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EmojiChatMessage {
+    /// 公共头（tag=1）。
+    #[prost(message, optional, tag = "1")]
+    pub common: Option<Common>,
+    /// 用户（tag=2）。
+    #[prost(message, optional, tag = "2")]
+    pub user: Option<User>,
+    /// 表情 ID（tag=3，常缺省）。
+    #[prost(int64, tag = "3")]
+    pub emoji_id: i64,
+    /// 表情富文本（tag=4）。
+    #[prost(message, optional, tag = "4")]
+    pub emoji_content: Option<Text>,
+    /// 默认文案（tag=5），即聊天区里的占位符。
+    #[prost(string, tag = "5")]
+    pub default_content: String,
+    /// 背景图（tag=6）。
+    #[prost(message, optional, tag = "6")]
+    pub background_image: Option<Image>,
+    /// 来自连麦（tag=7）。
+    #[prost(bool, tag = "7")]
+    pub from_intercom: bool,
+    /// 连麦中隐藏用户卡（tag=8）。
+    #[prost(bool, tag = "8")]
+    pub intercom_hide_user_card: bool,
+}
+
+/// `Text`：富文本容器（tag 与旧版 proto 一致）。
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Text {
+    /// 模板键（tag=1）。
+    #[prost(string, tag = "1")]
+    pub key: String,
+    /// 默认模板（tag=2，proto 字段名 `defaultPatter`）。
+    #[prost(string, tag = "2")]
+    pub default_patter: String,
+    /// 片段列表（tag=4）。
+    #[prost(message, repeated, tag = "4")]
+    pub pieces_list: Vec<TextPiece>,
+}
+
+/// `TextPiece`：富文本片段。
+///
+/// ⚠️ 线上实际使用的字段号与仓库内旧 `douyin.proto` 不同：`stringValue = 11`、
+/// `imageValue = 25`、`schemaKey = 100`（旧 proto 写的是 3 / 8）。只保留消费的字段。
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TextPiece {
+    /// 片段类型（tag=1，线上表情为 15）。
+    #[prost(uint32, tag = "1")]
+    pub r#type: u32,
+    /// 文本值（tag=11）。
+    #[prost(string, tag = "11")]
+    pub string_value: String,
+    /// 图片值（tag=25）。
+    #[prost(message, optional, tag = "25")]
+    pub image_value: Option<TextPieceImage>,
+    /// 片段 schema（tag=100，会员表情为 `subscribe_emoji`）。
+    #[prost(string, tag = "100")]
+    pub schema_key: String,
+}
+
+/// `TextPieceImage`：富文本图片片段。
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TextPieceImage {
+    /// 图片（tag=1）。
+    #[prost(message, optional, tag = "1")]
+    pub image: Option<Image>,
+    /// 缩放倍率（tag=2，线上会员表情为 2.25）。
+    #[prost(float, tag = "2")]
+    pub scaling_rate: f32,
 }
 
 /// `RoomUserSeqMessageContributor`：在线贡献榜成员（未消费，仅占位）。

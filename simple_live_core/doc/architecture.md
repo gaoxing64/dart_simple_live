@@ -119,8 +119,8 @@ simple_live_core/
 | 弹幕传输 | WSS 自定义二进制 | WSS + 自制 STT 文本帧 | WSS + tars | WSS + protobuf(gzip) | WSS + IRC |
 | 弹幕鉴权 | 16 字节包头 + token JSON | loginreq/joingroup | RegisterGroupReq(cmd16) | 长 query + **xbogus 签名** | 匿名 justinfan |
 | 心跳 | 60s（JSON 包） | 45s（mrkl） | 60s（cmd20） | 10s（PushFrame hb）+ needAck 回执 | 40s（PONG） |
-| 弹幕支持面 | chat/online/SC/**表情** | chat(仅粉丝)/SC（无 online） | chat/online/SC/**表情** | chat/online | 仅 chat |
-| 表情包 | `parseBilibiliEmoticons`（fork 新增） | — | `huya_emoticon.dart`（103 个 `[xx]` 映射） | — | — |
+| 弹幕支持面 | chat/online/SC/**表情** | chat(仅粉丝)/SC（无 online） | chat/online/SC/**表情** | chat/online/**会员表情 + 标准表情** | 仅 chat |
+| 表情包 | `parseBilibiliEmoticons`（fork 新增） | — | `huya_emoticon.dart`（103 个 `[xx]` 映射） | Rust core：`WebcastEmojiChatMessage`（会员/守护表情）+ 214 项标准 `[码]` 表 | — |
 | SC 路径 | WS 下行解析 | WS 下行解析 | **WS 信号 + HTTP 拉取** | 不支持 | 不支持 |
 | 搜索 | 房间+主播 | 房间+主播 | 房间（yyid） | 仅房间（主播接口抛异常） | 不支持 |
 | 特殊兜底 | mcdn 线路后置 | cookie JWT 续期；海外 `expire=0`；flv 线路带**续流回调** `renewers` | 4K(HDR/VIP) 跳过；线路级容错 | 连麦房间 reflow 补查；脏数据单条跳过 | — |
@@ -149,6 +149,7 @@ simple_live_core/
 | `pageSize` 具名参数 | 新增（v1.1.0），bilibili 推荐流真正使用，其余忽略；`abca65f8` 同步时**再次作为冲突点保留 fork 版** | 无此参数（`origin/dev` 的 `live_site.dart` 无 `pageSize`） | **对实现方破坏性**（5 个内置实现已同步） |
 | 分页判据 | 收敛为「服务端字段或退化判据」+ 回归测试（`e1f7a75c`） | 各自为政，douyu 推荐依赖失效的 `pgcnt` | 调用方无感 |
 | B 站表情包 | `LiveMessage.emoticons` + `LiveMessageEmoticon`（含 `large`/`emoticonUnique`）+ 解析器 + 31 条离线用例（`grep -c 'test(' test/bilibili_emoticon_test.dart`） | 无 | 模型新增字段，向后兼容 |
+| 抖音表情 | Rust core 解析 `WebcastEmojiChatMessage` → `LiveMessage.emoticons`（会员/守护表情）；`ChatMessage.content` 里的 214 个标准 `[码]` 由静态表映射成图片 | 无 | 模型复用，向后兼容 |
 | 抖音推荐流 | feed 首屏扇出 + 分区轮转真分页（`49eef9c3`） | 一次 feed 请求、无真分页 | 调用方无感（语义更接近「无限滚动」） |
 | 抖音连麦房间 | reflow 优先 + stream 缺失补查 + 全链路判空（`63c1eb8d`） | 空指针崩溃 | 调用方无感 |
 | 斗鱼推荐分页 | 弃用 `pgcnt`，本页非空即还有更多（`e1f7a75c`） | `page < pgcnt`（恒 false，卡第一页） | 调用方无感 |

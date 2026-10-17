@@ -81,9 +81,9 @@
 - 建议：给每个平台私有载荷加类型别名 + `assert`（debug 模式）或 `toString()` 诊断信息；在弹幕 `start()` 入口做一次类型检查并抛 `CoreError`。
 - 影响：错误定位速度。
 
-### P2-3 弹幕不支持 gift；表情包只有 B 站/虎牙
+### P2-3 弹幕不支持 gift；表情包 B 站/虎牙 + 抖音会员/标准表情（Rust core）
 
-- 证据：`live_message.dart:5-8`（gift 注释「暂时不支持」）、:37（emoticons 注释「目前仅 B 站」）；虎牙表情见 `8c9fc881`。
+- 证据：`live_message.dart:5-8`（gift 注释「暂时不支持」）、:37（emoticons 注释「目前仅 B 站」）；虎牙表情见 `8c9fc881`。抖音会员 / 守护表情由 Rust core 解析 `WebcastEmojiChatMessage`；普通聊天的 214 个标准 `[码]`（`[微笑]`/`[呲牙]`/`[互粉]` 等）由 `danmaku/emoticon.rs` 静态表映射（`crates/slive-core/src/platforms/douyin/danmaku/`）；Dart core 与 console 尚未迁移。标准表情的图片是签名 CDN 地址，有效期至 2036-10，过期后需重新抓表。
 - 建议：明确产品取舍；若做 gift，需要各平台礼物模型 + App 侧展示协议（工作量大，先记录）。
 
 ### P2-4 网络与重连策略过于固定

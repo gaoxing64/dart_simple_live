@@ -27,6 +27,12 @@ fvm flutter test --plain-name "首屏"              # 按用例名过滤
 | `test/douyu_recommend_paging_test.dart` | 4 | 离线 | 斗鱼推荐：`pgcnt=0` 时非空页仍判「还有更多」、空页到底、广告位过滤、缺字段降级 |
 | `test/douyu_play_url_renew_test.dart` | 2 | 离线 | 斗鱼续流契约（2026-10-16 新增）：每条 flv 线路都带 `LivePlayUrlRenewer`、调用它会重新请求取流接口且 `expire=0` 兜底与首取一致、非 flv 线路不给回调 |
 | `test/bilibili_emoticon_test.dart` | 31 | 离线 | B 站表情：两种下发入口、占位符形态判据、去重、上限 8、https 归一、异常载荷返回 null |
+
+> **Rust core 补充（2026-10-17）**：抖音会员/守护表情（`WebcastEmojiChatMessage`）与普通聊天的
+> 214 项标准 `[码]`（`[微笑]`/`[呲牙]`/`[互粉]` 等）均已在 Rust core 解码：
+> `danmaku/emoticon.rs` 3 条 lib 单测、`danmaku/decode.rs` 6 条 lib 单测、
+> `tests/ac_douyin_danmaku.rs` 2 条集成用例；Dart core / console 尚未实现。
+> 标准表情图片为签名 CDN 地址，有效期至 2036-10，过期后需重新抓表。
 | `test/douyu_enc.json` / `douyu_sc.json` | — | 样本 | 斗鱼签名/SC 抓包样本；**当前无用例引用**，可作解码测试素材 |
 
 > **2026-10-12 同步（`abca65f8`）后未新增任何测试文件**：账号体系下沉 core 只带来源码与模型（`account_info.dart` 等），core 侧未跑测试、App 侧仅做适配。账号接口用例全部为【待补】（见 §4.7）。
@@ -39,8 +45,8 @@ fvm flutter test --plain-name "首屏"              # 按用例名过滤
 | --- | --- | --- | --- | --- | --- |
 | 列表分页（离线回归） | 无 | ✅ | 无 | ✅✅ | 不支持 |
 | 详情/清晰度/取流（离线） | 无 | 无 | 无 | ✅（连麦） | 无 |
-| 弹幕解码（离线） | 无 | 无 | 无 | 无 | 无 |
-| 表情包解析（离线） | ✅ | 不支持 | 无 | 不支持 | 不支持 |
+| 弹幕解码（离线） | 无 | 无 | 无 | ✅（Rust core） | 无 |
+| 表情包解析（离线） | ✅ | 不支持 | 无 | ✅（Rust core） | 不支持 |
 | 账号接口（离线） | 无 | 无 | 无（桩） | 无 | 无（桩） |
 | 凭证注入 `setSiteAttrs`（离线） | 无 | 无 | 无 | 无 | 无（桩） |
 | 联网冒烟 | ✅ | ✅ | ✅ | ✅ | 部分 |
@@ -103,7 +109,7 @@ fvm flutter test --plain-name "首屏"              # 按用例名过滤
 | TC-M04 | douyu 帧重组 | 包长重复两次 + 类型 689 的帧头/尾正确切帧，粘包不丢消息 | [待补] |
 | TC-M05 | huya tars 解码 | type=7（uri 1400→chat / 8006→online）与 type=22（vMsgItem 遍历） | [待补] |
 | TC-M06 | huya SC 触发 | content 命中 `(来自.+?上头条)` → 调用 SC 拉取；uri 2001314 分支 | [待补] |
-| TC-M07 | douyin protobuf | `PushFrame → gzip → Response` 两级解析；`needAck` 时回发 Ack；`WebcastChatMessage`/`WebcastRoomUserSeqMessage` 产出对应类型 | [待补] |
+| TC-M07 | douyin protobuf | `PushFrame → gzip → Response` 两级解析；`needAck` 时回发 Ack；`WebcastChatMessage`（含标准 `[码]` 表情）/`WebcastRoomUserSeqMessage`/`WebcastEmojiChatMessage` 产出对应类型（表情走 `emoticons`） | [已有 Rust core] |
 | TC-M08 | twitch IRC | `PING` 回 `PONG`；PRIVMSG+display-name+color 三正则齐备才产出 chat，颜色 hex 转换正确 | [待补] |
 | TC-M09 | 任意平台解码异常 | 只记日志、不打断连接、不抛出到回调 | [待补] |
 

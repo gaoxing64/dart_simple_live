@@ -14,11 +14,12 @@ use slive_core::error::SliveError;
 use slive_core::models::{LiveDanmuControlEvent, LiveDanmuItem, LiveMessageType};
 use slive_core::platforms::douyin::danmaku::args::DouyinDanmakuArgs;
 use slive_core::platforms::douyin::danmaku::decode::{
-    ack_frame, decode_frame, heartbeat_frame, pending_ack, METHOD_CHAT, METHOD_ROOM_USER_SEQ,
-    PAYLOAD_TYPE_MSG,
+    ack_frame, decode_frame, heartbeat_frame, pending_ack, METHOD_CHAT, METHOD_EMOJI_CHAT,
+    METHOD_ROOM_USER_SEQ, PAYLOAD_TYPE_MSG,
 };
 use slive_core::platforms::douyin::danmaku::proto::{
-    ChatMessage, Message, PushFrame, Response, RoomUserSeqMessage, User,
+    ChatMessage, EmojiChatMessage, Image, Message, PushFrame, Response, RoomUserSeqMessage, Text,
+    TextPiece, TextPieceImage, User,
 };
 use slive_core::platforms::douyin::danmaku::session::{run_session, ConnectFactory};
 use slive_core::testing::{FakeTime, ScriptedFrameSource};
@@ -79,6 +80,43 @@ fn chat_frame(content: &str, nick: &str) -> Vec<u8> {
     )
 }
 
+fn emoji_chat_frame() -> Vec<u8> {
+    frame(
+        4,
+        vec![Message {
+            method: METHOD_EMOJI_CHAT.to_string(),
+            payload: EmojiChatMessage {
+                user: Some(User {
+                    nick_name: "小明".to_string(),
+                    ..Default::default()
+                }),
+                default_content: "[表情]".to_string(),
+                emoji_content: Some(Text {
+                    pieces_list: vec![TextPiece {
+                        r#type: 15,
+                        schema_key: "subscribe_emoji".to_string(),
+                        image_value: Some(TextPieceImage {
+                            image: Some(Image {
+                                url_list: vec!["https://cdn.example/emote.png".to_string()],
+                                ..Default::default()
+                            }),
+                            scaling_rate: 2.25,
+                        }),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }
+            .encode_to_vec(),
+            msg_id: 4,
+            msg_type: 0,
+        }],
+        false,
+        "",
+    )
+}
+
 fn online_frame(total_user: i64) -> Vec<u8> {
     frame(
         2,
@@ -115,6 +153,40 @@ fn ac_douyin_chat_frame_decodes_to_live_message() {
     assert_eq!(got[0].user_name, "小明");
     assert_eq!(got[0].color, slive_core::models::LiveMessageColor::white());
     assert!(got[0].data.is_none(), "聊天消息不带 data");
+}
+
+#[test]
+fn ac_douyin_chat_frame_extracts_standard_emoji() {
+    let got = decode_frame(&chat_frame("[呲牙][呲牙]", "小明")).expect("应能解码");
+    assert_eq!(got.len(), 1);
+    assert_eq!(got[0].message, "[呲牙][呲牙]", "正文保持原样");
+    let emoticons = got[0].emoticons.as_ref().expect("应带标准表情");
+    assert_eq!(emoticons.len(), 2, "重复表情都保留");
+    assert!(emoticons
+        .iter()
+        .all(|e| e.name.as_deref() == Some("[呲牙]") && !e.large));
+}
+
+#[test]
+fn ac_douyin_emoji_chat_frame_decodes_to_emoticon() {
+    let got = decode_frame(&emoji_chat_frame()).expect("应能解码");
+    assert_eq!(got.len(), 1, "表情消息也要产出聊天消息");
+    assert_eq!(got[0].message_type, LiveMessageType::Chat);
+    assert_eq!(got[0].message, "[表情]");
+    assert_eq!(got[0].user_name, "小明");
+    let emoticons = got[0].emoticons.as_ref().expect("应带表情");
+    assert_eq!(emoticons.len(), 1);
+    assert_eq!(emoticons[0].name.as_deref(), Some("[表情]"));
+    assert_eq!(emoticons[0].url, "https://cdn.example/emote.png");
+    assert_eq!(
+        (emoticons[0].width, emoticons[0].height),
+        (None, None),
+        "服务端不下发宽高，渲染层按图片固有比例处理"
+    );
+    assert!(
+        emoticons[0].large,
+        "整条消息就是一个独立表情，按大表情口径渲染"
+    );
 }
 
 #[test]
