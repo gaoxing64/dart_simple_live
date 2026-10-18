@@ -26,9 +26,13 @@ cargo clippy --all-targets                              # 静态检查
 
 | 范围 | 用例 | 通过 | 失败 |
 | --- | --- | --- | --- |
-| lib 单测 | 486 | 486 | 0 |
-| 集成测试（30 个 `ac_*.rs`） | 432 | 432 | 0 |
-| **合计** | **918** | **918** | **0** |
+| lib 单测 | 496 | 496 | 0 |
+| 集成测试（30 个 `ac_*.rs`） | 439 | 439 | 0 |
+| **合计** | **935** | **935** | **0** |
+
+> 2026-10-18 虎牙大表情动态拉取新增 10 条 lib 单测 + 4 条集成用例
+> （TARS 编解码 / 表合并 / 房间包覆盖 / 长中文码扫描 / TUP 成功、失败、超时 / 会话接线）；
+> 全量复测 935 通过 / 0 失败，另 1 条 heldout 忽略。
 
 > 2026-10-18 修复了此前恒红的 Twitch 8 条：`.gitattributes` 的 `* text=auto` 把 `.bin` 当文本，
 > Windows checkout 转成 CRLF（7 条），且 `irc-crlf-boundary.bin` 在历史提交时丢了 `0d`（第 8 条）。
@@ -156,6 +160,7 @@ cargo clippy --all-targets                              # 静态检查
 | TC-E07 | 图片地址统一 https；非法形态丢弃 | [已有] |
 | TC-E08 | 异常载荷返回 None，不 panic | [已有] |
 | TC-E11 | 抖音会员/守护表情 + 214 项标准 `[码]` 映射 | [已有] lib 单测 + `ac_douyin_danmaku` |
+| TC-E12 | 虎牙大表情：按房间 `lPid` 拉 `getExpressionEmoticonPackage`；`steam.png → steam_3.png`；动态项 `large=true`；API 失败回退静态 97 项 | [已有] lib 单测（TARS/表合并/会话接线） |
 
 ### 4.5 接口与基础设施契约
 

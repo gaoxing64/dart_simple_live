@@ -73,7 +73,7 @@ pub struct LiveMessageEmoticon {
     pub width: Option<i32>,
     /// 高（服务端原始值）。
     pub height: Option<i32>,
-    /// 是否为大表情（B站 `info[0][13]` 单独下发 / 抖音独立表情消息）。
+    /// 是否为大表情（B站 `info[0][13]` / 抖音独立表情 / 虎牙 `type=2/3` 梗表情）。
     pub large: bool,
     /// B站 `emoticon_unique`。
     pub emoticon_unique: Option<String>,

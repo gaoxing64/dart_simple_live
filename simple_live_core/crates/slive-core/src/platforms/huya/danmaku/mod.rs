@@ -2,9 +2,10 @@
 //!
 //! 分层（依赖只向下）：
 //! - [`args`]：弹幕参数 JSON 契约（`LiveRoomDetail.danmaku_data`）；
-//! - [`tars_msgs`] / [`tars_cdn`] / [`tars_sc`]：TARS 消息定义（**纯结构，无 IO**）；
+//! - [`tars_msgs`] / [`tars_cdn`] / [`tars_sc`] / [`tars_emoticon`]：TARS 消息定义
+//!   （**纯结构，无 IO**）；
 //! - [`frames`]：WS 帧编解码（**纯函数，无 IO**）；
-//! - [`emoticon`]：表情包表与提取（纯函数）；
+//! - [`emoticon`]：表情包表与提取（静态兜底 + 房间动态大表情）；
 //! - [`mod`]（本文件）：会话编排（连接工厂注入 + 帧循环 + 消息映射）。
 //!
 //! 会话语义**复用** [`crate::ws::runner::run_session`] 的约定（心跳 60s / 重连 5s×5 /
@@ -18,6 +19,7 @@ pub mod emoticon;
 pub mod frames;
 pub mod super_chat_map;
 pub mod tars_cdn;
+pub mod tars_emoticon;
 pub mod tars_msgs;
 pub mod tars_ws_v2;
 pub mod tars_sc;
@@ -65,11 +67,38 @@ pub type SuperChatFetcher = Arc<
 /// - 心跳 60s（注入时间源判定）；断线重连 `5s × 5`，**收到消息后计数归零**。
 pub async fn run_session(
     args: HuyaDanmakuArgs,
+    connect: ConnectFactory,
+    time: Arc<dyn TimeSource>,
+    tuning: SessionTuning,
+    stop: tokio::sync::watch::Receiver<bool>,
+    fetch_super_chat: Option<SuperChatFetcher>,
+    on_item: impl FnMut(LiveDanmuItem) + Send,
+) {
+    run_session_with_emoticons(
+        args,
+        connect,
+        time,
+        tuning,
+        stop,
+        fetch_super_chat,
+        emoticon::static_table(),
+        on_item,
+    )
+    .await;
+}
+
+/// 同 [`run_session`]，但使用调用方拉取的动态表情表（房间大表情 / 梗表情）。
+///
+/// 参数多是因为它复用会话的完整依赖注入面；额外只多了 `emoticons`。
+#[allow(clippy::too_many_arguments)]
+pub async fn run_session_with_emoticons(
+    args: HuyaDanmakuArgs,
     mut connect: ConnectFactory,
     time: Arc<dyn TimeSource>,
     tuning: SessionTuning,
     mut stop: tokio::sync::watch::Receiver<bool>,
     fetch_super_chat: Option<SuperChatFetcher>,
+    emoticons: emoticon::HuyaEmoticonTable,
     mut on_item: impl FnMut(LiveDanmuItem) + Send,
 ) {
     let join_frame = match frames::build_join_frame(&args.group_ids()) {
@@ -155,7 +184,7 @@ pub async fn run_session(
             {
                 last_heartbeat = time.unix_secs();
             }
-            let decoded = decode_to_items(&frame, &args, args.top_sid);
+            let decoded = decode_to_items_with_emoticons(&frame, &emoticons);
             for item in decoded.items {
                 on_item(item);
             }
@@ -210,12 +239,30 @@ pub struct DecodedFrame {
 ///   （Dart `huya_danmaku.dart` @97413c60 只调 `callSc()`；SC 内容由会话循环
 ///   经 `SuperChatFetcher` 另行拉取，QA 夹具的 `expected.messages` 亦为空）；
 /// - 脏帧 -> 空序列（不中断会话）。
+///
+/// `_args` / `_top_sid` 只为保留既有调用签名；表情表改由
+/// [`decode_to_items_with_emoticons`] 注入。
 pub fn decode_to_items(
     frame: &[u8],
     _args: &HuyaDanmakuArgs,
     _top_sid: i64,
 ) -> DecodedFrame {
-    match frames::decode_frame(frame) {
+    decode_to_items_with_emoticons(frame, emoticon::static_emoticons())
+}
+
+/// 同 [`decode_to_items`]，但使用会话注入的动态表情表（房间大表情）。
+pub fn decode_to_items_with_emoticons(
+    frame: &[u8],
+    emoticons: &emoticon::HuyaEmoticonTable,
+) -> DecodedFrame {
+    map_frame(frames::decode_frame(frame), emoticons)
+}
+
+fn map_frame(
+    decoded: frames::HuyaFrame,
+    emoticons: &emoticon::HuyaEmoticonTable,
+) -> DecodedFrame {
+    match decoded {
         frames::HuyaFrame::Chat {
             user_name,
             content,
@@ -237,7 +284,7 @@ pub fn decode_to_items(
                     } else {
                         LiveMessageColor::number_to_color(font_color as i32)
                     },
-                    emoticons: emoticon::extract_emoticons(&content),
+                    emoticons: emoticon::extract_emoticons_with(&content, emoticons),
                 }))],
                 super_chat_triggered: false,
             }
@@ -259,6 +306,39 @@ pub fn decode_to_items(
             super_chat_triggered: true,
         },
         frames::HuyaFrame::Ignored | frames::HuyaFrame::Malformed(_) => DecodedFrame::default(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dynamic_table_marks_huya_large_emote() {
+        let mut table = emoticon::static_table();
+        table.insert(
+            "[墨镜小哥]".to_string(),
+            emoticon::HuyaEmoticon {
+                url: "https://x/steam_3.png".to_string(),
+                large: true,
+            },
+        );
+        let decoded = map_frame(
+            frames::HuyaFrame::Chat {
+                user_name: "u".to_string(),
+                content: "[墨镜小哥]".to_string(),
+                font_color: 0,
+            },
+            &table,
+        );
+        let item = decoded.items.into_iter().next().expect("应产消息");
+        let LiveDanmuItem::Message(message) = item else {
+            panic!("期望消息");
+        };
+        let emoticon = &message.emoticons.expect("应带表情")[0];
+        assert_eq!(emoticon.name.as_deref(), Some("[墨镜小哥]"));
+        assert_eq!(emoticon.url, "https://x/steam_3.png");
+        assert!(emoticon.large);
     }
 }
 

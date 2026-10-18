@@ -17,7 +17,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use slive_core::error::SliveError;
 use slive_core::platforms::huya::danmaku::{
-    run_session, ConnectFactory, HuyaDanmakuArgs, SuperChatFetcher,
+    run_session_with_emoticons, ConnectFactory, HuyaDanmakuArgs, SuperChatFetcher,
 };
 use slive_core::platforms::huya::HuyaSite;
 use slive_core::time::SystemClock;
@@ -147,6 +147,10 @@ pub fn start_huya_danmaku(
         })
     });
 
+    // 表情包列表与房间绑定（`lPid = topSid`），必须在会话 runtime 内异步拉取；
+    // 失败时 core 内部回退静态 97 项，不影响弹幕主链路。
+    let emote_site = Arc::new(HuyaSite::new());
+
     // ⚠️ FRB 的 FFI 调用线程没有 tokio runtime —— 在这里 `tokio::spawn` 会 panic
     // （"there is no reactor running"，真机日志抓到过，13-spec §13）。弹幕会话放到
     // 独立线程 + 自建 runtime（current_thread 足够：单会话 IO）。
@@ -156,13 +160,23 @@ pub fn start_huya_danmaku(
             .build()
             .expect("虎牙弹幕 runtime");
         runtime.block_on(async move {
-            run_session(
+            let emoticons = if args.top_sid != 0 {
+                slive_core::platforms::huya::tup::fetch_emoticon_table(
+                    &emote_site,
+                    args.top_sid,
+                )
+                .await
+            } else {
+                slive_core::platforms::huya::danmaku::emoticon::static_table()
+            };
+            run_session_with_emoticons(
                 args,
                 connect,
                 Arc::new(SystemClock),
                 SessionTuning::bilibili(),
                 stop_rx,
                 Some(fetch_super_chat),
+                emoticons,
                 move |item| {
                     let _ = sink.add(item);
                 },

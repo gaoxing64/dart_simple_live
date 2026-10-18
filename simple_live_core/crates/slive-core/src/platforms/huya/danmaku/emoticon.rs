@@ -1,13 +1,22 @@
-//! 虎牙弹幕表情包表（对齐 Dart `huya_emoticon.dart` 的 `_huyaEmoticons`，共 97 项）。
+//! 虎牙弹幕表情包表。
 //!
-//! 数据来源：服务端 `wupui/getExpressionEmoticonPackage`（`pkgId = 1`），
-//! Dart 侧固化为常量表；本实现同样固化为常量（无调用方时不额外发请求 —— §9 性能约束）。
+//! 静态表（[`HUYA_EMOTICONS`]）是历史 97 项小表情，作为 API 失败时的兜底；
+//! 线上另有大表情 / 梗表情包（`iType=2/3`）：由
+//! `wupui/getExpressionEmoticonPackage` 按房间 `lPid` 拉取（见
+//! [`super::super::tup::fetch_emoticon_table`]），`sFlexiUrl` 的 `steam.png`
+//! 换成 `steam_3.png` 即大图。动态表会覆盖同名静态项，未命中的静态项保留。
 //!
 //! 提取规则（对齐 Dart `_getHuyaEmoticonsFromContent`）：
 //! 以 `\[[^\[\]]{1,16}\]` 语义扫描正文，命中表内的占位符转 [`LiveMessageEmoticon`]；
 //! 未命中表（正文字面量）跳过；结果为空 -> `None`（不返回空数组）。
 
+use std::collections::HashMap;
+
+use once_cell::sync::Lazy;
+
 use crate::models::LiveMessageEmoticon;
+
+use super::tars_emoticon::ExpressionEmoticonPackage;
 
 /// 表情占位符 -> 图片地址（顺序与 Dart 一致，便于比对）。
 pub const HUYA_EMOTICONS: &[(&str, &str)] = &[
@@ -110,21 +119,139 @@ pub const HUYA_EMOTICONS: &[(&str, &str)] = &[
     ("[动漫困困]", "https://materials-g-ai.msstatic.com/banshen/prod/banshen_00226/stickers/aiku/aiku%4056x48.png"),
 ];
 
-/// 从弹幕正文提取表情包；无命中 -> `None`。
+/// 单个表情的展示信息。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HuyaEmoticon {
+    /// 图片地址（已统一 https）。
+    pub url: String,
+    /// 是否按大表情渲染（梗表情 / itai大表情）。
+    pub large: bool,
+}
+
+/// 表情码 -> 展示信息。
+pub type HuyaEmoticonTable = HashMap<String, HuyaEmoticon>;
+
+/// 网页端全局包的稳定 id。
+///
+/// 只用于合并时的优先级（全局包先应用、房间包最后覆盖），**不是过滤器**：
+/// 未列出的包仍会正常合并；新出现的全局包会被当作更具体的包处理。
+const GLOBAL_PACKAGE_IDS: &[&str] = &["1", "165", "229", "243", "377", "939", "945"];
+
+fn is_global_package(package: &ExpressionEmoticonPackage) -> bool {
+    GLOBAL_PACKAGE_IDS.contains(&package.s_package_id.as_str())
+}
+
+/// 静态 97 项表（API 失败时的兜底）。
+pub fn static_table() -> HuyaEmoticonTable {
+    HUYA_EMOTICONS
+        .iter()
+        .map(|(name, url)| {
+            (
+                (*name).to_string(),
+                HuyaEmoticon {
+                    url: (*url).to_string(),
+                    large: false,
+                },
+            )
+        })
+        .collect()
+}
+
+static STATIC_TABLE: Lazy<HuyaEmoticonTable> = Lazy::new(static_table);
+
+/// 静态表引用（`run_session` 默认口径）。
+pub fn static_emoticons() -> &'static HuyaEmoticonTable {
+    &STATIC_TABLE
+}
+
+/// 把 API 包合并进静态表；动态项覆盖同名静态项。
+///
+/// 锁定 / 付费包也合并：只影响「能否发送」，不影响已收到消息的图片展示；
+/// 服务端返回量有界（数百项），不再额外截断。
+pub fn build_table(packages: &[ExpressionEmoticonPackage]) -> HuyaEmoticonTable {
+    let mut table = static_table();
+    // 全局包先应用，房间专属包最后覆盖同名码（API 的 vPackage 顺序不保证这一点；
+    // 房间包可能是 type 2 也可能是 type 3，不能只看 type）。
+    let mut ordered: Vec<&ExpressionEmoticonPackage> = packages.iter().collect();
+    ordered.sort_by_key(|package| (!is_global_package(package), package.i_type));
+    for package in ordered {
+        for emoticon in &package.v_emoticon {
+            let name = emoticon.s_name.trim();
+            if !(name.starts_with('[') && name.ends_with(']')) || name.len() < 3 {
+                continue;
+            }
+            let (url, large) = if emoticon.i_type >= 2 {
+                match large_flexi_url(&emoticon.s_flexi_url) {
+                    Some(url) => (url, true),
+                    None => match normalize_url(&emoticon.s_url) {
+                        Some(url) => (url, false),
+                        None => continue,
+                    },
+                }
+            } else {
+                // 优先动态图；extra 非法/为空时仍要回退到静态 sUrl。
+                match normalize_url(&emoticon.s_extra_url).or_else(|| normalize_url(&emoticon.s_url)) {
+                    Some(url) => (url, false),
+                    None => continue,
+                }
+            };
+            table.insert(name.to_string(), HuyaEmoticon { url, large });
+        }
+    }
+    table
+}
+
+/// 大表情素材：API 给的是 `steam.png`，实际大图是同目录 `steam_3.png`。
+pub fn large_flexi_url(raw: &str) -> Option<String> {
+    let url = normalize_url(raw)?;
+    if url.ends_with("steam.png") {
+        return Some(format!("{}_3.png", url.trim_end_matches(".png")));
+    }
+    Some(url)
+}
+
+/// 统一升 https；空 / 非 http(s) 地址返回 `None`。
+fn normalize_url(raw: &str) -> Option<String> {
+    let url = raw.trim();
+    if url.is_empty() {
+        return None;
+    }
+    if let Some(rest) = url.strip_prefix("http://") {
+        return Some(format!("https://{rest}"));
+    }
+    if url.starts_with("https://") {
+        return Some(url.to_string());
+    }
+    if let Some(rest) = url.strip_prefix("//") {
+        return Some(format!("https://{rest}"));
+    }
+    None
+}
+
+/// 从弹幕正文提取表情包；无命中 -> `None`（使用静态表）。
 pub fn extract_emoticons(content: &str) -> Option<Vec<LiveMessageEmoticon>> {
+    extract_emoticons_with(content, &STATIC_TABLE)
+}
+
+/// 从弹幕正文提取表情包；`table` 由会话按房间动态注入。
+pub fn extract_emoticons_with(
+    content: &str,
+    table: &HuyaEmoticonTable,
+) -> Option<Vec<LiveMessageEmoticon>> {
     let mut found: Vec<LiveMessageEmoticon> = Vec::new();
     for token in bracket_tokens(content) {
         // 表键是 `[xxx]`（含方括号）形态，与 Dart `m.group(0)` 一致
-        let Some(url) = lookup(&format!("[{token}]")) else {
+        let key = format!("[{token}]");
+        let Some(emoticon) = table.get(&key) else {
             continue;
         };
         // Dart 用 `m.group(0)` 作为 name —— **含方括号**（表键也是 `[xxx]` 形态）
         found.push(LiveMessageEmoticon {
-            name: Some(format!("[{token}]")),
-            url: url.to_string(),
+            name: Some(key),
+            url: emoticon.url.clone(),
             width: None,
             height: None,
-            large: false,
+            large: emoticon.large,
             emoticon_unique: None,
         });
     }
@@ -135,16 +262,10 @@ pub fn extract_emoticons(content: &str) -> Option<Vec<LiveMessageEmoticon>> {
     }
 }
 
-/// 查表（线性扫描：表为构建期常量，单条弹幕最多 16 字符）。
-fn lookup(token: &str) -> Option<&'static str> {
-    HUYA_EMOTICONS
-        .iter()
-        .find(|(name, _)| *name == token)
-        .map(|(_, url)| *url)
-}
-
-/// 扫描 `[...]` 占位符（1..=16 字符，内部不含方括号 —— 对齐 Dart 正则）。
+/// 扫描 `[...]` 占位符（1..=16 个 UTF-16 码元，内部不含方括号 —— 对齐 Dart 正则）。
 ///
+/// ⚠️ 上限必须按 UTF-16 码元而不是 UTF-8 字节：`[勇敢牛牛不怕困难]` 是 8 个
+/// 汉字、24 个 UTF-8 字节，按字节卡 16 会把真实大表情码整批漏掉。
 /// 手写扫描而非正则 crate：逻辑极简且避免在热路径上编译正则。
 fn bracket_tokens(content: &str) -> Vec<&str> {
     let bytes = content.as_bytes();
@@ -160,10 +281,10 @@ fn bracket_tokens(content: &str) -> Vec<&str> {
         while j < bytes.len() && bytes[j] != b'[' && bytes[j] != b']' {
             j += 1;
         }
-        // `[` 之后必须紧跟 `]`（无嵌套），且长度 1..=16
-        if j < bytes.len() && bytes[j] == b']' && start < j && (j - start) <= 16 {
+        // `[` 之后必须紧跟 `]`（无嵌套），且长度 1..=16 个 UTF-16 码元
+        if j < bytes.len() && bytes[j] == b']' && start < j {
             if let Some(token) = content.get(start..j) {
-                if !token.is_empty() {
+                if !token.is_empty() && token.encode_utf16().count() <= 16 {
                     out.push(token);
                 }
             }
@@ -221,5 +342,168 @@ mod tests {
     #[test]
     fn plain_text_without_brackets_returns_none() {
         assert!(extract_emoticons("纯文本").is_none());
+    }
+
+    #[test]
+    fn large_flexi_url_switches_to_3x_asset() {
+        assert_eq!(
+            large_flexi_url("https://fileserver.cdn.huya.com/a/expressconfig/steam.png")
+                .as_deref(),
+            Some("https://fileserver.cdn.huya.com/a/expressconfig/steam_3.png")
+        );
+        assert_eq!(
+            large_flexi_url("https://fileserver.cdn.huya.com/a/expressconfig/steam_3.png")
+                .as_deref(),
+            Some("https://fileserver.cdn.huya.com/a/expressconfig/steam_3.png")
+        );
+        assert!(large_flexi_url("").is_none());
+    }
+
+    #[test]
+    fn build_table_merges_room_large_emotes() {
+        use super::super::tars_emoticon::{
+            ExpressionEmoticon, ExpressionEmoticonPackage,
+        };
+
+        let package = ExpressionEmoticonPackage {
+            v_emoticon: vec![
+                ExpressionEmoticon {
+                    s_name: "[墨镜小哥]".to_string(),
+                    i_type: 3,
+                    s_flexi_url:
+                        "https://fileserver.cdn.huya.com/a/expressconfig/steam.png".to_string(),
+                    ..Default::default()
+                },
+                ExpressionEmoticon {
+                    s_name: "[不错哦]".to_string(),
+                    i_type: 0,
+                    s_url: "http://cdn/static.png".to_string(),
+                    s_extra_url: "http://cdn/dynamic.png".to_string(),
+                    ..Default::default()
+                },
+                ExpressionEmoticon {
+                    s_name: "[坏extra]".to_string(),
+                    i_type: 0,
+                    s_url: "https://cdn/ok.png".to_string(),
+                    s_extra_url: "ftp://bad".to_string(),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        let table = build_table(&[package]);
+        assert!(table.contains_key("[666]"), "静态项必须保留");
+
+        let large = table.get("[墨镜小哥]").expect("应合入房间大表情");
+        assert_eq!(
+            large.url,
+            "https://fileserver.cdn.huya.com/a/expressconfig/steam_3.png"
+        );
+        assert!(large.large);
+
+        let small = table.get("[不错哦]").expect("应合入小表情");
+        assert_eq!(small.url, "https://cdn/dynamic.png", "优先用动态地址");
+        assert!(!small.large);
+
+        let fallback = table.get("[坏extra]").expect("extra 非法时应回退 sUrl");
+        assert_eq!(fallback.url, "https://cdn/ok.png");
+    }
+
+    #[test]
+    fn room_specific_package_wins_on_code_collision() {
+        use super::super::tars_emoticon::{
+            ExpressionEmoticon, ExpressionEmoticonPackage,
+        };
+
+        let global = ExpressionEmoticonPackage {
+            i_type: 0,
+            v_emoticon: vec![ExpressionEmoticon {
+                s_name: "[666]".to_string(),
+                s_url: "https://global/666.png".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let room = ExpressionEmoticonPackage {
+            i_type: 3,
+            v_emoticon: vec![ExpressionEmoticon {
+                s_name: "[666]".to_string(),
+                i_type: 3,
+                s_flexi_url: "https://room/expressconfig/steam.png".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        // 故意把房间包放在前面：排序后仍应由 type=3 覆盖 type=0。
+        let table = build_table(&[room, global]);
+        let emoticon = table.get("[666]").expect("应有 [666]");
+        assert_eq!(emoticon.url, "https://room/expressconfig/steam_3.png");
+        assert!(emoticon.large);
+    }
+
+    #[test]
+    fn room_type2_package_wins_over_global_type2() {
+        use super::super::tars_emoticon::{
+            ExpressionEmoticon, ExpressionEmoticonPackage,
+        };
+
+        let global = ExpressionEmoticonPackage {
+            s_package_id: "377".to_string(),
+            i_type: 2,
+            v_emoticon: vec![ExpressionEmoticon {
+                s_name: "[同名梗]".to_string(),
+                i_type: 2,
+                s_flexi_url: "https://global/expressconfig/steam.png".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let room = ExpressionEmoticonPackage {
+            s_package_id: "637".to_string(),
+            i_type: 2,
+            v_emoticon: vec![ExpressionEmoticon {
+                s_name: "[同名梗]".to_string(),
+                i_type: 2,
+                s_flexi_url: "https://room/expressconfig/steam.png".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        // 房间包即使出现在 global 后面、且同为 type=2，也必须最后覆盖。
+        let table = build_table(&[global, room]);
+        let emoticon = table.get("[同名梗]").expect("应有 [同名梗]");
+        assert_eq!(emoticon.url, "https://room/expressconfig/steam_3.png");
+        assert!(emoticon.large);
+    }
+
+    #[test]
+    fn extract_emoticons_handles_long_chinese_codes() {
+        // 8 个汉字 = 24 个 UTF-8 字节；上限必须按 UTF-16 码元算，否则真实码被漏掉。
+        let mut table = static_table();
+        table.insert(
+            "[勇敢牛牛不怕困难]".to_string(),
+            HuyaEmoticon {
+                url: "https://x/long.png".to_string(),
+                large: false,
+            },
+        );
+        let got = extract_emoticons_with("[勇敢牛牛不怕困难]", &table).expect("长中文码应能提取");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].name.as_deref(), Some("[勇敢牛牛不怕困难]"));
+    }
+
+    #[test]
+    fn extract_emoticons_with_uses_dynamic_table() {
+        let mut table = static_table();
+        table.insert(
+            "[墨镜小哥]".to_string(),
+            HuyaEmoticon {
+                url: "https://x/steam_3.png".to_string(),
+                large: true,
+            },
+        );
+        let got = extract_emoticons_with("[墨镜小哥]666", &table).expect("应提取到大表情");
+        assert_eq!(got[0].name.as_deref(), Some("[墨镜小哥]"));
+        assert!(got[0].large);
     }
 }

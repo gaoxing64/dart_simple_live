@@ -105,7 +105,7 @@ start_*_danmaku(args_json, sink)          # FRB 门面（或 CLI 直接装配）
 | 弹幕鉴权 | 16 字节包头 + token JSON | `loginreq`/`joingroup` | `RegisterGroupReq`(cmd16) | 长 query + **xbogus** | 匿名 `justinfan` |
 | 心跳 | 60s | 45s | 60s | 10s + needAck 回执 | 40s |
 | 重连 | 5s × 5 | 5s × 5 | 5s × 5 | 5s × 5 | 5s × 5（收到消息归零） |
-| 消息支持面 | chat / online / SC / 表情 | chat（仅粉丝）/ SC | chat / online / SC / 表情 | chat / online / 会员表情 + 标准表情 | 仅 chat |
+| 消息支持面 | chat / online / SC / 表情 | chat（仅粉丝）/ SC | chat / online / SC / 表情（小 + 大） | chat / online / 会员表情 + 标准表情 | 仅 chat |
 | SC 路径 | WS 下行解析 | WS 下行解析 | WS 信号 + HTTP 拉取（`SuperChatFetcher`） | 不支持 | 不支持 |
 | 搜索 | 房间 + 主播 | 房间 + 主播 | 房间 | 仅房间 | 不支持 |
 | 账号 | 扫码 + 校验 | did + 扫码 + `refreshCookie` | 桩 | `getAccountInfo` | 桩 |

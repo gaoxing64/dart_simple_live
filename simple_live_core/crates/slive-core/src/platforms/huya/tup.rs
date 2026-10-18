@@ -1,8 +1,9 @@
 //! TUP over HTTP 调用（对照 Dart `tars_dart/lib/tars/net/base_tars_http.dart`）。
 //!
-//! 虎牙两个 TARS HTTP 接口都在本模块：
+//! 虎牙三个 TARS HTTP 接口都在本模块：
 //! - `liveui/getCdnTokenInfoEx`：换取取流 token（[`super::play`] 用）；
-//! - `wupui/getHeadLineMessageBoard`：醒目留言列表（[`super::super_chat`] 与弹幕增量用）。
+//! - `wupui/getHeadLineMessageBoard`：醒目留言列表（[`super::super_chat`] 与弹幕增量用）；
+//! - `wupui/getExpressionEmoticonPackage`：房间/全局表情包（大表情表）。
 //!
 //! 传输：虎牙的 TUP 走 **POST + 二进制 body**（`Content-Type: application/x-wup`），
 //! 与常规 JSON GET 不同，故在 [`crate::http::HttpTransport`]（GET-only seam）之外
@@ -12,6 +13,7 @@
 //! **不自动重试**（J-5 / AC-25）。
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use async_trait::async_trait;
 
@@ -20,7 +22,11 @@ use crate::http::HttpReply;
 use crate::tars::{TarsEncoder, TarsStruct, UniPacket};
 
 use super::danmaku::args::{DEFAULT_DEVICE, DEFAULT_GUID};
+use super::danmaku::emoticon::{build_table, HuyaEmoticonTable};
 use super::danmaku::tars_cdn::{GetCdnTokenExReq, GetCdnTokenExResp, HuyaUserId};
+use super::danmaku::tars_emoticon::{
+    ExpressionEmoticonPackage, GetExpressionEmoticonPackageReq, GetExpressionEmoticonPackageRsp,
+};
 use super::danmaku::tars_sc::{GetGameEventMessageBoardReq, GetGameEventMessageBoardRsp};
 use super::site::HuyaSite;
 
@@ -32,6 +38,8 @@ pub const SERVANT_WUP_UI: &str = "wupui";
 pub const FUNC_CDN_TOKEN_EX: &str = "getCdnTokenInfoEx";
 /// 醒目留言的函数名。
 pub const FUNC_HEADLINE_BOARD: &str = "getHeadLineMessageBoard";
+/// 表情包列表的函数名。
+pub const FUNC_EXPRESSION_PACKAGES: &str = "getExpressionEmoticonPackage";
 /// TUP 请求的 Content-Type。
 pub const TUP_CONTENT_TYPE: &str = "application/x-wup";
 
@@ -211,6 +219,56 @@ pub(crate) async fn fetch_message_board(
         &req,
     )
     .await
+}
+
+/// 拉取表情包（`wupui/getExpressionEmoticonPackage`）。
+///
+/// `top_sid` 是房间 `lChannelId`；传 0 时只返回全局包，传房间 pid 时额外返回
+/// 房间专属大表情包（如 `itai大表情` 的 `[墨镜小哥]`）。
+pub async fn fetch_expression_packages(
+    site: &HuyaSite,
+    top_sid: i64,
+) -> Result<Vec<ExpressionEmoticonPackage>, SliveError> {
+    let req = GetExpressionEmoticonPackageReq::new(
+        anon_user_id("webh5&1.0.0&huya"),
+        top_sid,
+    );
+    let rsp: GetExpressionEmoticonPackageRsp = tup_call(
+        site,
+        SERVANT_WUP_UI,
+        FUNC_EXPRESSION_PACKAGES,
+        &req,
+    )
+    .await?;
+    Ok(rsp.v_package)
+}
+
+/// 拉取并合并表情表；失败 / 超时退回静态 97 项（不影响弹幕主链路）。
+///
+/// 会话启动前会等待该请求；限制 3s，避免弱网时弹幕迟迟不通。
+pub async fn fetch_emoticon_table(site: &HuyaSite, top_sid: i64) -> HuyaEmoticonTable {
+    fetch_emoticon_table_with_timeout(site, top_sid, Duration::from_secs(3)).await
+}
+
+/// 同 [`fetch_emoticon_table`]，超时可注入（测试用）。
+pub async fn fetch_emoticon_table_with_timeout(
+    site: &HuyaSite,
+    top_sid: i64,
+    timeout: Duration,
+) -> HuyaEmoticonTable {
+    let fetched =
+        tokio::time::timeout(timeout, fetch_expression_packages(site, top_sid)).await;
+    match fetched {
+        Ok(Ok(packages)) => build_table(&packages),
+        Ok(Err(e)) => {
+            eprintln!("[huya-emoticon] 拉取表情包失败: {e}");
+            super::danmaku::emoticon::static_table()
+        }
+        Err(_) => {
+            eprintln!("[huya-emoticon] 拉取表情包超时，使用静态表");
+            super::danmaku::emoticon::static_table()
+        }
+    }
 }
 
 /// 构造一条 TUP 响应的字节（测试夹具用）。
