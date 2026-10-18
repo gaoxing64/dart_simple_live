@@ -82,7 +82,7 @@ jobs:
         run: |
           for abi in armeabi-v7a arm64-v8a x86_64; do
             src="simple_live_app/build/app/outputs/flutter-apk/app-$abi-release.apk"
-            dst="simple_live_app/build/app/outputs/flutter-apk/Slive_V${VERSION}_android-$abi_app_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).apk"
+            dst="simple_live_app/build/app/outputs/flutter-apk/Slive_V${VERSION}_android-${abi}_app_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).apk"
             mv "$src" "$dst"
           done
 
@@ -486,7 +486,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: linux-flatpak-${{ matrix.arch }}
-          path: Slive-*.flatpak
+          path: Slive_*.flatpak
 
       # 读取版本信息
       - name: Read version
@@ -541,6 +541,6 @@ jobs:
           body: "${{ fromJson(steps.version.outputs.content).version_desc }}"
           prerelease: ${{ fromJson(steps.version.outputs.content).prerelease }}
           token: ${{ secrets.TOKEN }}
-          files: Slive-*.flatpak
+          files: Slive_*.flatpak
       # 完成
       - run: echo "🍏 Flatpak job's status is ${{ job.status }}."

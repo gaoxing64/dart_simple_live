@@ -84,6 +84,6 @@ jobs:
         run: |
           for abi in armeabi-v7a arm64-v8a x86_64; do
             src="simple_live_tv_app/build/app/outputs/flutter-apk/app-$abi-release.apk"
-            dst="simple_live_tv_app/build/app/outputs/flutter-apk/Slive_V${VERSION}_android-$abi_tv_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).apk"
+            dst="simple_live_tv_app/build/app/outputs/flutter-apk/Slive_V${VERSION}_android-${abi}_tv_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).apk"
             mv "$src" "$dst"
           done
