@@ -9,24 +9,23 @@ import 'models/danmu.dart';
 import 'models/message.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `active_stop`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `WsFrameSource`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `next_frame`, `send`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `connect_ws_frame_source`
 
-/// 手动停止当前弹幕会话（全局单例；对齐 Dart `LiveDanmaku.stop()`）。
-void stopDanmaku() => RustLib.instance.api.crateApiSliveDanmakuStopDanmaku();
-
-/// 启动弹幕会话（F-11）：连接 `args` 指定的 WS 地址，事件推入 stream。
-///
-/// `args_json` 是 [`BiliBiliDanmakuArgs`] 的 JSON 串（J-2 契约）；解析失败 →
-/// `CoreError(Decode)`，对应 Dart 侧 `FormatException`（J-10）。
-/// 同时启动新会话会**停止**旧会话（单房间语义）。
-Stream<LiveDanmuItem> startDanmaku({required String argsJson}) =>
-    RustLib.instance.api.crateApiSliveDanmakuStartDanmaku(argsJson: argsJson);
-
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DanmakuConnection>>
 abstract class DanmakuConnection implements RustOpaqueInterface {
+  /// 构造连接句柄（尚未连接；`start` 之后才持有会话）。
+  factory DanmakuConnection() =>
+      RustLib.instance.api.crateApiSliveDanmakuDanmakuConnectionNew();
+
+  /// 启动弹幕会话（F-11）：连接 `args` 指定的 WS 地址，事件推入 stream。
+  ///
+  /// `args_json` 是 [`BiliBiliDanmakuArgs`] 的 JSON 串（J-2 契约）；解析失败 →
+  /// `CoreError(Decode)`，对应 Dart 侧 `FormatException`（J-10）。
+  /// 多路播放各自持句柄调用，会话之间互不停止。
+  Stream<LiveDanmuItem> start({required String argsJson});
+
   /// 手动停止（对齐 Dart `LiveDanmaku.stop()`：发出 `Closed`，不再重连）。
   void stop();
 }

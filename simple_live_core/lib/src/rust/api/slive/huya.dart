@@ -9,18 +9,23 @@ import 'models/danmu.dart';
 import 'models/message.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `active_huya_stop`, `connect_ws_frame_source`, `ws_headers`
+// These functions are ignored because they are not marked as `pub`: `connect_ws_frame_source`, `ws_headers`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `HuyaWsFrameSource`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `next_frame`, `send`
 
-/// 手动停止当前虎牙弹幕会话（全局单例；对齐 Dart `LiveDanmaku.stop()`）。
-void stopHuyaDanmaku() =>
-    RustLib.instance.api.crateApiSliveHuyaStopHuyaDanmaku();
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<HuyaDanmakuConnection>>
+abstract class HuyaDanmakuConnection implements RustOpaqueInterface {
+  /// 构造连接句柄（尚未连接；`start` 之后才持有会话）。
+  factory HuyaDanmakuConnection() =>
+      RustLib.instance.api.crateApiSliveHuyaHuyaDanmakuConnectionNew();
 
-/// 启动虎牙弹幕会话（F-11）。
-///
-/// `args_json` 是 [`HuyaDanmakuArgs`] 的 JSON 串（`danmaku_data` 通道）；解析失败 ->
-/// `CoreError(Decode)`，对应 Dart 侧 `FormatException`（J-10）。
-/// 同时启动新会话会**停止**旧会话（单房间语义）。
-Stream<LiveDanmuItem> startHuyaDanmaku({required String argsJson}) =>
-    RustLib.instance.api.crateApiSliveHuyaStartHuyaDanmaku(argsJson: argsJson);
+  /// 启动虎牙弹幕会话（F-11）。
+  ///
+  /// `args_json` 是 [`HuyaDanmakuArgs`] 的 JSON 串（`danmaku_data` 通道）；解析失败 ->
+  /// `CoreError(Decode)`，对应 Dart 侧 `FormatException`（J-10）。
+  /// 多路播放各自持句柄调用，会话之间互不停止。
+  Stream<LiveDanmuItem> start({required String argsJson});
+
+  /// 手动停止本会话（对齐 Dart `LiveDanmaku.stop()`：发出 `Closed`，不再重连）。
+  void stop();
+}

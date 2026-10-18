@@ -14,22 +14,26 @@ import 'models/result.dart';
 import 'models/room.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `active_stop`, `connect_douyin_ws`
+// These functions are ignored because they are not marked as `pub`: `connect_douyin_ws`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DouyinWsFrameSource`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `next_frame`, `send`
 
-/// 手动停止当前抖音弹幕会话（全局单例；对齐 Dart `LiveDanmaku.stop()`）。
-void stopDouyinDanmaku() =>
-    RustLib.instance.api.crateApiSliveDouyinStopDouyinDanmaku();
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DouyinDanmakuConnection>>
+abstract class DouyinDanmakuConnection implements RustOpaqueInterface {
+  /// 构造连接句柄（尚未连接；`start` 之后才持有会话）。
+  factory DouyinDanmakuConnection() =>
+      RustLib.instance.api.crateApiSliveDouyinDouyinDanmakuConnectionNew();
 
-/// 启动抖音弹幕会话：事件推入 stream（FRB 侧表现为 `Stream<LiveDanmuItem>`）。
-///
-/// `args_json` 是 [`DouyinDanmakuArgs`] 的 JSON 串（snake_case 契约）；解析失败或
-/// 握手签名失败 -> `CoreError`，对应 Dart 侧 `FormatException`（J-10）。
-/// 同时启动新会话会**停止**旧会话（单房间语义）。
-Stream<LiveDanmuItem> startDouyinDanmaku({required String argsJson}) =>
-    RustLib.instance.api
-        .crateApiSliveDouyinStartDouyinDanmaku(argsJson: argsJson);
+  /// 启动抖音弹幕会话：事件推入 stream（FRB 侧表现为 `Stream<LiveDanmuItem>`）。
+  ///
+  /// `args_json` 是 [`DouyinDanmakuArgs`] 的 JSON 串（snake_case 契约）；解析失败或
+  /// 握手签名失败 -> `CoreError`，对应 Dart 侧 `FormatException`（J-10）。
+  /// 多路播放各自持句柄调用，会话之间互不停止。
+  Stream<LiveDanmuItem> start({required String argsJson});
+
+  /// 手动停止本会话（对齐 Dart `LiveDanmaku.stop()`：发出 `Closed`，不再重连）。
+  void stop();
+}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LiveDouyinSite>>
 abstract class LiveDouyinSite implements RustOpaqueInterface {

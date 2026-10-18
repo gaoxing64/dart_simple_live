@@ -14,20 +14,22 @@ import 'models/result.dart';
 import 'models/room.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `activate`, `cell`, `stop_active`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DouyuStopRegistry`
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DouyuDanmakuConnection>>
+abstract class DouyuDanmakuConnection implements RustOpaqueInterface {
+  /// 构造连接句柄（尚未连接；`start` 之后才持有会话）。
+  factory DouyuDanmakuConnection() =>
+      RustLib.instance.api.crateApiSliveDouyuDouyuDanmakuConnectionNew();
 
-/// 启动斗鱼弹幕会话（F-11~F-16）。
-///
-/// `room_id` 即 `LiveRoomDetail.danmakuData`（斗鱼弹幕参数**就是房间号**，不是 JSON）——
-/// 空房间号 -> `CoreError(InvalidInput)`，对应 Dart 侧解析失败抛异常的口径（J-10）。
-/// 同时启动新会话会**停止**旧会话（单房间语义，与 Dart core 一致）。
-Stream<LiveDanmuItem> startDouyuDanmaku({required String roomId}) =>
-    RustLib.instance.api.crateApiSliveDouyuStartDouyuDanmaku(roomId: roomId);
+  /// 启动斗鱼弹幕会话（F-11~F-16）。
+  ///
+  /// `room_id` 即 `LiveRoomDetail.danmakuData`（斗鱼弹幕参数**就是房间号**，不是 JSON）——
+  /// 空房间号 -> `CoreError(InvalidInput)`，对应 Dart 侧解析失败抛异常的口径（J-10）。
+  /// 多路播放各自持句柄调用，会话之间互不停止。
+  Stream<LiveDanmuItem> start({required String roomId});
 
-/// 手动停止斗鱼弹幕会话（对齐 Dart `DouyuDanmaku.stop()`）。
-void stopDouyuDanmaku() =>
-    RustLib.instance.api.crateApiSliveDouyuStopDouyuDanmaku();
+  /// 手动停止本会话（对齐 Dart `DouyuDanmaku.stop()`：发出 `Closed`，不再重连）。
+  void stop();
+}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LiveDouyuSite>>
 abstract class LiveDouyuSite implements RustOpaqueInterface {

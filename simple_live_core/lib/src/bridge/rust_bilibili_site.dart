@@ -140,8 +140,13 @@ class RustBilibiliSite extends LiveSite {
 ///
 /// `start(args)` 的 `args` 为 `detail.danmakuData` 原样透传（JSON 串，
 /// Rust 侧 `from_json` 解析失败抛 `CoreError` —— J-10）。
+///
+/// 多开播放（2026-10-18 修复）：每个 `RustLiveDanmaku` 实例自持一个
+/// `DanmakuConnection` 句柄 —— 旧实现是全局单例，第二路 start 会把第一路 stop 掉，
+/// 表现为「只有一路有弹幕，另一路聊天区显示已手动停止」。
 class RustLiveDanmaku extends LiveDanmaku {
   StreamSubscription<rust_danmu.LiveDanmuItem>? _subscription;
+  rust_danmaku.DanmakuConnection? _conn;
 
   // 心跳由 Rust 会话内部管理（60s），Dart 侧 heartbeat()/heartbeatTime 不参与。
 
@@ -154,8 +159,10 @@ class RustLiveDanmaku extends LiveDanmaku {
         : throw ArgumentError(
             'RustLiveDanmaku.start 需要 danmakuData JSON 串，收到 ${args.runtimeType}',
           );
-    await _subscription?.cancel();
-    _subscription = rust_danmaku.startDanmaku(argsJson: argsJson).listen(
+    // 新会话 = 新句柄：先停掉旧会话（换台 / 刷新路径），再多开时各停各的。
+    await stop();
+    _conn = rust_danmaku.DanmakuConnection();
+    _subscription = _conn!.start(argsJson: argsJson).listen(
       (item) {
         switch (item) {
           case rust_danmu.LiveDanmuItem_Message(:final field0):
@@ -182,8 +189,9 @@ class RustLiveDanmaku extends LiveDanmaku {
 
   @override
   Future<void> stop() async {
-    rust_danmaku.stopDanmaku();
+    _conn?.stop();
     await _subscription?.cancel();
     _subscription = null;
+    _conn = null;
   }
 }

@@ -39,7 +39,7 @@
 |------|------|------|
 | `mod.rs` | 8 | `pub mod danmaku; pub mod site;`（**不改** `api/slive/mod.rs`） |
 | `site.rs` | 188 | `#[frb(opaque)] LiveTwitchSite` + 15 方法转发 |
-| `danmaku.rs` | 165 | IRC-over-WS 生产连接 + `start_twitch_danmaku` / `stop_twitch_danmaku` |
+| `danmaku.rs` | 165 | IRC-over-WS 生产连接 + `TwitchDanmakuConnection`（`new` / `start` / `stop`，2026-10-18 起每实例一句柄） |
 
 ### 1.3 Dart 绑定层
 
@@ -95,7 +95,7 @@ App 行为并破坏 AC-30 回归为零）。Rust 侧以**类型化错误**表达
 | `joinRoom()` 5 帧 | `TwitchDanmakuArgs::handshake(nick)` | ✅ 顺序一致（CAP REQ→PASS→NICK→USER→JOIN） |
 | `justinfan{1000+rand(99000)}` | `anonymous_nick(unix_secs)` | ⚠️ **D-7**（见下） |
 | `decodeMessage()` | `parse_frame()` | ⚠️ **D-1~D-5**（见下） |
-| `start/stop` | `start_twitch_danmaku/stop_twitch_danmaku` | ✅ 独立线程 + 自建 runtime |
+| `start/stop` | `TwitchDanmakuConnection::start` / `::stop` | ✅ 独立线程 + 自建 runtime；2026-10-18 起每实例一句柄（多开互不停止） |
 
 ---
 

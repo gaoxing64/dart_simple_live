@@ -8,7 +8,7 @@
 //! **独立线程 + 自建 current_thread runtime**。
 //!
 //! 与 B站弹幕桥（`../danmaku.rs`）**完全独立命名**：本文件不引用、不修改其任何符号
-//! （`start_danmaku` / `stop_danmaku` / `active_stop` 均为 B站私有）。
+//! （`DanmakuConnection` 为 B站私有；本侧是 `TwitchDanmakuConnection`）。
 
 use std::sync::Arc;
 
@@ -96,21 +96,87 @@ pub async fn connect_twitch_frame_source(
     Ok(Box::new(TwitchIrcFrameSource { stream }))
 }
 
-/// 当前活跃 Twitch 弹幕会话的停止信号（单房间语义，与 Dart `LiveDanmaku.stop()` 一致）。
+/// Twitch 弹幕连接句柄（FRB opaque）：**每实例一份**，持有本会话的停止信号。
 ///
-/// **与 B站的 `active_stop()` 是两个独立单例**：B站那份在 `../danmaku.rs` 内私有，
-/// Twitch 在此文件另设一份，避免跨平台互相顶掉会话。
-fn twitch_active_stop() -> &'static std::sync::Mutex<Option<watch::Sender<bool>>> {
-    static CELL: std::sync::OnceLock<std::sync::Mutex<Option<watch::Sender<bool>>>> =
-        std::sync::OnceLock::new();
-    CELL.get_or_init(|| std::sync::Mutex::new(None))
+/// 2026-10-18 修复多开异常：旧实现用全局单例 `twitch_active_stop` 登记「当前会话」，
+/// 启动第二路会先把第一路的 stop 置 `true` —— 多开时只有最后启动的那路有弹幕，
+/// 其余路聊天区显示「已手动停止」。改为句柄自持 stop 后各停各的、互不影响；
+/// 句柄被释放（Dart 侧丢弃且未显式 stop）时发送端 drop，会话随句柄一起结束。
+#[frb(opaque)]
+pub struct TwitchDanmakuConnection {
+    stop_tx: watch::Sender<bool>,
 }
 
-/// 手动停止当前 Twitch 弹幕会话（对齐 Dart `TwitchDanmaku.stop()`）。
-#[frb(sync)]
-pub fn stop_twitch_danmaku() {
-    if let Some(stop_tx) = twitch_active_stop().lock().expect("stop 锁").take() {
-        let _ = stop_tx.send(true);
+impl TwitchDanmakuConnection {
+    /// 构造连接句柄（尚未连接；`start` 之后才持有会话）。
+    #[frb(sync)]
+    pub fn new() -> Self {
+        let (stop_tx, _stop_rx) = watch::channel(false);
+        Self { stop_tx }
+    }
+
+    /// 启动 Twitch 弹幕会话：连接 IRC over WebSocket，事件推入 stream。
+    ///
+    /// `channel_or_args` 是 `LiveRoomDetail.danmakuData` 的原样透参。
+    /// ⚠️ **照搬 Dart**（`twitch_site.dart:241` + `twitch_danmaku.dart:56`）：Twitch 的
+    /// `danmakuData` 就是 **roomId 字符串**（QA 夹具 `gql_twitch_tv_room_shell` 已钉死
+    /// `expected.danmaku_data == "alice"`），**不带** `schema_version` 的 JSON 包装 ——
+    /// Twitch 弹幕唯一入参就是频道名，无需版本化契约。
+    /// 为兼容两种形态（裸频道名 / JSON 契约串），这里**显式**先按裸频道名解析，
+    /// 失败再回退契约串；两者都非法 -> `CoreError(InvalidInput)`（**不静默兜底**，J-10 精神）。
+    /// 多路播放各自持句柄调用，会话之间互不停止。
+    pub fn start(
+        &self,
+        channel_or_args: String,
+        sink: StreamSink<LiveDanmuItem>,
+    ) -> Result<(), CoreError> {
+        let args = parse_channel_args(&channel_or_args)?;
+        let stop_rx = self.stop_tx.subscribe();
+
+        // URL / headers 固定：提前计算，闭包只持有克隆（args 本身交给 run_twitch_session）
+        let ws_url = args.ws_url();
+        let ws_headers = args.connect_headers();
+
+        std::thread::spawn(move || {
+            // ⚠️ FRB FFI 线程无 tokio runtime —— 必须独立线程 + 自建 runtime（同 B站修法）。
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("twitch danmaku runtime");
+            runtime.block_on(async move {
+                let connect = move || {
+                    let url = ws_url.clone();
+                    let headers = ws_headers.clone();
+                    Box::pin(async move { connect_twitch_frame_source(url, headers).await })
+                        as std::pin::Pin<
+                            Box<
+                                dyn std::future::Future<
+                                        Output = Result<Box<dyn FrameSource>, SliveError>,
+                                    > + Send,
+                            >,
+                        >
+                };
+                run_session(
+                    args,
+                    Box::new(connect),
+                    Arc::new(SystemClock),
+                    tuning(),
+                    stop_rx,
+                    move |item| {
+                        let _ = sink.add(item);
+                    },
+                )
+                .await;
+            });
+        });
+
+        Ok(())
+    }
+
+    /// 手动停止本会话（对齐 Dart `TwitchDanmaku.stop()`：发出 `Closed`，不再重连）。
+    #[frb(sync)]
+    pub fn stop(&self) {
+        let _ = self.stop_tx.send(true);
     }
 }
 
@@ -126,70 +192,4 @@ fn parse_channel_args(input: &str) -> Result<TwitchDanmakuArgs, SliveError> {
         return Ok(TwitchDanmakuArgs::new(trimmed));
     }
     TwitchDanmakuArgs::from_json(trimmed)
-}
-
-/// 启动 Twitch 弹幕会话：连接 IRC over WebSocket，事件推入 stream。
-///
-/// `channel_or_args` 是 `LiveRoomDetail.danmakuData` 的原样透传。
-/// ⚠️ **照搬 Dart**（`twitch_site.dart:241` + `twitch_danmaku.dart:56`）：Twitch 的
-/// `danmakuData` 就是 **roomId 字符串**（QA 夹具 `gql_twitch_tv_room_shell` 已钉死
-/// `expected.danmaku_data == "alice"`），**不带** `schema_version` 的 JSON 包装 ——
-/// Twitch 弹幕唯一入参就是频道名，无需版本化契约。
-/// 为兼容两种形态（裸频道名 / JSON 契约串），这里**显式**先按裸频道名解析，
-/// 失败再回退契约串；两者都非法 -> `CoreError(InvalidInput)`（**不静默兜底**，J-10 精神）。
-/// 同时启动新会话会**停止**旧会话（单房间语义）。
-pub fn start_twitch_danmaku(
-    channel_or_args: String,
-    sink: StreamSink<LiveDanmuItem>,
-) -> Result<(), CoreError> {
-    let args = parse_channel_args(&channel_or_args)?;
-    let (stop_tx, stop_rx) = watch::channel(false);
-
-    // 单房间语义：新会话顶掉旧会话
-    {
-        let mut active = twitch_active_stop().lock().expect("stop 锁");
-        if let Some(old) = active.take() {
-            let _ = old.send(true);
-        }
-        *active = Some(stop_tx.clone());
-    }
-
-    // URL / headers 固定：提前计算，闭包只持有克隆（args 本身交给 run_twitch_session）
-    let ws_url = args.ws_url();
-    let ws_headers = args.connect_headers();
-
-    std::thread::spawn(move || {
-        // ⚠️ FRB FFI 线程无 tokio runtime —— 必须独立线程 + 自建 runtime（同 B站修法）。
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("twitch danmaku runtime");
-        runtime.block_on(async move {
-            let connect = move || {
-                let url = ws_url.clone();
-                let headers = ws_headers.clone();
-                Box::pin(async move { connect_twitch_frame_source(url, headers).await })
-                    as std::pin::Pin<
-                        Box<
-                            dyn std::future::Future<
-                                    Output = Result<Box<dyn FrameSource>, SliveError>,
-                                > + Send,
-                        >,
-                    >
-            };
-            run_session(
-                args,
-                Box::new(connect),
-                Arc::new(SystemClock),
-                tuning(),
-                stop_rx,
-                move |item| {
-                    let _ = sink.add(item);
-                },
-            )
-            .await;
-        });
-    });
-
-    Ok(())
 }

@@ -31,7 +31,7 @@ pub const SDK_VERSION: &str = "1.0.14-beta.0";
 /// `aid`（对照 `DouyinRequestParams.aidValue`）。
 pub const AID: &str = "6383";
 
-/// 弹幕连接参数（`get_room_detail` 产出，`start_douyin_danmaku` 消费）。
+/// 弹幕连接参数（`get_room_detail` 产出，`DouyinDanmakuConnection::start` 消费）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DouyinDanmakuArgs {
     /// 契约版本（固定 1）。

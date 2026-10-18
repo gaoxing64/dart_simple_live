@@ -176,8 +176,13 @@ class RustTwitchSite extends LiveSite {
 ///
 /// `start(args)` 的 `args` 为 `detail.danmakuData` 原样透传（JSON 契约串，
 /// Rust 侧 `TwitchDanmakuArgs::from_json` 解析失败抛 `CoreError` —— J-10）。
+///
+/// 多开播放（2026-10-18 修复）：每个 `RustTwitchDanmaku` 实例自持一个
+/// `TwitchDanmakuConnection` 句柄 —— 旧实现是全局单例，第二路 start 会把第一路
+/// stop 掉，表现为「只有一路有弹幕，另一路聊天区显示已手动停止」。
 class RustTwitchDanmaku extends LiveDanmaku {
   StreamSubscription<rust_danmu.LiveDanmuItem>? _subscription;
+  rust_twitch_danmaku.TwitchDanmakuConnection? _conn;
 
   // 心跳由 Rust 会话内部管理（40s，对齐 Dart `heartbeatTime`），
   // Dart 侧 heartbeat()/heartbeatTime 不参与。
@@ -190,9 +195,10 @@ class RustTwitchDanmaku extends LiveDanmaku {
             'schema_version': 1,
             'channel': (args as String).toLowerCase(),
           });
-    await _subscription?.cancel();
-    _subscription = rust_twitch_danmaku.startTwitchDanmaku(channelOrArgs: argsJson)
-        .listen(
+    // 新会话 = 新句柄：先停掉旧会话（换台 / 刷新路径），再多开时各停各的。
+    await stop();
+    _conn = rust_twitch_danmaku.TwitchDanmakuConnection();
+    _subscription = _conn!.start(channelOrArgs: argsJson).listen(
       (item) {
         switch (item) {
           case rust_danmu.LiveDanmuItem_Message(:final field0):
@@ -219,8 +225,9 @@ class RustTwitchDanmaku extends LiveDanmaku {
 
   @override
   Future<void> stop() async {
-    rust_twitch_danmaku.stopTwitchDanmaku();
+    _conn?.stop();
     await _subscription?.cancel();
     _subscription = null;
+    _conn = null;
   }
 }

@@ -75,7 +75,7 @@ pub(crate) async fn fetch(site: &TwitchSite, room_id: &str) -> Result<LiveRoomDe
         data: None,
         // Q-13（照搬 Dart `:241`）：`danmakuData` 就是 **roomId 字符串**，不带 JSON 包装。
         // Twitch 弹幕唯一入参即频道名，无需版本化契约 —— 故 `TwitchDanmakuArgs::from_json`
-        // 不用于本字段；桥层 `start_twitch_danmaku` 直接以频道名构造 args（见 `twitch/danmaku.rs`）。
+        // 不用于本字段；桥层 `TwitchDanmakuConnection::start` 直接以频道名构造 args（见 `twitch/danmaku.rs`）。
         danmaku_data: Some(room_id.to_string()),
         is_record: false,
         url: format!("{TWITCH_BASE_URL}/{room_id}"),

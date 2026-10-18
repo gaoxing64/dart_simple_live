@@ -146,8 +146,13 @@ class RustDouyuSite extends LiveSite {
 ///
 /// `start(args)` 的 `args` 为 `detail.danmakuData`，斗鱼即**房间号字符串**（原样透传，
 /// Rust 侧空值/非法值抛 `CoreError` —— J-10）。
+///
+/// 多开播放（2026-10-18 修复）：每个 `RustDouyuDanmaku` 实例自持一个
+/// `DouyuDanmakuConnection` 句柄 —— 旧实现是全局单例，第二路 start 会把第一路
+/// stop 掉，表现为「只有一路有弹幕，另一路聊天区显示已手动停止」。
 class RustDouyuDanmaku extends LiveDanmaku {
   StreamSubscription<rust_danmu.LiveDanmuItem>? _subscription;
+  rust_douyu.DouyuDanmakuConnection? _conn;
 
   // 心跳由 Rust 会话内部管理（45s，与 Dart `DouyuDanmaku.heartbeatTime` 一致），
   // Dart 侧 heartbeat()/heartbeatTime 不参与。
@@ -157,8 +162,10 @@ class RustDouyuDanmaku extends LiveDanmaku {
     final roomId = args is String
         ? args
         : (args?.toString() ?? '');
-    await _subscription?.cancel();
-    _subscription = rust_douyu.startDouyuDanmaku(roomId: roomId).listen(
+    // 新会话 = 新句柄：先停掉旧会话（换台 / 刷新路径），再多开时各停各的。
+    await stop();
+    _conn = rust_douyu.DouyuDanmakuConnection();
+    _subscription = _conn!.start(roomId: roomId).listen(
       (item) {
         switch (item) {
           case rust_danmu.LiveDanmuItem_Message(:final field0):
@@ -185,8 +192,9 @@ class RustDouyuDanmaku extends LiveDanmaku {
 
   @override
   Future<void> stop() async {
-    rust_douyu.stopDouyuDanmaku();
+    _conn?.stop();
     await _subscription?.cancel();
     _subscription = null;
+    _conn = null;
   }
 }

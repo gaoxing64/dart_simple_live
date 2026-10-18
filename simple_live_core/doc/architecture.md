@@ -81,9 +81,10 @@ simple_live_core/
 ### 3.3 弹幕会话的一生
 
 ```
-start_*_danmaku(args_json, sink)          # FRB 门面（或 CLI 直接装配）
+XxxDanmakuConnection::new()                  # FRB 门面：每路播放一个句柄（多开各停各的）
+XxxDanmakuConnection::start(args_json, sink) # （或 CLI 直接装配）
   → args from_json（失败 → CoreError）
-  → 单房间语义：激活新会话前，向旧会话的 watch::Sender 发 true
+  → stop_rx = 本句柄的 watch::Sender.subscribe()（无全局单例，互不顶掉）
   → std::thread::spawn + 自建 current_thread runtime   ← FRB 的 FFI 线程没有 reactor，tokio::spawn 会 panic
   → run_session(args, ConnectFactory, TimeSource, Tuning, stop_rx, on_item)
        ├─ connect 失败 → 退避 5s，最多 5 次 → Closed

@@ -5,10 +5,10 @@
 //! 映射后抛出（两路径收敛到同一异常类型，ADR-006）。
 //!
 //! ⚠️ **真机坑（Spec §13 修复记录，FRB FFI 线程无 tokio runtime）**：
-//! `start_douyin_danmaku` 在 FRB 的 FFI 调用线程上执行，那里**没有** tokio runtime，
-//! 直接 `tokio::spawn` 会 panic（"there is no reactor running"，且 panic 被吞掉、
-//! 表现为「直播开始后没有任何弹幕」）。故弹幕会话走**独立线程 + 自建 current_thread
-//! runtime**（单会话 IO，current_thread 足够）。
+//! `DouyinDanmakuConnection::start` 在 FRB 的 FFI 调用线程上执行，那里**没有**
+//! tokio runtime，直接 `tokio::spawn` 会 panic（"there is no reactor running"，
+//! 且 panic 被吞掉、表现为「直播开始后没有任何弹幕」）。故弹幕会话走**独立线程 +
+//! 自建 current_thread runtime**（单会话 IO，current_thread 足够）。
 
 use std::sync::Arc;
 
@@ -226,85 +226,88 @@ impl LiveDouyinSite {
     }
 }
 
-/// 当前活跃抖音弹幕会话的停止信号（单房间语义，与 Dart core 一致）。
-fn active_stop() -> &'static std::sync::Mutex<Option<watch::Sender<bool>>> {
-    static CELL: std::sync::OnceLock<std::sync::Mutex<Option<watch::Sender<bool>>>> =
-        std::sync::OnceLock::new();
-    CELL.get_or_init(|| std::sync::Mutex::new(None))
-}
-
-/// 手动停止当前抖音弹幕会话（全局单例；对齐 Dart `LiveDanmaku.stop()`）。
-#[frb(sync)]
-pub fn stop_douyin_danmaku() {
-    if let Some(stop_tx) = active_stop().lock().expect("stop 锁").take() {
-        let _ = stop_tx.send(true);
-    }
-}
-
-/// 启动抖音弹幕会话：事件推入 stream（FRB 侧表现为 `Stream<LiveDanmuItem>`）。
+/// 抖音弹幕连接句柄（FRB opaque）：**每实例一份**，持有本会话的停止信号。
 ///
-/// `args_json` 是 [`DouyinDanmakuArgs`] 的 JSON 串（snake_case 契约）；解析失败或
-/// 握手签名失败 -> `CoreError`，对应 Dart 侧 `FormatException`（J-10）。
-/// 同时启动新会话会**停止**旧会话（单房间语义）。
-pub fn start_douyin_danmaku(
-    args_json: String,
-    sink: StreamSink<LiveDanmuItem>,
-) -> Result<(), CoreError> {
-    let args = DouyinDanmakuArgs::from_json(&args_json).map_err(CoreError::from)?;
-    let (stop_tx, stop_rx) = watch::channel(false);
+/// 2026-10-18 修复多开异常：旧实现用全局单例 `active_stop` 登记「当前会话」，
+/// 启动第二路会先把第一路的 stop 置 `true` —— 多开时只有最后启动的那路有弹幕，
+/// 其余路聊天区显示「已手动停止」。改为句柄自持 stop 后各停各的、互不影响；
+/// 句柄被释放（Dart 侧丢弃且未显式 stop）时发送端 drop，会话随句柄一起结束。
+#[frb(opaque)]
+pub struct DouyinDanmakuConnection {
+    stop_tx: watch::Sender<bool>,
+}
 
-    // 单房间语义：新会话顶掉旧会话
-    {
-        let mut active = active_stop().lock().expect("stop 锁");
-        if let Some(old) = active.take() {
-            let _ = old.send(true);
-        }
-        *active = Some(stop_tx);
+impl DouyinDanmakuConnection {
+    /// 构造连接句柄（尚未连接；`start` 之后才持有会话）。
+    #[frb(sync)]
+    pub fn new() -> Self {
+        let (stop_tx, _stop_rx) = watch::channel(false);
+        Self { stop_tx }
     }
 
-    // 握手 URL 提前算好（含 x_bogus 签名）：连接工厂只持克隆，签名不重复计算。
-    // 签名失败属「入参非法」，必须在起线程**之前**返回给 Dart（否则错误会被吞进
-    // 无人观察的线程里，表现为「直播了但连不上」且无任何提示）。
-    let ws_url = build_ws_signature(&args.room_id, &args.user_id, VERSION_CODE, SDK_VERSION)
-        .map_err(CoreError::from)
-        .map(|signature| {
-            let ts_millis = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_millis() as u64)
-                .unwrap_or_default();
-            args.ws_url(args.primary_host(), ts_millis, &signature)
-        })?;
-    let ws_headers = args.connect_headers();
+    /// 启动抖音弹幕会话：事件推入 stream（FRB 侧表现为 `Stream<LiveDanmuItem>`）。
+    ///
+    /// `args_json` 是 [`DouyinDanmakuArgs`] 的 JSON 串（snake_case 契约）；解析失败或
+    /// 握手签名失败 -> `CoreError`，对应 Dart 侧 `FormatException`（J-10）。
+    /// 多路播放各自持句柄调用，会话之间互不停止。
+    pub fn start(
+        &self,
+        args_json: String,
+        sink: StreamSink<LiveDanmuItem>,
+    ) -> Result<(), CoreError> {
+        let args = DouyinDanmakuArgs::from_json(&args_json).map_err(CoreError::from)?;
+        let stop_rx = self.stop_tx.subscribe();
 
-    let connect: ConnectFactory = Box::new(move || {
-        let url = ws_url.clone();
-        let headers = ws_headers.clone();
-        Box::pin(async move { connect_douyin_ws(url, headers).await })
-    });
+        // 握手 URL 提前算好（含 x_bogus 签名）：连接工厂只持克隆，签名不重复计算。
+        // 签名失败属「入参非法」，必须在起线程**之前**返回给 Dart（否则错误会被吞进
+        // 无人观察的线程里，表现为「直播了但连不上」且无任何提示）。
+        let ws_url = build_ws_signature(&args.room_id, &args.user_id, VERSION_CODE, SDK_VERSION)
+            .map_err(CoreError::from)
+            .map(|signature| {
+                let ts_millis = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or_default();
+                args.ws_url(args.primary_host(), ts_millis, &signature)
+            })?;
+        let ws_headers = args.connect_headers();
 
-    // ⚠️ FRB 的 FFI 调用线程没有 tokio runtime —— 在这里 `tokio::spawn` 会
-    // panic（"there is no reactor running"，真实日志抓到，且 panic 被吞）。
-    // 弹幕会话放到独立线程 + 自建 runtime（current_thread 足够：单会话 IO）。
-    std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("douyin danmaku runtime");
-        runtime.block_on(async move {
-            slive_core::platforms::douyin::danmaku::run_session(
-                args,
-                connect,
-                Arc::new(SystemClock),
-                stop_rx,
-                move |item| {
-                    let _ = sink.add(item);
-                },
-            )
-            .await;
+        let connect: ConnectFactory = Box::new(move || {
+            let url = ws_url.clone();
+            let headers = ws_headers.clone();
+            Box::pin(async move { connect_douyin_ws(url, headers).await })
         });
-    });
 
-    Ok(())
+        // ⚠️ FRB 的 FFI 调用线程没有 tokio runtime —— 在这里 `tokio::spawn` 会
+        // panic（"there is no reactor running"，真实日志抓到，且 panic 被吞）。
+        // 弹幕会话放到独立线程 + 自建 runtime（current_thread 足够：单会话 IO）。
+        std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("douyin danmaku runtime");
+            runtime.block_on(async move {
+                slive_core::platforms::douyin::danmaku::run_session(
+                    args,
+                    connect,
+                    Arc::new(SystemClock),
+                    stop_rx,
+                    move |item| {
+                        let _ = sink.add(item);
+                    },
+                )
+                .await;
+            });
+        });
+
+        Ok(())
+    }
+
+    /// 手动停止本会话（对齐 Dart `LiveDanmaku.stop()`：发出 `Closed`，不再重连）。
+    #[frb(sync)]
+    pub fn stop(&self) {
+        let _ = self.stop_tx.send(true);
+    }
 }
 
 /// 连接装配（URL/headers 来自核心契约）。

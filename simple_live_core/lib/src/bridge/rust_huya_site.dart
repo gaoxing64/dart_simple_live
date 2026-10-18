@@ -155,8 +155,13 @@ class RustHuyaSite extends LiveSite {
 /// `start(args)` 的 `args` 为 `detail.danmakuData` 原样透传（JSON 串，
 /// Rust 侧 `from_json` 解析失败抛 `CoreError` —— J-10）。
 /// 心跳由 Rust 会话内部管理（60s），Dart 侧 `heartbeat()` / `heartbeatTime` 不参与。
+///
+/// 多开播放（2026-10-18 修复）：每个 `RustHuyaDanmaku` 实例自持一个
+/// `HuyaDanmakuConnection` 句柄 —— 旧实现是全局单例，第二路 start 会把第一路
+/// stop 掉，表现为「只有一路有弹幕，另一路聊天区显示已手动停止」。
 class RustHuyaDanmaku extends LiveDanmaku {
   StreamSubscription<rust_danmu.LiveDanmuItem>? _subscription;
+  rust_huya_danmaku.HuyaDanmakuConnection? _conn;
   bool _stopped = true;
 
   @override
@@ -168,10 +173,11 @@ class RustHuyaDanmaku extends LiveDanmaku {
         '虎牙弹幕参数应为 Rust 契约的 JSON 串（detail.danmakuData）',
       );
     }
-    _stopped = true;
-    await _subscription?.cancel();
+    // 新会话 = 新句柄：先停掉旧会话（换台 / 刷新路径），再多开时各停各的。
+    await stop();
     _stopped = false;
-    _subscription = rust_huya_danmaku.startHuyaDanmaku(argsJson: args).listen(
+    _conn = rust_huya_danmaku.HuyaDanmakuConnection();
+    _subscription = _conn!.start(argsJson: args).listen(
       (item) {
         switch (item) {
           case rust_danmu.LiveDanmuItem_Message(:final field0):
@@ -206,8 +212,9 @@ class RustHuyaDanmaku extends LiveDanmaku {
   @override
   Future<void> stop() async {
     _stopped = true;
-    rust_huya_danmaku.stopHuyaDanmaku();
+    _conn?.stop();
     await _subscription?.cancel();
     _subscription = null;
+    _conn = null;
   }
 }

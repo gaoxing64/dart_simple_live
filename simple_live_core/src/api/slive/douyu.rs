@@ -1,11 +1,11 @@
-//! IP-3 斗鱼 FRB 门面：`LiveDouyuSite`（opaque 句柄）+ 弹幕入口 `start_douyu_danmaku`。
+//! IP-3 斗鱼 FRB 门面：`LiveDouyuSite`（opaque 句柄）+ 弹幕入口 `DouyuDanmakuConnection`。
 //!
 //! 纪律（AC-39 / 裁决 J-6 / R-13）：桥层**只做类型翻译 + 转发**，零协议逻辑 ——
 //! URL / 签名 / STT 编解码 / 重连策略 / 海外 expire 兜底全部在 `slive-core`。
 //! 异常由 `SliveError` 映射为 `CoreError` 后抛出（与 B站同一口径）。
 //!
-//! ⚠️ 命名独立于 B站：入口是 `start_douyu_danmaku`（不是改 `danmaku.rs` 的 `start_danmaku`），
-//! 以免多平台并行期间互相覆盖桥层文件。
+//! ⚠️ 命名独立于 B站：弹幕入口是 `DouyuDanmakuConnection::start`（不是改
+//! `danmaku.rs` 的 `DanmakuConnection::start`），以免多平台并行期间互相覆盖桥层文件。
 
 use flutter_rust_bridge::frb;
 use slive_core::platforms::douyu::danmaku::args::DouyuDanmakuArgs;
@@ -14,6 +14,7 @@ use slive_core::platforms::douyu::DouyuSite;
 use slive_core::time::SystemClock;
 use slive_core::ws::ConnectFactory;
 use std::sync::Arc;
+use tokio::sync::watch;
 
 use crate::api::slive::danmaku::connect_ws_frame_source;
 use crate::api::slive::error::CoreError;
@@ -24,34 +25,71 @@ use crate::api::slive::models::{
 };
 use crate::frb_generated::StreamSink;
 
-/// 斗鱼弹幕会话的停止信号登记（**斗鱼专属**，不改动 B站 `danmaku.rs` 的全局单例）。
+/// 斗鱼弹幕连接句柄（FRB opaque）：**每实例一份**，持有本会话的停止信号。
 ///
-/// 单房间语义：启动新会话会顶掉旧会话（对齐 Dart core 一个 `LiveDanmaku` 实例的行为）。
-pub(crate) struct DouyuStopRegistry;
+/// 2026-10-18 修复多开异常：旧实现用全局单例 `DouyuStopRegistry` 登记「当前会话」，
+/// 启动第二路会先把第一路的 stop 置 `true` —— 多开时只有最后启动的那路有弹幕，
+/// 其余路聊天区显示「已手动停止」。改为句柄自持 stop 后各停各的、互不影响；
+/// 句柄被释放（Dart 侧丢弃且未显式 stop）时发送端 drop，会话随句柄一起结束。
+#[frb(opaque)]
+pub struct DouyuDanmakuConnection {
+    stop_tx: watch::Sender<bool>,
+}
 
-impl DouyuStopRegistry {
-    fn cell() -> &'static std::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>> {
-        static CELL: std::sync::OnceLock<std::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>> =
-            std::sync::OnceLock::new();
-        CELL.get_or_init(|| std::sync::Mutex::new(None))
+impl DouyuDanmakuConnection {
+    /// 构造连接句柄（尚未连接；`start` 之后才持有会话）。
+    #[frb(sync)]
+    pub fn new() -> Self {
+        let (stop_tx, _stop_rx) = watch::channel(false);
+        Self { stop_tx }
     }
 
-    /// 注册新会话并停掉旧会话，返回本会话的接收端。
-    pub(crate) fn activate() -> tokio::sync::watch::Receiver<bool> {
-        let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
-        let mut active = Self::cell().lock().expect("douyu stop 锁");
-        if let Some(old) = active.take() {
-            let _ = old.send(true);
-        }
-        *active = Some(stop_tx);
-        stop_rx
+    /// 启动斗鱼弹幕会话（F-11~F-16）。
+    ///
+    /// `room_id` 即 `LiveRoomDetail.danmakuData`（斗鱼弹幕参数**就是房间号**，不是 JSON）——
+    /// 空房间号 -> `CoreError(InvalidInput)`，对应 Dart 侧解析失败抛异常的口径（J-10）。
+    /// 多路播放各自持句柄调用，会话之间互不停止。
+    pub fn start(&self, room_id: String, sink: StreamSink<LiveDanmuItem>) -> Result<(), CoreError> {
+        let args = DouyuDanmakuArgs::new(&room_id).map_err(CoreError::from)?;
+        let stop_rx = self.stop_tx.subscribe();
+
+        let ws_url = args.ws_url();
+        let ws_headers = args.connect_headers();
+        let connect: ConnectFactory = Box::new(move || {
+            let url = ws_url.clone();
+            let headers = ws_headers.clone();
+            Box::pin(async move { connect_ws_frame_source(url, headers).await })
+        });
+
+        // ⚠️ FRB 的 FFI 调用线程没有 tokio runtime —— 在这里 `tokio::spawn` 会 panic
+        // （"there is no reactor running"，B站真机日志抓到）。必须独立线程 + 自建 runtime。
+        std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("douyu danmaku runtime");
+            runtime.block_on(async move {
+                run_session(
+                    args,
+                    connect,
+                    Arc::new(SystemClock),
+                    douyu_tuning(),
+                    stop_rx,
+                    move |item| {
+                        let _ = sink.add(item);
+                    },
+                )
+                .await;
+            });
+        });
+
+        Ok(())
     }
 
-    /// 停止当前会话（手动停止 / 换房间）。
-    pub(crate) fn stop_active() {
-        if let Some(stop_tx) = Self::cell().lock().expect("douyu stop 锁").take() {
-            let _ = stop_tx.send(true);
-        }
+    /// 手动停止本会话（对齐 Dart `DouyuDanmaku.stop()`：发出 `Closed`，不再重连）。
+    #[frb(sync)]
+    pub fn stop(&self) {
+        let _ = self.stop_tx.send(true);
     }
 }
 
@@ -236,55 +274,4 @@ impl LiveDouyuSite {
             .await
             .map_err(CoreError::from)
     }
-}
-
-/// 启动斗鱼弹幕会话（F-11~F-16）。
-///
-/// `room_id` 即 `LiveRoomDetail.danmakuData`（斗鱼弹幕参数**就是房间号**，不是 JSON）——
-/// 空房间号 -> `CoreError(InvalidInput)`，对应 Dart 侧解析失败抛异常的口径（J-10）。
-/// 同时启动新会话会**停止**旧会话（单房间语义，与 Dart core 一致）。
-pub fn start_douyu_danmaku(
-    room_id: String,
-    sink: StreamSink<LiveDanmuItem>,
-) -> Result<(), CoreError> {
-    let args = DouyuDanmakuArgs::new(&room_id).map_err(CoreError::from)?;
-    let stop_rx = DouyuStopRegistry::activate();
-
-    let ws_url = args.ws_url();
-    let ws_headers = args.connect_headers();
-    let connect: ConnectFactory = Box::new(move || {
-        let url = ws_url.clone();
-        let headers = ws_headers.clone();
-        Box::pin(async move { connect_ws_frame_source(url, headers).await })
-    });
-
-    // ⚠️ FRB 的 FFI 调用线程没有 tokio runtime —— 在这里 `tokio::spawn` 会 panic
-    // （"there is no reactor running"，B站真机日志抓到）。必须独立线程 + 自建 runtime。
-    std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("douyu danmaku runtime");
-        runtime.block_on(async move {
-            run_session(
-                args,
-                connect,
-                Arc::new(SystemClock),
-                douyu_tuning(),
-                stop_rx,
-                move |item| {
-                    let _ = sink.add(item);
-                },
-            )
-            .await;
-        });
-    });
-
-    Ok(())
-}
-
-/// 手动停止斗鱼弹幕会话（对齐 Dart `DouyuDanmaku.stop()`）。
-#[frb(sync)]
-pub fn stop_douyu_danmaku() {
-    DouyuStopRegistry::stop_active();
 }

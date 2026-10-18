@@ -145,7 +145,7 @@ cargo clippy --all-targets                              # 静态检查
 | TC-M07 | 抖音 protobuf | `PushFrame → gzip → Response`；`needAck` 回 Ack；Chat/RoomUserSeq/Emoji 三类消息 | [已有] `ac_douyin_danmaku` |
 | TC-M08 | Twitch IRC | `PING` → `PONG`；PRIVMSG + display-name + color 齐备才产出 chat | [已有] `ac_twitch_danmaku` |
 | TC-M09 | 任意平台解码异常 | 只记日志、不断连、不抛出 | [已有] |
-| TC-M10 | 单房间语义 | 新 `start` 顶掉旧会话，旧会话收到 `Closed("已手动停止")` | [已有] lib 单测 |
+| TC-M10 | 多开互不停止 | 各句柄 stop 通道独立：停 A 不影响 B；句柄释放（发送端 drop）→ 本会话 `Closed("已手动停止")` 不重连 | [已有] lib 单测（`sender_drop_ends_session_without_reconnect` / `stop_channels_are_per_connection`） |
 
 ### 4.4 表情包
 

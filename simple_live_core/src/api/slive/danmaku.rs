@@ -81,13 +81,74 @@ pub async fn connect_ws_frame_source(
     Ok(Box::new(WsFrameSource { stream }))
 }
 
-/// 弹幕会话句柄（FRB opaque）：持有停止信号。
+/// 弹幕会话句柄（FRB opaque）：**每实例一份**，持有本会话的停止信号。
+///
+/// 2026-10-18 修复多开异常：旧实现用全局单例 `active_stop` 登记「当前会话」，
+/// 启动第二路会先把第一路的 stop 置 `true` —— 多开时只有最后启动的那路有弹幕，
+/// 其余路聊天区显示「已手动停止」。改为句柄自持 stop 后各停各的、互不影响；
+/// 句柄被释放（Dart 侧丢弃且未显式 stop）时发送端 drop，会话随句柄一起结束。
 #[frb(opaque)]
 pub struct DanmakuConnection {
     stop_tx: watch::Sender<bool>,
 }
 
 impl DanmakuConnection {
+    /// 构造连接句柄（尚未连接；`start` 之后才持有会话）。
+    #[frb(sync)]
+    pub fn new() -> Self {
+        let (stop_tx, _stop_rx) = watch::channel(false);
+        Self { stop_tx }
+    }
+
+    /// 启动弹幕会话（F-11）：连接 `args` 指定的 WS 地址，事件推入 stream。
+    ///
+    /// `args_json` 是 [`BiliBiliDanmakuArgs`] 的 JSON 串（J-2 契约）；解析失败 →
+    /// `CoreError(Decode)`，对应 Dart 侧 `FormatException`（J-10）。
+    /// 多路播放各自持句柄调用，会话之间互不停止。
+    pub fn start(
+        &self,
+        args_json: String,
+        sink: StreamSink<LiveDanmuItem>,
+    ) -> Result<(), CoreError> {
+        let args = BiliBiliDanmakuArgs::from_json(&args_json).map_err(CoreError::from)?;
+        let stop_rx = self.stop_tx.subscribe();
+
+        // URL / headers 固定：提前计算，闭包只持有克隆（args 本身交给 run_session）
+        let ws_url = args.ws_url();
+        let ws_headers = args.connect_headers();
+
+        let connect: ConnectFactory = Box::new(move || {
+            let url = ws_url.clone();
+            let headers = ws_headers.clone();
+            Box::pin(async move { connect_ws_frame_source(url, headers).await })
+        });
+
+        // ⚠️ FRB 的 FFI 调用线程没有 tokio runtime —— 在这里 `tokio::spawn` 会
+        // panic（"there is no reactor running"，真实日志抓到）。弹幕会话放到
+        // 独立线程 + 自建 runtime（current_thread 足够：单会话 IO）。
+        std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("danmaku runtime");
+            runtime.block_on(async move {
+                run_session(
+                    args,
+                    connect,
+                    Arc::new(SystemClock),
+                    SessionTuning::bilibili(),
+                    stop_rx,
+                    move |item| {
+                        let _ = sink.add(item);
+                    },
+                )
+                .await;
+            });
+        });
+
+        Ok(())
+    }
+
     /// 手动停止（对齐 Dart `LiveDanmaku.stop()`：发出 `Closed`，不再重连）。
     #[frb(sync)]
     pub fn stop(&self) {
@@ -95,74 +156,24 @@ impl DanmakuConnection {
     }
 }
 
-/// 当前活跃弹幕会话的停止信号（单房间语义，与 Dart core 的 `LiveDanmaku` 一致）。
-fn active_stop() -> &'static std::sync::Mutex<Option<watch::Sender<bool>>> {
-    static CELL: std::sync::OnceLock<std::sync::Mutex<Option<watch::Sender<bool>>>> =
-        std::sync::OnceLock::new();
-    CELL.get_or_init(|| std::sync::Mutex::new(None))
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// 手动停止当前弹幕会话（全局单例；对齐 Dart `LiveDanmaku.stop()`）。
-#[frb(sync)]
-pub fn stop_danmaku() {
-    if let Some(stop_tx) = active_stop().lock().expect("stop 锁").take() {
-        let _ = stop_tx.send(true);
+    /// 多开回归（2026-10-18）：每个句柄的 stop 通道必须互相独立 ——
+    /// 旧全局单例在这里会表现为「停 A 把 B 也停掉」。
+    #[test]
+    fn stop_channels_are_per_connection() {
+        let a = DanmakuConnection::new();
+        let b = DanmakuConnection::new();
+        let mut rx_a = a.stop_tx.subscribe();
+
+        a.stop();
+
+        assert!(*rx_a.borrow_and_update(), "停 A 只应影响 A 自己");
+        assert!(
+            !*b.stop_tx.subscribe().borrow(),
+            "B 的停止信号不得被 A 的 stop 触发"
+        );
     }
-}
-
-/// 启动弹幕会话（F-11）：连接 `args` 指定的 WS 地址，事件推入 stream。
-///
-/// `args_json` 是 [`BiliBiliDanmakuArgs`] 的 JSON 串（J-2 契约）；解析失败 →
-/// `CoreError(Decode)`，对应 Dart 侧 `FormatException`（J-10）。
-/// 同时启动新会话会**停止**旧会话（单房间语义）。
-pub fn start_danmaku(
-    args_json: String,
-    sink: StreamSink<LiveDanmuItem>,
-) -> Result<(), CoreError> {
-    let args = BiliBiliDanmakuArgs::from_json(&args_json).map_err(CoreError::from)?;
-    let (stop_tx, stop_rx) = watch::channel(false);
-
-    // 单房间语义：新会话顶掉旧会话
-    {
-        let mut active = active_stop().lock().expect("stop 锁");
-        if let Some(old) = active.take() {
-            let _ = old.send(true);
-        }
-        *active = Some(stop_tx.clone());
-    }
-
-    // URL / headers 固定：提前计算，闭包只持有克隆（args 本身交给 run_session）
-    let ws_url = args.ws_url();
-    let ws_headers = args.connect_headers();
-
-    let connect: ConnectFactory = Box::new(move || {
-        let url = ws_url.clone();
-        let headers = ws_headers.clone();
-        Box::pin(async move { connect_ws_frame_source(url, headers).await })
-    });
-
-    // ⚠️ FRB 的 FFI 调用线程没有 tokio runtime —— 在这里 `tokio::spawn` 会
-    // panic（"there is no reactor running"，真实日志抓到）。弹幕会话放到
-    // 独立线程 + 自建 runtime（current_thread 足够：单会话 IO）。
-    std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("danmaku runtime");
-        runtime.block_on(async move {
-            run_session(
-                args,
-                connect,
-                Arc::new(SystemClock),
-                SessionTuning::bilibili(),
-                stop_rx,
-                move |item| {
-                    let _ = sink.add(item);
-                },
-            )
-            .await;
-        });
-    });
-
-    Ok(())
 }

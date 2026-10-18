@@ -100,8 +100,9 @@ sequenceDiagram
 
     C->>B: 注册 onReady / onMessage / onClose
     C->>B: start(detail.danmakuData)
-    B->>F: startXxxDanmaku(argsJson)
-    F->>S: from_json → 激活会话（顶掉旧会话）
+    B->>B: 新建 XxxDanmakuConnection 句柄（每路播放一个）
+    B->>F: connection.start(argsJson)
+    F->>S: from_json → 起会话（stop_rx 取自本句柄，不碰其他会话）
     S->>S: 独立线程 + 自建 tokio runtime
     S->>P: WS 握手
     S-->>F: Control(Ready)
@@ -115,7 +116,7 @@ sequenceDiagram
     F-->>B: Stream 事件
     B-->>C: onMessage / onClose
     C->>B: stop()
-    B->>F: stopXxxDanmaku()
+    B->>F: connection.stop()
     S-->>F: Control(Closed「已手动停止」)
 ```
 
@@ -135,7 +136,7 @@ stateDiagram-v2
 ```
 
 约定：
-- **单房间语义**：同一平台再次 `start` 会先向旧会话的 `watch::Sender` 发 `true`，旧会话收到 `Closed("已手动停止")` 后退出。
+- **每路播放一个句柄（多开）**：`XxxDanmakuConnection` 每实例自持停止信号，新 `start` 不顶掉其他会话；`stop()` 或句柄释放（发送端 drop）→ 本会话收 `Closed("已手动停止")` 退出。
 - **未开播也要能挂弹幕**：虎牙为闭播状态提供 `HuyaDanmakuArgs` 兜底；`status == false` 时 App 仍应继续挂。
 - **解码异常不打断长连接**：单条脏帧只记日志（`eprintln!` / `log`），继续收下一帧。
 
