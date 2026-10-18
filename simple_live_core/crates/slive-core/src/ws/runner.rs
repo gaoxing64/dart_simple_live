@@ -37,6 +37,7 @@ pub fn join_frame(args: &BiliBiliDanmakuArgs) -> Vec<u8> {
 /// 心跳在**每帧处理后**检查到期（60s，注入时间源判定）；长静默场景的定时兜底
 /// 由桥层连接实现负责（核心不持有定时器，保证可测性）。
 /// `stop` 置 `true` 即手动停止：发出 `Closed("已手动停止")` 后返回，不再重连。
+/// 发送端全部 drop（连接句柄释放）同样视为停止（否则 `changed()` 会热循环返回 Err）。
 pub async fn run_session(
     args: BiliBiliDanmakuArgs,
     mut connect: ConnectFactory,
@@ -85,8 +86,11 @@ pub async fn run_session(
             let frame = tokio::select! {
                 biased;
                 f = source.next_frame() => f,
-                _ = stop.changed() => {
-                    if *stop.borrow_and_update() {
+                r = stop.changed() => {
+                    // `Err` = 发送端全部 drop（弹幕连接句柄已释放）：会话随句柄一起结束，
+                    // 否则这里会变成「changed() 立即返回 Err」的热循环。
+                    // `Ok(false)` 理论上不会出现（只有「置 true」一个写端），按误唤醒继续等帧。
+                    if r.is_err() || *stop.borrow_and_update() {
                         on_item(LiveDanmuItem::Control(LiveDanmuControlEvent::Closed(
                             "已手动停止".to_string(),
                         )));
@@ -221,6 +225,54 @@ mod tests {
         assert_eq!(&frame[8..12], &7u32.to_be_bytes(), "join 的 op=7");
         assert_eq!(&frame[12..16], &1u32.to_be_bytes(), "seq 固定 1");
         assert_eq!(&frame[16..], args.join_payload().as_bytes(), "body = join 载荷");
+    }
+
+    /// 永不回帧的事件源：把会话钉在帧循环里，逼 `stop` 分支出手。
+    struct PendingSource;
+
+    #[async_trait::async_trait]
+    impl FrameSource for PendingSource {
+        async fn next_frame(&mut self) -> Option<Result<Vec<u8>, SliveError>> {
+            std::future::pending().await
+        }
+        async fn send(&mut self, _frame: Vec<u8>) -> Result<(), SliveError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn sender_drop_ends_session_without_reconnect() {
+        let mut queue: VecDeque<Box<dyn FrameSource>> = VecDeque::new();
+        queue.push_back(Box::new(PendingSource));
+        let connect: ConnectFactory = Box::new(move || {
+            let next = queue.pop_front();
+            Box::pin(async move { next.ok_or_else(|| SliveError::network("无更多连接")) })
+        });
+        let (items, on_item) = collector();
+        // 发送端在会话开始前就 drop（FRB 连接句柄被 Dart 释放）：会话应随句柄结束，
+        // 只发 Ready + Closed，不重连；否则 `changed()` 会立即返回 Err 形成热循环。
+        let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+        drop(stop_tx);
+        run_session(
+            args(),
+            connect,
+            Arc::new(FakeTime::new(0)),
+            SessionTuning::bilibili(),
+            stop_rx,
+            on_item,
+        )
+        .await;
+
+        let got = items.lock().expect("items").clone();
+        assert!(matches!(
+            got.first(),
+            Some(LiveDanmuItem::Control(LiveDanmuControlEvent::Ready))
+        ));
+        assert_eq!(got.len(), 2, "句柄释放只发 Ready + 一个 Closed，不重连");
+        assert!(matches!(
+            got.last(),
+            Some(LiveDanmuItem::Control(LiveDanmuControlEvent::Closed(m))) if m == "已手动停止"
+        ));
     }
 
     #[tokio::test]

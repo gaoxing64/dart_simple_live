@@ -45,6 +45,7 @@ pub fn join_frame() -> Vec<u8> {
 /// `_args` 不参与循环逻辑（握手 URL 由桥层连接工厂按 args 计算），保留在签名里是为了
 /// 与 B站 `run_session` 同形：调用方只需把「详情产出的参数」原样交给会话。
 /// `stop` 置 `true` 即手动停止：发出 `Closed` 后返回，不再重连。
+/// 发送端全部 drop（连接句柄释放）同样视为停止（否则 `changed()` 会热循环返回 Err）。
 /// ⚠️ 调用方**不得**在 FRB FFI 线程直接调用本函数（无 tokio runtime，`tokio::select!`
 /// 会 panic）—— 桥层须用独立线程 + 自建 runtime（见 `api/slive/douyin.rs`）。
 pub async fn run_session(
@@ -84,8 +85,11 @@ pub async fn run_session(
             let frame = tokio::select! {
                 biased;
                 f = source.next_frame() => f,
-                _ = stop.changed() => {
-                    if *stop.borrow_and_update() {
+                r = stop.changed() => {
+                    // `Err` = 发送端全部 drop（弹幕连接句柄已释放）：会话随句柄一起结束，
+                    // 否则这里会变成「changed() 立即返回 Err」的热循环。
+                    // `Ok(false)` 理论上不会出现（只有「置 true」一个写端），按误唤醒继续等帧。
+                    if r.is_err() || *stop.borrow_and_update() {
                         on_item(LiveDanmuItem::Control(LiveDanmuControlEvent::Closed(
                             "已手动停止".to_string(),
                         )));
@@ -277,6 +281,42 @@ mod tests {
         assert!(matches!(
             got[0],
             LiveDanmuItem::Control(LiveDanmuControlEvent::Closed(_))
+        ));
+    }
+
+    /// 永不回帧的事件源：把会话钉在帧循环里，逼 `stop` 分支出手。
+    struct PendingSource;
+
+    #[async_trait::async_trait]
+    impl FrameSource for PendingSource {
+        async fn next_frame(&mut self) -> Option<Result<Vec<u8>, SliveError>> {
+            std::future::pending().await
+        }
+        async fn send(&mut self, _frame: Vec<u8>) -> Result<(), SliveError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn sender_drop_ends_session_without_reconnect() {
+        let (items, on_item) = collector();
+        // 发送端在会话开始前就 drop（FRB 连接句柄被 Dart 释放）：会话应随句柄结束，
+        // 只发 Ready + Closed，不重连；否则 `changed()` 会立即返回 Err 形成热循环。
+        let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+        drop(stop_tx);
+        let connect: ConnectFactory =
+            Box::new(|| Box::pin(async { Ok(Box::new(PendingSource) as Box<dyn FrameSource>) }));
+        run_session(args(), connect, Arc::new(FakeTime::new(0)), stop_rx, on_item).await;
+
+        let got = items.lock().expect("items").clone();
+        assert!(matches!(
+            got.first(),
+            Some(LiveDanmuItem::Control(LiveDanmuControlEvent::Ready))
+        ));
+        assert_eq!(got.len(), 2, "句柄释放只发 Ready + 一个 Closed，不重连");
+        assert!(matches!(
+            got.last(),
+            Some(LiveDanmuItem::Control(LiveDanmuControlEvent::Closed(m))) if m == "已手动停止"
         ));
     }
 }

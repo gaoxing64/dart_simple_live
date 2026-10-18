@@ -157,8 +157,11 @@ pub async fn run_session_with_emoticons(
             let frame = tokio::select! {
                 biased;
                 f = source.next_frame() => f,
-                _ = stop.changed() => {
-                    if *stop.borrow_and_update() {
+                r = stop.changed() => {
+                    // `Err` = 发送端全部 drop（弹幕连接句柄已释放）：会话随句柄一起结束，
+                    // 否则这里会变成「changed() 立即返回 Err」的热循环。
+                    // `Ok(false)` 理论上不会出现（只有「置 true」一个写端），按误唤醒继续等帧。
+                    if r.is_err() || *stop.borrow_and_update() {
                         on_item(LiveDanmuItem::Control(LiveDanmuControlEvent::Closed(
                             "已手动停止".to_string(),
                         )));

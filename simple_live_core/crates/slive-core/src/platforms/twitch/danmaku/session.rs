@@ -48,6 +48,7 @@ pub const fn tuning() -> SessionTuning {
 ///
 /// 心跳在**每帧处理后**检查到期（与 B站同口径；长静默场景的定时兜底由桥层连接负责）。
 /// `stop` 置 `true` 即手动停止：发出 `Closed("已手动停止")` 后返回，不再重连。
+/// 发送端全部 drop（连接句柄释放）同样视为停止（否则 `changed()` 会热循环返回 Err）。
 pub async fn run_session(
     args: TwitchDanmakuArgs,
     mut connect: ConnectFactory,
@@ -91,8 +92,11 @@ pub async fn run_session(
             let frame = tokio::select! {
                 biased;
                 f = source.next_frame() => f,
-                _ = stop.changed() => {
-                    if *stop.borrow_and_update() {
+                r = stop.changed() => {
+                    // `Err` = 发送端全部 drop（弹幕连接句柄已释放）：会话随句柄一起结束，
+                    // 否则这里会变成「changed() 立即返回 Err」的热循环。
+                    // `Ok(false)` 理论上不会出现（只有「置 true」一个写端），按误唤醒继续等帧。
+                    if r.is_err() || *stop.borrow_and_update() {
                         on_item(LiveDanmuItem::Control(LiveDanmuControlEvent::Closed(
                             "已手动停止".to_string(),
                         )));
