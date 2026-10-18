@@ -33,6 +33,7 @@ import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/history_service.dart';
 import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
 import 'package:simple_live_app/services/playback/live_playback_target.dart';
+import 'package:simple_live_app/services/screen_awake_service.dart';
 import 'package:simple_live_app/services/stream_relay/stream_relay_service.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
@@ -40,7 +41,6 @@ import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 
 class LiveRoomController extends PlayerController
     with WidgetsBindingObserver
@@ -306,6 +306,8 @@ class LiveRoomController extends PlayerController
     WidgetsBinding.instance.addObserver(this);
     // 播放事件 → 系统媒体控制（通知栏/锁屏/耳机键）的那条订阅。
     initBackgroundPlayback();
+    // 起播即持有屏幕常亮，暂停/停止/关房/直播结束才释放（见 [ScreenAwakeService]）。
+    initScreenAwake();
     if (FollowService.instance.followList.isEmpty) {
       FollowService.instance.loadData();
     }
@@ -464,7 +466,7 @@ class LiveRoomController extends PlayerController
       countdown.value -= 1;
       if (countdown.value <= 0) {
         timer = Timer(const Duration(seconds: 10), () async {
-          await WakelockPlus.disable();
+          await ScreenAwakeService.instance.releaseAll();
           exit(0);
         });
         autoExitTimer?.cancel();
@@ -483,7 +485,7 @@ class LiveRoomController extends PlayerController
           // 到点直接退 app：先把会话收干净，否则 exit(0) 之前那几路解码器
           // 还占着资源，也会让「关掉之后播放器仍在响」这种观测混进崩溃日志。
           multiPlay.dispose();
-          await WakelockPlus.disable();
+          await ScreenAwakeService.instance.releaseAll();
           exit(0);
         }
       }
@@ -975,7 +977,10 @@ class LiveRoomController extends PlayerController
     // 遍历线路，如果全部链接都断开就是直播结束了
     if (playUrls.length - 1 == currentLineIndex) {
       liveStatus.value = false;
+      // 直播确实结束：不再重连，这一路释放常亮（用户还可能盯着结束页看）。
+      ScreenAwakeService.instance.release(this);
     } else {
+      // 还有下一条线路：换线重连期间**不**释放常亮（见 ScreenAwakeService）。
       changePlayLine(currentLineIndex + 1);
 
       //setPlayer();
@@ -1000,6 +1005,8 @@ class LiveRoomController extends PlayerController
 
     if (playUrls.length - 1 == currentLineIndex) {
       errorMsg.value = "播放失败";
+      // 重试与换线都穷尽：这一路不会再有声画，释放常亮。
+      ScreenAwakeService.instance.release(this);
       SmartDialog.showToast("播放失败:$error");
     } else {
       //currentLineIndex += 1;
@@ -1678,6 +1685,9 @@ class LiveRoomController extends PlayerController
 
     // 停止播放
     await player.stop();
+    // 旧房间这一路的常亮持有到此为止：新房间起播时会重新 acquire。
+    // 不释放的话，新房间加载失败会让常亮一直挂在一个播不出画面的页面上。
+    ScreenAwakeService.instance.release(this);
 
     // 刷新信息
     loadData();
@@ -1700,6 +1710,7 @@ ${error?.stackTrace}''');
   StreamSubscription<bool>? _bgBufferingSubscription;
   StreamSubscription<bool>? _bgCompletedSubscription;
   StreamSubscription<dynamic>? _bgSettingSubscription;
+  StreamSubscription<bool>? _awakeSubscription;
 
   /// 播放器已释放/正在收尾：此期间任何事件都不许再往通知上写。
   ///
@@ -1732,6 +1743,21 @@ ${error?.stackTrace}''');
       // 开与关都要立刻处理：流稳定时 playing/buffering 可以很久不跳，等下一次事件的
       // 话，用户在设置页关了开关、通知还挂在屏幕上。
       syncBackgroundPlayback();
+    });
+  }
+
+  /// 屏幕常亮订阅：起播即持有（[ScreenAwakeService]）。
+  ///
+  /// 副格也要订阅 —— 常亮是全局开关，多开时每一路各自持有一份，靠服务里的
+  /// 引用计数决定何时真正熄灭，这里不能像通知那样只归主格。
+  /// 只在 `playing=true` 时 acquire：`playing=false` 既可能是用户暂停，也可能
+  /// 是断线重连的一跳，区分不了就不该在这里 release —— 释放只走
+  /// [playbackPause] / [playbackStop] / [onClose] 与直播终态这些明确入口。
+  void initScreenAwake() {
+    _awakeSubscription = player.stream.playing.listen((playing) {
+      if (playing) {
+        ScreenAwakeService.instance.acquire(this, reason: 'playing');
+      }
     });
   }
 
@@ -1806,7 +1832,7 @@ ${error?.stackTrace}''');
     await player.play();
     // 从前台以外的入口（通知/锁屏/耳机键）起播时，常亮状态也得接回来，
     // 否则回到 app 会发现屏幕常亮早就掉了。
-    WakelockPlus.enable();
+    ScreenAwakeService.instance.acquire(this, reason: 'playbackPlay');
   }
 
   @override
@@ -1815,7 +1841,8 @@ ${error?.stackTrace}''');
       return;
     }
     await player.pause();
-    WakelockPlus.disable();
+    // 用户/系统明确暂停：这一路不再需要常亮（多开时其余路各自持有，不受影响）。
+    ScreenAwakeService.instance.release(this);
   }
 
   /// 通知里的「停止」= 暂停出声 + 撤掉通知与前台服务。
@@ -1828,7 +1855,7 @@ ${error?.stackTrace}''');
       return;
     }
     await player.pause();
-    WakelockPlus.disable();
+    ScreenAwakeService.instance.release(this);
   }
 
   @override
@@ -1864,6 +1891,9 @@ ${error?.stackTrace}''');
   @override
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);
+    // 这一路的常亮持有随房间一起释放；多开时其余路的常亮由服务里的计数保住。
+    ScreenAwakeService.instance.release(this);
+    _awakeSubscription?.cancel();
     // 离开直播间必须让通知与前台服务一起消失。必须排在 super.onClose() 之前——
     // 那边会 `player.dispose()`，晚一步 handler 就会读到已释放的播放器。
     unawaited(releaseBackgroundPlayback());

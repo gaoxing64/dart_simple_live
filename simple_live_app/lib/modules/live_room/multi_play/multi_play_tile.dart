@@ -298,7 +298,7 @@ class MultiPlayTile extends StatelessWidget {
       controls: (state) => Stack(children: [buildDanmuView(state, tile)]),
       aspectRatio: fit.aspectRatio,
       fit: fit.fit,
-      // 保持唤醒由主格那份负责，四路各开一次没有意义
+      // 常亮由每一路各自的 ScreenAwakeService 持有计数，四路各开一次没有意义
       wakelock: false,
     );
   }

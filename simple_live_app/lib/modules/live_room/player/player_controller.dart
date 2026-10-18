@@ -27,7 +27,6 @@ import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_core/simple_live_core.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// 音量均衡（loudnorm / EBU R128 响度标准化）的 mpv 音频滤波链，目标响度取设置项。
@@ -583,8 +582,8 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       volumeController.showSystemUI = false;
     }
 
-    // 屏幕常亮
-    //WakelockPlus.enable();
+    // 屏幕常亮不在这里开：它跟着「这一路在不在播」走，由直播间的
+    // ScreenAwakeService 按路持有（多开引用计数），播放器只负责出声画。
 
     // 开始隐藏计时
     resetHideControlsTimer();
@@ -612,8 +611,6 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         Log.logPrint(e);
       }
     }
-
-    await WakelockPlus.disable();
   }
 
   /// 进入全屏
@@ -1256,7 +1253,7 @@ class PlayerController extends BaseController
         // 否则 pending 永久为 true，之后任何一条 af 失败日志（如流中途
         // 重建滤波链失败）都会被误判成内核缺滤镜而永久禁用均衡。
         _volumeNormalizePending = false;
-        WakelockPlus.enable();
+        // 屏幕常亮由直播间控制器的 ScreenAwakeService 持有，播放器不直接碰。
         Log.d("Playing");
       }
     });
@@ -1348,13 +1345,16 @@ class PlayerController extends BaseController
     _osdBackendSubscription?.cancel();
   }
 
-  void mediaEnd() {
-    WakelockPlus.disable();
-  }
+  /// 播放结束（EOS）钩子。宿主（直播间控制器）覆写它做断线自愈。
+  ///
+  /// 这里**不**碰屏幕常亮：EOS 之后往往还有重连/换线路，旧实现在这里 disable
+  /// 会把常亮灭在自愈的空窗里（弱网时足以让系统熄屏）。常亮归直播间的
+  /// [ScreenAwakeService] 按路持有，断线不释放、终态才释放。
+  void mediaEnd() {}
 
   void mediaError(String error) {
-    // 弱网调整：用户自责
-    // WakelockPlus.disable();
+    // 播放失败只做弱网提示与自愈（宿主 mediaError 覆写）；屏幕常亮不在此处释放，
+    // 重试/换线路期间用户还在看着这一路（见 ScreenAwakeService）。
   }
 
   /// 探测播放内核能否跑 mpv 内置 OSD（stats.lua 需要内核编入 Lua）。
