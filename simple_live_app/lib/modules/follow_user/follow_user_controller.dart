@@ -699,51 +699,54 @@ class FollowUserController extends BasePageController<FollowUser> {
   /// 不做「先清空再全量写」，避免把 fractional id 顺序之外的数据抖一遍。
   void setFollowTagDialog(FollowUser follow) {
     final copiedList = [...tagList.skip(3)];
-    final checked = <String>{...FollowService.instance.userTagNamesOf(follow.id)}.obs;
+    final checked = <String>{...FollowService.instance.userTagNamesOf(follow.id)};
 
     Get.dialog(
-      AlertDialog(
-        contentPadding: const EdgeInsets.all(16.0),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('设置分组', style: TextStyle(fontSize: 18)),
-                IconButton(
-                  tooltip: "保存",
-                  icon: const Icon(Icons.check),
-                  onPressed: () async {
-                    final before = FollowService.instance.userTagNamesOf(follow.id).toSet();
-                    for (final name in checked.difference(before)) {
-                      await FollowService.instance.addUserToTag(follow, name);
-                    }
-                    for (final name in before.difference(checked)) {
-                      await FollowService.instance.removeUserFromTag(follow, name);
-                    }
-                    FollowService.instance.liveListSort();
-                    filterData();
-                    Get.back();
-                  },
-                ),
-              ],
-            ),
-            const Divider(),
-            if (copiedList.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('还没有分组，先去「分组管理」新建'),
-              )
-            else
-              SizedBox(
-                height: 300,
-                width: 300,
-                child: Obx(
-                  () => ListView.builder(
+      // 勾选状态是 dialog 内的临时状态。不要用 Obx 包懒加载的 ListView：
+      // itemBuilder 在布局阶段才执行，Obx 构建窗口里读不到 checked，
+      // GetX 会直接抛 “improper use” 并把 dialog 变成一块灰色 ErrorWidget。
+      StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          contentPadding: const EdgeInsets.all(16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('设置分组', style: TextStyle(fontSize: 18)),
+                  IconButton(
+                    tooltip: "保存",
+                    icon: const Icon(Icons.check),
+                    onPressed: () async {
+                      final before = FollowService.instance.userTagNamesOf(follow.id).toSet();
+                      for (final name in checked.difference(before)) {
+                        await FollowService.instance.addUserToTag(follow, name);
+                      }
+                      for (final name in before.difference(checked)) {
+                        await FollowService.instance.removeUserFromTag(follow, name);
+                      }
+                      FollowService.instance.liveListSort();
+                      filterData();
+                      Get.back();
+                    },
+                  ),
+                ],
+              ),
+              const Divider(),
+              if (copiedList.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('还没有分组，先去「分组管理」新建'),
+                )
+              else
+                SizedBox(
+                  height: 300,
+                  width: 300,
+                  child: ListView.builder(
                     itemCount: copiedList.length,
                     itemBuilder: (context, index) {
                       final tagItem = copiedList[index];
@@ -757,19 +760,21 @@ class FollowUserController extends BasePageController<FollowUser> {
                           title: Text(tagItem.tag),
                           value: checked.contains(tagItem.tag),
                           onChanged: (v) {
-                            if (v == true) {
-                              checked.add(tagItem.tag);
-                            } else {
-                              checked.remove(tagItem.tag);
-                            }
+                            setState(() {
+                              if (v == true) {
+                                checked.add(tagItem.tag);
+                              } else {
+                                checked.remove(tagItem.tag);
+                              }
+                            });
                           },
                         ),
                       );
                     },
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
