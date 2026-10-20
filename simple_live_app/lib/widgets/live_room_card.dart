@@ -14,8 +14,7 @@ const double _kCoverHeight = 110;
 const double _kChipVPadding = 3;
 const double _kChipFontSize = 11;
 const double _kChipLineHeight = 1.2;
-const EdgeInsets _kChipPadding =
-    EdgeInsets.symmetric(horizontal: 8, vertical: _kChipVPadding);
+const EdgeInsets _kChipPadding = EdgeInsets.symmetric(horizontal: 8, vertical: _kChipVPadding);
 const double _kChipRadius = 6;
 
 /// 封面下方那行元信息（主播名 / 累计观看时长）的文字样式。
@@ -31,19 +30,17 @@ const TextStyle _kMetaTextStyle = TextStyle(
 /// 透明度按用户要求从 `0.92` 降到 **`0.75`** —— 让封面透出来一点、底托不那么"糊"。
 /// 代价是最坏情况（浅色主题压深封面、深色主题压亮封面）对比度会下降，
 /// 实测数据见 memory 2026-09-15。
-Color _chipBackground(ColorScheme scheme) =>
-    scheme.surfaceContainerHighest.withValues(alpha: 0.75);
+Color _chipBackground(ColorScheme scheme) => scheme.surfaceContainerHighest.withValues(alpha: 0.75);
 
-/// 直播中的房间卡片。
+/// 房间卡片（首页 / 搜索 / 分类 / 关注页的卡面视图共用）。
 ///
-/// 整合布局下它只服务「直播中」视图那一段 —— 未开播的房间走紧凑行
-/// （`FollowMemberRow`）。所以这里**不再需要**状态胶囊（段头已经在说明
-/// 这一段是什么）、圆形头像占位、未开播压暗、上次直播画面这些东西，
-/// 相应参数也就一并去掉了，卡片重新变回「只认 site + LiveRoomItem」。
+/// 关注页里它同时服务「直播中」和「未开播」两段：未开播没有封面，由
+/// [avatar] 在封面区画一个**圆形头像占位**（见 `_AvatarCover`），
+/// 让两种状态一眼可分。
 ///
-/// 同理它**不带取关按钮、也不显示累计观看时长**（用户明确要求）：卡面只负责
+/// 它**不带取关按钮、也不显示累计观看时长**（用户明确要求）：卡面只负责
 /// 吸引点击进直播间，「统计」与「取关」这两件事统一收在紧凑行
-/// （`FollowMemberRow`）。直播中的主播要取关，走「点卡片 → 直播间 → 取消关注」。
+/// （`FollowMemberRow`）。主播要取关走「点卡片 → 直播间 → 取消关注」。
 class LiveRoomCard extends StatelessWidget {
   final Site site;
   final LiveRoomItem item;
@@ -56,6 +53,13 @@ class LiveRoomCard extends StatelessWidget {
   /// 「直播中」这个卡面视图）。为 null 时主播名不可点，首页等处保持原样。
   final VoidCallback? onToggleSelect;
 
+  /// 没有封面时的圆形占位头像（关注页未开播的卡面用）。
+  ///
+  /// 为空时保持原行为（`NetImage` 无图显示 logo）。给值时头像以圆形
+  /// 居中盖在封面区，**不再拉满整块封面** —— 拉满和直播封面混在一起，
+  /// 一眼分不出在播与否。
+  final String avatar;
+
   const LiveRoomCard(
     this.site,
     this.item, {
@@ -63,6 +67,7 @@ class LiveRoomCard extends StatelessWidget {
     this.onLongPress,
     this.selected = false,
     this.onToggleSelect,
+    this.avatar = '',
   });
 
   @override
@@ -82,12 +87,14 @@ class LiveRoomCard extends StatelessWidget {
                   topLeft: Radius.circular(8),
                   topRight: Radius.circular(8),
                 ),
-                child: NetImage(
-                  item.cover,
-                  fit: BoxFit.cover,
-                  height: _kCoverHeight,
-                  width: double.infinity,
-                ),
+                child: item.cover.isEmpty && avatar.isNotEmpty
+                    ? _AvatarCover(avatar: avatar)
+                    : NetImage(
+                        item.cover,
+                        fit: BoxFit.cover,
+                        height: _kCoverHeight,
+                        width: double.infinity,
+                      ),
               ),
               // 平台图标挪进了右下角的人气胶囊（用户要求），这里不再单独放一个
               // 平台框 —— 同一张卡片上同一个 logo 出现两次是冗余。
@@ -169,6 +176,47 @@ class LiveRoomCard extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onToggle,
       child: SizedBox(width: double.infinity, child: label),
+    );
+  }
+}
+
+/// 封面区的圆形头像占位（未开播 / 无封面时）。
+///
+/// 中性底 + 居中的圆形头像：整块封面是「占位」而不是一张直播画面，
+/// 和直播中的卡面一眼能分开。头像沿用关注页未开播的压暗口径
+/// （[AppStyle.offlineDim]），跨视图的视觉语言保持一致。
+class _AvatarCover extends StatelessWidget {
+  final String avatar;
+
+  const _AvatarCover({required this.avatar});
+
+  /// 圆形头像直径：与**原来的图标占位同尺寸**。
+  ///
+  /// 原来无封面时 `NetImage` 显示 512×512 的 logo，在 `width: infinity,
+  /// height: 110` 的封面里按 `BoxFit.scaleDown` 缩成 110×110 —— 也就是填满
+  /// 封面高度。头像沿用这个尺寸，才是「卡面占位」的量级；照紧凑行的 48/56
+  /// 放进来会小得像漏了一张缩略图。
+  static const double _kAvatarSize = _kCoverHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      // key 供测试定位：断言「未开播的卡面走圆形占位」而不依赖内部结构。
+      key: const ValueKey('card-avatar-cover'),
+      height: _kCoverHeight,
+      width: double.infinity,
+      color: scheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: ColorFiltered(
+        colorFilter: AppStyle.offlineDim,
+        child: NetImage(
+          avatar,
+          width: _kAvatarSize,
+          height: _kAvatarSize,
+          borderRadius: _kAvatarSize / 2,
+        ),
+      ),
     );
   }
 }
