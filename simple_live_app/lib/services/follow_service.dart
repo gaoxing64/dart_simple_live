@@ -84,8 +84,7 @@ class FollowService extends GetxService {
     super.onInit();
   }
 
-  Future<void> updateTagName(
-      FollowUserTag followUserTag, String newTagName) async {
+  Future<void> updateTagName(FollowUserTag followUserTag, String newTagName) async {
     // 成员靠 id 关联，改名只是换个显示名，不需要碰任何关注记录。
     await updateFollowUserTag(followUserTag.copyWith(tag: newTagName));
   }
@@ -142,9 +141,8 @@ class FollowService extends GetxService {
   /// 名字对不上说明调用方拿了个已经删掉的组，不该再往里写人。
   ///
   /// ⚠️ 不在这里 `liveListSort()`：按「自定义分组」排序时归属变化会影响顺序，
-  /// 但一次批量归组（智能分组 / 勾选移入）要动 N 个人，每条都重排就是
-  /// O(N² log N)。排序交给调用方在一批操作结束后做一次（见控制器与
-  /// `SmartGroupService.execute`）。
+  /// 但一次批量归组（勾选移入分组）要动 N 个人，每条都重排就是
+  /// O(N² log N)。排序交给调用方在一批操作结束后做一次（见控制器）。
   Future<void> addUserToTag(FollowUser user, String tagName) async {
     if (tagName == '全部') {
       return removeAllTagsFromUser(user);
@@ -210,8 +208,7 @@ class FollowService extends GetxService {
     }
     final item = followTagList.removeAt(oldIndex);
     final insertAt = newIndex.clamp(0, followTagList.length);
-    final newKey = FractionalIndexing.generateKeyBetween(
-        insertAt > 0 ? followTagList[insertAt - 1].id : null,
+    final newKey = FractionalIndexing.generateKeyBetween(insertAt > 0 ? followTagList[insertAt - 1].id : null,
         insertAt < followTagList.length ? followTagList[insertAt].id : null);
     updateFollowTagOrder(item, item.copyWith(id: newKey));
   }
@@ -490,7 +487,18 @@ class FollowService extends GetxService {
     Log.i("FollowService: follow-snapshot has saved, time: ${DateTime.now()}");
   }
 
+  /// 增量重排通知的节流间隔。
+  ///
+  /// 刷新期间每检测完一条都会重排（见 [reflowFollowItem]），但 UI 不必跟着
+  /// 重建同样多次；把这一小段时间内完成的条目合并成一批、只发一次
+  /// 「列表已更新」事件。**这里不排序**，整表排序仍只在 [filterData] 里做一次。
+  static const Duration _kIncrementalNotifyInterval = Duration(milliseconds: 150);
+
+  Timer? _incrementalNotifyTimer;
+  bool _incrementalNotifyPending = false;
+
   Future updateLiveInformation(FollowUser item) async {
+    final oldStatus = item.liveStatus.value;
     try {
       var site = Sites.allSites[item.siteId]!;
       LiveRoomDetail detail = await site.liveSite.getRoomDetail(roomId: item.roomId);
@@ -500,6 +508,12 @@ class FollowService extends GetxService {
       // 未开播时接口仍会回上一次直播的人气值，直接展示就是「未开播卡片顶着 160.9万」
       // 那种假数据，这里和 cover 一样按状态清掉。
       item.online.value = detail.status ? detail.online : 0;
+      if (oldStatus != item.liveStatus.value) {
+        // 状态变了就**立刻**把它挪到该在的位置：直播的一检出就往上浮，
+        // 而不是等整轮刷新结束再统一跳一次。
+        reflowFollowItem(item);
+        _scheduleIncrementalNotify();
+      }
     } catch (e) {
       Log.logPrint(e);
     } finally {
@@ -513,7 +527,72 @@ class FollowService extends GetxService {
     }
   }
 
+  /// 增量重排：把 [item] 挪到当前排序下它该在的位置（**不是排序**）。
+  ///
+  /// 刷新期间只有 [FollowUser.liveStatus] 在变，其余排序键（观看时长 /
+  /// 添加时间 / 平台 / 用户名 / 分组归属）都是静态的，且列表在上一轮
+  /// [liveListSort] 后已有序 —— 所以只需一次线性扫描定位插入点、一次移动。
+  /// 整表排序仍然只在 [filterData] 结束时执行一次，性能口径不变。
+  void reflowFollowItem(FollowUser item) {
+    final index = followList.indexOf(item);
+    if (index < 0) {
+      return;
+    }
+    final conditions = _followSortConditions(
+      AppSettingsController.instance.followSortMethod.value,
+    );
+    followList.removeAt(index);
+    var insertAt = followList.length;
+    for (var i = 0; i < followList.length; i++) {
+      if (_compareFollow(item, followList[i], conditions) < 0) {
+        insertAt = i;
+        break;
+      }
+    }
+    followList.insert(insertAt, item);
+  }
+
+  /// 与 [listSortByMethod] 同一套比较规则：直播优先，再按用户选的排序方式。
+  /// 增量重排据此定位插入点，两条路必须同口径，否则结束时还会再跳一次。
+  ///
+  /// [conditions] 由调用方在循环外算好传入：逐次比较都重建条件对象太浪费。
+  int _compareFollow(
+    FollowUser a,
+    FollowUser b,
+    List<SortCondition<FollowUser>> conditions,
+  ) {
+    final liveCmp = a.liveStatus.value.compareTo(b.liveStatus.value);
+    if (liveCmp != 0) {
+      return -liveCmp;
+    }
+    for (final cond in conditions) {
+      final cmp = cond.valueGetter(a).compareTo(cond.valueGetter(b));
+      if (cmp != 0) {
+        return cond.ascending ? cmp : -cmp;
+      }
+    }
+    return 0;
+  }
+
+  /// 增量重排的 UI 通知节流：一批最多发一次。
+  void _scheduleIncrementalNotify() {
+    _incrementalNotifyPending = true;
+    if (_incrementalNotifyTimer?.isActive ?? false) {
+      return;
+    }
+    _incrementalNotifyTimer = Timer(_kIncrementalNotifyInterval, () {
+      if (!_incrementalNotifyPending) {
+        return;
+      }
+      _incrementalNotifyPending = false;
+      _updatedListController.add(0);
+    });
+  }
+
   void filterData() {
+    // 收尾的那次完整刷新会覆盖增量结果，挂着的节流通知没有意义
+    _incrementalNotifyTimer?.cancel();
+    _incrementalNotifyPending = false;
     liveListSort();
     _updatedListController.add(0);
   }
@@ -529,6 +608,11 @@ class FollowService extends GetxService {
       valueGetter: (item) => item.liveStatus.value, // Rx<int>
       ascending: false,
     );
+    list.dynamicSort([liveCondition, ..._followSortConditions(sortMethod)]);
+  }
+
+  /// 用户所选排序方式对应的字段条件（不含「直播优先」那一档）。
+  List<SortCondition<FollowUser>> _followSortConditions(SortMethod sortMethod) {
     var watchDurationCondition = SortCondition<FollowUser>(
       valueGetter: (item) => item.watchDurationSec,
       ascending: false,
@@ -563,17 +647,17 @@ class FollowService extends GetxService {
     );
     switch (sortMethod) {
       case SortMethod.watchDuration:
-        list.dynamicSort([liveCondition, watchDurationCondition]);
+        return [watchDurationCondition];
       case SortMethod.siteId:
-        list.dynamicSort([liveCondition, siteIdCondition, watchDurationCondition]);
+        return [siteIdCondition, watchDurationCondition];
       case SortMethod.recently:
-        list.dynamicSort([liveCondition, recentlyCondition]);
+        return [recentlyCondition];
       case SortMethod.userNameASC:
-        list.dynamicSort([liveCondition, userNameASCCondition]);
+        return [userNameASCCondition];
       case SortMethod.userNameDESC:
-        list.dynamicSort([liveCondition, userNameDESCCondition]);
+        return [userNameDESCCondition];
       case SortMethod.tag:
-        list.dynamicSort([liveCondition, tagCondition, watchDurationCondition]);
+        return [tagCondition, watchDurationCondition];
     }
   }
 
@@ -787,8 +871,7 @@ class FollowService extends GetxService {
     var oldTagList = DBService.instance.getFollowTagList();
     final aliveIds = followUserListTemp.map((f) => f.id).toSet();
     final Map<String, List<String>> tagMap = {
-      for (var tag in oldTagList)
-        tag.tag: tag.userId.where(aliveIds.contains).toList(),
+      for (var tag in oldTagList) tag.tag: tag.userId.where(aliveIds.contains).toList(),
     };
 
     for (FollowUser follow in followUserListTemp) {
@@ -841,6 +924,7 @@ class FollowService extends GetxService {
   @override
   void onClose() {
     updateTimer?.cancel();
+    _incrementalNotifyTimer?.cancel();
     subscription?.cancel();
     super.onClose();
   }

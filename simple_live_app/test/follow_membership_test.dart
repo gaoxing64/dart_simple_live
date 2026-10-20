@@ -23,8 +23,7 @@ class FakeDBService extends DBService {
   final tags = <String, FollowUserTag>{};
 
   @override
-  List<FollowUser> getFollowList() =>
-      follows.values.where((f) => !f.deleted).toList();
+  List<FollowUser> getFollowList() => follows.values.where((f) => !f.deleted).toList();
 
   @override
   Future addFollow(FollowUser follow) async => follows[follow.id] = follow;
@@ -33,8 +32,7 @@ class FakeDBService extends DBService {
   List<FollowUserTag> getFollowTagList() => tags.values.toList();
 
   @override
-  Future updateFollowTag(FollowUserTag followTag) async =>
-      tags[followTag.id] = followTag;
+  Future updateFollowTag(FollowUserTag followTag) async => tags[followTag.id] = followTag;
 
   @override
   Future deleteFollowTag(String id) async => tags.remove(id);
@@ -43,12 +41,10 @@ class FakeDBService extends DBService {
   bool getFollowTagExist(String id) => tags.containsKey(id);
 
   @override
-  bool getFollowTagExistByTag(String tag) =>
-      tags.values.any((item) => item.tag == tag);
+  bool getFollowTagExistByTag(String tag) => tags.values.any((item) => item.tag == tag);
 
   @override
-  FollowUserTag? getFollowTag(String tag) =>
-      tags.values.firstWhereOrNull((item) => item.tag == tag);
+  FollowUserTag? getFollowTag(String tag) => tags.values.firstWhereOrNull((item) => item.tag == tag);
 
   @override
   Future<FollowUserTag> addFollowTag(String tag) async {
@@ -136,8 +132,7 @@ void main() {
       ]);
       db.tags
         ..clear()
-        ..addEntries(FollowService.instance.followTagList
-            .map((t) => MapEntry(t.id, t)));
+        ..addEntries(FollowService.instance.followTagList.map((t) => MapEntry(t.id, t)));
       FollowService.instance.followList.assignAll([user('u1')]);
     }
 
@@ -291,13 +286,21 @@ void main() {
     test('inputJson 认 tags，也认旧版单个 tag', () async {
       final payload = jsonEncode([
         {
-          "siteId": "huya", "id": "n1", "roomId": "n1", "userName": "n1",
-          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "siteId": "huya",
+          "id": "n1",
+          "roomId": "n1",
+          "userName": "n1",
+          "face": "",
+          "addTime": "2024-01-01 00:00:00.000",
           "tags": ["A", "B"],
         },
         {
-          "siteId": "huya", "id": "n2", "roomId": "n2", "userName": "n2",
-          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "siteId": "huya",
+          "id": "n2",
+          "roomId": "n2",
+          "userName": "n2",
+          "face": "",
+          "addTime": "2024-01-01 00:00:00.000",
           "tag": "旧版单分组",
         },
       ]);
@@ -333,18 +336,30 @@ void main() {
     test('旧备份→新版本：只带 tag 字段的旧备份还原出正确归属', () async {
       final payload = jsonEncode([
         {
-          "siteId": "huya", "id": "o1", "roomId": "o1", "userName": "o1",
-          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "siteId": "huya",
+          "id": "o1",
+          "roomId": "o1",
+          "userName": "o1",
+          "face": "",
+          "addTime": "2024-01-01 00:00:00.000",
           "tag": "旧版A",
         },
         {
-          "siteId": "huya", "id": "o2", "roomId": "o2", "userName": "o2",
-          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "siteId": "huya",
+          "id": "o2",
+          "roomId": "o2",
+          "userName": "o2",
+          "face": "",
+          "addTime": "2024-01-01 00:00:00.000",
           "tag": "旧版B",
         },
         {
-          "siteId": "huya", "id": "o3", "roomId": "o3", "userName": "o3",
-          "face": "", "addTime": "2024-01-01 00:00:00.000",
+          "siteId": "huya",
+          "id": "o3",
+          "roomId": "o3",
+          "userName": "o3",
+          "face": "",
+          "addTime": "2024-01-01 00:00:00.000",
           "tag": "全部",
         },
       ]);
@@ -364,20 +379,15 @@ void main() {
       expect(json, contains('"tag":'));
 
       // 旧版解析器只读自己认识的字段，多余的 tags 直接忽略，不能崩
-      final legacyItems =
-          (jsonDecode(json) as List).cast<Map<String, dynamic>>();
+      final legacyItems = (jsonDecode(json) as List).cast<Map<String, dynamic>>();
       for (final item in legacyItems) {
         // 两个 key 必须同时在：tags 给新版本、tag 给旧版本
-        expect(item.containsKey('tag'), isTrue,
-            reason: '导出必须保留旧字段 tag，否则旧版本读新备份会丢分组');
+        expect(item.containsKey('tag'), isTrue, reason: '导出必须保留旧字段 tag，否则旧版本读新备份会丢分组');
         expect(item.containsKey('tags'), isTrue);
         // tag 的值 = 归属真源派生的「主分组」（首个所属分组），无归属回退「全部」
         expect(
           item['tag'],
-          FollowService.instance
-                  .userTagNamesOf(item['id'] as String)
-                  .firstOrNull ??
-              '全部',
+          FollowService.instance.userTagNamesOf(item['id'] as String).firstOrNull ?? '全部',
         );
         expect(item['tag'], isA<String>());
         expect(item['tag'], isNotEmpty);
@@ -482,6 +492,90 @@ void main() {
       final members = {for (final t in merged.tags) t.tag: t.userId.toSet()};
       expect(members['G'], {'u1'});
       expect(members['远组'], {'u3'});
+    });
+  });
+
+  group('增量重排（刷新期间逐条上浮）', () {
+    FollowUser u(String id, {int live = 1, int watchSec = 0}) => FollowUser(
+          id: id,
+          roomId: id,
+          siteId: 'huya',
+          userName: id,
+          face: '',
+          addTime: DateTime(2024),
+        )
+          ..liveStatus.value = live
+          ..watchDurationSec = watchSec;
+
+    void seed(List<FollowUser> users) {
+      FollowService.instance.listSortByMethod(users, SortMethod.watchDuration);
+      FollowService.instance.followList.assignAll(users);
+    }
+
+    test('未开播→直播：立即上浮到直播组，结果与整表排序一致', () {
+      final a = u('a', live: 2, watchSec: 100);
+      final b = u('b', live: 1, watchSec: 90);
+      final c = u('c', live: 1, watchSec: 80);
+      final d = u('d', live: 1, watchSec: 70);
+      seed([a, b, c, d]);
+
+      // 检测到 d 开播：只挪 d（不排序）
+      d.liveStatus.value = 2;
+      FollowService.instance.reflowFollowItem(d);
+      // 直播组按观看时长：a(100) 在前、d(70) 在后；离线组 b、c
+      expect(FollowService.instance.followList.map((e) => e.id), ['a', 'd', 'b', 'c']);
+
+      // 整轮结束的排序结果与增量结果相同 —— 不会再跳一次
+      FollowService.instance.liveListSort();
+      expect(FollowService.instance.followList.map((e) => e.id), ['a', 'd', 'b', 'c']);
+    });
+
+    test('直播→未开播：掉回离线组的正确位置', () {
+      final a = u('a', live: 2, watchSec: 100);
+      final b = u('b', live: 2, watchSec: 90);
+      final c = u('c', live: 1, watchSec: 80);
+      final d = u('d', live: 1, watchSec: 70);
+      seed([a, b, c, d]);
+
+      b.liveStatus.value = 1;
+      FollowService.instance.reflowFollowItem(b);
+      expect(FollowService.instance.followList.map((e) => e.id), ['a', 'b', 'c', 'd']);
+
+      FollowService.instance.liveListSort();
+      expect(FollowService.instance.followList.map((e) => e.id), ['a', 'b', 'c', 'd']);
+    });
+
+    test('读取中(0)→未开播(1)：在离线组内也按比较器落位', () {
+      final a = u('a', live: 2, watchSec: 100);
+      final b = u('b', live: 0, watchSec: 90); // 本轮还没检测到
+      final c = u('c', live: 1, watchSec: 80);
+      final d = u('d', live: 0, watchSec: 70);
+      seed([a, c, b, d]); // 1 在 0 前（liveStatus 降序），组内按时长
+
+      b.liveStatus.value = 1;
+      FollowService.instance.reflowFollowItem(b);
+      // b(90) 应排到已确认的 c(80) 前面，而不是留在 0 堆里
+      expect(FollowService.instance.followList.map((e) => e.id), ['a', 'b', 'c', 'd']);
+
+      FollowService.instance.liveListSort();
+      expect(FollowService.instance.followList.map((e) => e.id), ['a', 'b', 'c', 'd']);
+    });
+
+    test('换排序方式后同样成立（用户名升序）', () {
+      Get.find<AppSettingsController>().followSortMethod.value = SortMethod.userNameASC;
+      FollowService.instance.followList.assignAll([]);
+      final a = u('a', live: 1)..romanName = 'aaa';
+      final b = u('b', live: 1)..romanName = 'bbb';
+      final c = u('c', live: 1)..romanName = 'ccc';
+      // 预置为已排序（按用户名升序）
+      FollowService.instance.followList.assignAll([a, b, c]);
+
+      c.liveStatus.value = 2;
+      FollowService.instance.reflowFollowItem(c);
+      expect(FollowService.instance.followList.map((e) => e.id), ['c', 'a', 'b']);
+
+      FollowService.instance.liveListSort();
+      expect(FollowService.instance.followList.map((e) => e.id), ['c', 'a', 'b']);
     });
   });
 }
