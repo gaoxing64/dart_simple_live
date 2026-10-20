@@ -39,7 +39,6 @@ import 'package:simple_live_app/services/migration_service.dart';
 import 'package:simple_live_app/services/platform_service.dart';
 import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
 import 'package:simple_live_app/services/screen_awake_service.dart';
-import 'package:simple_live_app/services/smart_group_service.dart';
 import 'package:simple_live_app/services/stream_relay/stream_relay_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
 import 'package:simple_live_app/services/window_service.dart';
@@ -121,8 +120,6 @@ Future initServices() async {
   await Get.put(AppStyleSettingController()).init();
 
   Get.put(FollowService());
-  // 智能分组：一键按平台归组（依赖 FollowService，紧随其后注册）
-  Get.put(SmartGroupService());
 
   // platformService need migrate
   await MigrationService.migrateDataByVersion();
@@ -196,10 +193,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     bool isDynamicColor = AppStyleSettingController.instance.isDynamic.value;
-    Color styleColor =
-        Color(AppStyleSettingController.instance.styleColor.value);
-    return DynamicColorBuilder(
-        builder: ((ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+    Color styleColor = Color(AppStyleSettingController.instance.styleColor.value);
+    return DynamicColorBuilder(builder: ((ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
       // 两个分支都赋非空值（动态取色拿不到或用户没开时回落到 styleColor
       // 生成的调色板），所以声明成**非空**局部变量：下面 appBarTheme 要取
       // `.surface`，声明成可空这里就编译不过。
@@ -237,8 +232,7 @@ class MyApp extends StatelessWidget {
                   backgroundColor: darkColorScheme.surface,
                 ),
           ),
-          themeMode: ThemeMode
-              .values[Get.find<AppSettingsController>().themeMode.value],
+          themeMode: ThemeMode.values[Get.find<AppSettingsController>().themeMode.value],
           // 桌面端放开鼠标拖拽：上下拖列表、左右拖切换平台标签，
           // 与移动端保持一致（默认行为只认触摸类指针，鼠标拖不动）。
           scrollBehavior: const AppScrollBehavior(),
@@ -258,8 +252,7 @@ class MyApp extends StatelessWidget {
             loadingBuilder: ((msg) => const AppLoaddingWidget()),
             //字体大小不跟随系统变化
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(context)
-                  .copyWith(textScaler: const TextScaler.linear(1.0)),
+              data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.0)),
               child: Stack(
                 children: [
                   //侧键返回
@@ -267,12 +260,10 @@ class MyApp extends StatelessWidget {
                     excludeFromSemantics: true,
                     gestures: <Type, GestureRecognizerFactory>{
                       FourthButtonTapGestureRecognizer:
-                          GestureRecognizerFactoryWithHandlers<
-                              FourthButtonTapGestureRecognizer>(
+                          GestureRecognizerFactoryWithHandlers<FourthButtonTapGestureRecognizer>(
                         () => FourthButtonTapGestureRecognizer(),
                         (FourthButtonTapGestureRecognizer instance) {
-                          instance.onTapDown =
-                              (TapDownDetails details) async {
+                          instance.onTapDown = (TapDownDetails details) async {
                             //优先关闭 SmartDialog 弹窗
                             if (SmartDialog.checkExist()) {
                               MyApp.appBack();
@@ -293,8 +284,7 @@ class MyApp extends StatelessWidget {
                                 // （player_controller 里 allowsWindowOps 那一个）就是
                                 // exitFull，语义正是「退出全屏」，且天然避开
                                 // main → live_room_controller 这条循环 import。
-                                EventBus.instance.emit(
-                                    EventBus.kEscapePressed, 0);
+                                EventBus.instance.emit(EventBus.kEscapePressed, 0);
                                 return;
                               }
                             }
@@ -320,8 +310,7 @@ class MyApp extends StatelessWidget {
                         if (event is! KeyDownEvent) {
                           return;
                         }
-                        final exitBinding = AppSettingsController.instance
-                            .bindingFor(PlayerShortcut.exitPlayer);
+                        final exitBinding = AppSettingsController.instance.bindingFor(PlayerShortcut.exitPlayer);
                         if (exitBinding == null) {
                           return;
                         }
@@ -346,8 +335,7 @@ class MyApp extends StatelessWidget {
                         if (!Platform.isAndroid && !Platform.isIOS) {
                           if (await windowManager.isFullScreen()) {
                             await windowManager.setFullScreen(false);
-                            EventBus.instance
-                                .emit(EventBus.kEscapePressed, 0);
+                            EventBus.instance.emit(EventBus.kEscapePressed, 0);
                             return;
                           }
                         }

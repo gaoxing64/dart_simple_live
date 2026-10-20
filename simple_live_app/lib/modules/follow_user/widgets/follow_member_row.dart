@@ -23,10 +23,6 @@ class FollowMemberRow extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onRemove;
 
-  /// 直播中头像的红色描边圈（设计稿样式）。未开播视图不开（整段都没有直播，
-  /// 圈是纯噪音）。
-  final bool liveRing;
-
   /// 头像是否可长按拖拽（拖到分组卡片上换组）。
   ///
   /// 拖拽手势**只绑在头像上**：行体的长按/右键仍是操作菜单，同一行里
@@ -49,7 +45,6 @@ class FollowMemberRow extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.onRemove,
-    this.liveRing = false,
     this.draggable = false,
     this.selected = false,
     this.onToggleSelect,
@@ -62,8 +57,7 @@ class FollowMemberRow extends StatelessWidget {
   /// 未分组段、分组卡片成员、未开播视图三处共用这一个值。
   static const double rowExtent = 80;
 
-  static String displayName(FollowUser item) =>
-      item.remark?.isNotEmpty == true ? item.remark! : item.userName;
+  static String displayName(FollowUser item) => item.remark?.isNotEmpty == true ? item.remark! : item.userName;
 
   /// 第二行的「平台 · 累计观看 N 小时」。没有观看记录时只显示平台名，
   /// 不留孤零零的分隔符。
@@ -82,20 +76,9 @@ class FollowMemberRow extends StatelessWidget {
       height: faceSize,
       borderRadius: faceSize / 2,
     );
-    // 未开播的头像压暗，和网格里那套占位用同一套视觉语言。
-    var core = _isLive
-        ? face
-        : ColorFiltered(colorFilter: AppStyle.offlineDim, child: face);
-    if (liveRing && _isLive && !selected) {
-      // 直播中：头像描边圈，颜色跟随外观设置的主题色。
-      core = Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: scheme.primary, width: 2),
-        ),
-        child: core,
-      );
-    }
+    // 未开播的头像压暗；直播中保持原色 —— 不再加描边圈，
+    // 在播与否已经由副标题（直播标题）表达，圈只会添噪音。
+    var core = _isLive ? face : ColorFiltered(colorFilter: AppStyle.offlineDim, child: face);
     if (selected) {
       // 勾选态（设计稿）：头像整体换成主题色对勾圆片，再点一下取消。
       core = Container(
@@ -132,9 +115,7 @@ class FollowMemberRow extends StatelessWidget {
     return Material(
       // 勾选态整行铺一层淡主题色底（设计稿）；未勾选保持透明。
       type: selected ? MaterialType.canvas : MaterialType.transparency,
-      color: selected
-          ? scheme.primary.withValues(alpha: 0.08)
-          : Colors.transparent,
+      color: selected ? scheme.primary.withValues(alpha: 0.08) : Colors.transparent,
       // 圆角要**三处一起给**才真的圆：Material 的 `borderRadius` + `clipBehavior`
       // 负责把 ink 裁成圆角，InkWell 的 `borderRadius` 负责高亮本身是圆角。
       // 全局 `listTileTheme.shape` 只管 `ListTile`，这里是自己拼的 InkWell，
@@ -178,9 +159,7 @@ class FollowMemberRow extends StatelessWidget {
                               // 在播的成员直接看直播标题更有用；未开播才显示
                               // 平台 + 累计观看（没有观看记录时 watchDurationText
                               // 返回空串，不能在末尾留一个孤零零的「·」）。
-                              _isLive && item.title.value.isNotEmpty
-                                  ? item.title.value
-                                  : durationMeta(site, item),
+                              _isLive && item.title.value.isNotEmpty ? item.title.value : durationMeta(site, item),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

@@ -21,23 +21,47 @@ import 'package:simple_live_app/modules/live_room/multi_play/multi_play_selectio
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_quick_group_sheet.dart';
-import 'package:simple_live_app/modules/follow_user/widgets/smart_group_preview_sheet.dart';
+import 'package:simple_live_app/modules/follow_user/widgets/follow_sidebar.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 
-class FollowUserController extends BasePageController<FollowUser>
-    with GetSingleTickerProviderStateMixin {
+class FollowUserController extends BasePageController<FollowUser> {
   StreamSubscription<dynamic>? onUpdatedIndexedStream;
   StreamSubscription<dynamic>? onUpdatedListStream;
 
   /// 3 个内置标签。**它们是视图切换 tab，不是筛选条件**（见 [activeTab]）。
   static const builtinTags = ["全部", "直播中", "未开播"];
 
-  /// 「全部 / 直播中 / 未开播」三页的翻页控制器（TabBarView 用）。
+  /// 「全部 / 直播中 / 未开播」三页的翻页控制器。
   ///
-  /// 与首页平台 Tab 同一套范式：`TabController` + `TabBarView`，支持左右滑动 /
-  /// 鼠标左键横拖切页，指示器随拖动实时滑动。三页共享 [list] 数据，各自渲染
-  /// 自己的段；每页用独立的滚动 / 刷新控制器（见 `liveScrollController` 等）。
-  late final TabController tabController;
+  /// 导航（三个内置视图 + 平台 / 分组）已经收在左侧第二栏，翻页方向跟着
+  /// **导航栏位置**走：侧栏在左 → 纵向（Y 轴）翻页，与首页壳
+  /// 「侧边栏在左就垂直滑动」是同一条约定（见 `IndexedController`）。
+  ///
+  /// 手势不参与（页面里是 `NeverScrollableScrollPhysics`）：三页各自都是
+  /// 竖向滚动列表，再让纵向手势翻页就和列表抢同一根轴了 —— 理由与首页壳
+  /// 的 Section PageView 完全一致。切换的唯一入口是 [selectSidebarItem]。
+  final pageController = PageController();
+
+  /// 翻页动画：与首页壳 / 平台 Tab 切换同一条 M3 motion（300ms / emphasized）。
+  static const Duration pageTransitionDuration = Duration(milliseconds: 300);
+  static const Curve pageTransitionCurve = Curves.easeInOutCubicEmphasized;
+
+  /// 切到第 [index] 页。
+  ///
+  /// [activeTab] 是唯一真源（侧栏高亮、回顶目标都读它），这里先写状态再发
+  /// 动画；没 attach（单测 / 首帧前）就只更新状态。
+  void _goToPage(int index) {
+    final changed = activeTab.value != index;
+    activeTab.value = index;
+    if (!changed || !pageController.hasClients) {
+      return;
+    }
+    pageController.animateToPage(
+      index,
+      duration: pageTransitionDuration,
+      curve: pageTransitionCurve,
+    );
+  }
 
   /// 直播中 / 未开播两页各自的滚动 + 刷新控制器。
   ///
@@ -54,55 +78,182 @@ class FollowUserController extends BasePageController<FollowUser>
   /// 内置 tab 只活在 [tagList] 前三项、不入库，但 `'全部'` 是「不属于任何分组」
   /// 的哨兵名：自定义分组撞名会让界面与语义打架，所以直接禁止。
   /// 同步导入的旧备份里万一有同名标签，最多是显示重名，不会让分组失效。
-  static bool isReservedTagName(String name) =>
-      builtinTags.contains(name.trim());
+  static bool isReservedTagName(String name) => builtinTags.contains(name.trim());
 
-  /// 未分组段在 [collapsedGroups] 里的哨兵 key。
-  ///
-  /// 自定义标签 id 由 fractional indexing 生成（字母开头、至少两位），
-  /// 不会撞上这个值。
-  static const String kUngroupedKey = "ungrouped";
-
-  /// 当前视图：0=全部（分组文件夹）1=直播中（卡片网格）2=未开播（紧凑行）。
+  /// 当前视图：0=全部（全量平铺）1=直播中 2=未开播。
   final activeTab = 0.obs;
 
-  /// 「全部」视图的分组筛选：选中的自定义分组 id；null = 文件夹总览。
+  /// 「全部」视图的筛选态：选中的平台 / 自定义分组；null = 全量平铺。
   ///
-  /// 存 id 不存对象：改名不影响筛选。但**调序会换 id**（`reorderFollowTag`
-  /// 重新生成 fractional key）、删除分组也不会回头清理 —— 所以读取一律经
-  /// [activeGroup] 校验，失效回落 null（文件夹总览），绝不让筛选指向一个
-  /// 已经不存在的组（那会渲染出一个空白平铺列表，看着像筛选坏了）。
-  final activeGroupId = Rx<String?>(null);
+  /// 存筛选对象不存分组对象：改名不影响筛选。但**调序会换 id**
+  /// （`reorderFollowTag` 重新生成 fractional key）、删除分组也不会回头清理
+  /// —— 所以读取一律经 [activeGroup] 校验，失效回落 null（全量平铺），
+  /// 绝不让筛选指向一个已经不存在的组（那会渲染出一个空白平铺列表，
+  /// 看着像筛选坏了）。
+  final activeFilter = Rx<FollowFilter?>(null);
 
-  /// [activeGroupId] 对应的分组；失效（被删 / 调序换了 id）时为 null。
+  /// [activeFilter] 对应的自定义分组；不是分组筛选（或分组已不存在）时为 null。
   FollowUserTag? get activeGroup {
-    final id = activeGroupId.value;
-    if (id == null) {
+    final filter = activeFilter.value;
+    if (filter == null || filter.kind != FollowSidebarKind.group) {
       return null;
     }
-    return customTags.firstWhereOrNull((t) => t.id == id);
+    return customTags.firstWhereOrNull((t) => t.id == filter.id);
   }
 
-  /// 当前选中分组的成员（搜索过滤后，顺序继承 [list]）；未选中分组时为空表。
+  /// 当前筛选的成员（搜索过滤后，顺序继承 [list]，直播优先）。
+  ///
+  /// 分组走 [groupedView] 的桶（多归属：一个关注可同时出现在多个分组里）；
+  /// 平台走 `visibleList.where(siteId ==)` —— 平台是动态筛选，不依赖任何
+  /// 分组数据，新关注自动进来。
   ///
   /// 页面两处用：平铺段自己，以及「没有匹配的关注」空态浮层的判据。
-  List<FollowUser> get activeGroupMembers {
-    final id = activeGroup?.id;
-    if (id == null) {
+  List<FollowUser> get filteredMembers {
+    final filter = activeFilter.value;
+    if (filter == null) {
       return const [];
     }
-    return groupedView.groups
-            .firstWhereOrNull((g) => g.tag.id == id)
-            ?.members ??
-        const [];
+    switch (filter.kind) {
+      case FollowSidebarKind.group:
+        return groupedView.groups.firstWhereOrNull((g) => g.tag.id == filter.id)?.members ?? const [];
+      case FollowSidebarKind.site:
+        return visibleList.where((u) => u.siteId == filter.id).toList();
+      default:
+        return const [];
+    }
   }
 
-  /// 切分组筛选，并把「全部」页滚回顶部。
+  /// 当前筛选是否**有效**（分组还在 / 平台是已知站点）。
   ///
-  /// 不复位滚动的话，旧内容的滚动位置会原封不动留给新内容 —— 平铺列表比
-  /// 文件夹卡片矮一大截，用户会停在半空以为「筛选没生效」。
-  void setGroupFilter(FollowUserTag? tag) {
-    activeGroupId.value = tag?.id;
+  /// 幽灵 id（分组被删 / 调序换了 id）必须回落文件夹总览 —— 留一个空白
+  /// 平铺列表，看着像筛选坏了。平台侧同理：站点被下线后 id 不在
+  /// `Sites.allSites` 里，也当失效。
+  bool get hasActiveFilter {
+    final filter = activeFilter.value;
+    if (filter == null) {
+      return false;
+    }
+    if (filter.kind == FollowSidebarKind.site) {
+      return Sites.allSites.containsKey(filter.id);
+    }
+    return activeGroup != null;
+  }
+
+  /// 第二栏当前选中项的 [FollowSidebarItem.key]（用于高亮）。
+  ///
+  /// 内置视图与筛选态互斥，所以任意时刻只有一个值；读 Rx 的 [activeTab]，
+  /// 切页后侧栏高亮跟着走。
+  String? get activeSidebarKey {
+    final filter = activeFilter.value;
+    if (filter != null) {
+      return filter.kind == FollowSidebarKind.site ? 'site:${filter.id}' : 'group:${filter.id}';
+    }
+    return switch (activeTab.value) {
+      1 => 'live',
+      2 => 'offline',
+      _ => 'all',
+    };
+  }
+
+  /// 第二栏标签项：3 个内置视图 →（按平台分类开启时）平台 → 自定义分组。
+  ///
+  /// **必须在 Obx 构建窗口内读**：内部读 `list`、`tagList`、平台开关与每项的
+  /// `liveStatus`，任一变化两栏都要重算（计数 / 显隐都会变）。
+  ///
+  /// 平台项只收**已启用且计数非 0** 的平台：0 计时的平台标签点了也是空列表，
+  /// 放在栏里纯噪音；空自定义分组保留（它是拖拽归组的落点，也得让用户看得见
+  /// 组存在，与「全部」视图的文件夹卡片同口径）。
+  List<FollowSidebarItem> get sidebarItems {
+    final items = <FollowSidebarItem>[];
+    final live = liveSection.length;
+    final offline = offlineSection.length;
+    items.add(FollowSidebarItem(
+      kind: FollowSidebarKind.all,
+      id: 'all',
+      label: builtinTags[0],
+      count: live + offline,
+    ));
+    items.add(FollowSidebarItem(
+      kind: FollowSidebarKind.live,
+      id: 'live',
+      label: builtinTags[1],
+      count: live,
+    ));
+    items.add(FollowSidebarItem(
+      kind: FollowSidebarKind.offline,
+      id: 'offline',
+      label: builtinTags[2],
+      count: offline,
+    ));
+    final settings = AppSettingsController.instance;
+    if (settings.followGroupBySite.value) {
+      final enabled = settings.followSiteGroupSites.toSet();
+      for (final siteId in Sites.orderedIds(settings.siteSort)) {
+        if (!enabled.contains(siteId)) {
+          continue;
+        }
+        final site = Sites.allSites[siteId];
+        if (site == null) {
+          continue;
+        }
+        final count = visibleList.where((u) => u.siteId == siteId).length;
+        if (count == 0) {
+          continue;
+        }
+        items.add(FollowSidebarItem(
+          kind: FollowSidebarKind.site,
+          id: siteId,
+          label: site.name,
+          site: site,
+          count: count,
+        ));
+      }
+    }
+    for (final tag in customTags) {
+      final members = groupedView.groups.firstWhereOrNull((g) => g.tag.id == tag.id)?.members ?? const [];
+      items.add(FollowSidebarItem(
+        kind: FollowSidebarKind.group,
+        id: tag.id,
+        label: tag.tag,
+        count: members.length,
+      ));
+    }
+    return items;
+  }
+
+  /// 第二栏选中某项 —— 「要么内置视图、要么筛选」的互斥不变式唯一收口。
+  ///
+  /// * 内置项：清筛选 + 纵向切到对应页（已在页上也清筛选，点「全部」= 退出筛选）。
+  /// * 平台 / 分组：设筛选 + 纵向回「全部」页。
+  ///
+  /// 翻页手势是关掉的（见 [pageController]），所以这里是**唯一**的切页入口，
+  /// 侧栏高亮与内容不会脱节。
+  void selectSidebarItem(FollowSidebarItem item) {
+    switch (item.kind) {
+      case FollowSidebarKind.all:
+      case FollowSidebarKind.live:
+      case FollowSidebarKind.offline:
+        activeFilter.value = null;
+        final index = switch (item.kind) {
+          FollowSidebarKind.live => 1,
+          FollowSidebarKind.offline => 2,
+          _ => 0,
+        };
+        _goToPage(index);
+        break;
+      case FollowSidebarKind.site:
+      case FollowSidebarKind.group:
+        activeFilter.value = FollowFilter(kind: item.kind, id: item.id);
+        _goToPage(0);
+        // 平铺列表比文件夹总览矮，不复位滚动会停在半空，
+        // 用户会以为「筛选没生效」。
+        _scrollAllPageToTop();
+        break;
+    }
+  }
+
+  /// 「全部」页滚回顶部（筛选切换时用）。
+  void _scrollAllPageToTop() {
     final scroll = scrollController;
     if (scroll.hasClients && scroll.offset > 0) {
       scroll.animateTo(
@@ -152,11 +303,9 @@ class FollowUserController extends BasePageController<FollowUser>
   ///
   /// 必须在 `Obx` 里读：内部会读 `list`（RxList）与每项的 `liveStatus`，
   /// 状态一回来两段会自己重切。
-  List<FollowUser> get liveSection =>
-      visibleList.where((u) => u.liveStatus.value == 2).toList();
+  List<FollowUser> get liveSection => visibleList.where((u) => u.liveStatus.value == 2).toList();
 
-  List<FollowUser> get offlineSection =>
-      visibleList.where((u) => u.liveStatus.value != 2).toList();
+  List<FollowUser> get offlineSection => visibleList.where((u) => u.liveStatus.value != 2).toList();
 
   /// [list] 再叠一层搜索过滤。搜索词为空时就是原样返回。
   List<FollowUser> get visibleList {
@@ -219,67 +368,10 @@ class FollowUserController extends BasePageController<FollowUser>
           FollowGroup(
             tag: t,
             members: byTagId[t.id]!,
-            liveCount:
-                byTagId[t.id]!.where((u) => u.liveStatus.value == 2).length,
+            liveCount: byTagId[t.id]!.where((u) => u.liveStatus.value == 2).length,
           ),
     ];
     return (groups: groups, ungrouped: ungrouped);
-  }
-
-  /// 折叠中的标签 id 集合。
-  ///
-  /// 按 id 存：改名不影响折叠态；拖拽调序会换 id（`reorderFollowTag`），
-  /// 被移动卡片的折叠态随之重置 —— 可接受。
-  final collapsedGroups = <String>{}.obs;
-
-  void toggleGroupCollapsed(String tagId) {
-    if (!collapsedGroups.remove(tagId)) {
-      collapsedGroups.add(tagId);
-    }
-    AppSettingsController.instance.setFollowCollapsedGroups(
-      collapsedGroups.toList(),
-    );
-  }
-
-  /// 「全部」视图里是否还有折叠中的分组。
-  ///
-  /// 顶栏那个按钮据此在「展开全部 / 折叠全部」之间翻转。
-  ///
-  /// 只认**当前真实存在**的分组：拖拽调序会换掉标签 id、删分组也不会回头清理
-  /// 集合，只看 `isNotEmpty` 的话，孤儿 id 会让按钮显示「展开全部」而点下去界面
-  /// 上什么都不展开 —— 新按钮的第一下「点了没反应」。
-  bool get hasCollapsedGroups {
-    final liveIds = {for (final t in customTags) t.id, kUngroupedKey};
-    return collapsedGroups.any(liveIds.contains);
-  }
-
-  /// 顶栏一键：有折叠就全部展开，否则把自定义分组与未分组段全部折叠。
-  ///
-  /// 与 [toggleGroupCollapsed] 写同一份存储，重启后保持。
-  void toggleAllGroupsCollapsed() {
-    // 判据与按钮显示口径共用 [hasCollapsedGroups]：孤儿 id 不该让这一下变成
-    // 「只清理、不展开」的空动作。
-    if (hasCollapsedGroups) {
-      collapsedGroups.clear();
-    } else {
-      collapsedGroups.assignAll([
-        for (final t in customTags) t.id,
-        kUngroupedKey,
-      ]);
-    }
-    AppSettingsController.instance.setFollowCollapsedGroups(
-      collapsedGroups.toList(),
-    );
-  }
-
-  /// 拖拽调序分组卡片。索引以 [customTags] 为准（与 `followTagList` 同序）。
-  void reorderTag(int oldIndex, int newIndex) {
-    FollowService.instance.reorderFollowTag(oldIndex, newIndex);
-    // 本地立即刷新（事件回环稍后还会刷一次，先刷省一帧跳变）
-    updateTagList();
-    // 与分组管理 sheet 同一条链路：事件 → FollowService 重载 →
-    // updatedListStream → updateTagList + filterData。
-    EventBus.instance.emit(Constant.kUpdateFollow, 0);
   }
 
   /// 快速重组：当前勾选中的关注 id 集合。
@@ -291,9 +383,7 @@ class FollowUserController extends BasePageController<FollowUser>
   /// 勾选中的关注项（按当前列表顺序），编辑弹窗的头像预览用。
   List<FollowUser> get selectedUsers {
     final ids = Set<String>.of(selectedIds);
-    return FollowService.instance.followList
-        .where((u) => ids.contains(u.id))
-        .toList();
+    return FollowService.instance.followList.where((u) => ids.contains(u.id)).toList();
   }
 
   void toggleSelected(String id) {
@@ -331,8 +421,7 @@ class FollowUserController extends BasePageController<FollowUser>
             return false;
           }
           await FollowService.instance.addFollowUserTag(trimmed);
-          final created = FollowService.instance.followTagList
-              .firstWhereOrNull((t) => t.tag == trimmed);
+          final created = FollowService.instance.followTagList.firstWhereOrNull((t) => t.tag == trimmed);
           if (created == null) {
             return false;
           }
@@ -358,8 +447,7 @@ class FollowUserController extends BasePageController<FollowUser>
     }
     var moved = 0;
     for (final id in ids) {
-      final user = FollowService.instance.followList
-          .firstWhereOrNull((u) => u.id == id);
+      final user = FollowService.instance.followList.firstWhereOrNull((u) => u.id == id);
       if (user == null) {
         continue; // 已被取关的幽灵 id，跳过
       }
@@ -396,8 +484,7 @@ class FollowUserController extends BasePageController<FollowUser>
 
     final first = result.rooms.first;
     final rest = [
-      for (final user in result.rooms.skip(1))
-        LiveRoomTarget(site: Sites.allSites[user.siteId]!, roomId: user.roomId),
+      for (final user in result.rooms.skip(1)) LiveRoomTarget(site: Sites.allSites[user.siteId]!, roomId: user.roomId),
     ];
     clearSelection();
     AppNavigator.toLiveRoomDetail(
@@ -428,13 +515,6 @@ class FollowUserController extends BasePageController<FollowUser>
 
   @override
   void onInit() {
-    tabController = TabController(length: builtinTags.length, vsync: this);
-    // 切页（点 tab 或横拖落定）后同步 activeTab，供指示器 / 顶部重置逻辑读取。
-    tabController.addListener(() {
-      if (activeTab.value != tabController.index) {
-        activeTab.value = tabController.index;
-      }
-    });
     onUpdatedIndexedStream = EventBus.instance.listen(
       EventBus.kBottomNavigationBarClicked,
       (index) {
@@ -451,9 +531,6 @@ class FollowUserController extends BasePageController<FollowUser>
     );
 
     sortMethod = AppSettingsController.instance.followSortMethod;
-    collapsedGroups.assignAll(
-      AppSettingsController.instance.followCollapsedGroups,
-    );
     super.onInit();
   }
 
@@ -536,8 +613,7 @@ class FollowUserController extends BasePageController<FollowUser>
 
   // 用户自定义顺序dialog
   Future<void> showSortDialog() async {
-    var res = await Utils.showMapOptionDialog(sortMap, sortMethod.value,
-        title: "排序方式");
+    var res = await Utils.showMapOptionDialog(sortMap, sortMethod.value, title: "排序方式");
     if (res != null) {
       sortMethod.value = res;
       AppSettingsController.instance.setFollowSortMethod(sortMethod.value);
@@ -547,17 +623,8 @@ class FollowUserController extends BasePageController<FollowUser>
     }
   }
 
-  /// 一键按平台分组。
-  ///
-  /// 无可分组内容时 `showSmartGroupPreview` 自己只 toast、不弹空表；
-  /// 顶栏与关注设置页两个入口共用 `startSmartGrouping`，行为完全一致，
-  /// 这里只多补一步 `filterData()` 让本页立即重切（事件链那趟稍后还会刷一次）。
-  Future<void> runSmartGrouping() =>
-      startSmartGrouping(afterExecute: filterData);
-
   void removeFollow(FollowUser follow) async {
-    var result = await Utils.showAlertDialog("确定要取消关注${follow.userName}吗?",
-        title: "取消关注");
+    var result = await Utils.showAlertDialog("确定要取消关注${follow.userName}吗?", title: "取消关注");
     if (!result) {
       return;
     }
@@ -569,16 +636,6 @@ class FollowUserController extends BasePageController<FollowUser>
 
   Future<void> updateFollow(FollowUser follow) async {
     await FollowService.instance.addFollow(follow);
-  }
-
-  /// 拖拽 / 菜单归组：加入目标分组（多归属，不动它已在的组）。
-  /// 目标是内置「全部」= 移出所有分组。
-  ///
-  /// 归属变了要重排一次：按「自定义分组」排序时顺序取决于归属。
-  Future<void> setFollowTag(FollowUser follow, FollowUserTag targetTag) async {
-    await FollowService.instance.addUserToTag(follow, targetTag.tag);
-    FollowService.instance.liveListSort();
-    filterData();
   }
 
   Future<void> updateTag(FollowUserTag followUserTag) async {
@@ -639,14 +696,12 @@ class FollowUserController extends BasePageController<FollowUser>
                   tooltip: "保存",
                   icon: const Icon(Icons.check),
                   onPressed: () async {
-                    final before =
-                        FollowService.instance.userTagNamesOf(follow.id).toSet();
+                    final before = FollowService.instance.userTagNamesOf(follow.id).toSet();
                     for (final name in checked.difference(before)) {
                       await FollowService.instance.addUserToTag(follow, name);
                     }
                     for (final name in before.difference(checked)) {
-                      await FollowService.instance
-                          .removeUserFromTag(follow, name);
+                      await FollowService.instance.removeUserFromTag(follow, name);
                     }
                     FollowService.instance.liveListSort();
                     filterData();
@@ -673,8 +728,7 @@ class FollowUserController extends BasePageController<FollowUser>
                       return Container(
                         decoration: BoxDecoration(
                           border: Border(
-                            bottom: BorderSide(
-                                color: Colors.grey.shade300, width: 1.0),
+                            bottom: BorderSide(color: Colors.grey.shade300, width: 1.0),
                           ),
                         ),
                         child: CheckboxListTile(
@@ -702,10 +756,10 @@ class FollowUserController extends BasePageController<FollowUser>
   /// 底部导航「关注」再次点击：把**当前这一页**滚回顶部，已在顶部则下拉刷新。
   ///
   /// 三页各有独立滚动 / 刷新控制器，基类那对只服务「全部」页，这里按
-  /// [tabController] 当前页选对应控制器；否则在直播中页点回顶会去滚离屏的全部页。
+  /// [activeTab] 当前页选对应控制器；否则在直播中页点回顶会去滚离屏的全部页。
   @override
   void scrollToTopOrRefresh() {
-    final (scroll, refresh) = switch (tabController.index) {
+    final (scroll, refresh) = switch (activeTab.value) {
       1 => (liveScrollController, liveRefreshController),
       2 => (offlineScrollController, offlineRefreshController),
       _ => (scrollController, easyRefreshController),
@@ -726,7 +780,7 @@ class FollowUserController extends BasePageController<FollowUser>
 
   @override
   void onClose() {
-    tabController.dispose();
+    pageController.dispose();
     liveScrollController.dispose();
     liveRefreshController.dispose();
     offlineScrollController.dispose();
@@ -752,5 +806,4 @@ class FollowGroup {
 }
 
 /// 「全部」视图的分组模型（见 `FollowUserController.groupedView`）。
-typedef FollowGroupedView
-    = ({List<FollowGroup> groups, List<FollowUser> ungrouped});
+typedef FollowGroupedView = ({List<FollowGroup> groups, List<FollowUser> ungrouped});

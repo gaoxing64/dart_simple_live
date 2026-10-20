@@ -17,8 +17,7 @@ class AppSettingsController extends GetxController {
   static AppSettingsController get instance => Get.find<AppSettingsController>();
 
   /// 桌面端
-  static bool get isDesktop =>
-      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+  static bool get isDesktop => Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   /// 缩放模式
   var scaleMode = 0.obs;
@@ -36,12 +35,10 @@ class AppSettingsController extends GetxController {
   var themeMode = 0.obs;
 
   /// 主题索引归一化（越界按「跟随系统」处理）
-  static int normalizeThemeModeIndex(int index) =>
-      (index >= 0 && index < ThemeMode.values.length) ? index : 0;
+  static int normalizeThemeModeIndex(int index) => (index >= 0 && index < ThemeMode.values.length) ? index : 0;
 
   /// 主题索引对应的 [ThemeMode]
-  static ThemeMode resolveThemeMode(int index) =>
-      ThemeMode.values[normalizeThemeModeIndex(index)];
+  static ThemeMode resolveThemeMode(int index) => ThemeMode.values[normalizeThemeModeIndex(index)];
 
   /// 当前主题索引（已归一化，可安全用于索引 [ThemeMode.values]）
   int get themeModeIndex => normalizeThemeModeIndex(themeMode.value);
@@ -50,8 +47,7 @@ class AppSettingsController extends GetxController {
   /// [platformDark] 为系统深浅色，仅在「跟随系统」时参与判断。
   /// 主题判定统一放在这里，避免各处重复解析（注意 material_ui 与 flutter
   /// 各自定义了同名的 ThemeMode 类型，跨库比较会失效）。
-  bool shouldUseDarkTheme({required bool platformDark}) =>
-      switch (resolveThemeMode(themeMode.value)) {
+  bool shouldUseDarkTheme({required bool platformDark}) => switch (resolveThemeMode(themeMode.value)) {
         ThemeMode.dark => true,
         ThemeMode.light => false,
         ThemeMode.system => platformDark,
@@ -62,8 +58,7 @@ class AppSettingsController extends GetxController {
   void setThemeMode(int e) {
     final index = normalizeThemeModeIndex(e);
     themeMode.value = index;
-    LocalStorageService.instance
-        .setValue(LocalStorageService.kThemeMode, index);
+    LocalStorageService.instance.setValue(LocalStorageService.kThemeMode, index);
   }
 
   var firstRun = false;
@@ -82,41 +77,25 @@ class AppSettingsController extends GetxController {
     // 旧版本只有「悬浮玻璃导航栏」开关，再往后是 0/1/2 的样式枚举。
     // 整合后悬浮玻璃不再是独立样式，旧值 2（悬浮玻璃）与早期开关一律迁移为
     // 样式 1（悬浮 dock）。
-    final legacyGlassNavBar = LocalStorageService.instance
-        .getValue(LocalStorageService.kFloatingGlassNavBar, false);
-    final storedNavBarStyle = LocalStorageService.instance
-        .getNullValue<int>(LocalStorageService.kNavBarStyle, null);
+    final legacyGlassNavBar = LocalStorageService.instance.getValue(LocalStorageService.kFloatingGlassNavBar, false);
+    final storedNavBarStyle = LocalStorageService.instance.getNullValue<int>(LocalStorageService.kNavBarStyle, null);
     final resolvedNavBarStyle =
-        (storedNavBarStyle == null && legacyGlassNavBar) || storedNavBarStyle == 2
-        ? 1
-        : (storedNavBarStyle ?? 0);
+        (storedNavBarStyle == null && legacyGlassNavBar) || storedNavBarStyle == 2 ? 1 : (storedNavBarStyle ?? 0);
     navBarStyle.value = resolvedNavBarStyle >= 1 ? 1 : 0;
-    hideTopBar.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kHideTopBar, hideTopBar.value);
-    hideBottomBar.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kHideBottomBar, hideBottomBar.value);
-    barHideType.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kBarHideType, barHideType.value);
-    firstRun = LocalStorageService.instance
-        .getValue(LocalStorageService.kFirstRun, true);
-    danmuSize.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuSize, 16.0);
-    danmuOpacity.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuOpacity, 1.0);
-    danmuArea.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuArea, 0.8);
-    danmuSpeed.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuSpeed, 10.0);
-    danmuEnable.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuEnable, true);
-    danmakuMaskEnable.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmakuMaskEnable, false);
-    danmuStrokeWidth.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuStrokeWidth, 2.0);
-    danmuTopMargin.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuTopMargin, 0.0);
-    danmuBottomMargin.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kDanmuBottomMargin, 0.0);
+    hideTopBar.value = LocalStorageService.instance.getValue(LocalStorageService.kHideTopBar, hideTopBar.value);
+    hideBottomBar.value =
+        LocalStorageService.instance.getValue(LocalStorageService.kHideBottomBar, hideBottomBar.value);
+    barHideType.value = LocalStorageService.instance.getValue(LocalStorageService.kBarHideType, barHideType.value);
+    firstRun = LocalStorageService.instance.getValue(LocalStorageService.kFirstRun, true);
+    danmuSize.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuSize, 16.0);
+    danmuOpacity.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuOpacity, 1.0);
+    danmuArea.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuArea, 0.8);
+    danmuSpeed.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuSpeed, 10.0);
+    danmuEnable.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuEnable, true);
+    danmakuMaskEnable.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmakuMaskEnable, false);
+    danmuStrokeWidth.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuStrokeWidth, 2.0);
+    danmuTopMargin.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuTopMargin, 0.0);
+    danmuBottomMargin.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuBottomMargin, 0.0);
     danmuFontWeight.value = LocalStorageService.instance.getValue(
         LocalStorageService.kDanmuFontWeight,
         // ignore: deprecated_member_use
@@ -125,8 +104,10 @@ class AppSettingsController extends GetxController {
     // and now, value was set 0..8, the value needs ..=FontWeight[index] after
     // migration, so marked it, next migration depends on canvas_danmaku upgrade
     danmakuFontClamped.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmakuFontClamped, false);
-    danmakuFontClampUpSens.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmakuFontClampUpSens, 9.0);
-    danmakuFontClampDownSens.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmakuFontClampDownSens, 5.0);
+    danmakuFontClampUpSens.value =
+        LocalStorageService.instance.getValue(LocalStorageService.kDanmakuFontClampUpSens, 9.0);
+    danmakuFontClampDownSens.value =
+        LocalStorageService.instance.getValue(LocalStorageService.kDanmakuFontClampDownSens, 5.0);
 
     hardwareDecode.value = LocalStorageService.instance.getValue(LocalStorageService.kHardwareDecode, true);
     chatTextSize.value = LocalStorageService.instance.getValue(LocalStorageService.kChatTextSize, 14.0);
@@ -348,12 +329,9 @@ class AppSettingsController extends GetxController {
     followSortMethod.value = SortMethodStore.fromStore(LocalStorageService.instance
         .getValue(LocalStorageService.kFollowSortMethod, SortMethod.watchDuration.storeValue));
 
-    followCollapsedGroups.assignAll(LocalStorageService.instance
-        .getValue(LocalStorageService.kFollowCollapsedGroups, "")
-        .split(",")
-        .where((s) => s.isNotEmpty));
-
     followStyleNotGrid.value = LocalStorageService.instance.getValue(LocalStorageService.kFollowStyleNotGrid, true);
+
+    followGroupBySite.value = LocalStorageService.instance.getValue(LocalStorageService.kFollowGroupBySite, false);
 
     hideOfflineFollow.value = LocalStorageService.instance.getValue(LocalStorageService.kHideOfflineFollow, false);
 
@@ -365,6 +343,8 @@ class AppSettingsController extends GetxController {
     followSnapshot = LocalStorageService.instance.getNullValue(LocalStorageService.kFollowSnapshot, null);
 
     initSiteSort();
+    // 依赖 siteSort：必须排在 initSiteSort() 之后。
+    initFollowSiteGroupSites();
     initHomeSort();
     await initDataPath();
 
@@ -373,11 +353,11 @@ class AppSettingsController extends GetxController {
 
   Future<void> initDataPath() async {
     dbPath = (await getApplicationSupportDirectory()).path;
-    if(!Platform.isAndroid && !Platform.isIOS){
+    if (!Platform.isAndroid && !Platform.isIOS) {
       // linux 应该有问题，但我不熟悉，先这么写
       var pathPortable = p.join(p.dirname(Platform.resolvedExecutable), 'data_hive_ce');
       bool dirPortableExist = await Directory(pathPortable).exists();
-      if(dirPortableExist){
+      if (dirPortableExist) {
         dbPath = pathPortable;
       }
     }
@@ -434,8 +414,7 @@ class AppSettingsController extends GetxController {
 
   void setNavBarStyle(int e) {
     navBarStyle.value = e >= 1 ? 1 : 0;
-    LocalStorageService.instance
-        .setValue(LocalStorageService.kNavBarStyle, navBarStyle.value);
+    LocalStorageService.instance.setValue(LocalStorageService.kNavBarStyle, navBarStyle.value);
   }
 
   /// 首页顶栏收起（移动端默认开启）
@@ -451,8 +430,7 @@ class AppSettingsController extends GetxController {
 
   void setHideBottomBar(bool e) {
     hideBottomBar.value = e;
-    LocalStorageService.instance
-        .setValue(LocalStorageService.kHideBottomBar, e);
+    LocalStorageService.instance.setValue(LocalStorageService.kHideBottomBar, e);
   }
 
   /// 顶/底栏收起类型
@@ -555,6 +533,7 @@ class AppSettingsController extends GetxController {
     danmakuFontClamped.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kDanmakuFontClamped, e);
   }
+
   var danmakuFontResize = 16.0;
 
   var danmakuFontClampUpSens = 9.0.obs;
@@ -688,19 +667,16 @@ class AppSettingsController extends GetxController {
   ///
   /// 用 `Rx<Map<...>>` 而不是 `<...>{}.obs`：后者返回 `RxMap`，它不是 `Rx` 的子类型
   /// （是 `MapMixin + RxObjectMixin`），既接不住整体替换的写法，值类型也没法是可空的。
-  final Rx<Map<PlayerShortcut, ShortcutBinding?>> shortcutOverrides =
-      Rx<Map<PlayerShortcut, ShortcutBinding?>>({});
+  final Rx<Map<PlayerShortcut, ShortcutBinding?>> shortcutOverrides = Rx<Map<PlayerShortcut, ShortcutBinding?>>({});
 
   /// 当前生效的完整键位表（每个动作一项；值为 null 表示该动作被「不设置」禁用）。
   ///
   /// 读它要在 `Obx` 里（会订阅 [shortcutOverrides]）。播放器挂件是在按键发生时
   /// 现读，不建订阅——它不需要「键位变了就重建」，只需要「按下的那一刻按最新配置解释」。
-  Map<PlayerShortcut, ShortcutBinding?> get effectiveShortcuts =>
-      resolveEffectiveShortcuts(shortcutOverrides.value);
+  Map<PlayerShortcut, ShortcutBinding?> get effectiveShortcuts => resolveEffectiveShortcuts(shortcutOverrides.value);
 
   /// 某个动作此刻的绑定（含「不设置」＝null）。
-  ShortcutBinding? bindingFor(PlayerShortcut action) =>
-      effectiveShortcuts[action];
+  ShortcutBinding? bindingFor(PlayerShortcut action) => effectiveShortcuts[action];
 
   void loadShortcuts() {
     shortcutOverrides.value = decodeShortcuts(
@@ -941,16 +917,17 @@ class AppSettingsController extends GetxController {
       e,
     );
   }
+
   /// window Setting
   // 开屏自动最大化
   var windowMaxAuto = false.obs;
-  void setWindowMaxAuto(bool e){
+  void setWindowMaxAuto(bool e) {
     windowMaxAuto.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kWindowMaxAuto, e);
   }
 
   var windowMaxState = false.obs;
-  void setWindowMaxState(bool e){
+  void setWindowMaxState(bool e) {
     windowMaxState.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kWindowMaxState, e);
   }
@@ -1180,18 +1157,6 @@ class AppSettingsController extends GetxController {
     LocalStorageService.instance.setValue(LocalStorageService.kFollowSortMethod, e.storeValue);
   }
 
-  /// 关注页分组视图折叠中的标签 id 集合。
-  ///
-  /// 默认值必须留在声明处、只在 `onInit` 里读存储 —— widget test 的假设置
-  /// 跳过 `onInit`，构造期读 `LocalStorageService` 会让测试直接炸。
-  final followCollapsedGroups = <String>[].obs;
-
-  void setFollowCollapsedGroups(List<String> ids) {
-    followCollapsedGroups.value = ids;
-    LocalStorageService.instance.setValue(
-        LocalStorageService.kFollowCollapsedGroups, ids.join(","));
-  }
-
   // 关注样式是否卡片化
   //
   // 读取方：「全部」视图**选中某一分组**时的平铺列表（⋮「模式切换」）——
@@ -1203,6 +1168,42 @@ class AppSettingsController extends GetxController {
   void setFollowStyleNotGrid(bool e) {
     followStyleNotGrid.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kFollowStyleNotGrid, e);
+  }
+
+  /// 关注页第二栏是否按平台分类（平台标签取代一次性「智能分组」）。
+  ///
+  /// 关闭时第二栏只有 3 个内置视图 + 自定义分组；开启后按
+  /// [followSiteGroupSites] 显示平台标签（动态筛选，不写 Hive 分组）。
+  var followGroupBySite = false.obs;
+
+  void setFollowGroupBySite(bool e) {
+    followGroupBySite.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kFollowGroupBySite, e);
+  }
+
+  /// 按平台分类时单独显示的平台 id 集合。
+  ///
+  /// 存量键缺失 = 全部平台打开（与 `siteSort` 缺项补全同口径）；
+  /// 换设备恢复 / 版本新增站点后由 [initFollowSiteGroupSites] 补全。
+  var followSiteGroupSites = RxList<String>();
+
+  void setFollowSiteGroupSites(List<String> e) {
+    followSiteGroupSites.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kFollowSiteGroupSites, e.join(","));
+  }
+
+  /// 读入平台子开关：键缺失 = 全部平台（序随 siteSort）。
+  ///
+  /// **存过值就按用户的选择来，不再补全** —— 「禁用过」与「没禁过」必须分得清：
+  /// 照 `initSiteSort` 那样按长度补全，会让用户关掉的平台在下一次开机后复活。
+  /// 代价是版本新增平台时，禁过平台的用户看不到新平台；可接受（他本就在裁剪列表）。
+  void initFollowSiteGroupSites() {
+    final stored = LocalStorageService.instance.getValue(LocalStorageService.kFollowSiteGroupSites, "");
+    if (stored.isEmpty) {
+      followSiteGroupSites.value = siteSort.toList();
+      return;
+    }
+    followSiteGroupSites.value = stored.split(",").where((s) => s.isNotEmpty).toList();
   }
 
   // 隐藏不在线的关注

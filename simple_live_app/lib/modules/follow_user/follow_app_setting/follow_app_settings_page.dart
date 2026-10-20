@@ -2,9 +2,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
+import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/follow_app_setting/follow_app_settings_controller.dart';
-import 'package:simple_live_app/modules/follow_user/widgets/smart_group_preview_sheet.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/settings/settings_action.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
@@ -44,15 +44,51 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                       onTap: controller.showTagsManager,
                     ),
                     AppStyle.divider,
-                    SettingsAction(
-                      leading: const Icon(Remix.magic_line),
-                      title: "按平台智能分组",
-                      subtitle: "把所有关注按平台归入同名分组，已有分组不受影响",
-                      // 刻意不走 `FollowUserController`：那个控制器 onInit 要
-                      // `vsync` 建 `TabController`，用户从未进过关注页时只能临时
-                      // `Get.put` 一份空壳实例，风险见计划「已知风险」第 1 条。
-                      // 这里直接调 `SmartGroupService` + `kUpdateFollow` 事件链。
-                      onTap: () => startSmartGrouping(),
+                    // 按平台分类：主开关 + 展开的平台子开关。
+                    // 平台标签是**动态筛选**（不写 Hive 分组），所以开启时顺手
+                    // 清理旧「智能分组」留下的同名分组，避免第二栏两套入口。
+                    Obx(
+                      () => SettingsSwitch(
+                        value: controller.appC.followGroupBySite.value,
+                        title: "按平台分类",
+                        subtitle: "在关注页第二栏显示平台标签，动态筛选、不新建分组",
+                        onChanged: (e) {
+                          controller.appC.setFollowGroupBySite(e);
+                          if (e) {
+                            controller.cleanupPlatformNamedTags();
+                          } else {
+                            // 主开关关掉 → 平台标签整批消失，挂着的平台
+                            // 筛选要跟着清（分组筛选不受影响）
+                            controller.clearSiteFilters();
+                          }
+                        },
+                      ),
+                    ),
+                    Obx(() {
+                      if (!controller.appC.followGroupBySite.value) {
+                        return const SizedBox.shrink();
+                      }
+                      final siteIds = controller.orderedFollowSiteIds;
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppStyle.divider,
+                          for (final siteId in siteIds) ...[
+                            _buildSiteGroupSwitch(siteId),
+                            if (siteId != siteIds.last) AppStyle.divider,
+                          ],
+                        ],
+                      );
+                    }),
+                    AppStyle.divider,
+                    // 关注样式：紧凑行 / 卡片网格，全局生效（直播中、未开播、
+                    // 平台与分组平铺都读它）。与关注页 ⋮「模式切换」同一个弹窗。
+                    Obx(
+                      () => SettingsAction(
+                        title: "关注样式",
+                        value: controller.appC.followStyleNotGrid.value ? "紧凑模式" : "卡片模式",
+                        onTap: controller.showFollowStyleDialog,
+                      ),
                     ),
                   ],
                 ),
@@ -233,6 +269,35 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 单个平台的分类子开关（平台 logo + 名称 + 开关）。
+  ///
+  /// 平台 logo 用 Row 包在 `SettingsSwitch` 外：material_ui 的
+  /// `SwitchListTile` 没有 `leading` 位（只有 `secondary`，在开关另一侧），
+  /// 包一层既能摆 logo，又让子开关比主开关多缩进一级、读出层级。
+  /// 开关本体仍走 `SettingsSwitch`：滑块 / 轨道的 M3 配色与主开关一致。
+  Widget _buildSiteGroupSwitch(String siteId) {
+    final site = Sites.allSites[siteId];
+    if (site == null) {
+      return const SizedBox.shrink();
+    }
+    return Obx(
+      () => Row(
+        children: [
+          AppStyle.hGap16,
+          Image.asset(site.logo, width: 24, height: 24),
+          AppStyle.hGap12,
+          Expanded(
+            child: SettingsSwitch(
+              value: controller.appC.followSiteGroupSites.contains(siteId),
+              title: site.name,
+              onChanged: (e) => controller.setFollowSiteGroup(siteId, e),
+            ),
           ),
         ],
       ),

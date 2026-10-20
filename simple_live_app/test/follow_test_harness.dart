@@ -143,6 +143,13 @@ class FakeFollowService extends FollowService {
     final item = followTagList.removeAt(oldIndex);
     followTagList.insert(newIndex.clamp(0, followTagList.length), item);
   }
+
+  @override
+  Future removeFollowUserTag(FollowUserTag tag) async {
+    // 真实现经 DBService 写 Hive，widget test 里没注册 DBService；
+    // 这里只动内存外表，够断言「同名分组被清掉、关注不丢」。
+    followTagList.removeWhere((t) => t.id == tag.id);
+  }
 }
 
 /// 假本地存储：内存实现 —— 真实现写 Hive box，widget test 里没开任何 box。
@@ -155,12 +162,10 @@ class FakeLocalStorageService extends LocalStorageService {
   Future init() async {}
 
   @override
-  T getValue<T>(dynamic key, T defaultValue) =>
-      _mem.containsKey(key) ? _mem[key] as T : defaultValue;
+  T getValue<T>(dynamic key, T defaultValue) => _mem.containsKey(key) ? _mem[key] as T : defaultValue;
 
   @override
-  T? getNullValue<T>(dynamic key, T? defaultValue) =>
-      _mem.containsKey(key) ? _mem[key] as T? : defaultValue;
+  T? getNullValue<T>(dynamic key, T? defaultValue) => _mem.containsKey(key) ? _mem[key] as T? : defaultValue;
 
   @override
   Future setValue<T>(dynamic key, T value) async {
@@ -222,8 +227,7 @@ Future<IndexedController> pumpIndexed(
 }
 
 /// 切到关注页并等数据就位。
-Future<void> gotoFollowPage(
-    WidgetTester tester, IndexedController indexed) async {
+Future<void> gotoFollowPage(WidgetTester tester, IndexedController indexed) async {
   indexed.setIndex(1);
   // 首次实例化关注页：refreshOnStart 拉数据 + easy_refresh 收起动画
   for (var i = 0; i < 10; i++) {
@@ -262,10 +266,7 @@ Finder followGrid(WidgetTester tester) {
 ///
 /// ⚠️ 注意：这个盒子的**位置恒定不变**（收起就是靠它内部平移实现的），
 /// 要判断栏"收起了多少"必须读它内部子节点的绘制位置，见 [followBarTitleTop]。
-Finder followBar(WidgetTester tester) => find
-    .ancestor(of: find.text('关注用户'), matching: find.byType(BarCollapse))
-    .first;
+Finder followBar(WidgetTester tester) => find.ancestor(of: find.text('关注用户'), matching: find.byType(BarCollapse)).first;
 
 /// 顶栏标题的绘制位置（含 [BarCollapse] 的平移），用它衡量顶栏收起程度。
-double followBarTitleTop(WidgetTester tester) =>
-    tester.getTopLeft(find.text('关注用户')).dy;
+double followBarTitleTop(WidgetTester tester) => tester.getTopLeft(find.text('关注用户')).dy;

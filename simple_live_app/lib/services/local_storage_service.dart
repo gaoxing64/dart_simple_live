@@ -330,11 +330,14 @@ class LocalStorageService extends GetxService {
   /// 关注列表排序方法
   static const String kFollowSortMethod = "FollowSortMethod";
 
-  /// 关注页分组视图中处于折叠状态的标签 id 集合（逗号拼接）
-  static const String kFollowCollapsedGroups = "FollowCollapsedGroups";
-
   /// 关注列表样式
   static const String kFollowStyleNotGrid = "FollowStyleNotGrid";
+
+  /// 关注页第二栏是否按平台分类（开启后显示平台标签，取代「智能分组」）
+  static const String kFollowGroupBySite = "FollowGroupBySite";
+
+  /// 按平台分类时单独显示的平台 id（逗号拼接）；缺失 = 全部平台
+  static const String kFollowSiteGroupSites = "FollowSiteGroupSites";
 
   /// 数据库版本
   static const String kHiveDbVer = "kHiveDbVer";

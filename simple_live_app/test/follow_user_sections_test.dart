@@ -5,11 +5,14 @@
 // 页面视图切换（全部/直播中/未开播）与分组卡片都按这里的切分口径渲染。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
+import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
+import 'package:simple_live_app/modules/follow_user/widgets/follow_sidebar.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 
 /// 只测分段/搜索逻辑：用 `visibleList` / `liveSection` / `offlineSection`
@@ -20,6 +23,24 @@ class _SectionProbe extends FollowUserController {
   @override
   // ignore: must_call_super
   void onInit() {}
+}
+
+/// 侧栏 / 筛选态的 probe：切页状态（[FollowUserController.activeTab]）不依赖
+/// 任何 widget，跳过 onInit 也能直接测；不接事件总线、不读本地存储。
+///
+/// 收尾要 `onClose`（释放 PageController），所以单独包一层 teardown。
+class _SidebarProbe extends FollowUserController {
+  _SidebarProbe() : super();
+
+  @override
+  // ignore: must_call_super
+  void onInit() {}
+}
+
+_SidebarProbe _sidebarProbe() {
+  final c = _SidebarProbe();
+  addTearDown(c.onClose);
+  return c;
 }
 
 /// 跳过本地存储（Hive 在 widget test 的 fake-async 环境下不可用），
@@ -47,20 +68,25 @@ FollowUser _user(
   int liveStatus = 0,
   String remark = '',
   String title = '',
+  String siteId = 'douyu',
 }) {
   return FollowUser(
-    id: 'douyu_$name',
+    id: '${siteId}_$name',
     roomId: 'room-$name',
-    siteId: 'douyu',
+    siteId: siteId,
     userName: name,
     face: '',
     addTime: DateTime(2024),
-  )..liveStatus.value = liveStatus
-      ..title.value = title
-      ..remark = remark;
+  )
+    ..liveStatus.value = liveStatus
+    ..title.value = title
+    ..remark = remark;
 }
 
 void main() {
+  // `selectSidebarItem` 会走 `pageController.animateToPage`（无 clients 时跳过），
+  // 纯单元测试下状态断言不受动画影响；binding 仍然备好，widget 用例要用。
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
     Get.testMode = true;
     Get.put<AppSettingsController>(_FakeSettings());
@@ -186,6 +212,226 @@ void main() {
         _user('a'),
       ]);
       expect(c.groupedView.groups.map((g) => g.tag.tag), ['CS解说', 'LOL解说']);
+    });
+  });
+
+  group('第二栏 sidebarItems', () {
+    test('默认（按平台分类关闭）= 3 个内置项，计数 = 在播 + 未开播', () {
+      final c = _sidebarProbe();
+      c.list.assignAll([
+        _user('直播A', liveStatus: 2),
+        _user('直播B', liveStatus: 2),
+        _user('未开播C'),
+        _user('读取中D'),
+      ]);
+
+      final items = c.sidebarItems;
+      expect(items.map((i) => i.kind), [
+        FollowSidebarKind.all,
+        FollowSidebarKind.live,
+        FollowSidebarKind.offline,
+      ]);
+      expect(items.map((i) => i.label), ['全部', '直播中', '未开播']);
+      // 读取中计入总数、不计入在播
+      expect(items.map((i) => i.count), [4, 2, 2]);
+    });
+
+    test('开启后平台项插在中间（siteSort 序），0 计数平台隐藏', () {
+      final settings = AppSettingsController.instance;
+      settings.followGroupBySite.value = true;
+      settings.followSiteGroupSites.assignAll(Sites.orderedIds(settings.siteSort));
+      final c = _sidebarProbe();
+      c.list.assignAll([
+        _user('虎牙A', siteId: 'huya', liveStatus: 2),
+        _user('斗鱼B', siteId: 'douyu'),
+        // 抖音 / B站 / Twitch 一个关注都没有 → 不占侧栏
+      ]);
+
+      final items = c.sidebarItems;
+      expect(items.map((i) => i.kind), [
+        FollowSidebarKind.all,
+        FollowSidebarKind.live,
+        FollowSidebarKind.offline,
+        FollowSidebarKind.site,
+        FollowSidebarKind.site,
+      ]);
+      // 平台序跟 siteSort（默认 = allSites 声明序：B站/斗鱼/虎牙/抖音/Twitch）
+      expect(items.map((i) => i.label), [
+        '全部',
+        '直播中',
+        '未开播',
+        '斗鱼直播',
+        '虎牙直播',
+      ]);
+      expect(items.map((i) => i.count), [2, 1, 1, 1, 1]);
+      // 平台项带上 Site，widget 才能画 logo
+      expect(items[3].site?.id, 'douyu');
+    });
+
+    test('关掉单个平台子开关，对应平台项消失', () {
+      final settings = AppSettingsController.instance;
+      settings.followGroupBySite.value = true;
+      settings.followSiteGroupSites.assignAll(['huya', 'douyu']);
+      final c = _sidebarProbe();
+      c.list.assignAll([
+        _user('虎牙A', siteId: 'huya'),
+        _user('斗鱼B', siteId: 'douyu'),
+      ]);
+
+      expect(
+        c.sidebarItems.where((i) => i.kind == FollowSidebarKind.site).map((i) => i.label),
+        ['斗鱼直播', '虎牙直播'],
+      );
+
+      settings.followSiteGroupSites.remove('douyu');
+      expect(
+        c.sidebarItems.where((i) => i.kind == FollowSidebarKind.site).map((i) => i.label),
+        ['虎牙直播'],
+      );
+    });
+
+    test('自定义分组排在平台之后；空分组保留（拖拽落点）', () {
+      final settings = AppSettingsController.instance;
+      settings.followGroupBySite.value = true;
+      settings.followSiteGroupSites.assignAll(['huya']);
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: ['huya_a']),
+        FollowUserTag(id: 'a1', tag: '空组', userId: <String>[]),
+      ]);
+      final c = _sidebarProbe();
+      c.updateTagList();
+      c.list.assignAll([_user('a', siteId: 'huya')]);
+
+      expect(
+        c.sidebarItems.map((i) => '${i.kind.name}:${i.label}'),
+        [
+          'all:全部',
+          'live:直播中',
+          'offline:未开播',
+          'site:虎牙直播',
+          'group:CS解说',
+          'group:空组',
+        ],
+      );
+    });
+  });
+
+  group('selectSidebarItem 互斥不变式', () {
+    test('内置项：清筛选 + 切到对应页', () {
+      final c = _sidebarProbe();
+      c.list.assignAll([_user('a', liveStatus: 2)]);
+
+      c.selectSidebarItem(c.sidebarItems[1]);
+      expect(c.activeFilter.value, isNull);
+      expect(c.activeTab.value, 1);
+      expect(c.activeSidebarKey, 'live');
+
+      // 已在目标页上也清筛选：点「全部」= 退出筛选
+      c.activeFilter.value = const FollowFilter(
+        kind: FollowSidebarKind.site,
+        id: 'huya',
+      );
+      c.selectSidebarItem(c.sidebarItems[0]);
+      expect(c.activeFilter.value, isNull);
+      expect(c.activeTab.value, 0);
+      expect(c.activeSidebarKey, 'all');
+    });
+
+    test('平台 / 分组项：设筛选 + 回「全部」页', () {
+      final settings = AppSettingsController.instance;
+      settings.followGroupBySite.value = true;
+      settings.followSiteGroupSites.assignAll(['huya']);
+      final c = _sidebarProbe();
+      c.list.assignAll([_user('a', siteId: 'huya', liveStatus: 2)]);
+
+      // 先在「直播中」页，再点平台项：应回到第 0 页并带上筛选
+      c.activeTab.value = 1;
+      final siteItem = c.sidebarItems.firstWhere((i) => i.kind == FollowSidebarKind.site);
+      c.selectSidebarItem(siteItem);
+      expect(c.activeTab.value, 0);
+      expect(c.activeFilter.value?.kind, FollowSidebarKind.site);
+      expect(c.activeFilter.value?.id, 'huya');
+      expect(c.activeSidebarKey, 'site:huya');
+    });
+
+    test('切页只走侧栏：activeTab 是唯一真源（无手势翻页旁路）', () {
+      final c = _sidebarProbe();
+      c.list.assignAll([_user('a')]);
+
+      // 直接写 activeTab（相当于外部改状态）时，侧栏高亮立刻跟上
+      c.activeTab.value = 2;
+      expect(c.activeSidebarKey, 'offline');
+
+      // 侧栏点「直播中」：状态切过去，筛选不受影响
+      c.selectSidebarItem(c.sidebarItems[1]);
+      expect(c.activeTab.value, 1);
+      expect(c.activeSidebarKey, 'live');
+    });
+
+    test('筛选失效（分组被删）回落 null，不会渲染空白平铺', () {
+      final c = _sidebarProbe();
+      c.list.assignAll([_user('a')]);
+      c.activeFilter.value = const FollowFilter(
+        kind: FollowSidebarKind.group,
+        id: 'ghost',
+      );
+
+      expect(c.activeGroup, isNull);
+      expect(c.filteredMembers, isEmpty);
+    });
+  });
+
+  group('filteredMembers（筛选态成员）', () {
+    test('分组走 groupedView 桶（多归属，顺序继承 list）', () {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: ['douyu_a', 'douyu_b']),
+      ]);
+      final c = _sidebarProbe();
+      c.updateTagList();
+      c.list.assignAll([
+        _user('a'),
+        _user('b', liveStatus: 2),
+      ]);
+      c.activeFilter.value = const FollowFilter(
+        kind: FollowSidebarKind.group,
+        id: 'a0',
+      );
+
+      // 顺序继承 list（直播优先是 liveListSort 排好的，不在这里重复造）
+      expect(c.filteredMembers.map((u) => u.userName), ['a', 'b']);
+      expect(c.activeGroup?.tag, 'CS解说');
+    });
+
+    test('平台走 siteId 过滤：新关注自动进来，不依赖任何分组', () {
+      final c = _sidebarProbe();
+      c.list.assignAll([
+        _user('虎牙A', siteId: 'huya', liveStatus: 2),
+        _user('斗鱼B', siteId: 'douyu'),
+        _user('虎牙C', siteId: 'huya'),
+      ]);
+      c.activeFilter.value = const FollowFilter(
+        kind: FollowSidebarKind.site,
+        id: 'huya',
+      );
+
+      // 只按 siteId 切，顺序继承 list；未建任何分组
+      expect(c.filteredMembers.map((u) => u.userName), ['虎牙A', '虎牙C']);
+      expect(c.activeGroup, isNull);
+    });
+
+    test('搜索词同时作用于平台筛选', () {
+      final c = _sidebarProbe();
+      c.list.assignAll([
+        _user('虎牙A', siteId: 'huya', remark: '大主播'),
+        _user('虎牙B', siteId: 'huya'),
+      ]);
+      c.activeFilter.value = const FollowFilter(
+        kind: FollowSidebarKind.site,
+        id: 'huya',
+      );
+      c.searchQuery.value = '大主播';
+
+      expect(c.filteredMembers.map((u) => u.userName), ['虎牙A']);
     });
   });
 }

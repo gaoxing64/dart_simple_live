@@ -7,11 +7,9 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/follow_tag_manager.dart';
-import 'package:simple_live_app/models/db/follow_user_tag.dart';
-import 'package:simple_live_app/widgets/filter_button.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
-import 'package:simple_live_app/modules/follow_user/widgets/follow_group_card.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_member_row.dart';
+import 'package:simple_live_app/modules/follow_user/widgets/follow_sidebar.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/services/follow_service.dart';
@@ -27,18 +25,6 @@ class FollowUserPage extends GetView<FollowUserController> {
 
   @override
   Widget build(BuildContext context) {
-    var count = MediaQuery
-        .of(context)
-        .size
-        .width ~/ 500;
-    if (count < 1) count = 1;
-    var c = MediaQuery
-        .of(context)
-        .size
-        .width ~/ 200;
-    if (c < 2) {
-      c = 2;
-    }
     // 关注页上所有圆形图标按钮（顶栏刷新 / 顶栏分组管理 / 顶栏排序 / 顶栏更多菜单 /
     // 搜索框清空 / 行尾取关）共用这一份规格，hover 与按压反馈因此完全一致。
     // 为什么不放进主题统一给：见 `AppStyle.iconButtonStyle` 的注释。
@@ -49,7 +35,22 @@ class FollowUserPage extends GetView<FollowUserController> {
     // 切到别的 Tab 之后仍然挂在树里，`PopScope` 会连别的 Tab 的返回键一起吃掉。
     return CollapsibleTopBarScaffold(
       appBar: _buildAppBar(iconButtonStyle),
-      body: _buildBody(context, count, c),
+      // 列数必须按**内容区可用宽度**算：第二栏侧栏占掉一截，
+      // 再拿 `MediaQuery` 的整窗宽会把宽窗口的列数算少一档（侧栏越宽偏越多）。
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final sidebarWidth = FollowSidebar.widthFor(constraints.maxWidth);
+          final compact = FollowSidebar.isCompact(constraints.maxWidth);
+          final width = constraints.maxWidth - sidebarWidth;
+          var count = width ~/ 500;
+          if (count < 1) count = 1;
+          var c = width ~/ 200;
+          if (c < 2) {
+            c = 2;
+          }
+          return _buildBody(context, sidebarWidth, compact, count, c);
+        },
+      ),
     );
   }
 
@@ -97,8 +98,7 @@ class FollowUserPage extends GetView<FollowUserController> {
         child: SlideTransition(
           // 同一条动画驱动进出：入站时 from→0（从那一侧滑进来），
           // 出站时 0→from（往同一侧滑出去），整组像是被推让开的。
-          position: Tween(begin: Offset(from, 0), end: Offset.zero)
-              .animate(animation),
+          position: Tween(begin: Offset(from, 0), end: Offset.zero).animate(animation),
           child: inner,
         ),
       ),
@@ -163,9 +163,7 @@ class FollowUserPage extends GetView<FollowUserController> {
               // 否则光标与输入法组合态会丢。
               : Text(
                   key: const ValueKey('title'),
-                  controller.selectedIds.isEmpty
-                      ? "关注用户"
-                      : "已选择 ${controller.selectedIds.length} 位",
+                  controller.selectedIds.isEmpty ? "关注用户" : "已选择 ${controller.selectedIds.length} 位",
                 ),
         ),
       ),
@@ -177,8 +175,7 @@ class FollowUserPage extends GetView<FollowUserController> {
           final selecting = controller.selectedIds.isNotEmpty;
           final actions = _fadeSlideSlot(
             KeyedSubtree(
-              key: ValueKey(
-                  '${expanded ? 'x' : 'c'}${selecting ? 's' : 'n'}'),
+              key: ValueKey('${expanded ? 'x' : 'c'}${selecting ? 's' : 'n'}'),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -237,29 +234,17 @@ class FollowUserPage extends GetView<FollowUserController> {
                               ],
                             ),
                           ),
-                          // 「模式切换」只在筛选态出现：平铺列表才有
-                          // 紧凑/卡片两种排法，文件夹总览下点了没有意义。
-                          if (controller.activeTab.value == 0 &&
-                              controller.activeGroup != null)
-                            const AppPopupMenuItem(
-                              value: 1,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Remix.blender_line),
-                                  AppStyle.hGap12,
-                                  Text("模式切换"),
-                                ],
-                              ),
-                            ),
+                          // 「模式切换」全局可见：直播中 / 未开播两页与
+                          // 平台 / 分组平铺都读同一个布局设置，不再有
+                          // 「文件夹总览下点了没意义」的筛选态限制。
                           const AppPopupMenuItem(
-                            value: 7,
+                            value: 1,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Remix.magic_line),
+                                Icon(Remix.blender_line),
                                 AppStyle.hGap12,
-                                Text("按平台智能分组"),
+                                Text("模式切换"),
                               ],
                             ),
                           ),
@@ -294,8 +279,6 @@ class FollowUserPage extends GetView<FollowUserController> {
                           SmartDialog.showToast("此功能暂未开放！敬请期待！");
                         } else if (value == 1) {
                           controller.showFollowStyleDialog();
-                        } else if (value == 7) {
-                          controller.runSmartGrouping();
                         } else if (value == 6) {
                           showFollowTagManagerSheet();
                         }
@@ -324,12 +307,8 @@ class FollowUserPage extends GetView<FollowUserController> {
           );
           slot = _leadingSlot('close', close);
         } else {
-          // 普通态两个图标：刷新 + 一键展开/折叠全部分组。
-          // 只有「全部」视图有分组卡片可折叠；关注列表也空时按钮没意义。
-          final showFoldAll = controller.activeTab.value == 0 &&
-              controller.activeGroupId.value == null &&
-              (controller.customTags.isNotEmpty || controller.list.isNotEmpty);
-          final folded = controller.hasCollapsedGroups;
+          // 普通态只有一个图标：刷新。文件夹总览（可折叠分组卡片）已随
+          // 二级菜单导航移除，一键展开/折叠没有对象可用了。
           final icons = Row(
             key: const ValueKey('normal'),
             mainAxisSize: MainAxisSize.min,
@@ -362,14 +341,6 @@ class FollowUserPage extends GetView<FollowUserController> {
                       ),
                 from: -0.12,
               ),
-              if (showFoldAll)
-                IconButton(
-                  key: const ValueKey('fold-all'),
-                  style: iconButtonStyle,
-                  tooltip: folded ? "展开全部分组" : "折叠全部分组",
-                  onPressed: controller.toggleAllGroupsCollapsed,
-                  icon: Icon(folded ? Icons.unfold_more : Icons.unfold_less),
-                ),
             ],
           );
           slot = _leadingSlot('normal', icons);
@@ -431,68 +402,61 @@ class FollowUserPage extends GetView<FollowUserController> {
     );
   }
 
-  Widget _buildBody(BuildContext context, int count, int c) {
-    return Column(
+  /// 三栏布局的第二、三栏：竖排标签侧栏 + 内容列表。
+  ///
+  /// 侧栏**始终显示**：竖屏时底部导航栏占的是底部，左边只此一栏，不存在
+  /// 「宽度不够」的问题；长分组名由侧栏自己省略截断。
+  /// （第一栏是外壳的 NavigationRail / 底部导航，不归本页管。）
+  Widget _buildBody(BuildContext context, double sidebarWidth, bool compact, int count, int c) {
+    return Row(
+      // 侧栏高度只占内容本身（不再是 Expanded 撑满），不 stretch 会被 Row
+      // 按交叉轴居中，整栏浮在页面中段而不是从顶部往下排。
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 3 个内置视图 tab。要计数，所以在 Obx 里。
-        Obx(() {
-          final live = controller.liveSection.length;
-          final offline = controller.offlineSection.length;
-          return _ViewSwitchBar(
-            controller: controller,
-            counts: [live + offline, live, offline],
-          );
-        }),
         Obx(
-          () {
-            final hide =
-                AppSettingsController.instance.hideRemoveFollowButton.value;
-            final live = controller.liveSection;
-            final offline = controller.offlineSection;
-            // 筛选态的空态判据：选中了某一分组、但该组过滤后没有成员。
-            // 在 Obx 构建窗口内读 activeGroup / activeGroupMembers（内部读
-            // groupedView → list / tagList / liveStatus），筛选失效回落、
-            // 搜索词变化都会自动重算。
-            final filterEmpty = controller.activeGroup != null &&
-                controller.activeGroupMembers.isEmpty;
-            return Expanded(
-              child: Stack(
+          () => FollowSidebar(
+            width: sidebarWidth,
+            compact: compact,
+            items: controller.sidebarItems,
+            selectedKey: controller.activeSidebarKey,
+            onSelect: controller.selectSidebarItem,
+          ),
+        ),
+        // 二级菜单与内容之间**不画分割线**：菜单项的强调线与留白已经够了，
+        // 再插一根竖线反而把内容区切碎。
+        Expanded(
+          child: Obx(
+            () {
+              final hide = AppSettingsController.instance.hideRemoveFollowButton.value;
+              final live = controller.liveSection;
+              final offline = controller.offlineSection;
+              // 筛选态的空态判据：选中了某个平台 / 分组、但过滤后没有成员。
+              // 在 Obx 构建窗口内读 hasActiveFilter / filteredMembers（内部读
+              // groupedView → list / tagList / liveStatus），筛选失效回落、
+              // 搜索词变化都会自动重算。
+              final filterEmpty = controller.hasActiveFilter && controller.filteredMembers.isEmpty;
+              return Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 三页 ViewPager（与首页平台 Tab 同范式）：左右滑动 / 鼠标左键
-                  // 横拖切页，指示器随拖动实时滑动。每页 PageGridView 各自滚动，
-                  // 「全部」页是数据主入口（firstRefresh:true 唯一触发首次加载）。
-                  TabBarView(
-                    controller: controller.tabController,
+                  // 三页 ViewPager：侧栏在左，翻页走**纵轴**（与首页壳
+                  // 「侧边栏在左就垂直滑动」同一约定）。
+                  // 手势不参与：每页都是竖向滚动列表，再让纵向手势翻页会
+                  // 和列表抢同一根轴；切换入口只有左侧第二栏。
+                  PageView(
+                    controller: controller.pageController,
+                    scrollDirection: Axis.vertical,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
                       KeepAliveWrapper(
-                        child: Column(
-                          children: [
-                            // 分组胶囊筛选行：只有存在自定义分组时才占高度。
-                            // 钉在列表上方（不随内容滚走），又在 TabBarView 的
-                            // 页面里 —— 左右滑切页时它跟着页面一起滑，不像放在
-                            // 外层 body 那样在切 tab 时整行突然消失/出现。
-                            Obx(() {
-                              final tags = controller.customTags;
-                              if (tags.isEmpty) {
-                                return const SizedBox.shrink();
-                              }
-                              return _GroupFilterBar(controller: controller);
-                            }),
-                            Expanded(
-                              child: PageGridView(
-                                pageController: controller,
-                                padding: AppStyle.edgeInsetsA12,
-                                firstRefresh: true,
-                                // 段与段之间的竖直间距；段内的行距由各段自己的
-                                // mainAxisSpacing 管。
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                sections: _buildGroupedSections(count, c, hide),
-                              ),
-                            ),
-                          ],
+                        child: PageGridView(
+                          pageController: controller,
+                          padding: AppStyle.edgeInsetsA12,
+                          firstRefresh: true,
+                          // 段与段之间的竖直间距；段内的行距由各段自己的
+                          // mainAxisSpacing 管。
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          sections: _buildGroupedSections(count, c, hide),
                         ),
                       ),
                       PageGridView(
@@ -502,7 +466,7 @@ class FollowUserPage extends GetView<FollowUserController> {
                         crossAxisSpacing: 12,
                         scrollOverride: controller.liveScrollController,
                         refreshOverride: controller.liveRefreshController,
-                        sections: _liveSections(live, c),
+                        sections: _liveSections(live, count, c),
                       ),
                       PageGridView(
                         pageController: controller,
@@ -511,7 +475,7 @@ class FollowUserPage extends GetView<FollowUserController> {
                         crossAxisSpacing: 12,
                         scrollOverride: controller.offlineScrollController,
                         refreshOverride: controller.offlineRefreshController,
-                        sections: _offlineSections(offline, count, hide),
+                        sections: _offlineSections(offline, count, c, hide),
                       ),
                     ],
                   ),
@@ -537,33 +501,53 @@ class FollowUserPage extends GetView<FollowUserController> {
                       controller.searchQuery.value.trim().isNotEmpty)
                     const Center(child: Text("没有匹配的关注")),
                 ],
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ],
     );
   }
 
-  /// 「直播中」视图的段：卡片网格。
-  List<PageGridSection> _liveSections(List<FollowUser> live, int c) {
+  /// 「直播中」视图的段：卡片网格 / 紧凑行（随全局布局设置，见 [_liveSections]）。
+  List<PageGridSection> _liveSections(List<FollowUser> live, int count, int c) {
+    final cardMode = AppSettingsController.instance.followStyleNotGrid.value == false;
     return [
       GridSection(
         header: _SectionHeader(live: true, count: live.length),
-        crossAxisCount: c,
-        itemExtent: PageGridView.kDefaultItemExtent,
+        crossAxisCount: cardMode ? c : count,
+        itemExtent: cardMode ? PageGridView.kDefaultItemExtent : FollowMemberRow.rowExtent,
         itemCount: live.length,
-        mainAxisSpacing: 12,
+        mainAxisSpacing: cardMode ? 12 : 4,
         crossAxisSpacing: 12,
-        itemBuilder: (_, i) => _buildLiveCard(live[i]),
+        itemBuilder: (_, i) {
+          final u = live[i];
+          if (cardMode) {
+            return _buildLiveCard(u);
+          }
+          // 紧凑行也要能看出在播：头像描边圈 + 直播标题
+          // （FollowMemberRow 自己会按 liveStatus 切副标题）。
+          return Obx(
+            () => FollowMemberRow(
+              item: u,
+              draggable: false,
+              selected: controller.selectedIds.contains(u.id),
+              onToggleSelect: () => controller.toggleSelected(u.id),
+              onTap: () => _toDetail(u),
+              onLongPress: () => controller.showBottomMenu(u),
+            ),
+          );
+        },
       ),
     ];
   }
 
-  /// 「未开播」视图的段：紧凑行。这里没有分组卡片可拖，行不带状态点（整段都是灰点，
-  /// 纯噪音）也不可拖拽。
-  List<PageGridSection> _offlineSections(
-      List<FollowUser> offline, int count, bool hide) {
+  /// 「未开播」视图的段：紧凑行 / 卡片网格（随全局布局设置）。
+  ///
+  /// 紧凑行没有分组卡片可拖，行不带状态点（整段都是灰点，纯噪音）也不可拖拽。
+  /// 卡片模式的封面 / 标题回退见 [_buildLiveCard]。
+  List<PageGridSection> _offlineSections(List<FollowUser> offline, int count, int c, bool hide) {
+    final cardMode = AppSettingsController.instance.followStyleNotGrid.value == false;
     return [
       GridSection(
         header: _SectionHeader(
@@ -574,13 +558,16 @@ class FollowUserPage extends GetView<FollowUserController> {
           // 里根本没有这一项，照抄就是在骗用户。
           sortLabel: controller.sortMap[controller.sortMethod.value],
         ),
-        crossAxisCount: count,
-        itemExtent: FollowMemberRow.rowExtent,
+        crossAxisCount: cardMode ? c : count,
+        itemExtent: cardMode ? PageGridView.kDefaultItemExtent : FollowMemberRow.rowExtent,
         itemCount: offline.length,
-        mainAxisSpacing: 4,
+        mainAxisSpacing: cardMode ? 12 : 4,
         crossAxisSpacing: 12,
         itemBuilder: (_, i) {
           final u = offline[i];
+          if (cardMode) {
+            return _buildLiveCard(u);
+          }
           return Obx(
             () => FollowMemberRow(
               item: u,
@@ -596,122 +583,49 @@ class FollowUserPage extends GetView<FollowUserController> {
     ];
   }
 
-  /// 「全部」视图：选中了某一分组时平铺它的成员（见 [_buildGroupFilterSections]）；
-  /// 否则每个自定义标签一张可折叠分组卡片，未分组的走紧凑行列在卡片下方，
-  /// 未分组段头是「拖出分组」的落点、也可折叠。
+  /// 「全部」页的段。
+  ///
+  /// 选中了某个平台 / 分组时平铺它的成员（[hasActiveFilter]，平台也算、
+  /// 幽灵 id 不算）；否则平铺**全部**关注（顺序继承 [list]，直播优先）。
+  ///
+  /// 曾经的文件夹总览（一组一张可折叠卡片 + 未分组段）已随二级菜单导航移除：
+  /// 分组改从第二栏的分组标签进，平铺列表与分组筛选共用一套渲染，
+  /// 「全部」页也因此和别的页一样吃关注样式（紧凑 / 卡片）设置。
   List<PageGridSection> _buildGroupedSections(int count, int c, bool hide) {
-    final active = controller.activeGroup;
-    if (active != null) {
-      return _buildGroupFilterSections(active, count, c, hide);
+    if (controller.hasActiveFilter) {
+      return _buildFilterSections(
+          _filterLabel(controller.activeFilter.value!), controller.filteredMembers, count, c, hide);
     }
-    final grouped = controller.groupedView;
-    final searching = controller.searchQuery.value.trim().isNotEmpty;
-    // 折叠集合必须在这里（Obx 构建窗口内）读一次 —— itemBuilder 是 sliver
-    // 惰性调用的，那时 `RxInterface.proxy` 已经为 null，读 RxSet 不会登记订阅，
-    // 点折叠箭头就永远等不来重建。
-    final collapsed = Set<String>.of(controller.collapsedGroups);
-    final sections = <PageGridSection>[];
-    if (grouped.groups.isNotEmpty) {
-      sections.add(BoxSection(
-        child: ReorderableListView.builder(
-          shrinkWrap: true,
-          // 外层已有滚动（PageGridView 的 CustomScrollView），这里只负责
-          // 重排手势、不滚。与分组管理 sheet 同范式同理由。
-          physics: const NeverScrollableScrollPhysics(),
-          buildDefaultDragHandles: false,
-          padding: EdgeInsets.zero,
-          itemCount: grouped.groups.length,
-          // 注意：material_ui 的 onReorderItem 收到的 newIndex 已按删除旧位置
-          // 校正过，FollowUserController.reorderTag / FollowService.reorderFollowTag
-          // 里都不许再 -1。
-          onReorderItem: (int oldIndex, int newIndex) =>
-              controller.reorderTag(oldIndex, newIndex),
-          itemBuilder: (context, i) {
-            final g = grouped.groups[i];
-            // 卡片间距垫在 item 自己身上（末段与下一段之间还有段间距 12）。
-            return Padding(
-              key: ValueKey(g.tag.id),
-              padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
-              child: FollowGroupCard(
-                group: g,
-                collapsed: collapsed.contains(g.tag.id),
-                // 搜索时空组被过滤掉了，卡片序号与标签序号对不上，禁调序。
-                reorderIndex: searching ? null : i,
-                memberColumns: count,
-                onToggleCollapsed: () =>
-                    controller.toggleGroupCollapsed(g.tag.id),
-                onRename: () => FollowTagManagerController.shared
-                    .editTagDialog("重命名分组", followUserTag: g.tag),
-                onDropMember: (u) => controller.setFollowTag(u, g.tag),
-                onMemberTap: _toDetail,
-                onMemberLongPress: (u) => controller.showBottomMenu(u),
-                onMemberRemove:
-                    hide ? null : (u) => controller.removeFollow(u),
-                selectedIds: controller.selectedIds,
-                onToggleSelect: (u) => controller.toggleSelected(u.id),
-              ),
-            );
-          },
-        ),
-      ));
-    }
-    final ungroupedCollapsed = collapsed.contains(
-      FollowUserController.kUngroupedKey,
-    );
-    // 勾选数与在播数在这里（Obx 窗口内）算好再传下去，段头保持纯展示。
-    final ungroupedSelectedCount = grouped.ungrouped
-        .where((u) => controller.selectedIds.contains(u.id))
-        .length;
-    final ungroupedLiveCount = grouped.ungrouped
-        .where((u) => u.liveStatus.value == 2)
-        .length;
-    if (!searching || grouped.ungrouped.isNotEmpty) {
-      sections.add(BoxSection(
-        child: _UngroupedSection(
-          members: grouped.ungrouped,
-          liveCount: ungroupedLiveCount,
-          selectedCount: ungroupedSelectedCount,
-          hasGroups: grouped.groups.isNotEmpty,
-          collapsed: ungroupedCollapsed,
-          columns: count,
-          hideRemove: hide,
-          selectedIds: controller.selectedIds,
-          onToggle: () => controller.toggleGroupCollapsed(
-            FollowUserController.kUngroupedKey,
-          ),
-          onDrop: (u) => controller.setFollowTag(u, controller.tagList.first),
-          hasMembership: (u) =>
-              FollowService.instance.userTagNamesOf(u.id).isNotEmpty,
-          onToggleSelect: (u) => controller.toggleSelected(u.id),
-          onMemberTap: _toDetail,
-          onMemberLongPress: (u) => controller.showBottomMenu(u),
-          onRemove: (u) => controller.removeFollow(u),
-        ),
-      ));
-    }
-    return sections;
+    return _buildFilterSections(FollowUserController.builtinTags[0], controller.visibleList, count, c, hide);
   }
 
-  /// 筛选态（选中 [active]）的平铺段：一个 GridSection，成员不再套文件夹卡片。
+  /// 筛选态段头上显示的名字：平台取平台名，分组取组名。
+  ///
+  /// 分组失效（被删 / 调序换 id）时回落空串：此时成员也是空表，
+  /// 段头整段被 `PageGridView` 跳过（itemCount==0），不会露出空白标题。
+  String _filterLabel(FollowFilter filter) {
+    if (filter.kind == FollowSidebarKind.site) {
+      return Sites.allSites[filter.id]?.name ?? filter.id;
+    }
+    return controller.activeGroup?.tag ?? '';
+  }
+
+  /// 「全部」页与平台 / 分组筛选共用的平铺段：一个 GridSection，成员不套文件夹卡片。
   ///
   /// 紧凑模式列数/行高与未开播紧凑行一致（[count] / [FollowMemberRow.rowExtent]）；
   /// 卡片模式与「直播中」页同口径（[c] 列 / [PageGridView.kDefaultItemExtent]），
   /// 直接复用 [_buildLiveCard] —— 勾选/长按行为与那一页一致（卡面同样不挂
   /// 取关按钮，要取关切回紧凑模式或进直播间）。
-  List<PageGridSection> _buildGroupFilterSections(
-      FollowUserTag active, int count, int c, bool hide) {
-    final members = controller.activeGroupMembers;
+  ///
+  /// 段头是 [label]（「全部」/ 平台名 / 组名）+「● N/M 在播」。
+  List<PageGridSection> _buildFilterSections(String label, List<FollowUser> members, int count, int c, bool hide) {
     final liveCount = members.where((u) => u.liveStatus.value == 2).length;
-    final cardMode =
-        AppSettingsController.instance.followStyleNotGrid.value == false;
+    final cardMode = AppSettingsController.instance.followStyleNotGrid.value == false;
     return [
       GridSection(
-        header: _GroupFilterHeader(
-            tag: active, live: liveCount, total: members.length),
+        header: _FilterHeader(label: label, live: liveCount, total: members.length),
         crossAxisCount: cardMode ? c : count,
-        itemExtent: cardMode
-            ? PageGridView.kDefaultItemExtent
-            : FollowMemberRow.rowExtent,
+        itemExtent: cardMode ? PageGridView.kDefaultItemExtent : FollowMemberRow.rowExtent,
         itemCount: members.length,
         mainAxisSpacing: cardMode ? 12 : 4,
         crossAxisSpacing: 12,
@@ -723,7 +637,6 @@ class FollowUserPage extends GetView<FollowUserController> {
           return Obx(
             () => FollowMemberRow(
               item: u,
-              liveRing: true,
               // 平铺态没有分组卡片可拖，头像不起拖（换组走顶栏「移入分组」）。
               draggable: false,
               selected: controller.selectedIds.contains(u.id),
@@ -738,7 +651,7 @@ class FollowUserPage extends GetView<FollowUserController> {
     ];
   }
 
-  /// 段头高度。紧凑行视图与未分组段头共用这一个值。
+  /// 段头高度。紧凑行视图与平铺段头共用这一个值。
   static const double _kSectionHeaderHeight = 34;
 
   void _toDetail(FollowUser item) {
@@ -748,29 +661,39 @@ class FollowUserPage extends GetView<FollowUserController> {
     );
   }
 
-  /// 「直播中」视图的卡面。
+  /// 直播中 / 未开播视图共用的卡面（布局设置选「卡片模式」时）。
   ///
   /// **不挂取关按钮、也不带累计观看时长**（用户要求）：卡面只负责吸引点击进直播间，
   /// 「时长统计」与「取关」两件事统一收在紧凑行里。所以这里既不传
   /// `watchDurationSec`，也不传 `onFollowRemove` —— 直播中的主播要取关，
   /// 走「点卡片 → 直播间 → 取消关注」。
+  ///
+  /// 未开播的房间没有封面（接口只在直播中下发）：封面区改由 `avatar` 画成
+  /// **圆形头像占位**，不再把头像拉满整块封面 —— 拉满和直播画面混在一起，
+  /// 一眼分不出在播与否（内置逻辑见 `LiveRoomCard._AvatarCover`）。
+  /// 直播中即便封面为空也保持原行为（走 logo 兜底），占位只服务未开播。
+  /// 标题同理只在直播中才有，未开播兜底成「未开播」，避免和下方主播名重复。
   Widget _buildLiveCard(FollowUser item) {
     final site = Sites.allSites[item.siteId]!;
     // 逐卡 Obx：勾选态的描边/光晕要靠它当场刷新（外层不会因勾选而重建）
     return Obx(
-      () => LiveRoomCard(
-        site,
-        LiveRoomItem(
-          roomId: item.roomId,
-          title: item.title.value,
-          cover: item.cover.value,
-          userName: item.userName,
-          online: item.online.value,
-        ),
-        onLongPress: () => controller.showBottomMenu(item),
-        selected: controller.selectedIds.contains(item.id),
-        onToggleSelect: () => controller.toggleSelected(item.id),
-      ),
+      () {
+        final isLive = item.liveStatus.value == 2;
+        return LiveRoomCard(
+          site,
+          LiveRoomItem(
+            roomId: item.roomId,
+            title: item.title.value.isEmpty && !isLive ? "未开播" : item.title.value,
+            cover: item.cover.value,
+            userName: item.userName,
+            online: item.online.value,
+          ),
+          avatar: isLive ? '' : item.face,
+          onLongPress: () => controller.showBottomMenu(item),
+          selected: controller.selectedIds.contains(item.id),
+          onToggleSelect: () => controller.toggleSelected(item.id),
+        );
+      },
     );
   }
 }
@@ -856,9 +779,7 @@ class _SectionHeader extends StatelessWidget {
           AppStyle.hGap8,
           Expanded(
             child: Text(
-              live
-                  ? "$count 个直播间正在播出"
-                  : "$count 位主播，按${sortLabel ?? "默认方式"}排序",
+              live ? "$count 个直播间正在播出" : "$count 位主播，按${sortLabel ?? "默认方式"}排序",
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
@@ -870,285 +791,14 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// 「全部」视图里的未分组段：整段（段头 + 成员行）是一个「拖出分组」落点。
-///
-/// 之前只有段头那一条固定高度是 `DragTarget`，把成员拖到未分组的**行**上不会
-/// 移出；现在整块包进一个 `DragTarget`，悬停段头或任一成员行都会高亮整块并接收。
-/// 段头点击仍是折叠开关；折叠 / 空态时只剩段头，落点依旧覆盖整块。
-class _UngroupedSection extends StatelessWidget {
-  final List<FollowUser> members;
-
-  /// 未分组里正在直播的人数（与 [selectedCount] 同在 Obx 窗口内算好传入）。
-  final int liveCount;
-
-  /// 未分组里已勾选的人数（段头「· 已选 X」）。
-  final int selectedCount;
-  final bool hasGroups;
-  final bool collapsed;
-  final int columns;
-  final bool hideRemove;
-  final RxSet<String> selectedIds;
-  final VoidCallback onToggle;
-  final ValueChanged<FollowUser> onDrop;
-
-  /// 某关注是否还有分组归属（按成员表判，不看主分组缓存）。
-  /// 供拖拽谓词判「拖到这里 = 移出分组」，widget 不直接摸 service。
-  final bool Function(FollowUser) hasMembership;
-  final ValueChanged<FollowUser> onToggleSelect;
-  final ValueChanged<FollowUser> onMemberTap;
-  final ValueChanged<FollowUser> onMemberLongPress;
-  final ValueChanged<FollowUser> onRemove;
-
-  const _UngroupedSection({
-    required this.members,
-    required this.liveCount,
-    required this.selectedCount,
-    required this.hasGroups,
-    required this.collapsed,
-    required this.columns,
-    required this.hideRemove,
-    required this.selectedIds,
-    required this.onToggle,
-    required this.onDrop,
-    required this.hasMembership,
-    required this.onToggleSelect,
-    required this.onMemberTap,
-    required this.onMemberLongPress,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return DragTarget<FollowUser>(
-      // 只有「至少在一个分组里」的成员才允许拖到未分组段 = 移出所有分组；
-      // 本来就没分组的成员拖回本段 = 无操作，不高亮（按成员表判，不看主分组缓存）。
-      onWillAcceptWithDetails: (details) => hasMembership(details.data),
-      onAcceptWithDetails: (details) => onDrop(details.data),
-      builder: (context, candidates, _) {
-        final highlighted = candidates.isNotEmpty;
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: AppStyle.radius8,
-            border: Border.all(
-              color: highlighted ? scheme.primary : Colors.transparent,
-              width: 1.5,
-            ),
-            color: highlighted
-                ? scheme.primary.withValues(alpha: 0.08)
-                : null,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(scheme, highlighted),
-              if (!collapsed && members.isNotEmpty)
-                GridView.count(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  crossAxisCount: columns,
-                  shrinkWrap: true,
-                  // 外层 PageGridView 已有滚动，这里只把成员摆成多列。
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisExtent: FollowMemberRow.rowExtent,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 12,
-                  children: [
-                    for (final u in members)
-                      // 勾选态在惰性构建里读，必须自带 Obx（同分组卡片成员行）。
-                      Obx(
-                        () => FollowMemberRow(
-                          item: u,
-                          liveRing: true,
-                          draggable: hasGroups,
-                          selected: selectedIds.contains(u.id),
-                          onToggleSelect: () => onToggleSelect(u),
-                          onRemove: hideRemove ? null : () => onRemove(u),
-                          onTap: () => onMemberTap(u),
-                          onLongPress: () => onMemberLongPress(u),
-                        ),
-                      ),
-                  ],
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHeader(ColorScheme scheme, bool highlighted) {
-    return SizedBox(
-      height: FollowUserPage._kSectionHeaderHeight,
-      child: InkWell(
-        borderRadius: AppStyle.radius8,
-        onTap: onToggle,
-        child: Row(
-          children: [
-            AppStyle.hGap4,
-            AnimatedRotation(
-              // 展开时朝下、折叠时朝右，与分组卡片箭头一致。
-              turns: collapsed ? -0.25 : 0,
-              duration: const Duration(milliseconds: 250),
-              child: Icon(
-                Icons.expand_more,
-                size: 20,
-                color: highlighted
-                    ? scheme.primary
-                    : scheme.onSurfaceVariant,
-              ),
-            ),
-            AppStyle.hGap8,
-            Text(
-              "未分组",
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: scheme.onSurface,
-              ),
-            ),
-            AppStyle.hGap8,
-            // 与分组卡片同一口径 `● N/M 在播`：原来只写「M 位主播」，
-            // 把在播信息整个丢了，两套口径并排看着像漏改。
-            FollowCountLabel(
-              live: liveCount,
-              total: members.length,
-              selected: selectedCount,
-            ),
-            if (hasGroups)
-              Expanded(
-                child: Padding(
-                  padding: AppStyle.edgeInsetsH12,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      "拖到这里移出分组",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12, color: scheme.onSurfaceVariant),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 顶部的 3 个内置 tab：**视图切换**（不再是滚动锚点）。
-///
-/// 全部 = 分组文件夹视图；直播中 = 卡片网格；未开播 = 紧凑行。
-///
-/// 直接用 [TabBar]（与首页平台 Tab 同一套机制）：指示器由 TabBar 自己跟随
-/// [TabController] 绘制，天然与 body 的 `TabBarView` 同步 —— 手算下划线位置会
-/// 和 TabBarView 的实际页码对不上（踩过），交给 TabBar 画才是对的。
-class _ViewSwitchBar extends StatelessWidget {
-  final FollowUserController controller;
-
-  /// `[全部, 直播中, 未开播]` 三个计数。
-  final List<int> counts;
-
-  const _ViewSwitchBar({
-    required this.controller,
-    required this.counts,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // 计数由父级 Obx 读 liveSection/offlineSection 后传进来，选中态由 TabBar
-    // 自己跟随 TabController 画 —— 本组件不再需要自己的 Obx（读不到任何 Rx，
-    // 硬包一层 GetX 会直接抛「没有可观察变量」）。
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TabBar(
-          controller: controller.tabController,
-          isScrollable: false,
-          indicatorSize: TabBarIndicatorSize.label,
-          labelColor: scheme.primary,
-          unselectedLabelColor: scheme.onSurfaceVariant,
-          labelStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-          tabs: [
-            for (var i = 0; i < FollowUserController.builtinTags.length; i++)
-              Tab(
-                height: 44,
-                child: Text(
-                  "${FollowUserController.builtinTags[i]} ${counts[i]}",
-                  textAlign: TextAlign.center,
-                ),
-              ),
-          ],
-        ),
-        AppStyle.divider,
-      ],
-    );
-  }
-}
-
-/// 「全部」视图顶部的分组胶囊筛选行：`全部` + 每个自定义分组一枚。
-///
-/// 原版顶部胶囊型 tag 切换的回归 —— 一枚胶囊一步跳到某一分组的平铺列表，
-/// 不用在 N 张文件夹卡片之间滚找。选中「全部」则回到文件夹总览。
-///
-/// 复用 [FilterButton]（与「编辑」弹窗里的分组胶囊同一控件）；数量多时横向
-/// 滚动，不换行（换行会把列表顶下去，且行高不定）。
-class _GroupFilterBar extends StatelessWidget {
-  final FollowUserController controller;
-
-  const _GroupFilterBar({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    // 必须自己包 Obx：activeGroupId / tagList 都在本组件内读，外层那个 Obx
-    // 追踪不到子组件内部的 Rx 读（与原 _AnchorTabBar 同理由，踩过）。
-    return Obx(() {
-      final tags = controller.customTags;
-      final activeId = controller.activeGroupId.value;
-      return SizedBox(
-        height: 48,
-        child: Center(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: AppStyle.edgeInsetsH12,
-            child: Row(
-              children: [
-                FilterButton(
-                  text: "全部",
-                  selected: activeId == null,
-                  onTap: () => controller.setGroupFilter(null),
-                ),
-                for (final t in tags) ...[
-                  AppStyle.hGap8,
-                  FilterButton(
-                    key: ValueKey('group-filter-${t.id}'),
-                    text: t.tag,
-                    selected: activeId == t.id,
-                    onTap: () => controller.setGroupFilter(t),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      );
-    });
-  }
-}
-
-/// 筛选态平铺列表的段头：组名 + 「● N/M 在播」（与分组卡片头部同一口径）。
-class _GroupFilterHeader extends StatelessWidget {
-  final FollowUserTag tag;
+/// 平铺列表的段头：「全部」/ 平台名 / 组名 + 「● N/M 在播」。
+class _FilterHeader extends StatelessWidget {
+  final String label;
   final int live;
   final int total;
 
-  const _GroupFilterHeader({
-    required this.tag,
+  const _FilterHeader({
+    required this.label,
     required this.live,
     required this.total,
   });
@@ -1161,18 +811,61 @@ class _GroupFilterHeader extends StatelessWidget {
       child: Row(
         children: [
           AppStyle.hGap4,
-          Text(
-            tag.tag,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: scheme.onSurface,
+          // 窄列（侧栏占宽后）下标题 + 计数会超宽，标题要能缩。
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
+              ),
             ),
           ),
           AppStyle.hGap8,
           FollowCountLabel(live: live, total: total),
         ],
       ),
+    );
+  }
+}
+
+/// 段头右侧的计数：`● 3/4 在播`。
+///
+/// 圆点只在有在播成员时出现并取主题色，零在播就是灰字 `0/3 在播` —— 两种情况下
+/// 这段文字的宽度都稳定，不会因为有组在播就把标题挤成省略号。
+class FollowCountLabel extends StatelessWidget {
+  final int live;
+  final int total;
+
+  const FollowCountLabel({
+    required this.live,
+    required this.total,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Text.rich(
+      TextSpan(
+        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        children: [
+          if (live > 0)
+            TextSpan(
+              text: '● ',
+              style: TextStyle(fontSize: 10, color: scheme.primary),
+            ),
+          TextSpan(
+            text: '$live/$total 在播',
+            style: live > 0 ? TextStyle(color: scheme.primary) : null,
+          ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
