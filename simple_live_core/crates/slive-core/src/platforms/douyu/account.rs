@@ -192,6 +192,9 @@ pub(crate) async fn get_qr_poll_result(
 
 /// F-20 账号信息：先用 `refreshCookie` 续期，再从 cookie 里取 `acf_*` 字段。
 ///
+/// 写回凭证时保留入参的全部键（`dy_did`/`LTP0` 是续期材料，丢了就再也续不了期），
+/// 只替换 `cookie` —— 对齐 Dart 的全量回写。
+///
 /// 对齐 Dart：uid=`acf_uid`、name=`Uri.decodeComponent(acf_nickname)`、
 /// avatar=`Uri.decodeComponent(acf_avatar)` + `middle.jpg`；`isValid = cookie 非空`。
 /// 出错时返回 `isValid=false` 的空信息（对齐 Dart 的 try/catch 全吞），不抛。
@@ -227,9 +230,23 @@ pub(crate) async fn get_account_info(
         "acf_nickname",
     )));
     result.avatar = Some(format!("{avatar_base}middle.jpg"));
-    result.credential = serde_json::json!({ "cookie": new_cookie }).to_string();
+    result.credential = merge_credential_cookie(credential, &new_cookie);
     result.is_valid = true;
     Ok(result)
+}
+
+/// 写回凭证：保留入参里的全部键（`dy_did`/`LTP0` 等续期材料），只替换 `cookie`。
+///
+/// 对齐 Dart `getAccountInfo` 的 `newCredential['cookie'] = newCookie` 全量回写；
+/// 早先只回 `{"cookie": ...}` 会把续期材料丢掉，升级用户的 cookie 到期后无法续期。
+/// 入参不是 JSON 对象时退化为 `{"cookie": ...}`。
+fn merge_credential_cookie(credential: &str, new_cookie: &str) -> String {
+    let mut map = match serde_json::from_str::<serde_json::Map<String, Value>>(credential) {
+        Ok(map) => map,
+        Err(_) => serde_json::Map::new(),
+    };
+    map.insert("cookie".to_string(), Value::String(new_cookie.to_string()));
+    Value::Object(map).to_string()
 }
 
 /// 剥离 JSONP 包装：`cb({...})` -> `{...}`；不是 JSONP 时原样返回。
@@ -304,5 +321,25 @@ mod tests {
     fn login_referer_constant_is_used_for_is_login() {
         // 该常量是 is_login 头分支的唯一来源，锁死避免被误改
         assert!(DOUYU_LOGIN_REFERER.starts_with("https://passport.douyu.com/"));
+    }
+
+    #[test]
+    fn credential_write_back_keeps_renewal_keys() {
+        // 升级用户的 credential 带 dy_did/LTP0：写回只许换 cookie，不许丢键
+        let merged = merge_credential_cookie(
+            r#"{"cookie":"old","dy_did":"DID-1","LTP0":"LTP1"}"#,
+            "new",
+        );
+        let map: serde_json::Value = serde_json::from_str(&merged).expect("合法 JSON");
+        assert_eq!(map["cookie"], "new");
+        assert_eq!(map["dy_did"], "DID-1", "dy_did 必须保留");
+        assert_eq!(map["LTP0"], "LTP1", "LTP0 必须保留");
+    }
+
+    #[test]
+    fn credential_write_back_tolerates_non_object_input() {
+        let merged = merge_credential_cookie("not json", "new");
+        let map: serde_json::Value = serde_json::from_str(&merged).expect("合法 JSON");
+        assert_eq!(map["cookie"], "new");
     }
 }

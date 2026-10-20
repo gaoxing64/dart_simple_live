@@ -58,35 +58,42 @@ pub(crate) fn set_site_attrs(site: &DouyinSite, data: &str) -> Result<(), SliveE
     Ok(())
 }
 
-/// 未校验的默认账号对象（`is_valid = false` 且不回传 credential）。
+/// 未校验的默认账号对象（`is_valid = false`）。
 ///
-/// 对齐 Dart `AccountInfo()` 默认构造：App 的账号流程靠 `is_valid` 区分
-/// 「没配 cookie」与「配了但失效」，因此这里**不能**回传 credential。
-fn unverified() -> AccountInfo {
+/// **必须回传入参 credential**：App 的 `accountLogin` 会把 `info.credential`
+/// 原样写回账号库，回传空串会把用户已保存的 cookie 从数据库里抹掉（一次偶发
+/// 失败就永久掉登录）。B站 / 斗鱼的未校验路径同样回传原值，这里对齐。
+fn unverified(credential: &str) -> AccountInfo {
     AccountInfo {
         name: None,
         avatar: None,
         uid: None,
-        credential: String::new(),
+        credential: credential.to_string(),
         is_valid: false,
     }
 }
 
 /// 账号信息（`webcast/user/me/`）。
+///
+/// 空 credential / 非法 JSON 一律返回未校验对象而不抛错：App 启动时会对所有
+/// 账号行跑一遍校验，抛错会变成没人接的异步异常（对齐 B站 / 斗鱼口径）。
 pub(crate) async fn get_account_info(
     site: &DouyinSite,
     credential: &str,
 ) -> Result<AccountInfo, SliveError> {
-    let parsed: Value = serde_json::from_str(credential)
-        .map_err(|e| SliveError::invalid_input(format!("credential 非法 JSON: {e}")))?;
-    let cookie = parsed
-        .get("cookie")
-        .map(crate::util::value_to_string)
-        .unwrap_or_default();
+    let cookie = match serde_json::from_str::<Value>(credential) {
+        Ok(parsed) => parsed
+            .get("cookie")
+            .map(crate::util::value_to_string)
+            .unwrap_or_default(),
+        // 空串 = 未登录账号的 credential（App `accountLogin` 既有路径）；
+        // 非法 JSON 同理，按未校验处理，不抛。
+        Err(_) => String::new(),
+    };
 
     // 未配 cookie -> 未校验的默认对象（Dart：直接 return AccountInfo()）
     if cookie.is_empty() {
-        return Ok(unverified());
+        return Ok(unverified(credential));
     }
 
     let query = vec![("aid".to_string(), "6383".to_string())];
@@ -102,7 +109,7 @@ pub(crate) async fn get_account_info(
         // Dart：请求异常只记日志、返回未校验对象（不让账号页整体崩）
         Err(e) => {
             log::warn!("抖音账号信息查询失败（按未校验处理）: {e}");
-            Ok(unverified())
+            Ok(unverified(credential))
         }
     }
 }
@@ -114,7 +121,7 @@ pub(crate) async fn get_account_info(
 /// 响应结构不符时返回未校验对象（与 Dart 的 `if (result is Map) {...}` 静默路径一致）。
 fn parse_account(value: &Value, credential: &str) -> AccountInfo {
     let Some(data) = as_object(value.get("data")) else {
-        return unverified();
+        return unverified(credential);
     };
     AccountInfo {
         name: data
@@ -201,16 +208,29 @@ mod tests {
             .expect("不应报错");
         assert!(!info.is_valid, "没配 cookie -> 未校验");
         assert!(info.name.is_none());
-        assert_eq!(info.credential, "", "未校验时不应回传 credential");
+        assert_eq!(
+            info.credential, r#"{"cookie":""}"#,
+            "未校验必须回传入参 credential，否则 App 写回时会把已存 cookie 抹掉"
+        );
     }
 
     #[tokio::test]
-    async fn account_info_rejects_malformed_credential() {
+    async fn account_info_empty_credential_returns_unverified() {
+        // App 启动会对所有账号行跑校验，空 credential（未登录）不能抛错
         let site = DouyinSite::new();
-        assert!(matches!(
-            get_account_info(&site, "not json").await,
-            Err(SliveError::InvalidInput(_))
-        ));
+        let info = get_account_info(&site, "").await.expect("空串不应抛");
+        assert!(!info.is_valid);
+        assert_eq!(info.credential, "");
+    }
+
+    #[tokio::test]
+    async fn account_info_malformed_credential_returns_unverified() {
+        let site = DouyinSite::new();
+        let info = get_account_info(&site, "not json")
+            .await
+            .expect("非法 JSON 按未校验处理，不抛");
+        assert!(!info.is_valid);
+        assert_eq!(info.credential, "not json", "原样回传，避免抹掉用户数据");
     }
 
     #[test]

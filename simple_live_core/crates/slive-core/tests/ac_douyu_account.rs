@@ -690,6 +690,16 @@ async fn account_info_reads_acf_fields_from_cookie() {
         h.get.request_count("safeAuth") >= 1,
         "过期 cookie 必须走 safeAuth 续期"
     );
+    // 写回凭证必须保留续期材料（dy_did/LTP0），只换 cookie
+    let written: serde_json::Value =
+        serde_json::from_str(&info.credential).expect("credential 应是合法 JSON");
+    assert_eq!(written["dy_did"], "DID-1", "dy_did 丢了到期就续不了期");
+    assert_eq!(written["LTP0"], "ltp0-value", "LTP0 丢了到期就续不了期");
+    assert!(
+        written["cookie"].as_str().unwrap_or("").contains("acf_uid=998877"),
+        "cookie 应为续期后的新值，实际 {}",
+        written["cookie"]
+    );
 }
 
 #[tokio::test]

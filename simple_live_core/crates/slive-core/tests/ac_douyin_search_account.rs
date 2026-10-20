@@ -207,7 +207,10 @@ async fn ac_douyin_account_info_empty_cookie_is_unverified_without_request() {
         .await
         .expect("不应报错");
     assert!(!info.is_valid, "没配 cookie -> 未校验");
-    assert_eq!(info.credential, "", "未校验时不得回传 credential");
+    assert_eq!(
+        info.credential, r#"{"cookie":""}"#,
+        "未校验必须回传入参 credential，否则 App 写回时会把已存 cookie 抹掉"
+    );
     assert_eq!(
         h.request_count("webcast/user/me/"),
         0,
@@ -242,13 +245,16 @@ async fn ac_douyin_account_info_unexpected_shape_is_unverified() {
 }
 
 #[tokio::test]
-async fn ac_douyin_account_info_rejects_malformed_credential() {
+async fn ac_douyin_account_info_malformed_credential_is_unverified() {
     let h = harness();
     h.stub_home_html("home_categories");
-    assert!(matches!(
-        h.site.get_account_info("not json".into()).await,
-        Err(SliveError::InvalidInput(_))
-    ));
+    let info = h
+        .site
+        .get_account_info("not json".into())
+        .await
+        .expect("非法 JSON 按未校验处理，不抛（App 启动会对所有账号行跑校验）");
+    assert!(!info.is_valid);
+    assert_eq!(info.credential, "not json", "原样回传，避免抹掉用户数据");
 }
 
 #[test]
