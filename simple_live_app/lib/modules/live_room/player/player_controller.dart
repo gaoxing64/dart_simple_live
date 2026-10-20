@@ -716,6 +716,12 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   Size? _lastWindowSize;
   Offset? _lastWindowPosition;
 
+  /// 采还原点时窗口是否处于最大化（`_lastWindowSize/_lastWindowPosition` 存的是它的
+  /// 「还原态」矩形，见 `_captureNormalGeometry`）。退出小窗据此重新最大化；不能读
+  /// `windowMaxState` 那个 Rx——进小窗时的 `unmaximize()` 会经 `onWindowUnmaximize`
+  /// 把它清掉。
+  bool _lastWindowMaximized = false;
+
   /// 窗口态（非全屏、非小窗）的几何，用于退出全屏/小窗时还原。
   ///
   /// 「谁先离开窗口态谁捕获」：原先只有 `enterSmallWindow` 写这两个字段，
@@ -740,14 +746,26 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     // 先抢占标志、后 await 赋值：标志若在三段 await 之后才置 true，
     // 快速连点两次转换会双双越过守卫，把满屏矩形当成还原点采进去。
     _normalGeometryCaptured = true;
-    _lastWindowSize = await windowManager.getSize();
-    _lastWindowPosition = await windowManager.getPosition();
-    windowMaxState.value = await windowManager.isMaximized();
+    final maximized = await windowManager.isMaximized();
+    // 还原点必须是「窗口化态」的几何。Windows 最大化态下 getSize()/getPosition()
+    // 返回的是铺满工作区的最大化矩形（边还伸到屏外），拿它当还原点，退出小窗/全屏的
+    // setSize/setPosition 会把窗口顶成越屏大窗；改用 rcNormalPosition（还原态矩形）。
+    final normal = maximized ? WindowService.instance.normalBounds() : null;
+    if (normal != null) {
+      _lastWindowSize = normal.size;
+      _lastWindowPosition = normal.topLeft;
+    } else {
+      _lastWindowSize = await windowManager.getSize();
+      _lastWindowPosition = await windowManager.getPosition();
+    }
+    _lastWindowMaximized = maximized;
+    windowMaxState.value = maximized;
   }
 
   /// 退出到窗口态时消费还原点，下一次进全屏重新采。
   void _consumeNormalGeometry() {
     _normalGeometryCaptured = false;
+    _lastWindowMaximized = false;
   }
 
   /// 当前应锁定的「widget 实际显示比例」（与 buildMediaPlayer 的 scaleMode 语义一致）。
@@ -880,6 +898,12 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       }
       if (_lastWindowPosition != null) {
         windowManager.setPosition(_lastWindowPosition!);
+      }
+      // 进小窗前是最大化：先铺回还原态矩形、再重新最大化（与 exitFull 的最大化臂同一
+      // 口径）。次序不能反——SC_MAXIMIZE 会把当前矩形记成系统的还原记忆，直接从 PiP
+      // 小尺寸最大化的话，下次取消最大化会落回小窗尺寸。
+      if (_lastWindowMaximized) {
+        await windowManager.maximize();
       }
       windowManager.setAlwaysOnTop(false);
       _consumeNormalGeometry();

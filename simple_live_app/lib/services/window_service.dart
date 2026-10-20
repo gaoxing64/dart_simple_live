@@ -467,6 +467,42 @@ class WindowService extends GetxService implements WindowListener {
     }
   }
 
+  /// 读取窗口的「还原态」矩形（逻辑像素，Windows）。
+  ///
+  /// 最大化/最小化时 `getSize()`/`getPosition()` 返回的是铺满工作区的最大化矩形
+  /// （边还会伸到屏外），而退出全屏/小窗要落回的是「窗口化态的矩形」——
+  /// 即 `GetWindowPlacement().rcNormalPosition`。非 Windows 或读取失败返回 null，
+  /// 调用方回退到 getSize/getPosition。
+  Rect? normalBounds() {
+    if (!Platform.isWindows) return null;
+    try {
+      final hwnd = _findWindowHandle();
+      if (hwnd == 0) return null;
+      final wp = calloc<win32.WINDOWPLACEMENT>();
+      try {
+        wp.ref.length = sizeOf<win32.WINDOWPLACEMENT>();
+        if (win32.GetWindowPlacement(hwnd, wp) == 0) return null;
+        final dpr = win32.GetDpiForWindow(hwnd) / 96.0;
+        final effectiveDpr = (!dpr.isFinite || dpr <= 0) ? 1.0 : dpr;
+        final r = wp.ref.rcNormalPosition;
+        final w = (r.right - r.left) / effectiveDpr;
+        final h = (r.bottom - r.top) / effectiveDpr;
+        if (w <= 0 || h <= 0 || !w.isFinite || !h.isFinite) return null;
+        return Rect.fromLTWH(
+          r.left / effectiveDpr,
+          r.top / effectiveDpr,
+          w,
+          h,
+        );
+      } finally {
+        calloc.free(wp);
+      }
+    } catch (e) {
+      Log.logPrint(e);
+      return null;
+    }
+  }
+
   /// 进入小窗：施加约束 + 归一化初始尺寸。aspect 非法或设置关闭则直接返回（不施加）。
   ///
   /// 顺序铁律：**先施加约束、后设尺寸**。
