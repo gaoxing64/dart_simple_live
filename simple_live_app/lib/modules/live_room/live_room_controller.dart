@@ -1385,8 +1385,18 @@ class LiveRoomController extends PlayerController
                 AppSettingsController.instance.setAspectWidth(w);
                 AppSettingsController.instance.setAspectHeight(h);
                 AppSettingsController.instance.setAspectByUser(w / h);
-                AppSettingsController.instance.setScaleMode(5);
-                updateScaleMode();
+                if (multiPlay.isActive) {
+                  // 多开里与单选列表同一口径：只把本格切到自定义模式。
+                  // 全局 scaleMode 不动——否则从这一格改比例，会把所有没有
+                  // 覆盖值的格子一起换走；宽:高本身仍是全局值。
+                  setTileScaleMode(5);
+                } else {
+                  // 与 `buildScaleModeRadioList` 的单画面分支同理：写全局前先清掉
+                  // 会话期覆盖值，否则本格有效值仍被旧覆盖主导，「确定」看不见效果。
+                  scaleModeOverride.value = null;
+                  AppSettingsController.instance.setScaleMode(5);
+                  updateScaleMode();
+                }
                 Get.back();
               },
               child: const Text("确定"),

@@ -907,7 +907,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   /// 「设置」页签。
   ///
   /// 屏蔽项跟着聊天区走聚焦格（[room]），因为聊天显示的就是那一路的消息；
-  /// 其余（弹幕设置、定时关闭、画面尺寸）都是全局或窗口级设置，走 [controller]。
+  /// 弹幕设置与画面尺寸（含自定义比例）也按格生效，同样走 [room]——多开时
+  /// 只改聚焦格，不能悄悄落到页面主格上。定时关闭是窗口级，仍走 [controller]。
   Widget buildSettings(BuildContext context) {
     // 平台建议路数：给「默认路数」旋钮当 subtitle 用。走 `resolveDefaultMultiPlayTiles`
     // 而不是自己拼平台判断——那个函数就是「第一次用该给几路」的**唯一**口径，
@@ -1101,7 +1102,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               AppStyle.divider,
               SettingsAction(
                 title: "弹幕设置",
-                onTap: controller.showDanmuSettingsSheet,
+                // 闭包而不是 tear-off：`room` 要在点按当下取，页签 build 之后
+                // 切过焦点的话，tear-off 会把动作落回旧的那一格。
+                onTap: () => room.showDanmuSettingsSheet(),
               ),
               AppStyle.divider,
               SettingsAction(
@@ -1111,12 +1114,12 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               AppStyle.divider,
               SettingsAction(
                 title: "画面尺寸",
-                onTap: controller.showPlayerSettingsSheet,
+                onTap: () => room.showPlayerSettingsSheet(),
               ),
               AppStyle.divider,
               SettingsAction(
                 title: "自定义画面尺寸",
-                onTap: controller.showAspectRatioSheet,
+                onTap: () => room.showAspectRatioSheet(),
               ),
             ],
           ),
@@ -1183,7 +1186,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           session.focusSlot(slot);
           return;
         }
-        controller.resetRoom(site, item.roomId);
+        // 「替换当前房间」在多开里也要落到聚焦格：这个页签与聊天/设置一样
+        // 跟随聚焦格，替换主格会让面板切走的那一路不动、看不见的一路悄悄换台。
+        room.resetRoom(site, item.roomId);
       },
       trailing: _buildMultiPlayAddAction(site, item, slot),
     );
@@ -1309,7 +1314,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Get.back();
-                controller.showPlayerSettingsSheet();
+                // 跟其余路由级动作一样走聚焦格（见 showMore 的说明）；
+                // 原来写的是页面主格，多开时点完只有第 1 路变。
+                room.showPlayerSettingsSheet();
               },
             ),
             ListTile(
