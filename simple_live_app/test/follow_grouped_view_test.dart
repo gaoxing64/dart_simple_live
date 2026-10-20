@@ -19,7 +19,6 @@ import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_member_row.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_quick_group_sheet.dart';
-import 'package:simple_live_app/modules/follow_user/widgets/follow_sidebar.dart';
 import 'package:simple_live_app/widgets/live_room_card.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'follow_test_harness.dart';
@@ -96,8 +95,9 @@ void main() {
     // 文件夹总览的遗留物都不该出现
     expect(find.text('未分组'), findsNothing);
     expect(find.text('拖到这里移出分组'), findsNothing);
-    // 段头是「全部」+ 在播计数（「全部」也出现在侧栏，共两处）
-    expect(find.text('全部'), findsNWidgets(2));
+    // 段头是「全部」+ 在播计数（侧栏标签改成两端对齐后逐字符排开，
+    // 「全部」只剩段头这一处）
+    expect(find.text('全部'), findsOneWidget);
     expect(find.textContaining('1/4 在播'), findsOneWidget);
     // 顶栏没有一键折叠（没有可折叠的对象了）
     expect(find.byTooltip('折叠全部分组'), findsNothing);

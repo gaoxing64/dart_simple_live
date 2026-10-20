@@ -4,7 +4,7 @@
 // ⚠️ `PopupMenuButton` 要用 material_ui 导出的那个：本应用跑在 material_ui 上，
 // 关注页顶栏 ⋮ 是它的 PopupMenuButton，换 flutter/material 的 find.byType
 // 永远匹配不上。
-import 'package:flutter/material.dart' show Axis, FlutterError, FlutterErrorDetails, Key, PageView, ValueKey;
+import 'package:flutter/material.dart' show Axis, FlutterError, FlutterErrorDetails, Key, PageView, Size, ValueKey;
 import 'package:material_ui/material_ui.dart' show PopupMenuButton;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -88,11 +88,16 @@ void main() {
     expect(sidebarOf('all'), findsOneWidget);
     expect(sidebarOf('live'), findsOneWidget);
     expect(sidebarOf('offline'), findsOneWidget);
-    // 测试窗口 400 宽 → 两字模式：标签截到前两个字；「全部」同时是
-    // 内容区段头，共两处
-    expect(find.text('全部'), findsNWidgets(2));
-    expect(find.text('直播'), findsOneWidget);
-    expect(find.text('未开'), findsOneWidget);
+    // 测试窗口 400 宽 → 两字模式：标签截到前两个字（两端对齐后逐字符排开）。
+    // 「全部」只剩内容区段头那一处，侧栏标签不再是单个 Text。
+    expect(find.text('全部'), findsOneWidget);
+    for (final (key, chars) in [('live', ['直', '播']), ('offline', ['未', '开'])]) {
+      final label = find.byKey(ValueKey('sidebar-label-$key'));
+      expect(label, findsOneWidget);
+      for (final char in chars) {
+        expect(find.descendant(of: label, matching: find.text(char)), findsOneWidget);
+      }
+    }
     expect(Get.find<FollowUserController>().activeFilter.value, isNull);
 
     final svc2 = FakeFollowService(
@@ -145,22 +150,57 @@ void main() {
       find.byKey(const ValueKey('sidebar-indicator')),
     );
     expect(indicatorRect.left, closeTo(sidebarRect.left, 1));
-    expect(indicatorRect.height, closeTo(allRect.height, 0.5));
-
-    // 左右内衬相等：文字左缘到栏左缘 == 计数右缘到栏右缘
-    final labelRect = tester.getRect(
-      find.descendant(of: sidebarOf('all'), matching: find.text('全部')),
-    );
-    final countRect = tester.getRect(
-      find.descendant(of: sidebarOf('all'), matching: find.text('2')),
-    );
+    // 指示条只覆盖 hover 高亮的直边：两端各缩进一个圆角半径，
+    // 落在圆角的转角处，而不是和整行等高。
+    expect(indicatorRect.top, closeTo(allRect.top + FollowSidebar.indicatorInset, 0.5));
+    expect(indicatorRect.bottom, closeTo(allRect.bottom - FollowSidebar.indicatorInset, 0.5));
     expect(
-      labelRect.left - sidebarRect.left,
-      closeTo(sidebarRect.right - countRect.right, 1),
-      reason: '左右留白应一致，不能左重右轻',
+      indicatorRect.height,
+      closeTo(allRect.height - 2 * FollowSidebar.indicatorInset, 0.5),
     );
-    // 栏宽已收窄，文字与计数之间不会空出一大截
-    expect(countRect.left - labelRect.right, lessThan(24));
+
+    // 两字模式只留标签：标签列占满左右内衬之间的宽度，左右留白相等。
+    final labelRect = tester.getRect(
+      find.byKey(const ValueKey('sidebar-label-all')),
+    );
+    expect(labelRect.left - sidebarRect.left, closeTo(12, 1));
+    expect(sidebarRect.right - labelRect.right, closeTo(12, 1));
+    expect(labelRect.width, closeTo(sidebarRect.width - 24, 1));
+    // 计数也收起了，不再占标签右侧的位置
+    expect(
+      find.descendant(of: sidebarOf('all'), matching: find.text('2')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('宽窗：侧栏按内容收窄，内容列从侧栏右缘开始', (tester) async {
+    final svc = FakeFollowService(
+      users: [_u('甲'), _u('乙')],
+      tags: [
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: ['huya_甲']),
+      ],
+    );
+    final indexed = await pumpIndexed(
+      tester,
+      followService: svc,
+      viewSize: const Size(1200, 800),
+    );
+    await gotoFollowPage(tester, indexed);
+    await settle(tester);
+
+    final sidebar = tester.getRect(find.byType(FollowSidebar));
+    // 不再是固定 140 起：内容决定宽度，且远没有顶到封顶线
+    expect(sidebar.width, greaterThan(60));
+    expect(sidebar.width, lessThan(200));
+
+    // 三栏的中间列与内容列没有留缝，也没有互相压住。
+    // 宽窗下首页自己的纵向 PageView 也在树里，必须用关注页的 controller 区分。
+    final pageController = Get.find<FollowUserController>().pageController;
+    final contentPage = find.byWidgetPredicate(
+      (w) => w is PageView && w.scrollDirection == Axis.vertical && w.controller == pageController,
+    );
+    expect(tester.getTopLeft(contentPage).dx, closeTo(sidebar.right, 1));
+    await settleEnd(tester);
   });
 
   testWidgets('选中指示条：贴左缘滑动，途中拉伸、落位收回', (tester) async {
@@ -336,6 +376,12 @@ void main() {
     expect(settings.followStyleNotGrid.value, isFalse);
     // 「全部」页是全量平铺，也按布局设置渲染卡面（不再有文件夹总览）
     expect(find.byType(LiveRoomCard), findsNWidgets(2));
+    // 手机竖屏固定两列（1 列大卡太宽、同屏效率低）：两张卡同一行并排。
+    final firstCard = tester.getRect(find.byType(LiveRoomCard).at(0));
+    final secondCard = tester.getRect(find.byType(LiveRoomCard).at(1));
+    expect(firstCard.top, closeTo(secondCard.top, 0.5));
+    expect(secondCard.left, greaterThan(firstCard.right));
+    expect(firstCard.width, lessThan(200));
 
     // 进分组筛选：同样卡面
     await withLiveCardOverflowTolerated(tester, () async {

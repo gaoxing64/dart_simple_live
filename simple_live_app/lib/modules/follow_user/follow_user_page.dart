@@ -35,20 +35,13 @@ class FollowUserPage extends GetView<FollowUserController> {
     // 切到别的 Tab 之后仍然挂在树里，`PopScope` 会连别的 Tab 的返回键一起吃掉。
     return CollapsibleTopBarScaffold(
       appBar: _buildAppBar(iconButtonStyle),
-      // 列数必须按**内容区可用宽度**算：第二栏侧栏占掉一截，
-      // 再拿 `MediaQuery` 的整窗宽会把宽窗口的列数算少一档（侧栏越宽偏越多）。
+      // 侧栏宽度由它自己的内容决定（见 [FollowSidebar]），列数不能在这层
+      // 用「整窗宽 - 固定侧栏宽」算；把可用宽度传下去，由内容列在剩余空间
+      // 里自己量（见 [_buildBody]）。
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final sidebarWidth = FollowSidebar.widthFor(constraints.maxWidth);
           final compact = FollowSidebar.isCompact(constraints.maxWidth);
-          final width = constraints.maxWidth - sidebarWidth;
-          var count = width ~/ 500;
-          if (count < 1) count = 1;
-          var c = width ~/ 200;
-          if (c < 2) {
-            c = 2;
-          }
-          return _buildBody(context, sidebarWidth, compact, count, c);
+          return _buildBody(context, constraints.maxWidth, compact);
         },
       ),
     );
@@ -404,10 +397,12 @@ class FollowUserPage extends GetView<FollowUserController> {
 
   /// 三栏布局的第二、三栏：竖排标签侧栏 + 内容列表。
   ///
-  /// 侧栏**始终显示**：竖屏时底部导航栏占的是底部，左边只此一栏，不存在
-  /// 「宽度不够」的问题；长分组名由侧栏自己省略截断。
+  /// 侧栏**始终显示**：竖屏时底部导航栏占的是底部，左边只此一栏；宽度由
+  /// 标签内容决定（[FollowSidebar] 自己量），长分组名到上限后省略截断。
+  /// 内容列的列数必须在**扣掉侧栏后的剩余宽度**里算：`MediaQuery` 的整窗宽
+  /// 会把侧栏占掉的那一截也算进去，宽窗口会少算一档。
   /// （第一栏是外壳的 NavigationRail / 底部导航，不归本页管。）
-  Widget _buildBody(BuildContext context, double sidebarWidth, bool compact, int count, int c) {
+  Widget _buildBody(BuildContext context, double availableWidth, bool compact) {
     return Row(
       // 侧栏高度只占内容本身（不再是 Expanded 撑满），不 stretch 会被 Row
       // 按交叉轴居中，整栏浮在页面中段而不是从顶部往下排。
@@ -415,7 +410,7 @@ class FollowUserPage extends GetView<FollowUserController> {
       children: [
         Obx(
           () => FollowSidebar(
-            width: sidebarWidth,
+            availableWidth: availableWidth,
             compact: compact,
             items: controller.sidebarItems,
             selectedKey: controller.activeSidebarKey,
@@ -425,82 +420,99 @@ class FollowUserPage extends GetView<FollowUserController> {
         // 二级菜单与内容之间**不画分割线**：菜单项的强调线与留白已经够了，
         // 再插一根竖线反而把内容区切碎。
         Expanded(
-          child: Obx(
-            () {
-              final hide = AppSettingsController.instance.hideRemoveFollowButton.value;
-              final live = controller.liveSection;
-              final offline = controller.offlineSection;
-              // 筛选态的空态判据：选中了某个平台 / 分组、但过滤后没有成员。
-              // 在 Obx 构建窗口内读 hasActiveFilter / filteredMembers（内部读
-              // groupedView → list / tagList / liveStatus），筛选失效回落、
-              // 搜索词变化都会自动重算。
-              final filterEmpty = controller.hasActiveFilter && controller.filteredMembers.isEmpty;
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 三页 ViewPager：侧栏在左，翻页走**纵轴**（与首页壳
-                  // 「侧边栏在左就垂直滑动」同一约定）。
-                  // 手势不参与：每页都是竖向滚动列表，再让纵向手势翻页会
-                  // 和列表抢同一根轴；切换入口只有左侧第二栏。
-                  PageView(
-                    controller: controller.pageController,
-                    scrollDirection: Axis.vertical,
-                    physics: const NeverScrollableScrollPhysics(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              var count = width ~/ 500;
+              if (count < 1) count = 1;
+              // 卡片模式仍以 2 列为下限：手机竖屏一律两列，保证一屏能看
+              // 足够多的直播间（1 列大卡实测太宽、效率低）。窄屏的宽度
+              // 让给「紧凑侧栏」——它在两字模式下连计数一起收起。
+              var c = width ~/ 200;
+              if (c < 2) {
+                c = 2;
+              }
+              return Obx(
+                () {
+                  final hide = AppSettingsController.instance.hideRemoveFollowButton.value;
+                  final live = controller.liveSection;
+                  final offline = controller.offlineSection;
+                  // 本帧所有卡片 / 行共用同一份分组名映射。必须在这里（Obx
+                  // 构建窗口内）读，分组增删改 / 调序后侧栏与内容一起重建。
+                  final groupNames = controller.groupNamesByFollowId;
+                  // 筛选态的空态判据：选中了某个平台 / 分组、但过滤后没有成员。
+                  // 在 Obx 构建窗口内读 hasActiveFilter / filteredMembers（内部读
+                  // groupedView → list / tagList / liveStatus），筛选失效回落、
+                  // 搜索词变化都会自动重算。
+                  final filterEmpty = controller.hasActiveFilter && controller.filteredMembers.isEmpty;
+                  return Stack(
+                    fit: StackFit.expand,
                     children: [
-                      KeepAliveWrapper(
-                        child: PageGridView(
-                          pageController: controller,
-                          padding: AppStyle.edgeInsetsA12,
-                          firstRefresh: true,
-                          // 段与段之间的竖直间距；段内的行距由各段自己的
-                          // mainAxisSpacing 管。
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          sections: _buildGroupedSections(count, c, hide),
-                        ),
+                      // 三页 ViewPager：侧栏在左，翻页走**纵轴**（与首页壳
+                      // 「侧边栏在左就垂直滑动」同一约定）。
+                      // 手势不参与：每页都是竖向滚动列表，再让纵向手势翻页会
+                      // 和列表抢同一根轴；切换入口只有左侧第二栏。
+                      PageView(
+                        controller: controller.pageController,
+                        scrollDirection: Axis.vertical,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          KeepAliveWrapper(
+                            child: PageGridView(
+                              pageController: controller,
+                              padding: AppStyle.edgeInsetsA12,
+                              firstRefresh: true,
+                              // 段与段之间的竖直间距；段内的行距由各段自己的
+                              // mainAxisSpacing 管。
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              sections: _buildGroupedSections(count, c, hide, groupNames),
+                            ),
+                          ),
+                          PageGridView(
+                            pageController: controller,
+                            padding: AppStyle.edgeInsetsA12,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            scrollOverride: controller.liveScrollController,
+                            refreshOverride: controller.liveRefreshController,
+                            sections: _liveSections(live, count, c, groupNames),
+                          ),
+                          PageGridView(
+                            pageController: controller,
+                            padding: AppStyle.edgeInsetsA12,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            scrollOverride: controller.offlineScrollController,
+                            refreshOverride: controller.offlineRefreshController,
+                            sections: _offlineSections(offline, count, c, hide, groupNames),
+                          ),
+                        ],
                       ),
-                      PageGridView(
-                        pageController: controller,
-                        padding: AppStyle.edgeInsetsA12,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        scrollOverride: controller.liveScrollController,
-                        refreshOverride: controller.liveRefreshController,
-                        sections: _liveSections(live, count, c),
-                      ),
-                      PageGridView(
-                        pageController: controller,
-                        padding: AppStyle.edgeInsetsA12,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        scrollOverride: controller.offlineScrollController,
-                        refreshOverride: controller.offlineRefreshController,
-                        sections: _offlineSections(offline, count, c, hide),
-                      ),
+                      // 搜索没匹配到任何关注时的提示。
+                      //
+                      // ⚠️ **必须叠在列表之上，不能取代它** —— 取代它会让
+                      // `PageGridView` 不被构建，而它内部的
+                      // `EasyRefresh(refreshOnStart: true)` 正是首次进入时
+                      // 唯一拉数据的入口。一旦被跳过，`refreshOnStart` 永不触发，
+                      // 页面首次进入就永远停在空态、只能靠手动点刷新
+                      // （2026-09-15 实测踩过，见 memory）。
+                      //
+                      // 只在「有搜索词」时提示：列表真的空是「还没加载完」，
+                      // 那种情况由 `PageGridView` 自己的空态/加载浮层负责。
+                      //
+                      // ⚠️ 必须同时排除「正在加载」：首次进入的 refreshOnStart
+                      // 与下拉刷新都会先清空 list 再拉，只判空会在刷新过程中
+                      // 闪现这条提示（还可能和加载浮层叠在一起）。
+                      // 列表本身为空时也不提示（空态交给 PageGridView）。
+                      if ((filterEmpty || (live.isEmpty && offline.isEmpty)) &&
+                          !controller.pageLoadding.value &&
+                          controller.list.isNotEmpty &&
+                          controller.searchQuery.value.trim().isNotEmpty)
+                        const Center(child: Text("没有匹配的关注")),
                     ],
-                  ),
-                  // 搜索没匹配到任何关注时的提示。
-                  //
-                  // ⚠️ **必须叠在列表之上，不能取代它** —— 取代它会让
-                  // `PageGridView` 不被构建，而它内部的
-                  // `EasyRefresh(refreshOnStart: true)` 正是首次进入时
-                  // 唯一拉数据的入口。一旦被跳过，`refreshOnStart` 永不触发，
-                  // 页面首次进入就永远停在空态、只能靠手动点刷新
-                  // （2026-09-15 实测踩过，见 memory）。
-                  //
-                  // 只在「有搜索词」时提示：列表真的空是「还没加载完」，
-                  // 那种情况由 `PageGridView` 自己的空态/加载浮层负责。
-                  //
-                  // ⚠️ 必须同时排除「正在加载」：首次进入的 refreshOnStart
-                  // 与下拉刷新都会先清空 list 再拉，只判空会在刷新过程中
-                  // 闪现这条提示（还可能和加载浮层叠在一起）。
-                  // 列表本身为空时也不提示（空态交给 PageGridView）。
-                  if ((filterEmpty || (live.isEmpty && offline.isEmpty)) &&
-                      !controller.pageLoadding.value &&
-                      controller.list.isNotEmpty &&
-                      controller.searchQuery.value.trim().isNotEmpty)
-                    const Center(child: Text("没有匹配的关注")),
-                ],
+                  );
+                },
               );
             },
           ),
@@ -510,7 +522,12 @@ class FollowUserPage extends GetView<FollowUserController> {
   }
 
   /// 「直播中」视图的段：卡片网格 / 紧凑行（随全局布局设置，见 [_liveSections]）。
-  List<PageGridSection> _liveSections(List<FollowUser> live, int count, int c) {
+  List<PageGridSection> _liveSections(
+    List<FollowUser> live,
+    int count,
+    int c,
+    Map<String, List<String>> groupNames,
+  ) {
     final cardMode = AppSettingsController.instance.followStyleNotGrid.value == false;
     return [
       GridSection(
@@ -522,14 +539,16 @@ class FollowUserPage extends GetView<FollowUserController> {
         crossAxisSpacing: 12,
         itemBuilder: (_, i) {
           final u = live[i];
+          final groups = groupNames[u.id] ?? const <String>[];
           if (cardMode) {
-            return _buildLiveCard(u);
+            return _buildLiveCard(u, groups);
           }
           // 紧凑行也要能看出在播：头像描边圈 + 直播标题
           // （FollowMemberRow 自己会按 liveStatus 切副标题）。
           return Obx(
             () => FollowMemberRow(
               item: u,
+              groupNames: groups,
               draggable: false,
               selected: controller.selectedIds.contains(u.id),
               onToggleSelect: () => controller.toggleSelected(u.id),
@@ -546,7 +565,13 @@ class FollowUserPage extends GetView<FollowUserController> {
   ///
   /// 紧凑行没有分组卡片可拖，行不带状态点（整段都是灰点，纯噪音）也不可拖拽。
   /// 卡片模式的封面 / 标题回退见 [_buildLiveCard]。
-  List<PageGridSection> _offlineSections(List<FollowUser> offline, int count, int c, bool hide) {
+  List<PageGridSection> _offlineSections(
+    List<FollowUser> offline,
+    int count,
+    int c,
+    bool hide,
+    Map<String, List<String>> groupNames,
+  ) {
     final cardMode = AppSettingsController.instance.followStyleNotGrid.value == false;
     return [
       GridSection(
@@ -565,12 +590,14 @@ class FollowUserPage extends GetView<FollowUserController> {
         crossAxisSpacing: 12,
         itemBuilder: (_, i) {
           final u = offline[i];
+          final groups = groupNames[u.id] ?? const <String>[];
           if (cardMode) {
-            return _buildLiveCard(u);
+            return _buildLiveCard(u, groups);
           }
           return Obx(
             () => FollowMemberRow(
               item: u,
+              groupNames: groups,
               selected: controller.selectedIds.contains(u.id),
               onToggleSelect: () => controller.toggleSelected(u.id),
               onRemove: hide ? null : () => controller.removeFollow(u),
@@ -591,12 +618,30 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 曾经的文件夹总览（一组一张可折叠卡片 + 未分组段）已随二级菜单导航移除：
   /// 分组改从第二栏的分组标签进，平铺列表与分组筛选共用一套渲染，
   /// 「全部」页也因此和别的页一样吃关注样式（紧凑 / 卡片）设置。
-  List<PageGridSection> _buildGroupedSections(int count, int c, bool hide) {
+  List<PageGridSection> _buildGroupedSections(
+    int count,
+    int c,
+    bool hide,
+    Map<String, List<String>> groupNames,
+  ) {
     if (controller.hasActiveFilter) {
       return _buildFilterSections(
-          _filterLabel(controller.activeFilter.value!), controller.filteredMembers, count, c, hide);
+        _filterLabel(controller.activeFilter.value!),
+        controller.filteredMembers,
+        count,
+        c,
+        hide,
+        groupNames,
+      );
     }
-    return _buildFilterSections(FollowUserController.builtinTags[0], controller.visibleList, count, c, hide);
+    return _buildFilterSections(
+      FollowUserController.builtinTags[0],
+      controller.visibleList,
+      count,
+      c,
+      hide,
+      groupNames,
+    );
   }
 
   /// 筛选态段头上显示的名字：平台取平台名，分组取组名。
@@ -618,7 +663,14 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 取关按钮，要取关切回紧凑模式或进直播间）。
   ///
   /// 段头是 [label]（「全部」/ 平台名 / 组名）+「● N/M 在播」。
-  List<PageGridSection> _buildFilterSections(String label, List<FollowUser> members, int count, int c, bool hide) {
+  List<PageGridSection> _buildFilterSections(
+    String label,
+    List<FollowUser> members,
+    int count,
+    int c,
+    bool hide,
+    Map<String, List<String>> groupNames,
+  ) {
     final liveCount = members.where((u) => u.liveStatus.value == 2).length;
     final cardMode = AppSettingsController.instance.followStyleNotGrid.value == false;
     return [
@@ -631,12 +683,14 @@ class FollowUserPage extends GetView<FollowUserController> {
         crossAxisSpacing: 12,
         itemBuilder: (_, i) {
           final u = members[i];
+          final groups = groupNames[u.id] ?? const <String>[];
           if (cardMode) {
-            return _buildLiveCard(u);
+            return _buildLiveCard(u, groups);
           }
           return Obx(
             () => FollowMemberRow(
               item: u,
+              groupNames: groups,
               // 平铺态没有分组卡片可拖，头像不起拖（换组走顶栏「移入分组」）。
               draggable: false,
               selected: controller.selectedIds.contains(u.id),
@@ -673,7 +727,7 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 一眼分不出在播与否（内置逻辑见 `LiveRoomCard._AvatarCover`）。
   /// 直播中即便封面为空也保持原行为（走 logo 兜底），占位只服务未开播。
   /// 标题同理只在直播中才有，未开播兜底成「未开播」，避免和下方主播名重复。
-  Widget _buildLiveCard(FollowUser item) {
+  Widget _buildLiveCard(FollowUser item, List<String> groupNames) {
     final site = Sites.allSites[item.siteId]!;
     // 逐卡 Obx：勾选态的描边/光晕要靠它当场刷新（外层不会因勾选而重建）
     return Obx(
@@ -689,6 +743,7 @@ class FollowUserPage extends GetView<FollowUserController> {
             online: item.online.value,
           ),
           avatar: isLive ? '' : item.face,
+          groupNames: groupNames,
           onLongPress: () => controller.showBottomMenu(item),
           selected: controller.selectedIds.contains(item.id),
           onToggleSelect: () => controller.toggleSelected(item.id),

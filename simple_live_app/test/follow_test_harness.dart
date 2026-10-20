@@ -186,8 +186,9 @@ Future<IndexedController> pumpIndexed(
   int hideType = 1,
   int navStyle = 0,
   FakeFollowService? followService,
+  Size viewSize = const Size(400, 800),
 }) async {
-  tester.view.physicalSize = const Size(400 * 3, 800 * 3);
+  tester.view.physicalSize = Size(viewSize.width * 3, viewSize.height * 3);
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
 

@@ -5,7 +5,6 @@
 // 页面视图切换（全部/直播中/未开播）与分组卡片都按这里的切分口径渲染。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
@@ -212,6 +211,33 @@ void main() {
         _user('a'),
       ]);
       expect(c.groupedView.groups.map((g) => g.tag.tag), ['CS解说', 'LOL解说']);
+    });
+  });
+
+  group('groupNamesByFollowId（内容项分组胶囊数据）', () {
+    test('按侧栏顺序、去重、跳过空名，不混入内置标签', () {
+      FollowService.instance.followTagList.assignAll([
+        FollowUserTag(id: 'a0', tag: 'CS解说', userId: ['douyu_a', 'douyu_b']),
+        FollowUserTag(id: 'a1', tag: 'LOL解说', userId: ['douyu_a']),
+        // 导入数据可能有空名 / 同名重复项，胶囊不应显示它们
+        FollowUserTag(id: 'a2', tag: '  ', userId: ['douyu_a']),
+        FollowUserTag(id: 'a3', tag: 'CS解说', userId: ['douyu_a']),
+      ]);
+      final c = _SectionProbe();
+      c.updateTagList();
+      c.list.assignAll([
+        _user('a'),
+        _user('b'),
+        _user('d'),
+      ]);
+
+      final map = c.groupNamesByFollowId;
+      expect(map['douyu_a'], ['CS解说', 'LOL解说']);
+      expect(map['douyu_b'], ['CS解说']);
+      expect(map.containsKey('douyu_d'), isFalse);
+      for (final name in map.values.expand((names) => names)) {
+        expect(['全部', '直播中', '未开播'], isNot(contains(name)));
+      }
     });
   });
 

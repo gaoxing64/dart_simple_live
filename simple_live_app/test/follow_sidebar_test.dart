@@ -1,5 +1,7 @@
 // 关注页第二栏（标签侧栏）与「按平台分类」设置的测试：
-// 侧栏宽度（两字模式 80 / 常规固定 140）、平台标签显隐与顺序、同名分组静默清理、布局设置读法。
+// 侧栏内容驱动宽度（随标签长短 / 系统字号增长、窄窗两字模式、超长封顶）、
+// 标签两端对齐、平台标签显隐与顺序、同名分组静默清理、布局设置读法。
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
@@ -12,6 +14,49 @@ import 'package:simple_live_app/modules/follow_user/widgets/follow_sidebar.dart'
 import 'package:simple_live_app/services/follow_service.dart';
 import 'follow_test_harness.dart';
 
+FollowSidebarItem _item(FollowSidebarKind kind, String label, int count, {Site? site}) =>
+    FollowSidebarItem(
+      // 内置项的 key 只取 kind 名；分组 / 平台用 label 当稳定 id。
+      kind: kind,
+      id: label,
+      label: label,
+      count: count,
+      site: site,
+    );
+
+/// 泵一个独立侧栏。测试字体是 Ahem（每个字符宽 = 字号），所以栏宽断言只看
+/// 相对变化与上下限，不锚具体像素。
+Future<void> _pumpSidebar(
+  WidgetTester tester, {
+  required List<FollowSidebarItem> items,
+  double availableWidth = 1000,
+  bool compact = false,
+  double textScale = 1,
+  String? selectedKey,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Builder(
+        builder: (context) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: FollowSidebar(
+                items: items,
+                selectedKey: selectedKey ?? items.first.key,
+                onSelect: (_) {},
+                availableWidth: availableWidth,
+                compact: compact,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 void main() {
   setUp(() {
     Get.testMode = true;
@@ -23,28 +68,148 @@ void main() {
     Get.reset();
   });
 
-  group('FollowSidebar.widthFor 侧栏宽度', () {
-    test('常规模式固定 140：不随窗口变宽而放大', () {
-      expect(FollowSidebar.normalWidth, 140.0);
-      expect(FollowSidebar.widthFor(480), 140.0);
-      expect(FollowSidebar.widthFor(600), 140.0);
-      expect(FollowSidebar.widthFor(1000), 140.0);
-      expect(FollowSidebar.widthFor(4000), 140.0);
+  group('FollowSidebar 内容驱动宽度', () {
+    final builtins = [
+      _item(FollowSidebarKind.all, '全部', 3),
+      _item(FollowSidebarKind.live, '直播中', 2),
+      _item(FollowSidebarKind.offline, '未开播', 1),
+    ];
+
+    testWidgets('常规栏宽由最长标签决定，标签变长时增长', (tester) async {
+      await _pumpSidebar(tester, items: builtins);
+      final shortWidth = tester.getSize(find.byType(FollowSidebar)).width;
+      // 不再是固定的 140：短标签明显更窄
+      expect(shortWidth, lessThan(140));
+      expect(shortWidth, greaterThan(60));
+
+      final longer = [
+        ...builtins,
+        _item(FollowSidebarKind.group, 'CS解说', 5),
+      ];
+      await _pumpSidebar(tester, items: longer);
+      final longWidth = tester.getSize(find.byType(FollowSidebar)).width;
+      expect(longWidth, greaterThan(shortWidth));
     });
 
-    test('窄窗（手机竖屏）进两字模式：栏宽压到 80', () {
-      expect(FollowSidebar.isCompact(400), isTrue);
-      expect(FollowSidebar.widthFor(400), FollowSidebar.compactWidth);
-      expect(FollowSidebar.widthFor(360), FollowSidebar.compactWidth);
-      expect(FollowSidebar.widthFor(430), FollowSidebar.compactWidth);
-      // 阈值边界：480 起回到常规宽度
-      expect(FollowSidebar.isCompact(480), isFalse);
+    testWidgets('系统字号变大时栏宽跟着增长', (tester) async {
+      await _pumpSidebar(tester, items: builtins);
+      final normal = tester.getSize(find.byType(FollowSidebar)).width;
+      await _pumpSidebar(tester, items: builtins, textScale: 2);
+      final scaled = tester.getSize(find.byType(FollowSidebar)).width;
+      expect(scaled, greaterThan(normal));
     });
 
-    test('两字模式给内容列腾出足够空间（紧凑行最小约 152）', () {
-      // 最窄的合理手机宽度 360：侧栏 80 → 内容 280，远够一行
-      expect(360 - FollowSidebar.widthFor(360), greaterThanOrEqualTo(152));
-      expect(400 - FollowSidebar.widthFor(400), greaterThanOrEqualTo(152));
+    testWidgets('窄窗两字模式：栏宽只按两字内容算，平台 icon 与计数都隐藏', (tester) async {
+      final items = [
+        ...builtins,
+        _item(FollowSidebarKind.site, '哔哩哔哩', 4, site: Sites.allSites['bilibili']),
+      ];
+
+      await _pumpSidebar(tester, items: items, availableWidth: 400, compact: true);
+      final compactWidth = tester.getSize(find.byType(FollowSidebar)).width;
+      final siteLabel = find.byKey(const ValueKey('sidebar-label-site:哔哩哔哩'));
+      expect(siteLabel, findsOneWidget);
+      expect(find.descendant(of: siteLabel, matching: find.text('哔')), findsOneWidget);
+      expect(find.descendant(of: siteLabel, matching: find.text('哩')), findsOneWidget);
+      expect(find.byIcon(Sites.allSites['bilibili']!.iconData), findsNothing);
+      // 计数也收起：只按两字标签量宽
+      expect(find.text('4'), findsNothing);
+      expect(compactWidth, lessThan(75));
+
+      // 两字标签有完整名提示；恰好两字的「全部」不需要
+      final tooltipFinder = find.ancestor(of: siteLabel, matching: find.byType(Tooltip));
+      expect(tooltipFinder, findsOneWidget);
+      expect(tester.widget<Tooltip>(tooltipFinder).message, '哔哩哔哩');
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('sidebar-label-all')),
+          matching: find.byType(Tooltip),
+        ),
+        findsNothing,
+      );
+
+      // 手机端长按确实能看到完整名
+      await tester.longPress(find.byKey(const ValueKey('sidebar-site:哔哩哔哩')));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('哔哩哔哩'), findsOneWidget);
+      Tooltip.dismissAllToolTips();
+      await tester.pump();
+
+      // 读屏也读完整名，而不是「哔哩」。直接检查标签节点里的 Semantics
+      // 属性：Tooltip overlay 里也有同名文本，不能拿全局 finder 去数。
+      final labelSemantics = find.descendant(
+        of: find.byKey(const ValueKey('sidebar-label-site:哔哩哔哩')),
+        matching: find.byType(Semantics),
+      );
+      expect(labelSemantics, findsOneWidget);
+      expect(tester.widget<Semantics>(labelSemantics).properties.label, '哔哩哔哩');
+
+      await _pumpSidebar(tester, items: items, availableWidth: 800);
+      final normalWidth = tester.getSize(find.byType(FollowSidebar)).width;
+      expect(normalWidth, greaterThan(compactWidth));
+      expect(find.byIcon(Sites.allSites['bilibili']!.iconData), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('sidebar-label-site:哔哩哔哩')),
+          matching: find.byType(Tooltip),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('超长分组名封顶，且给内容列留出最小宽度', (tester) async {
+      final long = [
+        ...builtins,
+        _item(FollowSidebarKind.group, '这是一个非常非常长的分组名称用来测试封顶行为', 1),
+      ];
+      await _pumpSidebar(tester, items: long);
+      expect(
+        tester.getSize(find.byType(FollowSidebar)).width,
+        closeTo(FollowSidebar.maxWidth, 0.01),
+      );
+
+      // 窗口本身很窄时，封顶线让路给内容列
+      await _pumpSidebar(tester, items: long, availableWidth: 300);
+      expect(
+        tester.getSize(find.byType(FollowSidebar)).width,
+        closeTo(300 - FollowSidebar.minContentWidth, 0.01),
+      );
+    });
+
+    testWidgets('左右内衬相等；短标签逐字符撑满标签列（两端对齐）', (tester) async {
+      final items = [
+        _item(FollowSidebarKind.all, '全部', 3),
+        _item(FollowSidebarKind.group, 'CS解说', 5),
+      ];
+      await _pumpSidebar(tester, items: items);
+      final sidebar = tester.getRect(find.byType(FollowSidebar));
+      final shortLabel = tester.getRect(find.byKey(const ValueKey('sidebar-label-all')));
+      final longLabel = tester.getRect(find.byKey(const ValueKey('sidebar-label-group:CS解说')));
+      final firstChar = tester.getRect(
+        find.descendant(of: find.byKey(const ValueKey('sidebar-all')), matching: find.text('全')),
+      );
+      final lastChar = tester.getRect(
+        find.descendant(of: find.byKey(const ValueKey('sidebar-all')), matching: find.text('部')),
+      );
+      final count = tester.getRect(
+        find.descendant(of: find.byKey(const ValueKey('sidebar-all')), matching: find.text('3')),
+      );
+
+      expect(shortLabel.left - sidebar.left, closeTo(12, 0.01));
+      expect(sidebar.right - count.right, closeTo(12, 0.01));
+      // 标签列等宽，右缘也对齐
+      expect(shortLabel.right, closeTo(longLabel.right, 0.01));
+      expect(shortLabel.width, closeTo(longLabel.width, 0.01));
+      // 两个字分别贴住标签列左右缘
+      expect(firstChar.left, closeTo(shortLabel.left, 0.01));
+      expect(lastChar.right, closeTo(shortLabel.right, 0.01));
+    });
+
+    testWidgets('极窄窗下栏宽也给内容列留够空间', (tester) async {
+      await _pumpSidebar(tester, items: builtins, availableWidth: 360, compact: true);
+      final width = tester.getSize(find.byType(FollowSidebar)).width;
+      expect(360 - width, greaterThanOrEqualTo(FollowSidebar.minContentWidth));
     });
 
     test('compactLabel：只留前两个字（按字符簇）', () {
@@ -54,6 +219,13 @@ void main() {
       expect(FollowSidebar.compactLabel('Twitch'), 'Tw');
       // emoji 不拆代理对 / 组合字符
       expect(FollowSidebar.compactLabel('🐱🐶🐭'), '🐱🐶');
+    });
+
+    test('窄屏阈值：480 起回到常规模式', () {
+      expect(FollowSidebar.isCompact(400), isTrue);
+      expect(FollowSidebar.isCompact(360), isTrue);
+      expect(FollowSidebar.isCompact(430), isTrue);
+      expect(FollowSidebar.isCompact(480), isFalse);
     });
   });
 

@@ -4,6 +4,7 @@ import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
+import 'package:simple_live_app/widgets/group_badge.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 
 /// 关注页的紧凑成员行：分组卡片内、未分组段、未开播视图共用。
@@ -40,6 +41,9 @@ class FollowMemberRow extends StatelessWidget {
   /// 与长按拖拽（[draggable]）互不干扰：tap 与 long-press 是不同手势类型。
   final VoidCallback? onToggleSelect;
 
+  /// 该主播所属的分组名；空表不显示胶囊（未分组）。
+  final List<String> groupNames;
+
   const FollowMemberRow({
     required this.item,
     this.onTap,
@@ -48,6 +52,7 @@ class FollowMemberRow extends StatelessWidget {
     this.draggable = false,
     this.selected = false,
     this.onToggleSelect,
+    this.groupNames = const [],
     super.key,
   });
 
@@ -56,6 +61,9 @@ class FollowMemberRow extends StatelessWidget {
   /// 紧凑行行高：48 头像 + 两行文字，上下各留 16。
   /// 未分组段、分组卡片成员、未开播视图三处共用这一个值。
   static const double rowExtent = 80;
+
+  /// 分组胶囊上限：给主播名留出至少一段可读宽度。
+  static const double _kBadgeMaxWidth = 96;
 
   static String displayName(FollowUser item) => item.remark?.isNotEmpty == true ? item.remark! : item.userName;
 
@@ -140,14 +148,31 @@ class FollowMemberRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        displayName(item),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: scheme.onSurface,
-                        ),
+                      Row(
+                        children: [
+                          // Flexible 而不是 Expanded：名字短时胶囊紧跟在名字
+                          // 右侧，不会被一张满宽的名字推到行尾。
+                          Flexible(
+                            child: Text(
+                              displayName(item),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          if (groupNames.isNotEmpty) ...[
+                            AppStyle.hGap8,
+                            IgnorePointer(
+                              child: GroupBadge(
+                                names: groupNames,
+                                maxWidth: _kBadgeMaxWidth,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       AppStyle.vGap4,
                       Row(

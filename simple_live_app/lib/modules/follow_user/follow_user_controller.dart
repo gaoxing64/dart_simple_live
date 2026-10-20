@@ -327,6 +327,28 @@ class FollowUserController extends BasePageController<FollowUser> {
   /// （`setFollowTagDialog` 里也是这么假设的）。
   List<FollowUserTag> get customTags => tagList.skip(3).toList();
 
+  /// userId -> 它所属的自定义分组名（按侧栏顺序）。
+  ///
+  /// 内容页在 Obx 里一次取好再传给卡片 / 行：`itemBuilder` 在 sliver 布局
+  /// 阶段才执行，逐项 `FollowService.userTagNamesOf` 既扫得慢，也赶不上
+  /// Obx 的依赖捕获。这里不缓存，分组增删改 / 调序 / 成员变更后重建即可。
+  Map<String, List<String>> get groupNamesByFollowId {
+    final result = <String, List<String>>{};
+    for (final tag in customTags) {
+      final name = tag.tag.trim();
+      if (name.isEmpty) {
+        continue;
+      }
+      for (final userId in tag.userId) {
+        final names = result[userId] ??= <String>[];
+        if (!names.contains(name)) {
+          names.add(name);
+        }
+      }
+    }
+    return result;
+  }
+
   /// 「全部」视图的分组模型：每个自定义标签一组 + 未分组一桶。
   ///
   /// 归属唯一真源是 `FollowUserTag.userId`（多分组归属）：一个关注属于 N 个分组，

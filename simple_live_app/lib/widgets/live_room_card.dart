@@ -3,6 +3,7 @@ import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
+import 'package:simple_live_app/widgets/group_badge.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/shadow_card.dart';
 import 'package:simple_live_core/simple_live_core.dart';
@@ -60,6 +61,11 @@ class LiveRoomCard extends StatelessWidget {
   /// 一眼分不出在播与否。
   final String avatar;
 
+  /// 该主播所属的分组名（关注页传入；首页 / 搜索 / 分类保持空表）。
+  ///
+  /// 只在封面左上角画一枚展示用小胶囊，不改变卡高与底部文本块。
+  final List<String> groupNames;
+
   const LiveRoomCard(
     this.site,
     this.item, {
@@ -68,6 +74,7 @@ class LiveRoomCard extends StatelessWidget {
     this.selected = false,
     this.onToggleSelect,
     this.avatar = '',
+    this.groupNames = const [],
   });
 
   @override
@@ -96,6 +103,20 @@ class LiveRoomCard extends StatelessWidget {
                         width: double.infinity,
                       ),
               ),
+              // 关注页的分组归属：封面左上角，只展示、不吃手势。
+              // 与右下角人气胶囊错开；未分组时完全不渲染。
+              if (groupNames.isNotEmpty)
+                Positioned(
+                  left: 6,
+                  top: 6,
+                  right: 6,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: IgnorePointer(
+                      child: GroupBadge(names: groupNames),
+                    ),
+                  ),
+                ),
               // 平台图标挪进了右下角的人气胶囊（用户要求），这里不再单独放一个
               // 平台框 —— 同一张卡片上同一个 logo 出现两次是冗余。
               // ⚠️ 胶囊必须始终渲染：它是卡片上唯一的平台标识。虎牙 / Twitch

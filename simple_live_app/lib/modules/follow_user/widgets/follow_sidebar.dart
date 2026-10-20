@@ -65,7 +65,13 @@ class FollowSidebarItem {
 ///   强调线是一条贯穿全栏的指示条，切换时纵向滑动；两端边缘走一快一慢两条
 ///   曲线（与首页平台 Tab 的 elastic 指示条同口径），滑动途中会被**拉伸**，
 ///   落位后再收回到常规高度，而不是整条平移。
-/// * 窄窗「两字模式」：标签只显示前两个字、平台 icon 隐藏，把宽度让给内容列。
+/// * **栏宽由内容决定**：标签列按最长的一条量出来，再补上左右相等内衬、
+///   平台 icon 与计数的位置。窗口变宽不会把栏拉胖；标签变长 / 系统字号变大
+///   时它会随之增长。只有低于 [compactBreakpoint] 的窄窗才退化成
+///   「两字模式」：标签截到前两个字，平台 icon 与计数一起收起，把宽度让给
+///   右侧内容列。
+/// * **标签两端对齐**：列宽取最长标签，短标签按字符均摊、撑满同一列，左缘与
+///   右缘都对齐（等价于 Word 里的两端对齐）。
 /// * 纯展示 + 回调：选中态由调用方（控制器）算好传进来，widget 自己不存
 ///   业务状态，方便单测。
 class FollowSidebar extends StatefulWidget {
@@ -76,17 +82,17 @@ class FollowSidebar extends StatefulWidget {
 
   final ValueChanged<FollowSidebarItem> onSelect;
 
-  /// 本栏宽度（由 [FollowSidebar.widthFor] 按窗口宽度算好传入）。
-  final double width;
+  /// 本栏可用宽度（关注页内容区总宽），只用于给内容驱动的栏宽封顶。
+  final double availableWidth;
 
-  /// 窄屏「两字模式」：标签截到前两个字、隐藏平台 icon。
+  /// 窄屏「两字模式」：标签截到前两个字，平台 icon 与计数一起隐藏。
   final bool compact;
 
   const FollowSidebar({
     required this.items,
     required this.selectedKey,
     required this.onSelect,
-    required this.width,
+    required this.availableWidth,
     required this.compact,
     super.key,
   });
@@ -96,36 +102,44 @@ class FollowSidebar extends StatefulWidget {
   /// 手机竖屏（360–430）落在这里；平板竖屏（768）仍走常规宽度。
   static const double compactBreakpoint = 480;
 
-  /// 两字模式下的固定栏宽。
-  ///
-  /// 左内衬 12 + 两字约 26 + 最小间距 8 + 三位计数约 21 + 右内衬 12
-  /// ≈ 79，取 80：再窄三位计数就会把标签挤成省略号。
-  static const double compactWidth = 80;
-
   static bool isCompact(double available) => available < compactBreakpoint;
 
-  /// 常规模式的固定栏宽。
+  /// 内容驱动栏宽的上限。
   ///
-  /// **不随窗口宽度放大**：二级栏在任何窗口宽度下都保持同一视觉重量，
-  /// 宽出来的空间全部让给内容列。140 ≈ 左内衬 12 + 平台 icon 14 + 间距 8
-  /// + 最长内置平台名 52 + 间距 8 + 三位计数 21 + 右内衬 12（127，留余量）。
-  static const double normalWidth = 140;
+  /// 不受上限时，一个超长分组名会把内容列挤没；超过这条线后标签改走省略号。
+  /// 240 对 13px 字号约容得下 14 个汉字，远宽于内置项与常见分组名。
+  static const double maxWidth = 240;
 
-  /// 侧栏宽度只有两档：窄窗「两字模式」用 [compactWidth]，
-  /// 其余宽度固定 [normalWidth]（不按窗口比例缩放）。
-  static double widthFor(double available) => isCompact(available) ? compactWidth : normalWidth;
+  /// 内容列至少保留的宽度（紧凑行一行所需），栏宽封顶时给它让路。
+  static const double minContentWidth = 152;
 
   /// 条目总高度（含条目间距），选中指示条按它计算纵向位置。
   static const double _kItemExtent = 44;
 
-  /// 指示条高度与整行（hover 高亮区域）等高；宽度 3。
+  /// 指示条两端相对条目上/下缘的缩进。
+  ///
+  /// 取条目 hover 高亮的圆角半径（[AppStyle.radius8]）：圆角段没有竖直边，
+  /// 指示条只覆盖中间那段直边，两端才会落在圆角的转角处，而不是像整行
+  /// 那样在视觉上比 hover 还高。
+  static double get indicatorInset => AppStyle.radius8.topLeft.x;
+
+  /// 指示条高度 = 整行高度减去上下两个圆角。
   /// 滑动途中高度仍会被拉伸。
-  static const double _kIndicatorHeight = _kItemExtent;
+  static double get _indicatorHeight => _kItemExtent - indicatorInset * 2;
+
+  /// 指示条宽度。
   static const double _kIndicatorWidth = 3;
 
   /// 条目左右内衬。指示条贴在最左缘，不占条目内衬。
   static const double _kItemPaddingLeft = 12;
   static const double _kItemPaddingRight = 12;
+
+  /// 标签与计数之间的最小间距；平台 icon 也占一份同宽的间距。
+  static const double _kItemGap = 8;
+
+  static const double _kLabelFontSize = 13;
+  static const double _kCountFontSize = 12;
+  static const double _kSiteIconSize = 14;
 
   /// 指示条滑动时长 / 基础曲线（与首页 Tab 切换一致）。
   static const Duration _kIndicatorDuration = Duration(milliseconds: 300);
@@ -183,8 +197,8 @@ class _FollowSidebarState extends State<FollowSidebar> with SingleTickerProvider
 
   /// 第 [index] 项对应的指示条上下缘（Stack 坐标系，已含条目本身的居中）。
   (double, double) _bandOf(int index) {
-    final top = index * FollowSidebar._kItemExtent + (FollowSidebar._kItemExtent - FollowSidebar._kIndicatorHeight) / 2;
-    return (top, top + FollowSidebar._kIndicatorHeight);
+    final top = index * FollowSidebar._kItemExtent + (FollowSidebar._kItemExtent - FollowSidebar._indicatorHeight) / 2;
+    return (top, top + FollowSidebar._indicatorHeight);
   }
 
   void _snapTo(int? index) {
@@ -245,8 +259,9 @@ class _FollowSidebarState extends State<FollowSidebar> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final metrics = _measure(context);
     return SizedBox(
-      width: widget.width,
+      width: metrics.width,
       child: SingleChildScrollView(
         padding: AppStyle.edgeInsetsV8,
         child: Stack(
@@ -258,7 +273,7 @@ class _FollowSidebarState extends State<FollowSidebar> with SingleTickerProvider
                   SizedBox(
                     key: ValueKey('sidebar-${item.key}'),
                     height: FollowSidebar._kItemExtent,
-                    child: _buildItem(context, item),
+                    child: _buildItem(context, item, metrics),
                   ),
               ],
             ),
@@ -289,30 +304,100 @@ class _FollowSidebarState extends State<FollowSidebar> with SingleTickerProvider
     );
   }
 
-  Widget _buildItem(BuildContext context, FollowSidebarItem item) {
+  /// 按「最长标签 + 计数 + 固定内衬」算出栏宽，再按上限截断。
+  ///
+  /// 标签一律按选中态字重（w600）量：选中时变粗不会把栏宽顶得跳一下。
+  _SidebarMetrics _measure(BuildContext context) {
+    final baseStyle = DefaultTextStyle.of(context).style;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textDirection = Directionality.of(context);
+    final labelStyle = baseStyle.merge(
+      const TextStyle(fontSize: FollowSidebar._kLabelFontSize),
+    );
+    final boldLabelStyle = labelStyle.copyWith(fontWeight: FontWeight.w600);
+    final countStyle = baseStyle.merge(
+      const TextStyle(fontSize: FollowSidebar._kCountFontSize),
+    );
+
+    // 两字模式连计数一起收起：这时栏里只剩标签，不再为计数留列。
+    final showCount = !widget.compact;
+    var labelWidth = 0.0;
+    var countWidth = 0.0;
+    var showSiteIcon = false;
+    for (final item in widget.items) {
+      final label = widget.compact ? FollowSidebar.compactLabel(item.label) : item.label;
+      labelWidth = math.max(labelWidth, _measureLabel(label, boldLabelStyle, textScaler, textDirection));
+      if (showCount) {
+        countWidth = math.max(countWidth, _measureText('${item.count}', countStyle, textScaler, textDirection));
+      }
+      showSiteIcon = showSiteIcon || (!widget.compact && item.site != null);
+    }
+
+    final iconExtent = showSiteIcon ? FollowSidebar._kItemGap + FollowSidebar._kSiteIconSize : 0.0;
+    final countExtent = showCount ? FollowSidebar._kItemGap + countWidth : 0.0;
+    final naturalWidth = FollowSidebar._kItemPaddingLeft +
+        labelWidth +
+        iconExtent +
+        countExtent +
+        FollowSidebar._kItemPaddingRight;
+    // 封顶：既不超过 [FollowSidebar.maxWidth]，也给内容列留出最小宽度。
+    final limit = math.min(
+      FollowSidebar.maxWidth,
+      math.max(0.0, widget.availableWidth - FollowSidebar.minContentWidth),
+    );
+    final width = math.min(naturalWidth, limit);
+    final fixedWidth = FollowSidebar._kItemPaddingLeft +
+        iconExtent +
+        countExtent +
+        FollowSidebar._kItemPaddingRight;
+    return _SidebarMetrics(
+      width: width,
+      labelWidth: math.max(0.0, width - fixedWidth),
+      labelStyle: labelStyle,
+      countStyle: countStyle,
+      textScaler: textScaler,
+      textDirection: textDirection,
+    );
+  }
+
+  /// 标签宽度按**逐字符**量：两端对齐时每个字符是独立的一块，
+  /// 宽度口径要和渲染一致，不能拿整串的 shaping 结果去比。
+  static double _measureLabel(
+    String text,
+    TextStyle style,
+    TextScaler textScaler,
+    TextDirection textDirection,
+  ) {
+    var width = 0.0;
+    for (final character in text.characters) {
+      width += _measureText(character, style, textScaler, textDirection);
+    }
+    return width;
+  }
+
+  Widget _buildItem(BuildContext context, FollowSidebarItem item, _SidebarMetrics metrics) {
     final scheme = Theme.of(context).colorScheme;
     final selected = item.key == widget.selectedKey;
     // 选中态 = 强调色文字；左缘强调线由全栏共用的指示条负责。
     final color = selected ? scheme.primary : scheme.onSurfaceVariant;
     final label = widget.compact ? FollowSidebar.compactLabel(item.label) : item.label;
-    final labelText = Text(
-      label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 13,
+    final labelText = _JustifiedLabel(
+      key: ValueKey('sidebar-label-${item.key}'),
+      text: label,
+      semanticsLabel: item.label,
+      width: metrics.labelWidth,
+      style: metrics.labelStyle.copyWith(
         fontWeight: selected ? FontWeight.w600 : null,
         color: color,
       ),
+      textScaler: metrics.textScaler,
+      textDirection: metrics.textDirection,
     );
     final countText = Text(
       "${item.count}",
-      style: TextStyle(
-        fontSize: 12,
-        color: color,
-      ),
+      style: metrics.countStyle.copyWith(color: color),
     );
-    return InkWell(
+    final body = InkWell(
       borderRadius: AppStyle.radius8,
       onTap: () => widget.onSelect(item),
       child: Padding(
@@ -322,37 +407,162 @@ class _FollowSidebarState extends State<FollowSidebar> with SingleTickerProvider
         ),
         child: Row(
           children: [
-            if (widget.compact) ...[
-              // 两字模式下计数仍贴栏右缘，左右内衬相等（12/12）；
-              // 栏宽已收到 80，计数与文字之间不会空出一大截。
-              Expanded(child: labelText),
+            labelText,
+            // 平台 icon 跟在平台名之后；用卡面右下角 chip 那枚单色
+            // 图标（site.iconData），比彩色 logo 更适合缩在文字旁。
+            // 两字模式整个隐藏。
+            if (!widget.compact && item.site != null) ...[
               AppStyle.hGap8,
-              countText,
-            ] else ...[
-              Expanded(
-                child: Row(
-                  children: [
-                    Flexible(child: labelText),
-                    // 平台 icon 跟在平台名之后；用卡面右下角 chip 那枚单色
-                    // 图标（site.iconData），比彩色 logo 更适合缩在文字旁。
-                    // 两字模式（上面分支）整个隐藏。
-                    if (item.site != null) ...[
-                      AppStyle.hGap8,
-                      Icon(
-                        item.site!.iconData,
-                        size: 14,
-                        color: color,
-                      ),
-                    ],
-                  ],
-                ),
+              Icon(
+                item.site!.iconData,
+                size: FollowSidebar._kSiteIconSize,
+                color: color,
               ),
+            ],
+            // 两字模式只留标签本身（栏宽也照着两字算）；
+            // 常规模式计数一律贴栏右缘，标签列已经定宽，左右两端都对齐。
+            if (!widget.compact) ...[
+              const Spacer(),
               AppStyle.hGap8,
               countText,
             ],
           ],
         ),
       ),
+    );
+    // 手机端两字标签无法分辨前两个字相同的分组：长按看完整名（桌面悬停
+    // 同样生效）。完整名已由内层 Semantics 提供，这里不再重复朗读。
+    if (!widget.compact || label == item.label) {
+      return body;
+    }
+    return Tooltip(
+      message: item.label,
+      excludeFromSemantics: true,
+      child: body,
+    );
+  }
+}
+
+/// 栏宽测量结果。
+class _SidebarMetrics {
+  final double width;
+
+  /// 标签列的固定宽度（不含左右内衬、icon 与计数）。
+  final double labelWidth;
+
+  final TextStyle labelStyle;
+  final TextStyle countStyle;
+  final TextScaler textScaler;
+  final TextDirection textDirection;
+
+  const _SidebarMetrics({
+    required this.width,
+    required this.labelWidth,
+    required this.labelStyle,
+    required this.countStyle,
+    required this.textScaler,
+    required this.textDirection,
+  });
+}
+
+double _measureText(
+  String text,
+  TextStyle style,
+  TextScaler textScaler,
+  TextDirection textDirection,
+) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: textDirection,
+    textScaler: textScaler,
+    maxLines: 1,
+  )..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width;
+}
+
+/// 撑满 [width] 的单行标签：逐字符排开，首尾分别贴住左右缘。
+///
+/// 单行文本在 Flutter 里没有现成的两端对齐（`TextAlign.justify` 只作用于
+/// 软换行的非末行），`letterSpacing` 又会把间距分到两端、把首字推进来；
+/// 这里直接按字符簇拆开，用 `spaceBetween` 把剩余宽度均摊到字与字之间。
+/// 放不下时（栏宽被封顶）退回普通省略号文本。
+class _JustifiedLabel extends StatelessWidget {
+  final String text;
+
+  /// 视觉上可能被两字模式截断，但读屏始终读完整标签。
+  final String? semanticsLabel;
+
+  final double width;
+  final TextStyle style;
+  final TextScaler textScaler;
+  final TextDirection textDirection;
+
+  const _JustifiedLabel({
+    required this.text,
+    this.semanticsLabel,
+    required this.width,
+    required this.style,
+    required this.textScaler,
+    required this.textDirection,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final characters = text.characters.toList();
+    var naturalWidth = 0.0;
+    for (final character in characters) {
+      naturalWidth += _measureText(character, style, textScaler, textDirection);
+    }
+    final Widget content;
+    if (naturalWidth > width + 0.5) {
+      content = SizedBox(
+        width: width,
+        child: Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
+      );
+    } else if (characters.length < 2) {
+      content = SizedBox(
+        width: width,
+        child: Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.clip,
+          style: style,
+        ),
+      );
+    } else {
+      // 视觉上是逐字符的 Row；语义仍按整条标签朗读。
+      content = SizedBox(
+        width: width,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          textDirection: textDirection,
+          children: [
+            for (final character in characters)
+              Text(
+                character,
+                maxLines: 1,
+                softWrap: false,
+                style: style,
+              ),
+          ],
+        ),
+      );
+    }
+    return Semantics(
+      label: semanticsLabel ?? text,
+      child: ExcludeSemantics(child: content),
     );
   }
 }
