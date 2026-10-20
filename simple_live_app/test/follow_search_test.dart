@@ -9,7 +9,7 @@ import 'package:get/get.dart';
 // ⚠️ 本应用跑在 material_ui 上，它有自己的 `TextField` 实现 —— 这里必须用它，
 // 换成 `package:flutter/material.dart` 的 TextField，`find.byType` 永远匹配不上，
 // 断言会「沉默地恒真」。
-import 'package:material_ui/material_ui.dart' show TextField;
+import 'package:material_ui/material_ui.dart' show AppBar, TextField;
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_member_row.dart';
@@ -51,6 +51,7 @@ void main() {
     await seedSearch(tester);
 
     expect(find.byTooltip('搜索'), findsOneWidget);
+    expect(find.byTooltip('刷新'), findsOneWidget);
     expect(searchField, findsNothing);
     expect(find.byType(TextField), findsNothing);
     expect(rowText('甲'), findsOneWidget);
@@ -69,9 +70,15 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
     // `autofocus` 生效 = 输入法已经拉起（点图标就是要直接打字，不再多点一下框）
     expect(tester.testTextInput.isVisible, isTrue);
-    // 展开时右侧整排图标让位，只留 ← 与输入框
+    // 展开时右侧整排图标让位，只留 ← 与输入框；左侧刷新也收起，
+// leading 整槽为 0，把宽度让给搜索框。
     expect(find.byTooltip('收起搜索'), findsOneWidget);
     expect(find.byTooltip('排序方式'), findsNothing);
+    expect(find.byTooltip('刷新'), findsNothing);
+    final appBar = tester.widget<AppBar>(
+      find.ancestor(of: searchField, matching: find.byType(AppBar)).first,
+    );
+    expect(appBar.leadingWidth, 0);
     await settleEnd(tester);
   });
 
@@ -94,6 +101,8 @@ void main() {
     expect(searchField, findsNothing);
     expect(c.searchExpanded.value, isFalse);
     expect(c.searchQuery.value, isEmpty);
+    // 刷新随 leading 回来
+    expect(find.byTooltip('刷新'), findsOneWidget);
     // 列表回到全量
     expect(rowText('乙'), findsOneWidget);
     expect(rowText('丙'), findsOneWidget);

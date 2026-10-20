@@ -55,7 +55,8 @@ class FollowUserPage extends GetView<FollowUserController> {
   static const Curve _kSearchIn = Curves.easeOutCubic;
   static const Curve _kSearchOut = Curves.easeInCubic;
 
-  /// leading 里单个图标的占位宽度。普通态并排两个图标（刷新 + 展开/折叠）。
+  /// leading 状态槽的宽度。普通态只有刷新、选择态只有 ✕；
+  /// 保留原两图标槽的视觉留白，切换时不位移。
   static const double _kLeadingSlotWidth = 96;
 
   /// leading 左侧留白。
@@ -68,9 +69,9 @@ class FollowUserPage extends GetView<FollowUserController> {
 
   /// leading 里一个状态的外壳：**定宽** + 内容贴左，key 交给 `AnimatedSwitcher`。
   ///
-  /// `AnimatedSwitcher` 内部那个 Stack 取最宽子项做尺寸、对齐写死居中：普通态是
-  /// 两个图标（96），选择态只有一个 ✕（48）。不统一宽度的话，过渡途中 Stack 仍
-  /// 按 96 宽布局，✕ 会被居中摆在两个图标中间，等过渡结束才跳回左端。
+  /// `AnimatedSwitcher` 内部那个 Stack 取最宽子项做尺寸、对齐写死居中：普通态
+  /// 与选择态图标数不同（刷新 / ✕）。不统一宽度的话，过渡途中 Stack 仍按
+  /// 槽宽布局，✕ 会被居中摆放，等过渡结束才跳回左端。
   Widget _leadingSlot(String key, Widget child) {
     return SizedBox(
       key: ValueKey(key),
@@ -111,16 +112,29 @@ class FollowUserPage extends GetView<FollowUserController> {
   /// 有勾选时进入选择态（设计稿）：leading 变 ✕（清空选择）、标题变
   /// 「已选择 N 位」、排序按钮换成「编辑」主色胶囊；此时不给搜索入口。
   /// 分组管理入口按设计稿收进右侧 ⋮ 弹层，不再占一个独立图标；
-  /// 刷新按钮保留（设计稿没画，但去掉是功能倒退）。
+  /// 刷新按钮只在普通态保留；搜索展开时返回键在胶囊内部，leading 整槽收起。
   /// 顶栏随滚动收起，顶栏不做玻璃/形变效果：底部 dock 的那套形变只服务
   /// 底栏自身（见 [NavigationDock]），套到会随滚动改变高度的 AppBar 上会打架。
   PreferredSizeWidget _buildAppBar(ButtonStyle iconButtonStyle) {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(kToolbarHeight),
+      child: Obx(() {
+        // 搜索展开且未进入选择态时，返回键在胶囊内部，leading 没有存在意义；
+        // 一旦有勾选仍要保留退出选择的 ✕，所以这里不是只看 searchExpanded。
+        final collapseLeading = controller.searchExpanded.value && controller.selectedIds.isEmpty;
+        return _buildAppBarContent(iconButtonStyle, collapseLeading);
+      }),
+    );
+  }
+
+  /// 顶栏本体；[collapseLeading] 为 true 时 leading 槽位与刷新按钮一起收起。
+  Widget _buildAppBarContent(ButtonStyle iconButtonStyle, bool collapseLeading) {
     return AppBar(
-      // 普通态 leading 要并排放两个图标（刷新 + 一键展开/折叠全部分组），
-      // 默认的 56 只够一个，放到 [_kLeadingWidth]（左内边距 + 两个图标位）。
+      // 普通态 leading 放刷新，选择态放 ✕；搜索展开时返回键在胶囊内部，
+      // leadingWidth 直接收成 0，把整条顶栏让给输入框。
       // 标题居中（`AppBarTheme.centerTitle`），且 `NavigationToolbar` 会在居中
       // 位置撞到 leading 时把标题右移，不会重叠。
-      leadingWidth: _kLeadingWidth,
+      leadingWidth: collapseLeading ? 0 : _kLeadingWidth,
       title: Obx(
         // 胶囊从右边缘（🔍 图标所在的位置）横向长出来，标题原地淡出 ——
         // 视觉上就是「那个图标被拉成了输入框」。宽度只在 title 槽位内部变，
@@ -286,9 +300,11 @@ class FollowUserPage extends GetView<FollowUserController> {
         }),
       ],
       leading: Obx(() {
-        // 搜索态的返回键收在胶囊内部（见 [_buildSearchField]），所以这里只剩
-        // 「选择态 ✕」与「普通态刷新 + 展开/折叠」两种；两者都用 [_leadingSlot]
-        // 统一宽度，切换时不位移。
+        // 搜索态的返回键收在胶囊内部（见 [_buildSearchField]），搜索展开且
+        // 未勾选时 leading 整槽（连同刷新按钮）收起；有勾选则保留退出选择的 ✕。
+        if (collapseLeading) {
+          return const SizedBox.shrink();
+        }
         final Widget slot;
         if (controller.selectedIds.isNotEmpty) {
           final close = IconButton(
