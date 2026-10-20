@@ -112,9 +112,9 @@ Widget _buildDesktopControls(VideoState videoState, LiveRoomController controlle
                 behavior: HitTestBehavior.translucent,
                 onTap: controller.onTap,
                 onDoubleTapDown: controller.onDoubleTap,
-                onVerticalDragStart: controller.onVerticalDragStart,
-                onVerticalDragUpdate: controller.onVerticalDragUpdate,
-                onVerticalDragEnd: controller.onVerticalDragEnd,
+                // 桌面分支不挂移动端竖向手势（滑动控制-音量/亮度），理由见
+                // `_buildDesktopFullControls` 里那条注释；窗口化这条没有拖拽区域，
+                // 摘掉只是去死代码，不改变任何可见行为。
                 child: MouseRegion(
                   onEnter: controller.onEnter,
                   child: Container(
@@ -287,9 +287,14 @@ Widget _buildDesktopFullControls(
                     // 多开的格子，单画面要用改造前那块带头像与刷新的右侧面板。
                     showFollowUser(controller);
                   },
-                  onVerticalDragStart: controller.onVerticalDragStart,
-                  onVerticalDragUpdate: controller.onVerticalDragUpdate,
-                  onVerticalDragEnd: controller.onVerticalDragEnd,
+                  // 桌面分支不挂移动端那套竖向手势（`onVerticalDrag*`＝滑动控制-音量/亮度，
+                  // 见播放设置那个开关）：它在桌面上本就是空转（`onVerticalDragUpdate`
+                  // 非 Android/iOS 直接 return），但作为**内层**识别器仍会进手势竞技场，
+                  // 而且是命中链深处优先——阈值还只有外层 pan 的一半（鼠标 1px vs 2px），
+                  // 于是凡起手带竖向分量的拖拽全被它吃掉，`buildDragToMoveArea` 的 pan
+                  // 永远接不到 `startDragging()`：表现就是「小窗/全屏整窗拖不动，只有被
+                  // 顶/底栏或锁定钮盖住的那几条能拖」。移动端两个 builder
+                  // （`buildFullControls`/`buildControls`）照旧保留，那里才是这套手势的归宿。
                   child: MouseRegion(
                     onHover: (PointerHoverEvent event) {
                       controller.onHover(event, videoState.context);
