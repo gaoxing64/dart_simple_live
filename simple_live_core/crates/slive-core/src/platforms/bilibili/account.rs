@@ -10,7 +10,7 @@
 use serde_json::Value;
 
 use crate::error::SliveError;
-use crate::http::{check_api_code, HttpRequest};
+use crate::http::{check_api_code, HttpRequest, DEFAULT_REFERER, DEFAULT_USER_AGENT};
 use crate::models::{AccountInfo, QrCode, QrPollResult, QrStatus};
 
 use super::site::BilibiliSite;
@@ -141,9 +141,15 @@ pub(crate) async fn get_account_info(
     else {
         return Ok(result);
     };
-    let mut headers = super::header::build_header(site).await?;
+    // 只带 credential 自己的头，**不得**叠加 build_header 的 buvid/站点 cookie：
+    // B站只认首个 Cookie 头，叠加后校验读到的是 buvid 头，重启后稳定误判未登录。
+    let mut headers = vec![
+        ("user-agent".to_string(), DEFAULT_USER_AGENT.to_string()),
+        ("referer".to_string(), DEFAULT_REFERER.to_string()),
+    ];
     for (key, value) in &header_object {
         if let Some(text) = value.as_str() {
+            headers.retain(|(name, _)| !name.eq_ignore_ascii_case(key));
             headers.push((key.clone(), text.to_string()));
         }
     }

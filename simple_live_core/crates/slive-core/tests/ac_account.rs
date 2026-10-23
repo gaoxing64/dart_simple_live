@@ -122,6 +122,44 @@ async fn ac20_account_info_fills_and_backfills_user_id() {
 }
 
 #[tokio::test]
+async fn ac20_account_info_sends_only_credential_cookie_header() {
+    let h = harness();
+    // 站点上已有上一次注入的凭证：账号校验不得把它混进来。
+    h.site
+        .set_site_attrs(r#"{"cookie":"old=1;buvid3=old-buvid;buvid4=old-buvid4"}"#)
+        .expect("注入旧凭证");
+    h.mock.stub(
+        "member/web/account",
+        r#"{"code":0,"data":{"mid":1,"uname":"u","userid":"1"}}"#,
+    );
+
+    let info = h
+        .site
+        .get_account_info(r#"{"cookie":"SESSDATA=new"}"#.into())
+        .await
+        .expect("不抛");
+    assert!(info.is_valid);
+
+    let request = h
+        .mock
+        .requests()
+        .into_iter()
+        .find(|r| r.url.contains("member/web/account"))
+        .expect("应请求账号接口");
+    let cookies: Vec<&str> = request
+        .headers
+        .iter()
+        .filter(|(name, _)| name.eq_ignore_ascii_case("cookie"))
+        .map(|(_, value)| value.as_str())
+        .collect();
+    assert_eq!(
+        cookies,
+        vec!["SESSDATA=new"],
+        "账号校验只能带 credential 的单条 Cookie 头（B站只认首个，双头会误判未登录）"
+    );
+}
+
+#[tokio::test]
 async fn ac20_account_api_error_returns_not_valid_without_throw() {
     let h = harness();
     h.mock.stub("member/web/account", r#"{"code":-101,"message":"账号未登录"}"#);
