@@ -30,6 +30,7 @@ import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/settings/settings_action.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
+import 'package:simple_live_app/widgets/settings/settings_menu.dart';
 import 'package:simple_live_app/widgets/settings/settings_number.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_app/widgets/superchat_card.dart';
@@ -954,6 +955,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             return const SizedBox.shrink();
           }
           return Column(
+            // 默认 center 会把分组标题缩成文字宽再居中，与「聊天区」「更多设置」
+            // 的左对齐对不上；stretch 后标题占满整行、文字从左边起排。
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
                 padding: AppStyle.edgeInsetsA12,
@@ -1041,6 +1045,68 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             ],
           );
         }),
+        // 播放参数：从「我的 → 直播设置」的播放器卡片搬到这里——它就在播放现场，
+        // 改完即时生效（开关走事件总线下发到每一路），不必退出去再找。
+        Padding(
+          padding: AppStyle.edgeInsetsA12,
+          child: Text(
+            "播放",
+            style: context.textTheme.titleSmall,
+          ),
+        ),
+        SettingsCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Obx(
+                () => SettingsSwitch(
+                  title: "音量均衡",
+                  value: AppSettingsController.instance.volumeNormalize.value,
+                  onChanged: (e) {
+                    AppSettingsController.instance.setVolumeNormalize(e);
+                  },
+                ),
+              ),
+              Obx(
+                () => Visibility(
+                  visible: AppSettingsController.instance.volumeNormalize.value,
+                  child: Column(
+                    children: [
+                      AppStyle.divider,
+                      SettingsMenu<int>(
+                        title: "目标响度",
+                        value: AppSettingsController.instance.volumeNormalizeTargetLufs.value,
+                        valueMap: const {
+                          -18: "-18 LUFS（接近原声动态）",
+                          -16: "-16 LUFS（移动端标准）",
+                          -14: "-14 LUFS（偏响）",
+                          -12: "-12 LUFS（很响）",
+                        },
+                        onChanged: (e) {
+                          AppSettingsController.instance.setVolumeNormalizeTargetLufs(e);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsNumber(
+                  title: "最大音量",
+                  value: AppSettingsController.instance.playerMaxVolume.value,
+                  min: 100,
+                  max: 130,
+                  step: 10,
+                  unit: "%",
+                  onChanged: (e) {
+                    AppSettingsController.instance.setPlayerMaxVolume(e);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
         Padding(
           padding: AppStyle.edgeInsetsA12,
           child: Text(
