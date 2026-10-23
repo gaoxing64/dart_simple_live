@@ -528,7 +528,8 @@ class LiveRoomController extends PlayerController
     if (!scrollController.hasClients || disableAutoScroll.value) {
       return;
     }
-    if (!animate) {
+    // 设置里关掉聊天动画时回到旧行为：一次跳到底，不做节流与补滚。
+    if (!animate || !AppSettingsController.instance.chatAnimationEnable.value) {
       _chatScrollTimer?.cancel();
       _chatScrollTimer = null;
       _chatScrollPending = false;

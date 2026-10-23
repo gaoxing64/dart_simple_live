@@ -1094,6 +1094,17 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                   },
                 ),
               ),
+              AppStyle.divider,
+              Obx(
+                () => SettingsSwitch(
+                  title: "聊天动画",
+                  subtitle: "新消息淡入、聊天栏平滑滚到底；关闭后直接出现",
+                  value: AppSettingsController.instance.chatAnimationEnable.value,
+                  onChanged: (e) {
+                    AppSettingsController.instance.setChatAnimationEnable(e);
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -1563,7 +1574,9 @@ class _ChatMessageEntranceState extends State<_ChatMessageEntrance>
     super.initState();
     // 只在元素第一次挂载时决定，之后外层因新消息重建多少次都不变：若在
     // build 里判断，动画跑一半就会被换回静态内容、直接闪到终态。
-    if (!widget.room.claimChatMessageEntrance(widget.message)) {
+    // 名额无论如何都先消费掉：关着开关时看过的消息，之后打开开关也不该补播。
+    final claimed = widget.room.claimChatMessageEntrance(widget.message);
+    if (!claimed || !AppSettingsController.instance.chatAnimationEnable.value) {
       return;
     }
     final controller = AnimationController(vsync: this, duration: _kDuration)

@@ -119,6 +119,11 @@ class AppSettingsController extends GetxController {
       false,
     );
 
+    chatAnimationEnable.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kChatAnimationEnable,
+      true,
+    );
+
     qualityLevel.value = LocalStorageService.instance.getValue(LocalStorageService.kQualityLevel, 2);
     qualityLevelCellular.value = LocalStorageService.instance.getValue(LocalStorageService.kQualityLevelCellular, 1);
 
@@ -469,6 +474,13 @@ class AppSettingsController extends GetxController {
   void setChatBubbleStyle(bool e) {
     chatBubbleStyle.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kChatBubbleStyle, e);
+  }
+
+  var chatAnimationEnable = true.obs;
+
+  void setChatAnimationEnable(bool e) {
+    chatAnimationEnable.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kChatAnimationEnable, e);
   }
 
   var danmuSize = 16.0.obs;
