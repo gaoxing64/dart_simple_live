@@ -300,6 +300,12 @@ class LiveRoomController extends PlayerController
   /// 的对象，长时观看不会无限增长。
   final Set<LiveMessage> _chatEntrancePlayed = {};
 
+  /// 最近一次聊天列表的滚动位置。
+  ///
+  /// 列表挂载位置会在全屏/换布局时被整棵摘掉重建，而它没有 PageStorageKey，
+  /// 新 ScrollPosition 会从 0 起；上滑看历史时用这个值把位置接回去。
+  double? _lastChatScrollOffset;
+
   /// 是否处于后台
   var isBackground = false;
 
@@ -447,9 +453,32 @@ class LiveRoomController extends PlayerController
     if (!scrollController.hasClients) {
       return;
     }
+    _lastChatScrollOffset = scrollController.position.pixels;
     if (scrollController.position.userScrollDirection == ScrollDirection.forward) {
       disableAutoScroll.value = true;
     }
+  }
+
+  /// 聊天列表重新挂载（退出全屏、切换布局）时接回滚动位置。
+  ///
+  /// 全屏分支只保留视频区，聊天区整棵子树会被销毁；退出后新的 ScrollPosition
+  /// 从 0 开始，若不补这一步就会停在最旧一条，直到下一条消息触发滚底。
+  /// 仍处于「跟随最新」时直接落到底；上滑看历史时回到离开前的位置。
+  void restoreChatScrollOnMount() {
+    if (!scrollController.hasClients) {
+      return;
+    }
+    if (!disableAutoScroll.value) {
+      chatScrollToBottom(animate: false);
+      return;
+    }
+    final offset = _lastChatScrollOffset;
+    if (offset == null) {
+      return;
+    }
+    scrollController.jumpTo(
+      offset.clamp(0.0, scrollController.position.maxScrollExtent).toDouble(),
+    );
   }
 
   /// 初始化自动关闭倒计时
@@ -1738,6 +1767,7 @@ class LiveRoomController extends PlayerController
     liveDanmaku.stop();
     messages.clear();
     _chatEntrancePlayed.clear();
+    _lastChatScrollOffset = null;
     _chatScrollTimer?.cancel();
     _chatScrollTimer = null;
     _chatScrollPending = false;
