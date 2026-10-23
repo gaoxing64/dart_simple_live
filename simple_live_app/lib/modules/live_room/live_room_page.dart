@@ -930,15 +930,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   /// 弹幕设置与画面尺寸（含自定义比例）也按格生效，同样走 [room]——多开时
   /// 只改聚焦格，不能悄悄落到页面主格上。定时关闭是窗口级，仍走 [controller]。
   Widget buildSettings(BuildContext context) {
-    // 平台建议路数：给「默认路数」旋钮当 subtitle 用。走 `resolveDefaultMultiPlayTiles`
-    // 而不是自己拼平台判断——那个函数就是「第一次用该给几路」的**唯一**口径，
-    // 这里再写一份就等着两边跑偏（合并时这里曾引用过一对已不存在的常量）。
-    // 传 stored: null 即「用户还没存过」，拿到的就是按平台的预填值。
-    // 算一次就够，不订阅——它只随平台变，平台不会在一次会话里变。
-    final defaultTilesSuggestion = resolveDefaultMultiPlayTiles(
-      isDesktop: AppSettingsController.isDesktop,
-      stored: null,
-    );
     return ListView(
       padding: AppStyle.edgeInsetsA12,
       children: [
@@ -1016,7 +1007,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                     Obx(
                       () => SettingsNumber(
                         title: "默认路数",
-                        subtitle: "关注页批量多开一次开几路（${AppSettingsController.isDesktop ? "桌面" : "移动"}建议 $defaultTilesSuggestion）",
                         value: AppSettingsController.instance.multiPlayDefaultTiles.value,
                         min: kMultiPlayMinTiles,
                         max: kMultiPlayMaxTiles,
@@ -1029,7 +1019,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                     Obx(
                       () => SettingsSwitch(
                         title: "各格显示弹幕",
-                        subtitle: "关掉后各路都不画弹幕，CPU 会明显下来",
                         value: AppSettingsController.instance.multiPlayTileDanmaku.value,
                         onChanged: controller.multiPlay.setTileDanmakuVisible,
                       ),
@@ -1038,7 +1027,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                     Obx(
                       () => SettingsNumber(
                         title: "每路缓存",
-                        subtitle: "每路各占一份，重进直播间生效",
                         value: AppSettingsController.instance.multiPlayTileBufferSize.value,
                         min: 8,
                         max: 32,
@@ -1101,7 +1089,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               Obx(
                 () => SettingsSwitch(
                   title: "聊天动画",
-                  subtitle: "新消息淡入、聊天栏平滑滚到底；关闭后直接出现",
                   value: AppSettingsController.instance.chatAnimationEnable.value,
                   onChanged: (e) {
                     AppSettingsController.instance.setChatAnimationEnable(e);
