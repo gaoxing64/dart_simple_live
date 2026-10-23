@@ -74,8 +74,7 @@ pub async fn ensure_enc_key(site: &DouyuSite) -> Result<(), SliveError> {
         enc_time: data
             .get("enc_time")
             .and_then(Value::as_i64)
-            .unwrap_or(1)
-            .clamp(1, 64) as i32,
+            .unwrap_or(1) as i32,
         is_special: data.get("is_special").and_then(Value::as_i64).unwrap_or(0) == 1,
         enc_data: string_field(data, "enc_data"),
         expire_at: site.now_secs() + ENC_CACHE_TTL_SECS,
@@ -192,6 +191,30 @@ mod tests {
         let secret = md5_hex("RK");
         let auth = md5_hex(&format!("{secret}K"));
         assert!(body.contains(&format!("auth={auth}")), "is_special=1 时 salt 为空：{body}");
+    }
+
+    #[tokio::test]
+    async fn enc_time_above_64_is_honored_for_logged_in_sessions() {
+        // 带 Cookie（登录态）时服务端会下发 enc_time=1000；钳制迭代次数会让 auth 算错，
+        // 取流直接 403「鉴权失败」（游客态 enc_time=1，所以不配置 Cookie 反而正常）。
+        let mock = Arc::new(MockTransport::new());
+        mock.stub(
+            "getEncryption",
+            r#"{"error":0,"data":{"key":"K","rand_str":"R","enc_time":1000,"is_special":1,"enc_data":"E"}}"#,
+        );
+        let s = site(&mock);
+
+        let body = build_sign(&s, "999", 0, DEFAULT_CDN).await.expect("签名");
+
+        let mut secret = "R".to_string();
+        for _ in 0..1000 {
+            secret = md5_hex(&format!("{secret}K"));
+        }
+        let auth = md5_hex(&format!("{secret}K"));
+        assert!(
+            body.contains(&format!("auth={auth}")),
+            "enc_time 必须按服务端下发次数迭代：{body}"
+        );
     }
 
     #[tokio::test]
