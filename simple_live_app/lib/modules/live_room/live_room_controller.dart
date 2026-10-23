@@ -290,6 +290,16 @@ class LiveRoomController extends PlayerController
   /// - 当用户向上滚动聊天栏时，不再自动滚动
   var disableAutoScroll = false.obs;
 
+  /// 聊天栏平滑滚底的节流窗口（见 [chatScrollToBottom]）。
+  Timer? _chatScrollTimer;
+  bool _chatScrollPending = false;
+
+  /// 已经播过入场动画的消息（按对象身份记账）。
+  ///
+  /// 列表项滑出屏幕会被回收，重建时不能重播；超过消息上限两倍时剔除已离场
+  /// 的对象，长时观看不会无限增长。
+  final Set<LiveMessage> _chatEntrancePlayed = {};
+
   /// 是否处于后台
   var isBackground = false;
 
@@ -300,6 +310,11 @@ class LiveRoomController extends PlayerController
   int _count = 0;
 
   final int _kMaxChatMessageCount = 150;
+
+  /// 滚底动画与节流窗口都取 500ms：一个窗口恰好跑完一段动画，刷屏时
+  /// 画面是连续的，而不是每来一条就打断上一次缓动从头再跑。
+  static const Duration _kChatScrollDuration = Duration(milliseconds: 500);
+  static const Duration _kChatScrollThrottle = Duration(milliseconds: 500);
 
   @override
   void onInit() {
@@ -502,14 +517,58 @@ class LiveRoomController extends PlayerController
   }
 
   /// 聊天栏始终滚动到底部
-  void chatScrollToBottom() {
-    if (scrollController.hasClients) {
-      // 如果手动上拉过，就不自动滚动到底部
-      if (disableAutoScroll.value) {
+  ///
+  /// 用动画而不是 jumpTo：一次到一批消息时列表是滑上去的，已有内容不会
+  /// 整块瞬移。刷屏时按 [_kChatScrollThrottle] 节流，窗口结束时若还有积压
+  /// 再补滚一次，保证最后一批也落在视野里。
+  ///
+  /// [animate] 为 false 时直接跳到底，给「最新」按钮用：积压可能上百条，
+  /// 500ms 划过整段历史只会看到一片模糊；新到消息仍走动画。
+  void chatScrollToBottom({bool animate = true}) {
+    if (!scrollController.hasClients || disableAutoScroll.value) {
+      return;
+    }
+    if (!animate) {
+      _chatScrollTimer?.cancel();
+      _chatScrollTimer = null;
+      _chatScrollPending = false;
+      scrollController.jumpTo(scrollController.position.maxScrollExtent);
+      return;
+    }
+    if (_chatScrollTimer != null) {
+      _chatScrollPending = true;
+      return;
+    }
+    _chatScrollTimer = Timer(_kChatScrollThrottle, () {
+      _chatScrollTimer = null;
+      if (!_chatScrollPending) {
         return;
       }
-      scrollController.jumpTo(scrollController.position.maxScrollExtent);
+      _chatScrollPending = false;
+      chatScrollToBottom();
+    });
+    unawaited(
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
+        duration: _kChatScrollDuration,
+        curve: Curves.linearToEaseOut,
+      ),
+    );
+  }
+
+  /// 消费一条消息的入场动画名额：第一次返回 true，之后同一条消息因列表项
+  /// 回收/重建再次取用都返回 false。
+  ///
+  /// 上滑翻历史（[disableAutoScroll]）时不播动画，但照样记账，回看旧消息
+  /// 不会一片闪动。
+  bool claimChatMessageEntrance(LiveMessage message) {
+    if (!_chatEntrancePlayed.add(message)) {
+      return false;
     }
+    if (_chatEntrancePlayed.length > _kMaxChatMessageCount * 2) {
+      _chatEntrancePlayed.removeWhere((e) => !messages.contains(e));
+    }
+    return !disableAutoScroll.value;
   }
 
   /// 初始化弹幕接收事件
@@ -1677,6 +1736,10 @@ class LiveRoomController extends PlayerController
     // 清除全部消息
     liveDanmaku.stop();
     messages.clear();
+    _chatEntrancePlayed.clear();
+    _chatScrollTimer?.cancel();
+    _chatScrollTimer = null;
+    _chatScrollPending = false;
     superChats.clear();
     danmakuController?.clear();
     // 表情包是分房间下发的，换房间后上一个房间的合成位图没有复用价值；
@@ -1910,6 +1973,7 @@ ${error?.stackTrace}''');
     scrollController.removeListener(scrollListener);
     autoExitTimer?.cancel();
     danmakuTimer?.cancel();
+    _chatScrollTimer?.cancel();
     // 这个 EventBus 订阅原来一直没被取消：每关一个直播间就漏一个 kUpdateDanmaku
     // 监听者，多开时泄漏量翻四倍。
     subscription?.cancel();

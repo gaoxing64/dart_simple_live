@@ -714,9 +714,26 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                   ),
                   padding: AppStyle.edgeInsetsA12,
                   itemCount: room.messages.length,
+                  // 到上限后头部会裁掉旧消息、所有下标整体前移。没有这个回调，
+                  // 每个可见项都会因 key 对不上被销毁重建（入场动画状态、文字
+                  // 选区都会丢）；返回消息的新下标后列表项才能跟着消息移动。
+                  findItemIndexCallback: (key) {
+                    if (key is! ValueKey<LiveMessage>) {
+                      return null;
+                    }
+                    final index = room.messages.indexOf(key.value);
+                    return index == -1 ? null : index;
+                  },
                   itemBuilder: (context, i) {
                     var item = room.messages[i];
-                    return buildMessageItem(item, context);
+                    return _ChatMessageEntrance(
+                      // 到达上限后每来一条都会移除头部一条；按对象身份建 key，
+                      // 列表项才会跟着消息走，而不是原地换内容。
+                      key: ValueKey(item),
+                      room: room,
+                      message: item,
+                      child: buildMessageItem(item, context),
+                    );
                   },
                 ),
                 Visibility(
@@ -727,7 +744,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                     child: ElevatedButton.icon(
                       onPressed: () {
                         room.disableAutoScroll.value = false;
-                        room.chatScrollToBottom();
+                        room.chatScrollToBottom(animate: false);
                       },
                       icon: const Icon(Icons.expand_more),
                       label: const Text("最新"),
@@ -1509,6 +1526,77 @@ class _ChatTabsState extends State<_ChatTabs>
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 聊天消息的入场：新消息第一次上屏时做一次很短的淡入 + 上移。
+///
+/// 只动透明度和绘制偏移、不动布局高度：列表从第一条起就是最终尺寸，滚底
+/// 动画拿到的 maxScrollExtent 不会在动画期间反复变化。
+class _ChatMessageEntrance extends StatefulWidget {
+  const _ChatMessageEntrance({
+    super.key,
+    required this.room,
+    required this.message,
+    required this.child,
+  });
+
+  final LiveRoomController room;
+  final LiveMessage message;
+  final Widget child;
+
+  @override
+  State<_ChatMessageEntrance> createState() => _ChatMessageEntranceState();
+}
+
+class _ChatMessageEntranceState extends State<_ChatMessageEntrance>
+    with SingleTickerProviderStateMixin {
+  static const Duration _kDuration = Duration(milliseconds: 200);
+
+  AnimationController? _controller;
+  Animation<double>? _opacity;
+  Animation<Offset>? _offset;
+
+  @override
+  void initState() {
+    super.initState();
+    // 只在元素第一次挂载时决定，之后外层因新消息重建多少次都不变：若在
+    // build 里判断，动画跑一半就会被换回静态内容、直接闪到终态。
+    if (!widget.room.claimChatMessageEntrance(widget.message)) {
+      return;
+    }
+    final controller = AnimationController(vsync: this, duration: _kDuration)
+      ..forward();
+    _controller = controller;
+    _opacity = controller.drive(CurveTween(curve: Curves.easeOutCubic));
+    _offset = controller.drive(
+      Tween<Offset>(
+        begin: const Offset(0, .25),
+        end: Offset.zero,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final opacity = _opacity;
+    final offset = _offset;
+    if (opacity == null || offset == null) {
+      return widget.child;
+    }
+    return FadeTransition(
+      opacity: opacity,
+      child: SlideTransition(
+        position: offset,
+        child: widget.child,
+      ),
     );
   }
 }
