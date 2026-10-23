@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:simple_live_app/modules/live_room/player/player_osd_overlay.dart';
 import 'package:simple_live_app/modules/live_room/player/player_osd_widgets.dart';
 
 /// OSD 尺寸表与组件的回归测试。
@@ -82,6 +83,62 @@ void main() {
     test('极窄屏指标卡退化为单列', () {
       expect(resolve(319, 800).tileColumns, 1);
       expect(resolve(320, 800).tileColumns, 2);
+    });
+  });
+
+  group('非全屏窄屏竖屏的 OSD 宿主', () {
+    test('手机竖屏非全屏交给页面承载（视频下方）', () {
+      expect(
+        shouldUsePageOsd(
+          fullScreen: false,
+          orientation: Orientation.portrait,
+          width: 390,
+        ),
+        isTrue,
+      );
+      expect(
+        shouldUsePageOsd(
+          fullScreen: false,
+          orientation: Orientation.portrait,
+          width: 599,
+        ),
+        isTrue,
+      );
+    });
+
+    test('全屏 / 横屏 / 宽屏仍留在视频区', () {
+      expect(
+        shouldUsePageOsd(
+          fullScreen: true,
+          orientation: Orientation.portrait,
+          width: 390,
+        ),
+        isFalse,
+      );
+      expect(
+        shouldUsePageOsd(
+          fullScreen: false,
+          orientation: Orientation.landscape,
+          width: 390,
+        ),
+        isFalse,
+      );
+      expect(
+        shouldUsePageOsd(
+          fullScreen: false,
+          orientation: Orientation.portrait,
+          width: 600,
+        ),
+        isFalse,
+      );
+    });
+
+    test('视频下方的承载区（390×625）仍是可用的表单而不是 minimal', () {
+      final m = resolve(390, 625, touch: true);
+      expect(m.isSheet, isTrue);
+      expect(m.dense, isFalse);
+      expect(m.panelMaxHeight, 620);
+      expect(m.bodyMaxHeight, greaterThan(0));
     });
   });
 

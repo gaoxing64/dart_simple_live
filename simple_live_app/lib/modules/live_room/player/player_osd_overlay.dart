@@ -10,6 +10,29 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_osd_widgets.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 
+/// 非全屏的窄屏竖屏（手机 / 窄窗口）下，OSD 改由页面在视频下方承载。
+///
+/// 竖屏视频区只有 16:9 的一条（手机上约 220dp 高），通栏表单若留在视频区里
+/// 会把整块画面盖住；移到视频下方既保住画面，也拿到更完整的滚动高度。
+bool shouldUsePageOsd({
+  required bool fullScreen,
+  required Orientation orientation,
+  required double width,
+}) {
+  return !fullScreen &&
+      orientation == Orientation.portrait &&
+      width < 600;
+}
+
+/// 当前上下文是否应把 OSD 交给页面承载（见 [shouldUsePageOsd]）。
+bool usePageOsdHost(BuildContext context, LiveRoomController controller) {
+  return shouldUsePageOsd(
+    fullScreen: controller.fullScreenState.value,
+    orientation: MediaQuery.orientationOf(context),
+    width: MediaQuery.sizeOf(context).width,
+  );
+}
+
 /// Flutter 自绘的 mpv 风格播放统计面板（单页，无分页选择）。
 ///
 /// * 数据来源不变：`controller.player.state`（media_kit `PlayerState`）+ 少量
@@ -21,9 +44,10 @@ import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_sett
 ///   [OsdChip] / [OsdAdvanced] 中，本文件只负责「取数 + 格式化 + 组装页面」；
 /// * 版式：顶部四个核心数字做成指标卡当视觉锚点，其余分组一律行式
 ///   （Label 左 / Value 右、共享一条右对齐线），短状态值用 Chip 挂在标题右侧；
-/// * 小屏（<600dp，安卓竖屏）自动切底部表单形态：通栏贴底、顶部 28dp 大圆角、
-///   指标卡排成一行四个、次要行隐藏、滚动条常显 —— 因为此时 OSD 被 16:9
-///   视频区限制在 ~220dp 高，左上角浮层那套布局在这个高度里没法用。
+/// * 小屏（<600dp）自动切底部表单形态：通栏贴底、顶部 28dp 大圆角、
+///   指标卡排成一行四个、次要行隐藏、滚动条常显；
+/// * 非全屏的竖屏窄屏由页面在视频下方承载（见 [shouldUsePageOsd]），
+///   避免通栏表单盖住整个 16:9 播放区。
 class PlayerOsdOverlay extends StatefulWidget {
   const PlayerOsdOverlay({
     super.key,

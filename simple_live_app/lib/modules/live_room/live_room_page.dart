@@ -218,14 +218,33 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               height: videoHeight,
               child: buildLiveRoomVideoArea(),
             );
+      final double videoAreaHeight = videoHeight ?? size.width * 9 / 16;
 
-      return Column(
+      return Stack(
+        fit: StackFit.expand,
         children: [
-          video,
-          // 侧栏与竖屏共用同一列（`Expanded` 给它有界高度——`buildMessageArea`
-          // 内部是Expanded，套进无界高度会直接抛错）。
-          Expanded(child: buildChatColumn(context)),
-          buildBottomActions(context),
+          Column(
+            children: [
+              video,
+              // 侧栏与竖屏共用同一列（`Expanded` 给它有界高度——`buildMessageArea`
+              // 内部是Expanded，套进无界高度会直接抛错）。
+              Expanded(child: buildChatColumn(context)),
+              buildBottomActions(context),
+            ],
+          ),
+          // 窄屏竖屏非全屏时 OSD 不放在视频区里：通栏表单一进 16:9 条带就会
+          // 把整块画面盖住。下移到视频下沿，只盖聊天区；全屏/宽屏仍走视频内浮层。
+          // 多开保持原样（格子没有完整播放控件，页面也不替它出 OSD）。
+          if (!active)
+            Positioned.fill(
+              top: videoAreaHeight,
+              child: SafeArea(
+                top: false,
+                left: false,
+                right: false,
+                child: buildPageOsdOverlay(context, controller),
+              ),
+            ),
         ],
       );
     });

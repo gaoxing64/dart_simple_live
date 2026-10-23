@@ -211,7 +211,9 @@ Widget _buildDesktopControls(VideoState videoState, LiveRoomController controlle
                 child: Center(child: _gestureTip(controller)),
               ),
             ),
-            Positioned.fill(child: buildOsdOverlay(controller)),
+            Positioned.fill(
+              child: buildOsdOverlay(videoState.context, controller),
+            ),
           ],
         );
       },
@@ -455,7 +457,9 @@ Widget _buildDesktopFullControls(
                   child: Center(child: _gestureTip(controller)),
                 ),
               ),
-              Positioned.fill(child: buildOsdOverlay(controller)),
+              Positioned.fill(
+                child: buildOsdOverlay(videoState.context, controller),
+              ),
             ],
           );
         },
@@ -807,16 +811,41 @@ Widget buildFullControls(
           ),
         ),
         // OSD 统计浮层（Flutter 自绘，开关开启时显示）
-        Positioned.fill(child: buildOsdOverlay(controller)),
+        Positioned.fill(
+          child: buildOsdOverlay(videoState.context, controller),
+        ),
       ],
     ),
   );
 }
 
 /// OSD 统计浮层（Flutter 自绘，开关开启时显示）。
-Widget buildOsdOverlay(LiveRoomController controller) {
+///
+/// 竖屏窄屏非全屏时不在这里画：视频区只有 16:9 的一条，表单会盖住整个画面；
+/// 改由页面在视频下方承载（[buildPageOsdOverlay]）。
+Widget buildOsdOverlay(BuildContext context, LiveRoomController controller) {
   return Obx(
-    () => controller.showOSDStats.value
+    () => controller.showOSDStats.value &&
+            !usePageOsdHost(context, controller)
+        ? PlayerOsdOverlay(
+            controller: controller,
+            onClose: () => controller.showOSDStats.value = false,
+          )
+        : const SizedBox.shrink(),
+  );
+}
+
+/// 页面级 OSD 宿主：窄屏竖屏非全屏时落在视频下方，盖聊天区而不是画面。
+///
+/// 尺寸与安全区由调用方的摆放位置决定（视频下沿到页面底部），
+/// 这里只负责显隐与关闭；其余宿主继续用 [buildOsdOverlay]。
+Widget buildPageOsdOverlay(
+  BuildContext context,
+  LiveRoomController controller,
+) {
+  return Obx(
+    () => controller.showOSDStats.value &&
+            usePageOsdHost(context, controller)
         ? PlayerOsdOverlay(
             controller: controller,
             onClose: () => controller.showOSDStats.value = false,
@@ -1025,7 +1054,9 @@ Widget buildControls(
         ),
       ),
       // OSD 统计浮层（Flutter 自绘，开关开启时显示）
-      Positioned.fill(child: buildOsdOverlay(controller)),
+      Positioned.fill(
+        child: buildOsdOverlay(videoState.context, controller),
+      ),
     ],
   );
 }
