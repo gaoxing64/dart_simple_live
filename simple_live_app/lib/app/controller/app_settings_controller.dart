@@ -10,6 +10,7 @@ import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_snapshot.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/modules/live_room/sidebar_layout.dart';
 import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 
@@ -122,6 +123,21 @@ class AppSettingsController extends GetxController {
     chatAnimationEnable.value = LocalStorageService.instance.getValue(
       LocalStorageService.kChatAnimationEnable,
       true,
+    );
+
+    // 本机窗口宽度可能变过，存量值统一夹回可用范围，避免拖到极值的记录
+    // 在窄窗里把视频区挤没。
+    roomSidebarWidth.value = LocalStorageService.instance
+        .getValue(
+          LocalStorageService.kLiveRoomSidebarWidth,
+          kMultiPlayChromeWidth,
+        )
+        .clamp(kLiveRoomSidebarMinWidth, kLiveRoomSidebarMaxWidth)
+        .toDouble();
+
+    roomSidebarCollapsed.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kLiveRoomSidebarCollapsed,
+      false,
     );
 
     qualityLevel.value = LocalStorageService.instance.getValue(LocalStorageService.kQualityLevel, 2);
@@ -481,6 +497,39 @@ class AppSettingsController extends GetxController {
   void setChatAnimationEnable(bool e) {
     chatAnimationEnable.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kChatAnimationEnable, e);
+  }
+
+  /// 直播间横屏聊天侧栏宽度。
+  ///
+  /// 拖动过程中以 `persist: false` 高频更新内存值（每像素都写一次 Hive 没必要），
+  /// 松手时再落盘。默认值与多开窗口下限预留的 chrome 宽同源。
+  var roomSidebarWidth = kMultiPlayChromeWidth.obs;
+
+  void setRoomSidebarWidth(double e, {bool persist = true}) {
+    final clamped = e
+        .clamp(
+          kLiveRoomSidebarMinWidth,
+          kLiveRoomSidebarMaxWidth,
+        )
+        .toDouble();
+    roomSidebarWidth.value = clamped;
+    if (persist) {
+      LocalStorageService.instance.setValue(
+        LocalStorageService.kLiveRoomSidebarWidth,
+        clamped,
+      );
+    }
+  }
+
+  /// 直播间横屏聊天侧栏是否收起。收起后视频区占满整行。
+  var roomSidebarCollapsed = false.obs;
+
+  void setRoomSidebarCollapsed(bool e) {
+    roomSidebarCollapsed.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kLiveRoomSidebarCollapsed,
+      e,
+    );
   }
 
   var danmuSize = 16.0.obs;

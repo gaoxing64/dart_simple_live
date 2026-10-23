@@ -13,6 +13,7 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_selection.dart';
 import 'package:simple_live_app/modules/live_room/player/pip_aspect.dart';
+import 'package:simple_live_app/modules/live_room/sidebar_layout.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/window_service.dart';
@@ -444,11 +445,18 @@ class MultiPlaySession {
   }
 
   /// 当前路数下不折叠所需的窗口下限，且不低于常规下限。
+  ///
+  /// 右侧 chrome 按**实际**侧栏宽度算（收起时为 0，展开时还要带上分隔条）：
+  /// 侧栏可拖拽后它不再是 [kMultiPlayChromeWidth] 那个定值，继续写死会在
+  /// 侧栏拖宽时算出偏小的下限、拖窄或收起时白占一截。
   Size requiredMinimumWindowSize() {
+    final settings = AppSettingsController.instance;
+    final chromeWidth =
+        settings.roomSidebarCollapsed.value ? 0.0 : settings.roomSidebarWidth.value + kLiveRoomSidebarHandleWidth;
     final layout = resolveMultiPlayMinimumWindowSize(
       roomCount: slots.length,
       tileAspect: tileAspect(),
-      chromeWidth: kMultiPlayChromeWidth,
+      chromeWidth: chromeWidth,
       chromeHeight: kMultiPlayChromeHeight,
     );
     final normal = WindowService.instance.normalMinimumSize;

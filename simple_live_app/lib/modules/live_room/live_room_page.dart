@@ -22,6 +22,7 @@ import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controls.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/modules/live_room/player/player_shortcuts.dart';
+import 'package:simple_live_app/modules/live_room/sidebar_layout.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/context_menu.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
@@ -38,12 +39,6 @@ import 'package:simple_live_core/simple_live_core.dart';
 
 class LiveRoomPage extends GetView<LiveRoomController> {
   const LiveRoomPage({super.key});
-
-  /// 横屏时右侧聊天栏的宽度。
-  ///
-  /// 底栏要与上面一行同宽切段，两处必须用同一个值；这个值同时也是多开窗口下限里
-  /// 预留的 chrome 宽（`kMultiPlayChromeWidth`），别各写各的。
-  static const double _kSidebarWidth = kMultiPlayChromeWidth;
 
   /// 底栏按钮（含「多开播放」胶囊）的文字样式。
   ///
@@ -250,125 +245,233 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     });
   }
 
+  /// 横屏骨架：左视频、右聊天栏。侧栏宽度可拖拽（约束见 [sidebar_layout]），
+  /// 收起后视频占满整行，底栏右段随之并回左段。
   Widget buildTabletUI(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Obx(() {
+          final settings = AppSettingsController.instance;
+          final collapsed = settings.roomSidebarCollapsed.value;
+          // 分隔条也占宽度，先从可用宽里扣掉，视频区的 320 下限才是真的。
+          final sidebarWidth = collapsed
+              ? 0.0
+              : resolveLiveRoomSidebarWidth(
+                  desired: settings.roomSidebarWidth.value,
+                  availableWidth: constraints.maxWidth - kLiveRoomSidebarHandleWidth,
+                );
+          return Column(
             children: [
               Expanded(
-                child: buildLiveRoomVideoArea(),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: buildLiveRoomVideoArea(),
+                    ),
+                    if (!collapsed) ...[
+                      _SidebarResizeHandle(
+                        width: sidebarWidth,
+                        onWidthChanged: (width) {
+                          // 拖动期间只改内存值：每个像素写一次 Hive 既没必要也卡。
+                          settings.setRoomSidebarWidth(width, persist: false);
+                        },
+                        onWidthChangeEnd: () {
+                          // 松手才落盘；多开下限按新的侧栏宽度重算。
+                          settings.setRoomSidebarWidth(
+                            settings.roomSidebarWidth.value,
+                          );
+                          if (controller.multiPlay.isActive) {
+                            controller.multiPlay.refreshWindowFloor();
+                          }
+                        },
+                      ),
+                      SizedBox(
+                        width: sidebarWidth,
+                        child: buildChatColumn(context),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              SizedBox(
-                width: _kSidebarWidth,
-                child: buildChatColumn(context),
+              buildTabletBottomBar(
+                context,
+                sidebarWidth: sidebarWidth,
+                collapsed: collapsed,
               ),
             ],
+          );
+        });
+      },
+    );
+  }
+
+  /// 横屏底栏。左段对齐视频区、右段对齐侧栏——分隔条也算进右段宽度，
+  /// 两行才会在同一处切段。侧栏收起后右段没有可对齐的对象，动作直接并进整行。
+  Widget buildTabletBottomBar(
+    BuildContext context, {
+    required double sidebarWidth,
+    required bool collapsed,
+  }) {
+    final rightActions = _buildTabletRightActions(iconOnly: collapsed);
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey.withAlpha(25),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            border: Border(
-              top: BorderSide(
-                color: Colors.grey.withAlpha(25),
-              ),
+      ),
+      padding: AppStyle.edgeInsetsV4.copyWith(
+        // 传页面自己的 context：平台补报底部 inset 时这一层能自动重建
+        bottom: AppStyle.bottomBarHeightOf(context) + 4,
+      ),
+      child: Row(
+        children: [
+          // 与上面一行同宽地切成两段：左段对齐视频区、右段对齐侧栏。
+          // 「多开播放」与「收起侧栏」要贴着视频区右边距，只能这么放——原来那条
+          // 单行跨整窗，它的最右端其实已经落到侧栏下面，跟视频区脱钩了。
+          Expanded(
+            child: Row(
+              children: [
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    textStyle: _toolbarTextStyle,
+                  ),
+                  onPressed: () => room.refreshRoom(),
+                  icon: const Icon(Remix.refresh_line),
+                  label: const Text("刷新"),
+                ),
+                Obx(
+                  () => room.followed.value
+                      ? TextButton.icon(
+                          style: TextButton.styleFrom(
+                            textStyle: _toolbarTextStyle,
+                          ),
+                          onPressed: () => room.removeFollowUser(),
+                          icon: const Icon(Remix.heart_fill),
+                          label: const Text("取消关注"),
+                        )
+                      : TextButton.icon(
+                          style: TextButton.styleFrom(
+                            textStyle: _toolbarTextStyle,
+                          ),
+                          onPressed: () => room.followUser(),
+                          icon: const Icon(Remix.heart_line),
+                          label: const Text("关注"),
+                        ),
+                ),
+                const Expanded(child: Center()),
+                _buildSidebarToggle(collapsed: collapsed),
+                const SizedBox(width: 4),
+                // 横屏侧栏底栏（桌面）与竖屏底栏（移动端）各有一份入口，
+                // 两处都要有：横屏不是只有桌面能用。
+                _buildMultiPlayToggle(
+                  context,
+                  iconOnly: !AppSettingsController.isDesktop,
+                ),
+                if (collapsed) ...[
+                  const SizedBox(width: 12),
+                  ...rightActions,
+                ],
+                const SizedBox(width: 12),
+              ],
             ),
           ),
-          padding: AppStyle.edgeInsetsV4.copyWith(
-            // 传页面自己的 context：平台补报底部 inset 时这一层能自动重建
-            bottom: AppStyle.bottomBarHeightOf(context) + 4,
-          ),
-          child: Row(
-            children: [
-              // 与上面一行同宽地切成两段：左段对齐视频区、右段对齐侧栏。
-              // 「多开播放」要右对齐到视频区的右边距，只能这么放——原来那条单行跨整窗，
-              // 它的最右端其实已经落到侧栏下面，跟视频区脱钩了。
-              Expanded(
-                child: Row(
-                  children: [
-                    TextButton.icon(
-                      style: TextButton.styleFrom(
-                        textStyle: _toolbarTextStyle,
-                      ),
-                      onPressed: () => room.refreshRoom(),
-                      icon: const Icon(Remix.refresh_line),
-                      label: const Text("刷新"),
-                    ),
-                    Obx(
-                      () => room.followed.value
-                          ? TextButton.icon(
-                              style: TextButton.styleFrom(
-                                textStyle: _toolbarTextStyle,
-                              ),
-                              onPressed: () => room.removeFollowUser(),
-                              icon: const Icon(Remix.heart_fill),
-                              label: const Text("取消关注"),
-                            )
-                          : TextButton.icon(
-                              style: TextButton.styleFrom(
-                                textStyle: _toolbarTextStyle,
-                              ),
-                              onPressed: () => room.followUser(),
-                              icon: const Icon(Remix.heart_line),
-                              label: const Text("关注"),
-                            ),
-                    ),
-                    const Expanded(child: Center()),
-                    // 横屏侧栏底栏（桌面）与竖屏底栏（移动端）各有一份入口，
-                    // 两处都要有：横屏不是只有桌面能用。
-                    _buildMultiPlayToggle(
-                      context,
-                      iconOnly: !AppSettingsController.isDesktop,
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                ),
+          if (!collapsed)
+            SizedBox(
+              width: sidebarWidth + kLiveRoomSidebarHandleWidth,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: rightActions,
               ),
-              SizedBox(
-                width: _kSidebarWidth,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      style: TextButton.styleFrom(
-                        textStyle: _toolbarTextStyle,
-                      ),
-                      onPressed: () => room.share(),
-                      icon: const Icon(Remix.share_line),
-                      label: const Text("分享"),
-                    ),
-                    (Platform.isWindows || Platform.isLinux)
-                        ? TextButton.icon(
-                            style: TextButton.styleFrom(
-                              textStyle: _toolbarTextStyle,
-                            ),
-                            onPressed: () => room.visitWebLive(),
-                            icon: const Icon(Remix.chrome_fill),
-                            label: const Text("浏览器打开"),
-                          )
-                        : TextButton.icon(
-                            style: TextButton.styleFrom(
-                              textStyle: _toolbarTextStyle,
-                            ),
-                            onPressed: () => room.copyUrl(),
-                            icon: const Icon(Remix.file_copy_line),
-                            label: const Text("复制链接"),
-                          ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 底栏右段（对齐侧栏）的两个动作：分享 + 浏览器打开/复制链接。
+  ///
+  /// 收起侧栏后这组动作并入左段继续显示——底栏只是切段方式变了，
+  /// 不该因此少两个入口。此时用图标按钮：整行还要容纳视频区那一串动作，
+  /// 文字版在窄窗里会挤爆。
+  List<Widget> _buildTabletRightActions({bool iconOnly = false}) {
+    if (iconOnly) {
+      return [
+        IconButton(
+          tooltip: "分享",
+          visualDensity: VisualDensity.compact,
+          onPressed: () => room.share(),
+          icon: const Icon(Remix.share_line, size: 20),
         ),
-        //buildBottomActions(context),
-      ],
+        (Platform.isWindows || Platform.isLinux)
+            ? IconButton(
+                tooltip: "浏览器打开",
+                visualDensity: VisualDensity.compact,
+                onPressed: () => room.visitWebLive(),
+                icon: const Icon(Remix.chrome_fill, size: 20),
+              )
+            : IconButton(
+                tooltip: "复制链接",
+                visualDensity: VisualDensity.compact,
+                onPressed: () => room.copyUrl(),
+                icon: const Icon(Remix.file_copy_line, size: 20),
+              ),
+      ];
+    }
+    return [
+      TextButton.icon(
+        style: TextButton.styleFrom(
+          textStyle: _toolbarTextStyle,
+        ),
+        onPressed: () => room.share(),
+        icon: const Icon(Remix.share_line),
+        label: const Text("分享"),
+      ),
+      (Platform.isWindows || Platform.isLinux)
+          ? TextButton.icon(
+              style: TextButton.styleFrom(
+                textStyle: _toolbarTextStyle,
+              ),
+              onPressed: () => room.visitWebLive(),
+              icon: const Icon(Remix.chrome_fill),
+              label: const Text("浏览器打开"),
+            )
+          : TextButton.icon(
+              style: TextButton.styleFrom(
+                textStyle: _toolbarTextStyle,
+              ),
+              onPressed: () => room.copyUrl(),
+              icon: const Icon(Remix.file_copy_line),
+              label: const Text("复制链接"),
+            ),
+    ];
+  }
+
+  Widget _buildSidebarToggle({required bool collapsed}) {
+    return IconButton(
+      tooltip: collapsed ? "展开聊天侧栏" : "收起聊天侧栏",
+      visualDensity: VisualDensity.compact,
+      onPressed: () {
+        final settings = AppSettingsController.instance;
+        settings.setRoomSidebarCollapsed(!collapsed);
+        if (controller.multiPlay.isActive) {
+          // 收起后 chrome 宽归零、展开后按新宽度重算，别让下限停在旧值。
+          controller.multiPlay.refreshWindowFloor();
+        }
+      },
+      icon: Icon(
+        collapsed ? Remix.sidebar_unfold_line : Remix.sidebar_fold_line,
+        size: 20,
+      ),
     );
   }
 
   /// 多开播放开关：胶囊。关闭态是普通文字按钮，开启态用强调色填充 + 带上 `3/4` 路数。
   ///
-  /// 横屏挂在底栏**视频区那一段**的右端（与视频区右边距对齐）；竖屏/窄窗挂在底栏最右端。
+  /// 横屏挂在底栏**视频区那一段**的右端（紧邻侧栏收起按钮，一起贴着视频区右边距）；
+  /// 竖屏/窄窗挂在底栏最右端。
   /// 不额外占一行——多一条 40px 的窄条是不必要的。
   /// [iconOnly] 给移动端用：竖屏底栏那三个 `Expanded`（关注/刷新/分享）已经把 360px
   /// 占满，文字胶囊挤不进去，只留图标。
@@ -1505,6 +1608,79 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       return "${m.toString().padLeft(2, '0')}分钟${s.toString().padLeft(2, '0')}秒";
     }
     return "${s.toString().padLeft(2, '0')}秒";
+  }
+}
+
+/// 视频区与聊天侧栏之间的拖动分隔条。
+///
+/// 拖动位移在本地累计（而不是每次读页面上的最新宽度）：页面重建总有一帧延迟，
+/// 连续拖动时若拿旧宽度重算，中间的增量会被吞掉。
+class _SidebarResizeHandle extends StatefulWidget {
+  const _SidebarResizeHandle({
+    required this.width,
+    required this.onWidthChanged,
+    required this.onWidthChangeEnd,
+  });
+
+  /// 本轮拖动开始时的侧栏宽度。
+  final double width;
+
+  final ValueChanged<double> onWidthChanged;
+  final VoidCallback onWidthChangeEnd;
+
+  @override
+  State<_SidebarResizeHandle> createState() => _SidebarResizeHandleState();
+}
+
+class _SidebarResizeHandleState extends State<_SidebarResizeHandle> {
+  double? _startWidth;
+  double _dragDx = 0;
+
+  void _startDrag(DragStartDetails _) {
+    _startWidth = widget.width;
+    _dragDx = 0;
+  }
+
+  void _updateDrag(DragUpdateDetails details) {
+    final start = _startWidth;
+    if (start == null) {
+      return;
+    }
+    _dragDx += details.delta.dx;
+    // 分隔条往左拖 → 侧栏变宽，所以是减。
+    widget.onWidthChanged(start - _dragDx);
+  }
+
+  void _endDrag() {
+    if (_startWidth == null) {
+      return;
+    }
+    _startWidth = null;
+    _dragDx = 0;
+    widget.onWidthChangeEnd();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeLeftRight,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragStart: _startDrag,
+        onHorizontalDragUpdate: _updateDrag,
+        onHorizontalDragEnd: (_) => _endDrag(),
+        onHorizontalDragCancel: _endDrag,
+        child: SizedBox(
+          width: kLiveRoomSidebarHandleWidth,
+          child: Center(
+            child: Container(
+              width: 1,
+              color: Colors.grey.withAlpha(40),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

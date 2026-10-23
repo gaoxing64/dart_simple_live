@@ -134,6 +134,12 @@ class LocalStorageService extends GetxService {
   /// 聊天区-消息入场与平滑滚底动画
   static const String kChatAnimationEnable = "ChatAnimationEnable";
 
+  /// 直播间横屏聊天侧栏宽度（逻辑像素）
+  static const String kLiveRoomSidebarWidth = "LiveRoomSidebarWidth";
+
+  /// 直播间横屏聊天侧栏是否收起
+  static const String kLiveRoomSidebarCollapsed = "LiveRoomSidebarCollapsed";
+
   /// 播放清晰度，0=低，1=中，2=高
   static const String kQualityLevel = "QualityLevel";
 

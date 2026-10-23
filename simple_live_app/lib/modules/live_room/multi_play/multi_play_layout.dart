@@ -30,10 +30,11 @@ const double kMultiPlayMinTileHeight = 135;
 
 /// 多开窗口下限里要预留的 chrome 尺寸（逻辑像素）。
 ///
-/// 横屏时视频区右侧恒有 [kMultiPlayChromeWidth] 宽的聊天栏；纵向是 AppBar(56)
-/// 加底栏（padding + 一行按钮，实测约 48），这里留 120 的余量——算小了会让四路在
-/// 「刚好等于下限」的窗口里白白折叠一格。
-/// 页面那边切底栏、算下限都按这两个值走，别各写各的。
+/// 横屏时视频区右侧的聊天栏宽度由用户拖拽决定（约束与默认值见
+/// `sidebar_layout.dart`，[kMultiPlayChromeWidth] 只是它的默认宽度）；
+/// 实际下限由 `MultiPlaySession` 按当前侧栏宽度现算，别再写死这个值。
+/// 纵向是 AppBar(56) 加底栏（padding + 一行按钮，实测约 48），这里留 120 的
+/// 余量——算小了会让四路在「刚好等于下限」的窗口里白白折叠一格。
 const double kMultiPlayChromeWidth = 300;
 const double kMultiPlayChromeHeight = 120;
 
