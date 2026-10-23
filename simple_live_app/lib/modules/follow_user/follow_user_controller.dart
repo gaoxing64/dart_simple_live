@@ -530,8 +530,7 @@ class FollowUserController extends BasePageController<FollowUser> {
     SortMethod.watchDuration: "观看时长",
     SortMethod.siteId: "直播平台",
     SortMethod.recently: "最近添加",
-    SortMethod.userNameASC: "用户名A-Z",
-    SortMethod.userNameDESC: "用户名Z-A",
+    SortMethod.online: "在线人数",
     SortMethod.tag: "自定义分组",
   };
 

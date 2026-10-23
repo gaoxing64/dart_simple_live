@@ -60,8 +60,7 @@ enum SortMethod {
   watchDuration,
   siteId,
   recently,
-  userNameASC,
-  userNameDESC,
+  online,
   tag,
 }
 

@@ -561,21 +561,33 @@ void main() {
       expect(FollowService.instance.followList.map((e) => e.id), ['a', 'b', 'c', 'd']);
     });
 
-    test('换排序方式后同样成立（用户名升序）', () {
-      Get.find<AppSettingsController>().followSortMethod.value = SortMethod.userNameASC;
+    test('换排序方式后同样成立（在线人数）', () {
+      Get.find<AppSettingsController>().followSortMethod.value = SortMethod.online;
       FollowService.instance.followList.assignAll([]);
-      final a = u('a', live: 1)..romanName = 'aaa';
-      final b = u('b', live: 1)..romanName = 'bbb';
-      final c = u('c', live: 1)..romanName = 'ccc';
-      // 预置为已排序（按用户名升序）
-      FollowService.instance.followList.assignAll([a, b, c]);
+      final a = u('a', live: 1)..online.value = 100;
+      final b = u('b', live: 1)..online.value = 300;
+      final c = u('c', live: 1)..online.value = 200;
+      // 预置为已排序（按在线人数降序）
+      FollowService.instance.followList.assignAll([b, c, a]);
 
       c.liveStatus.value = 2;
       FollowService.instance.reflowFollowItem(c);
-      expect(FollowService.instance.followList.map((e) => e.id), ['c', 'a', 'b']);
+      expect(FollowService.instance.followList.map((e) => e.id), ['c', 'b', 'a']);
 
       FollowService.instance.liveListSort();
-      expect(FollowService.instance.followList.map((e) => e.id), ['c', 'a', 'b']);
+      expect(FollowService.instance.followList.map((e) => e.id), ['c', 'b', 'a']);
+    });
+
+    test('在线人数排序：直播优先，组内按人气降序', () {
+      final a = u('a', live: 2)..online.value = 1000;
+      final b = u('b', live: 2)..online.value = 5000;
+      final c = u('c', live: 1)..online.value = 9999; // 离线残留人气不参与跨组比较
+      final d = u('d', live: 2)..online.value = 3000;
+
+      final users = [a, b, c, d];
+      FollowService.instance.listSortByMethod(users, SortMethod.online);
+
+      expect(users.map((e) => e.id), ['b', 'd', 'a', 'c']);
     });
   });
 }

@@ -529,10 +529,11 @@ class FollowService extends GetxService {
 
   /// 增量重排：把 [item] 挪到当前排序下它该在的位置（**不是排序**）。
   ///
-  /// 刷新期间只有 [FollowUser.liveStatus] 在变，其余排序键（观看时长 /
-  /// 添加时间 / 平台 / 用户名 / 分组归属）都是静态的，且列表在上一轮
-  /// [liveListSort] 后已有序 —— 所以只需一次线性扫描定位插入点、一次移动。
-  /// 整表排序仍然只在 [filterData] 结束时执行一次，性能口径不变。
+  /// 刷新期间只在 [FollowUser.liveStatus] 翻转时调用：在线人数也会变，但逐条
+  /// 重排会让列表持续抖动，统一留到收尾的 [filterData] 整表排序（因此仅按
+  /// 在线人数排序时，刷新中途可能短暂不完全有序）。翻转时 online 已先写入，
+  /// 这里用一次线性扫描定位插入点、一次移动即可。整表排序仍然只在
+  /// [filterData] 结束时执行一次，性能口径不变。
   void reflowFollowItem(FollowUser item) {
     final index = followList.indexOf(item);
     if (index < 0) {
@@ -628,12 +629,8 @@ class FollowService extends GetxService {
       valueGetter: (item) => item.addTime,
       ascending: false,
     );
-    var userNameASCCondition = SortCondition<FollowUser>(
-      valueGetter: (item) => item.romanName ?? "",
-      ascending: true,
-    );
-    var userNameDESCCondition = SortCondition<FollowUser>(
-      valueGetter: (item) => item.romanName ?? "",
+    var onlineCondition = SortCondition<FollowUser>(
+      valueGetter: (item) => item.online.value,
       ascending: false,
     );
     var tagCondition = SortCondition<FollowUser>(
@@ -652,10 +649,8 @@ class FollowService extends GetxService {
         return [siteIdCondition, watchDurationCondition];
       case SortMethod.recently:
         return [recentlyCondition];
-      case SortMethod.userNameASC:
-        return [userNameASCCondition];
-      case SortMethod.userNameDESC:
-        return [userNameDESCCondition];
+      case SortMethod.online:
+        return [onlineCondition];
       case SortMethod.tag:
         return [tagCondition, watchDurationCondition];
     }
