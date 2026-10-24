@@ -280,6 +280,14 @@ class FollowUserController extends BasePageController<FollowUser> {
   /// 本页被 `KeepAliveWrapper` 保活，`PopScope` 会连别的 Tab 的返回键一起吃掉。
   final searchExpanded = false.obs;
 
+  /// 关注页当前是否处于主导航可见 Tab。
+  ///
+  /// 页面被 KeepAlive 保活，切到其他 Tab 后仍挂在树上；返回拦截只能用这个
+  /// 状态限定生效范围，否则会吃掉别的 Tab 的系统返回/鼠标侧键。
+  final isPageActive = true.obs;
+
+  void setPageActive(bool value) => isPageActive.value = value;
+
   void openSearch() => searchExpanded.value = true;
 
   /// 收起搜索并**清空**关键词：输入框都不见了还留着过滤，用户就没有取消的地方了。

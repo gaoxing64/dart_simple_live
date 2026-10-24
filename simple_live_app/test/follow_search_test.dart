@@ -4,14 +4,17 @@
 // 这里盯住三件事：折叠态不再占那一行高度、展开即拿到焦点、收起必须把关键词
 // 一起清掉（否则输入框没了却还在过滤，用户没有取消的地方）。
 import 'package:flutter/material.dart' show Key;
+import 'package:flutter/widgets.dart' show PopScope;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 // ⚠️ 本应用跑在 material_ui 上，它有自己的 `TextField` 实现 —— 这里必须用它，
 // 换成 `package:flutter/material.dart` 的 TextField，`find.byType` 永远匹配不上，
 // 断言会「沉默地恒真」。
 import 'package:material_ui/material_ui.dart' show AppBar, TextField;
+import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
+import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_member_row.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'follow_test_harness.dart';
@@ -106,6 +109,46 @@ void main() {
     // 列表回到全量
     expect(rowText('乙'), findsOneWidget);
     expect(rowText('丙'), findsOneWidget);
+    await settleEnd(tester);
+  });
+
+  testWidgets('搜索展开时鼠标侧键返回先收起搜索', (tester) async {
+    await seedSearch(tester);
+    final c = Get.find<FollowUserController>();
+
+    await tester.tap(find.byTooltip('搜索'));
+    await settle(tester);
+    await tester.enterText(searchField, '甲');
+    await settle(tester);
+    expect(c.searchExpanded.value, isTrue);
+
+    Utils.appBack();
+    await settle(tester);
+
+    expect(c.searchExpanded.value, isFalse);
+    expect(searchField, findsNothing);
+    expect(c.searchQuery.value, isEmpty);
+    // 页面没有被弹掉，仍停在关注页。
+    expect(find.text('关注用户'), findsOneWidget);
+    await settleEnd(tester);
+  });
+
+  testWidgets('切到其他 Tab 后关注页不再拦截返回', (tester) async {
+    await seedSearch(tester);
+    final c = Get.find<FollowUserController>();
+
+    await tester.tap(find.byTooltip('搜索'));
+    await settle(tester);
+    expect(c.searchExpanded.value, isTrue);
+
+    Get.find<IndexedController>().setIndex(0);
+    await settle(tester);
+
+    expect(c.isPageActive.value, isFalse);
+    final scope = tester.widget<PopScope>(
+      find.byKey(const Key('follow-back-scope'), skipOffstage: false),
+    );
+    expect(scope.canPop, isTrue);
     await settleEnd(tester);
   });
 

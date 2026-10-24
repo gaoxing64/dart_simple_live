@@ -291,6 +291,11 @@ class IndexedController extends GetxController
     }
 
     index.value = i;
+    // 关注页被 KeepAlive 保活，需要显式同步「当前是否可见」：
+    // 搜索展开时的返回拦截只在关注 Tab 激活时生效，不能吃掉其他 Tab 的返回。
+    if (Get.isRegistered<FollowUserController>()) {
+      Get.find<FollowUserController>().setPageActive(items[i].index == 1);
+    }
     // 首次调用时 PageView 尚未 attach（onInit 里的 setIndex(0)），
     // 此时 PageController 没有 clients，交给 initialPage 决定即可。
     // 切换走 animateToPage：PageView 的整页平移本身就是 Material 的 slide

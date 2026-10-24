@@ -31,9 +31,7 @@ class FollowUserPage extends GetView<FollowUserController> {
     final iconButtonStyle = AppStyle.iconButtonStyle(
       Theme.of(context).colorScheme,
     );
-    // 收起搜索只给 ← 按钮，不抢系统返回键：本页被 `KeepAliveWrapper` 保活，
-    // 切到别的 Tab 之后仍然挂在树里，`PopScope` 会连别的 Tab 的返回键一起吃掉。
-    return CollapsibleTopBarScaffold(
+    final page = CollapsibleTopBarScaffold(
       appBar: _buildAppBar(iconButtonStyle),
       // 侧栏宽度由它自己的内容决定（见 [FollowSidebar]），列数不能在这层
       // 用「整窗宽 - 固定侧栏宽」算；把可用宽度传下去，由内容列在剩余空间
@@ -45,6 +43,22 @@ class FollowUserPage extends GetView<FollowUserController> {
         },
       ),
     );
+    // 搜索展开时，系统返回 / 鼠标侧键先收起搜索。
+    // 必须同时限定关注页当前可见：本页被 KeepAlive 保活，切到别的 Tab 后仍
+    // 在树上，无条件 PopScope 会吞掉其他 Tab 的返回操作。
+    return Obx(() {
+      final intercept = controller.isPageActive.value && controller.searchExpanded.value;
+      return PopScope(
+        key: const ValueKey('follow-back-scope'),
+        canPop: !intercept,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && controller.searchExpanded.value) {
+            controller.closeSearch();
+          }
+        },
+        child: page,
+      );
+    });
   }
 
   /// 顶栏搜索展开/收起的时长与曲线。
