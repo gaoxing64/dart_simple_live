@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
+import 'package:simple_live_app/app/utils/watch_history_stats.dart';
 import 'package:simple_live_app/models/db/history.dart';
 import 'package:simple_live_app/modules/sync/remote_sync/webdav/interface/sync_resource.dart';
 import 'package:simple_live_app/services/db_service.dart';
@@ -67,9 +68,14 @@ class HistorySyncResource implements SyncResource<List<History>> {
 
       final mergeItem = remoteItem.updateTime.isAfter(localItem.updateTime) ? remoteItem : localItem;
 
+      // 远端每日历史 + 本地未同步的每日增量；已同步过的本地每日增量不再重复相加。
+      final mergedDaily = mergeWatchDays(remoteItem.dailyWatchSeconds, localItem.dailySyncSeconds);
+
       map[remoteItem.id] = localItem.copyWith(
         watchDuration: Duration(seconds: totalSeconds).toHMSString(),
         syncDuration: 0,
+        dailyWatchSeconds: mergedDaily,
+        dailySyncSeconds: {},
         updateTime: mergeItem.updateTime,
         roomId: mergeItem.roomId,
         siteId: mergeItem.siteId,

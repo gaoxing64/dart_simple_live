@@ -15,7 +15,10 @@ class History implements Mappable {
     required this.updateTime,
     this.watchDuration = "00:00:00",
     this.syncDuration = 0,
-  });
+    Map<String, int>? dailyWatchSeconds,
+    Map<String, int>? dailySyncSeconds,
+  })  : dailyWatchSeconds = Map<String, int>.from(dailyWatchSeconds ?? const {}),
+        dailySyncSeconds = Map<String, int>.from(dailySyncSeconds ?? const {});
 
   ///id=siteId_roomId
   @HiveField(0)
@@ -42,6 +45,12 @@ class History implements Mappable {
   @HiveField(7)
   int syncDuration;
 
+  @HiveField(8, defaultValue: <String, int>{})
+  Map<String, int> dailyWatchSeconds;
+
+  @HiveField(9, defaultValue: <String, int>{})
+  Map<String, int> dailySyncSeconds;
+
   Duration get duration => watchDuration!.toDuration(); //for filter
 
   factory History.fromJson(Map<String, dynamic> json) => History(
@@ -53,6 +62,8 @@ class History implements Mappable {
         updateTime: DateTime.parse(json["updateTime"]),
         watchDuration: json["watchDuration"] ?? "00:00:00",
         syncDuration: json["syncDuration"] ?? 0,
+        dailyWatchSeconds: _dailySecondsFromJson(json["dailyWatchSeconds"]),
+        dailySyncSeconds: _dailySecondsFromJson(json["dailySyncSeconds"]),
       );
 
   Map<String, dynamic> toJson() => {
@@ -64,6 +75,8 @@ class History implements Mappable {
         "updateTime": updateTime.toString(),
         "watchDuration": watchDuration ?? "00:00:00",
         "syncDuration": syncDuration,
+        "dailyWatchSeconds": dailyWatchSeconds,
+        "dailySyncSeconds": dailySyncSeconds,
       };
 
   History copyWith({
@@ -75,6 +88,8 @@ class History implements Mappable {
     String? siteId,
     String? userName,
     String? face,
+    Map<String, int>? dailyWatchSeconds,
+    Map<String, int>? dailySyncSeconds,
   }) {
     return History(
       id: id ?? this.id,
@@ -85,9 +100,33 @@ class History implements Mappable {
       siteId: siteId ?? this.siteId,
       userName: userName ?? this.userName,
       face: face ?? this.face,
+      dailyWatchSeconds: dailyWatchSeconds ?? this.dailyWatchSeconds,
+      dailySyncSeconds: dailySyncSeconds ?? this.dailySyncSeconds,
     );
   }
 
   @override
   Map<String, dynamic> toMap() => toJson();
+}
+
+Map<String, int> _dailySecondsFromJson(dynamic value) {
+  if (value is! Map) {
+    return {};
+  }
+  final result = <String, int>{};
+  for (final entry in value.entries) {
+    if (entry.key is! String) {
+      continue;
+    }
+    final rawSeconds = entry.value;
+    final seconds = rawSeconds is num
+        ? (rawSeconds.isFinite ? rawSeconds.toInt() : null)
+        : rawSeconds is String
+            ? int.tryParse(rawSeconds)
+            : null;
+    if (seconds != null) {
+      result[entry.key as String] = seconds;
+    }
+  }
+  return result;
 }

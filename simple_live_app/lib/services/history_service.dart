@@ -5,6 +5,7 @@ import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
+import 'package:simple_live_app/app/utils/watch_history_stats.dart';
 import 'package:simple_live_app/models/db/history.dart';
 
 import 'db_service.dart';
@@ -158,10 +159,16 @@ class HistoryService extends GetxService {
       return;
     }
     final elapsed = clock.elapsed;
+    final now = DateTime.now();
+    // 只按本次未落盘的增量累计：重复调用 `_save` 前 clock.commit() 已推进基线。
+    // 按本地午夜拆分，跨天 / 跨月 / 跨年都不会把整段记到最后一天。
+    final dailySeconds = splitWatchSeconds(end: now, seconds: elapsed.inSeconds);
     record
       ..watchDuration = clock.total.toHMSString()
       ..syncDuration = record.syncDuration + elapsed.inSeconds
-      ..updateTime = DateTime.now();
+      ..updateTime = now
+      ..dailyWatchSeconds = mergeWatchDays(record.dailyWatchSeconds, dailySeconds)
+      ..dailySyncSeconds = mergeWatchDays(record.dailySyncSeconds, dailySeconds);
     DBService.instance.addOrUpdateHistory(record);
     EventBus.instance.emit(Constant.kUpdateFollow, record);
     Log.i("${record.id} 已观看时间：${clock.total.toHMSString()} 本次增加：${elapsed.toHMSString()}");
