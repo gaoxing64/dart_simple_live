@@ -127,9 +127,17 @@ void main() {
           ],
         );
 
-    testWidgets('紧凑行：首个分组 +N；未分组不显示；长按仍透传', (tester) async {
+    testWidgets('紧凑行：仅选中项显示分组；首个分组 +N；长按仍透传', (tester) async {
       final indexed = await pumpIndexed(tester, followService: seed());
       await gotoFollowPage(tester, indexed);
+      await settle(tester);
+
+      // 普通浏览态不显示任何分组胶囊。
+      expect(find.byType(GroupBadge), findsNothing);
+
+      final c = Get.find<FollowUserController>();
+      c.toggleSelected('huya_甲');
+      c.toggleSelected('huya_乙');
       await settle(tester);
 
       final jiaBadge = find.descendant(of: rowOf('甲'), matching: find.byType(GroupBadge));
@@ -160,13 +168,13 @@ void main() {
       // 长按胶囊所在位置 = 长按整行（胶囊是 IgnorePointer），底部菜单照常出现
       await tester.longPressAt(tester.getCenter(jiaBadge));
       await settle(tester);
-      expect(find.text('设置分组'), findsOneWidget);
+      expect(find.byTooltip('设置分组'), findsOneWidget);
       Get.back();
       await settle(tester);
       await settleEnd(tester);
     });
 
-    testWidgets('卡片模式：封面左上角胶囊，未分组卡片没有', (tester) async {
+    testWidgets('卡片模式：仅选中卡片显示封面左上角胶囊', (tester) async {
       final indexed = await pumpIndexed(tester, followService: seed());
       Get.find<AppSettingsController>().setFollowStyleNotGrid(false);
       await _withCardOverflowTolerated(() async {
@@ -175,14 +183,21 @@ void main() {
       });
 
       final cardFinder = find.byType(LiveRoomCard);
-      final cards = tester.widgetList<LiveRoomCard>(cardFinder).toList();
+      var cards = tester.widgetList<LiveRoomCard>(cardFinder).toList();
       expect(cards, hasLength(3));
+      // 普通浏览态：所有卡片都不传分组，避免遮挡封面。
+      expect(cards.every((card) => card.groupNames.isEmpty), isTrue);
+      expect(find.byType(GroupBadge), findsNothing);
 
+      Get.find<FollowUserController>().toggleSelected('huya_甲');
+      await settle(tester);
+
+      cards = tester.widgetList<LiveRoomCard>(cardFinder).toList();
       final jiaIndex = cards.indexWhere((c) => c.item.userName == '甲');
       final yiIndex = cards.indexWhere((c) => c.item.userName == '乙');
       final dingIndex = cards.indexWhere((c) => c.item.userName == '丁');
       expect(cards[jiaIndex].groupNames, ['CS解说', 'LOL解说']);
-      expect(cards[yiIndex].groupNames, ['CS解说']);
+      expect(cards[yiIndex].groupNames, isEmpty);
       expect(cards[dingIndex].groupNames, isEmpty);
 
       final jiaCard = cardFinder.at(jiaIndex);
@@ -208,6 +223,9 @@ void main() {
       await gotoFollowPage(tester, indexed);
       await settle(tester);
       final c = Get.find<FollowUserController>();
+      c.toggleSelected('huya_丁');
+      c.toggleSelected('huya_甲');
+      await settle(tester);
 
       expect(
         find.descendant(of: rowOf('丁'), matching: find.byType(GroupBadge)),

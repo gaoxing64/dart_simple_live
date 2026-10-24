@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
+import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_member_row.dart';
 import 'package:simple_live_app/widgets/group_badge.dart';
 import 'follow_test_harness.dart';
@@ -34,10 +35,13 @@ void main() {
     final indexed = await pumpIndexed(tester, followService: svc);
     await gotoFollowPage(tester, indexed);
     await settle(tester);
+    // 新规则：分组标签只在选中项上显示，先选中再验证保存后的胶囊更新。
+    Get.find<FollowUserController>().toggleSelected('huya_甲');
+    await settle(tester);
 
     await tester.longPress(rowOf('甲'));
     await settle(tester);
-    await tester.tap(find.text('设置分组'));
+    await tester.tap(find.byTooltip('设置分组'));
     await settle(tester);
 
     // 修复前这里是 0：dialog 内容被 GetX 错误替换成灰色 ErrorWidget。

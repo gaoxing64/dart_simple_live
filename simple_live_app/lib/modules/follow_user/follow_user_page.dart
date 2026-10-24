@@ -561,17 +561,19 @@ class FollowUserPage extends GetView<FollowUserController> {
           }
           // 紧凑行也要能看出在播：头像描边圈 + 直播标题
           // （FollowMemberRow 自己会按 liveStatus 切副标题）。
-          return Obx(
-            () => FollowMemberRow(
+          return Obx(() {
+            final selected = controller.selectedIds.contains(u.id);
+            return FollowMemberRow(
               item: u,
-              groupNames: groups,
+              // 标签只在选中项上展示：普通浏览时避免遮挡内容。
+              groupNames: selected ? groups : const [],
               draggable: false,
-              selected: controller.selectedIds.contains(u.id),
+              selected: selected,
               onToggleSelect: () => controller.toggleSelected(u.id),
               onTap: () => _toDetail(u),
               onLongPress: () => controller.showBottomMenu(u),
-            ),
-          );
+            );
+          });
         },
       ),
     ];
@@ -610,17 +612,18 @@ class FollowUserPage extends GetView<FollowUserController> {
           if (cardMode) {
             return _buildLiveCard(u, groups);
           }
-          return Obx(
-            () => FollowMemberRow(
+          return Obx(() {
+            final selected = controller.selectedIds.contains(u.id);
+            return FollowMemberRow(
               item: u,
-              groupNames: groups,
-              selected: controller.selectedIds.contains(u.id),
+              groupNames: selected ? groups : const [],
+              selected: selected,
               onToggleSelect: () => controller.toggleSelected(u.id),
               onRemove: hide ? null : () => controller.removeFollow(u),
               onTap: () => _toDetail(u),
               onLongPress: () => controller.showBottomMenu(u),
-            ),
-          );
+            );
+          });
         },
       ),
     ];
@@ -703,19 +706,20 @@ class FollowUserPage extends GetView<FollowUserController> {
           if (cardMode) {
             return _buildLiveCard(u, groups);
           }
-          return Obx(
-            () => FollowMemberRow(
+          return Obx(() {
+            final selected = controller.selectedIds.contains(u.id);
+            return FollowMemberRow(
               item: u,
-              groupNames: groups,
+              groupNames: selected ? groups : const [],
               // 平铺态没有分组卡片可拖，头像不起拖（换组走顶栏「移入分组」）。
               draggable: false,
-              selected: controller.selectedIds.contains(u.id),
+              selected: selected,
               onToggleSelect: () => controller.toggleSelected(u.id),
               onRemove: hide ? null : () => controller.removeFollow(u),
               onTap: () => _toDetail(u),
               onLongPress: () => controller.showBottomMenu(u),
-            ),
-          );
+            );
+          });
         },
       ),
     ];
@@ -749,6 +753,7 @@ class FollowUserPage extends GetView<FollowUserController> {
     return Obx(
       () {
         final isLive = item.liveStatus.value == 2;
+        final selected = controller.selectedIds.contains(item.id);
         return LiveRoomCard(
           site,
           LiveRoomItem(
@@ -759,9 +764,10 @@ class FollowUserPage extends GetView<FollowUserController> {
             online: item.online.value,
           ),
           avatar: isLive ? '' : item.face,
-          groupNames: groupNames,
+          // 标签只在选中项上出现，避免常驻遮挡封面。
+          groupNames: selected ? groupNames : const [],
           onLongPress: () => controller.showBottomMenu(item),
-          selected: controller.selectedIds.contains(item.id),
+          selected: selected,
           onToggleSelect: () => controller.toggleSelected(item.id),
         );
       },
