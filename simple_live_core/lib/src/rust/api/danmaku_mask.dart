@@ -18,6 +18,14 @@ abstract class DanmakuMask implements RustOpaqueInterface {
   @override
   void dispose();
 
+  /// 合并模式的批量分组：按归一化文本把本批弹幕聚组，并给出窗口累计计数。
+  ///
+  /// 与 [DanmakuMask::allow_list_batch] 共享同一套滑动窗口/分桶计数，
+  /// 但**不使用 max_frequency**——合并的语义就是所有重复都算进同一条，
+  /// 计数本身就是氛围信息，不需要上限。两种模式按批二选一调用。
+  Future<List<DanmakuMergeGroup>> mergeListBatch(
+      {required List<String> texts, required BigInt nowMs});
+
   factory DanmakuMask(
           {required int baseWindowMs,
           required int bucketCount,
@@ -33,4 +41,46 @@ abstract class DanmakuMask implements RustOpaqueInterface {
 
   /// 重置状态
   void reset();
+}
+
+/// 合并模式的一组重复弹幕（merge_list_batch 的返回项）。
+///
+/// 与屏蔽模式（allow_list_batch）互斥：合并模式不丢弹幕，而是把窗口内的
+/// 重复文本聚成一条带计数的展示项，保留直播间的热闹氛围。
+class DanmakuMergeGroup {
+  /// 归一化文本：窗口内同一 key 的重复都会归到同一条展示项
+  final String key;
+
+  /// 本批中该组**首次出现**的下标（取该条消息的用户名/颜色/表情做展示）
+  final int firstIndex;
+
+  /// 计入本批后，该 key 在滑动窗口内的累计出现次数
+  final int windowCount;
+
+  /// 本批之前窗口内没有该 key：调用方应新建展示项；false 表示更新已有展示项
+  final bool isNew;
+
+  const DanmakuMergeGroup({
+    required this.key,
+    required this.firstIndex,
+    required this.windowCount,
+    required this.isNew,
+  });
+
+  @override
+  int get hashCode =>
+      key.hashCode ^
+      firstIndex.hashCode ^
+      windowCount.hashCode ^
+      isNew.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DanmakuMergeGroup &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          firstIndex == other.firstIndex &&
+          windowCount == other.windowCount &&
+          isNew == other.isNew;
 }

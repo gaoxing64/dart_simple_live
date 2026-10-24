@@ -311,25 +311,42 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
                       ),
                       Obx(
                         () => SettingsSwitch(
-                          value: AppSettingsController.instance.danmuFrequencyControl.value,
-                          title: "弹幕显示频率",
+                          value: AppSettingsController.instance.danmakuMergeEnable.value,
+                          title: "重复弹幕合并计数",
+                          subtitle: "关掉则直接屏蔽重复弹幕（旧行为）",
                           onChanged: (e) {
-                            AppSettingsController.instance.setDanmuFrequencyControl(e);
+                            AppSettingsController.instance.setDanmakuMergeEnable(e);
                           },
                         ),
                       ),
+                      // 合并模式把所有重复都算进同一条、不看频控上限，频控参数与它互斥
                       Obx(
                         () => Visibility(
-                          visible: AppSettingsController.instance.danmuFrequencyControl.value,
-                          child: SettingsNumber(
-                            title: "显示频率(次)",
-                            value: AppSettingsController.instance.danmuMaxFrequency.value,
-                            step: 1,
-                            max: 10,
-                            min: 1,
-                            onChanged: (e) {
-                              AppSettingsController.instance.setDanmuMaxFrequency(e);
-                            },
+                          visible: !AppSettingsController.instance.danmakuMergeEnable.value,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SettingsSwitch(
+                                value: AppSettingsController.instance.danmuFrequencyControl.value,
+                                title: "弹幕显示频率",
+                                onChanged: (e) {
+                                  AppSettingsController.instance.setDanmuFrequencyControl(e);
+                                },
+                              ),
+                              Visibility(
+                                visible: AppSettingsController.instance.danmuFrequencyControl.value,
+                                child: SettingsNumber(
+                                  title: "显示频率(次)",
+                                  value: AppSettingsController.instance.danmuMaxFrequency.value,
+                                  step: 1,
+                                  max: 10,
+                                  min: 1,
+                                  onChanged: (e) {
+                                    AppSettingsController.instance.setDanmuMaxFrequency(e);
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),

@@ -21,6 +21,7 @@ import 'package:simple_live_app/app/utils/sandbox.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_block.dart';
 import 'package:simple_live_app/models/db/history.dart';
+import 'package:simple_live_app/modules/live_room/danmaku_merge_plan.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_session.dart';
@@ -54,6 +55,10 @@ class LiveRoomController extends PlayerController
   List<LiveMessage> danmakuBuffer = [];
   Timer? danmakuTimer;
   bool _isProcessingBuffer = false;
+
+  /// 合并模式展示项：key = Rust 归一化文本 -> 聊天区那条消息（原地更新「×N」）。
+  /// 与 [danmakuBuffer] 同一生命周期，换台时清空。
+  final Map<String, _DanmakuMergeEntry> _mergeEntries = {};
 
   /// 多开播放时本实例是「副格」而非页面主格。
   ///
@@ -408,6 +413,18 @@ class LiveRoomController extends PlayerController
 
       final batchMessages = batch.map((e) => e.message).toList();
       final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+      // 合并模式：不丢弹幕，窗口内的重复聚成一条并显示计数（保留热闹氛围）。
+      // 与屏蔽模式共用同一套窗口计数，按批二选一调用。
+      if (AppSettingsController.instance.danmakuMergeEnable.value) {
+        final groups = await rustDanmakuMask.mergeListBatch(
+          texts: batchMessages,
+          nowMs: BigInt.from(nowMs),
+        );
+        _applyDanmakuMerge(batch, groups);
+        return;
+      }
+
       final allowedResults = await rustDanmakuMask.allowListBatch(texts: batchMessages, nowMs: BigInt.from(nowMs));
 
       final filteredBatch = <LiveMessage>[];
@@ -447,6 +464,87 @@ class LiveRoomController extends PlayerController
     } finally {
       _isProcessingBuffer = false;
     }
+  }
+
+  /// 合并模式落地：新组新建展示项（聊天区 + 飘屏一次），老组只原地更新计数。
+  ///
+  /// 飘屏库（canvas_danmaku）没有「更新已发射项」的能力，×N 只能在发射那一刻
+  /// 定稿：同批到达的重复一次性显示最终计数，后续批次只增长聊天区的「×N」，
+  /// 不再补发飘屏——否则长刷屏会变成每 500ms 一条，比屏蔽模式更吵。
+  void _applyDanmakuMerge(List<LiveMessage> batch, List<DanmakuMergeGroup> groups) {
+    _pruneMergeEntries();
+
+    final actions = planDanmakuMerge(
+      batch: batch,
+      groups: groups,
+      lookup: (key) => _mergeEntries[key]?.message,
+    );
+
+    final newItems = <LiveMessage>[];
+    final flyItems = <DanmakuContentItem>[];
+    var touched = false;
+
+    for (final action in actions) {
+      switch (action) {
+        case DanmakuMergeCreate():
+          action.message.repeatCount = action.count;
+          _mergeEntries[action.key] = _DanmakuMergeEntry(action.message);
+          newItems.add(action.message);
+          flyItems.add(
+            DanmakuContentItem(
+              danmakuMergeText(action.message.message, action.count),
+              color: Color.fromARGB(
+                255,
+                action.message.color.r,
+                action.message.color.g,
+                action.message.color.b,
+              ),
+              extra: action.message.emoticons,
+            ),
+          );
+          touched = true;
+        case DanmakuMergeBump():
+          final entry = _mergeEntries[action.key];
+          if (entry == null) continue;
+          entry.lastSeen = DateTime.now();
+          entry.message.repeatCount = action.count;
+          final index = messages.indexOf(entry.message);
+          if (index < 0) continue;
+          // 同一对象写回原位：RxList 通知重建，ValueKey 不变 ⇒ 这一行不会重放入场动画
+          messages[index] = entry.message;
+          touched = true;
+        case DanmakuMergeSkip():
+          break;
+      }
+    }
+
+    if (!touched) return;
+
+    if (newItems.isNotEmpty) {
+      messages.addAll(newItems);
+      if (messages.length > _kMaxChatMessageCount && !disableAutoScroll.value) {
+        messages.removeRange(0, messages.length - _kMaxChatMessageCount);
+      }
+    }
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => chatScrollToBottom(),
+    );
+
+    if (!liveStatus.value || isBackground) {
+      return;
+    }
+    if (flyItems.isNotEmpty) {
+      addDanmaku(flyItems);
+    }
+  }
+
+  /// 清掉窗口外的展示项：Rust 侧计数已滑出窗口，不会再有 bump 命中它们。
+  void _pruneMergeEntries() {
+    final now = DateTime.now();
+    final ttl = Duration(
+      milliseconds: AppSettingsController.instance.danmuWindowMs.value * 1000 + 5000,
+    );
+    _mergeEntries.removeWhere((_, entry) => now.difference(entry.lastSeen) > ttl);
   }
 
   void scrollListener() {
@@ -1783,6 +1881,8 @@ class LiveRoomController extends PlayerController
     // 重新设置LiveDanmaku
     liveDanmaku = site.liveSite.getDanmaku();
     rustDanmakuMask.reset();
+    // 换台后窗口计数归零，旧的合并展示项再也等不到 bump，直接丢弃
+    _mergeEntries.clear();
 
     // 换台：先摘掉通知并抑制重挂。`player.stop()` 会推一次 playing=false 的事件，
     // 不压住的话那一瞬间会用**旧房间**的标题与封面重新挂上去，而新房间的详情还在路上。
@@ -2028,4 +2128,12 @@ ${error?.stackTrace}''');
     }
     super.onClose();
   }
+}
+
+/// 合并模式的一条展示项：消息对象（计数原地改写）+ 最后命中时间（用于清窗）
+class _DanmakuMergeEntry {
+  _DanmakuMergeEntry(this.message) : lastSeen = DateTime.now();
+
+  final LiveMessage message;
+  DateTime lastSeen;
 }

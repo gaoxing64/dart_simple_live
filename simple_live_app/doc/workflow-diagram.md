@@ -56,7 +56,7 @@ AppNavigator.toLiveRoomDetail(site, roomId, together?)
   → getPlayUrls → playUrls/playHeaders
   → initializePlayer → player.open(Playlist)
   → getDanmaku().start(danmakuData)
-  → 每 500ms(+tile*125ms) DanmakuMask.allowListBatch → canvas_danmaku
+  → 每 500ms(+tile*125ms) DanmakuMask.allowListBatch/mergeListBatch → canvas_danmaku
 ```
 
 | 环节 | 要点 |

@@ -163,3 +163,155 @@ impl DanmakuMask {
         results
     }
 }
+
+/// 合并模式的一组重复弹幕（merge_list_batch 的返回项）。
+///
+/// 与屏蔽模式（allow_list_batch）互斥：合并模式不丢弹幕，而是把窗口内的
+/// 重复文本聚成一条带计数的展示项，保留直播间的热闹氛围。
+pub struct DanmakuMergeGroup {
+    /// 归一化文本：窗口内同一 key 的重复都会归到同一条展示项
+    pub key: String,
+    /// 本批中该组**首次出现**的下标（取该条消息的用户名/颜色/表情做展示）
+    pub first_index: u32,
+    /// 计入本批后，该 key 在滑动窗口内的累计出现次数
+    pub window_count: u32,
+    /// 本批之前窗口内没有该 key：调用方应新建展示项；false 表示更新已有展示项
+    pub is_new: bool,
+}
+
+#[flutter_rust_bridge::frb]
+impl DanmakuMask {
+    /// 合并模式的批量分组：按归一化文本把本批弹幕聚组，并给出窗口累计计数。
+    ///
+    /// 与 [DanmakuMask::allow_list_batch] 共享同一套滑动窗口/分桶计数，
+    /// 但**不使用 max_frequency**——合并的语义就是所有重复都算进同一条，
+    /// 计数本身就是氛围信息，不需要上限。两种模式按批二选一调用。
+    pub fn merge_list_batch(
+        &mut self,
+        texts: Vec<String>,
+        now_ms: u64,
+    ) -> Vec<DanmakuMergeGroup> {
+        self.shift_if_needed(now_ms);
+
+        // 归一化分桶，保持首次出现顺序（聊天区按此顺序追加）
+        let mut order: Vec<(String, u32, u32)> = Vec::new(); // (norm, first_index, batch_count)
+        let mut index: HashMap<String, usize> = HashMap::with_capacity(texts.len());
+
+        for (i, text) in texts.iter().enumerate() {
+            let norm = self.normalize(text);
+            match index.get(&norm) {
+                Some(&gi) => order[gi].2 = order[gi].2.saturating_add(1),
+                None => {
+                    index.insert(norm.clone(), order.len());
+                    order.push((norm, i as u32, 1));
+                }
+            }
+        }
+
+        let mut results = Vec::with_capacity(order.len());
+        for (norm, first_index, batch_count) in order {
+            let hash = xxh3_64(norm.as_bytes());
+            let prior = *self.freq_map.get(&hash).unwrap_or(&0) as u32;
+            let step = batch_count.min(u16::MAX as u32) as u16;
+
+            // 每次出现都计入窗口计数（合并模式不设频控上限）。
+            // 内部计数沿用 u16（与屏蔽模式共用结构），极端刷屏时饱和；
+            // 展示用的 window_count 走 u32，单批计数不会因饱和丢数。
+            {
+                let c = self.buckets[self.current_bucket].entry(hash).or_insert(0);
+                *c = c.saturating_add(step);
+            }
+            {
+                let c = self.freq_map.entry(hash).or_insert(0);
+                *c = c.saturating_add(step);
+            }
+
+            results.push(DanmakuMergeGroup {
+                key: norm,
+                first_index,
+                window_count: prior + batch_count,
+                is_new: prior == 0,
+            });
+        }
+
+        results
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mask() -> DanmakuMask {
+        DanmakuMask::new(10_000, 10, true, true, 3)
+    }
+
+    #[test]
+    fn merge_groups_by_normalized_text_in_first_seen_order() {
+        let mut m = mask();
+        let groups = m.merge_list_batch(
+            vec!["666".into(), "777".into(), "666".into(), "哈 哈哈哈".into(), "哈哈哈哈".into()],
+            1_000,
+        );
+        assert_eq!(groups.len(), 3);
+        assert_eq!(groups[0].key, "666");
+        assert_eq!(groups[0].first_index, 0);
+        assert_eq!(groups[0].window_count, 2);
+        assert!(groups[0].is_new);
+        assert_eq!(groups[1].key, "777");
+        assert_eq!(groups[1].window_count, 1);
+        // 归一化去掉空格后 "哈 哈哈哈" 与 "哈哈哈哈" 同组，取首现位置与文本
+        assert_eq!(groups[2].key, "哈哈哈哈");
+        assert_eq!(groups[2].first_index, 3);
+        assert_eq!(groups[2].window_count, 2);
+    }
+
+    #[test]
+    fn merge_accumulates_across_batches_and_flags_new() {
+        let mut m = mask();
+        let g1 = m.merge_list_batch(vec!["666".into()], 1_000);
+        assert!(g1[0].is_new);
+        assert_eq!(g1[0].window_count, 1);
+
+        let g2 = m.merge_list_batch(vec!["666".into(), "666".into()], 2_000);
+        assert!(!g2[0].is_new);
+        assert_eq!(g2[0].window_count, 3);
+    }
+
+    #[test]
+    fn merge_window_slides_out_and_entry_becomes_new_again() {
+        let mut m = mask();
+        m.merge_list_batch(vec!["666".into()], 1_000);
+        // 窗口 10s：11s 后旧计数滑出
+        let g = m.merge_list_batch(vec!["666".into()], 12_000);
+        assert!(g[0].is_new);
+        assert_eq!(g[0].window_count, 1);
+    }
+
+    #[test]
+    fn merge_ignores_frequency_cap() {
+        let mut m = mask();
+        // 频控上限 3：合并模式应照样计数不封顶
+        let g = m.merge_list_batch(vec!["666".into(); 10], 1_000);
+        assert_eq!(g.len(), 1);
+        assert_eq!(g[0].window_count, 10);
+    }
+
+    #[test]
+    fn merge_storm_does_not_overflow_counters() {
+        let mut m = mask();
+        let batch: Vec<String> = vec!["666".into(); 70_000];
+        let g = m.merge_list_batch(batch, 1_000);
+        assert_eq!(g[0].window_count, 70_000); // 展示计数走 u32，单批不丢数
+        // 再来一批也不 panic：内部 u16 计数在 65535 饱和，展示计数只增不减
+        let g2 = m.merge_list_batch(vec!["666".into(); 70_000], 1_500);
+        assert!(g2[0].window_count > g[0].window_count);
+    }
+
+    #[test]
+    fn merge_normalization_disabled_uses_raw_text() {
+        let mut m = DanmakuMask::new(10_000, 10, false, true, 3);
+        let g = m.merge_list_batch(vec!["哈 哈".into(), "哈哈哈哈".into()], 1_000);
+        assert_eq!(g.len(), 2);
+    }
+}

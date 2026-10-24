@@ -28,6 +28,7 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | 窗口/PiP | `pip_aspect_test.dart`、`pip_aspect_qa_test.dart`、`player_window_geometry_test.dart` | 纵横比/还原点 |
 | 分页列表 | `base_page_controller_paging_test.dart`、`page_view_auto_load_test.dart` | hasMore/去重/门闩/补页 |
 | 弹幕表情 | `danmaku_emoticon_test.dart`、`chat_emoticon_span_test.dart` | 分段/图源/聊天 span |
+| 弹幕去重/合并 | `danmaku_merge_plan_test.dart`、`danmaku_settings_surface_test.dart` | 合并决策（新建/更新/跳过）、设置面板入口 |
 | 关注 | `follow_*_test.dart` | 搜索/分段/分组/多归属/智能分组/顶栏 |
 | 导航/设置/工具 | `navigation_dock_test.dart`、`settings_switch_locked_test.dart`、`tool_test.dart` | 导航/控件/纯函数 |
 

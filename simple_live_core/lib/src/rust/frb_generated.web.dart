@@ -164,11 +164,15 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_TwitchDanmakuConne
 
 @protected CoreError dco_decode_core_error(dynamic raw);
 
+@protected DanmakuMergeGroup dco_decode_danmaku_merge_group(dynamic raw);
+
 @protected int dco_decode_i_32(dynamic raw);
 
 @protected PlatformInt64 dco_decode_i_64(dynamic raw);
 
 @protected List<String> dco_decode_list_String(dynamic raw);
+
+@protected List<DanmakuMergeGroup> dco_decode_list_danmaku_merge_group(dynamic raw);
 
 @protected List<LiveAnchorItem> dco_decode_list_live_anchor_item(dynamic raw);
 
@@ -356,11 +360,15 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_TwitchDanmakuConne
 
 @protected CoreError sse_decode_core_error(SseDeserializer deserializer);
 
+@protected DanmakuMergeGroup sse_decode_danmaku_merge_group(SseDeserializer deserializer);
+
 @protected int sse_decode_i_32(SseDeserializer deserializer);
 
 @protected PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
 @protected List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+@protected List<DanmakuMergeGroup> sse_decode_list_danmaku_merge_group(SseDeserializer deserializer);
 
 @protected List<LiveAnchorItem> sse_decode_list_live_anchor_item(SseDeserializer deserializer);
 
@@ -548,11 +556,15 @@ CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_TwitchDanmakuConne
 
 @protected void sse_encode_core_error(CoreError self, SseSerializer serializer);
 
+@protected void sse_encode_danmaku_merge_group(DanmakuMergeGroup self, SseSerializer serializer);
+
 @protected void sse_encode_i_32(int self, SseSerializer serializer);
 
 @protected void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
 @protected void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+@protected void sse_encode_list_danmaku_merge_group(List<DanmakuMergeGroup> self, SseSerializer serializer);
 
 @protected void sse_encode_list_live_anchor_item(List<LiveAnchorItem> self, SseSerializer serializer);
 

@@ -37,6 +37,12 @@ class LiveMessage {
   /// 弹幕表情包（可选，目前仅 B 站直播间提供）
   final List<LiveMessageEmoticon>? emoticons;
 
+  /// 重复弹幕合并计数（合并模式）：>1 表示这条展示项代表窗口内的 N 条重复弹幕。
+  ///
+  /// 非 final：合并模式下同一条展示项会被原地更新计数（聊天区据此显示「×N」），
+  /// 不新建消息，避免刷屏时聊天区被重复文本冲掉。
+  int repeatCount;
+
   LiveMessage({
     required this.type,
     required this.userName,
@@ -45,6 +51,7 @@ class LiveMessage {
     this.userId,
     required this.color,
     this.emoticons,
+    this.repeatCount = 1,
   });
 
   @override

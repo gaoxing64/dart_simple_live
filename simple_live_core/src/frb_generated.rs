@@ -48,7 +48,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2054969778;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 504564523;
 
 // Section: executor
 
@@ -276,6 +276,62 @@ fn wire__crate__api__danmaku_mask__DanmakuMask_dispose_impl(
                 })?;
                 std::result::Result::Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__danmaku_mask__DanmakuMask_merge_list_batch_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "DanmakuMask_merge_list_batch",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DanmakuMask>,
+            >>::sse_decode(&mut deserializer);
+            let api_texts = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_now_ms = <u64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, true,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref_mut()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let mut api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        Ok::<_, ()>(crate::api::danmaku_mask::DanmakuMask::merge_list_batch(
+                            &mut *api_that_guard,
+                            api_texts,
+                            api_now_ms,
+                        ))?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -6613,6 +6669,22 @@ impl SseDecode for crate::api::slive::error::CoreError {
     }
 }
 
+impl SseDecode for crate::api::danmaku_mask::DanmakuMergeGroup {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_key = <String>::sse_decode(deserializer);
+        let mut var_firstIndex = <u32>::sse_decode(deserializer);
+        let mut var_windowCount = <u32>::sse_decode(deserializer);
+        let mut var_isNew = <bool>::sse_decode(deserializer);
+        return crate::api::danmaku_mask::DanmakuMergeGroup {
+            key: var_key,
+            first_index: var_firstIndex,
+            window_count: var_windowCount,
+            is_new: var_isNew,
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6634,6 +6706,20 @@ impl SseDecode for Vec<String> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::danmaku_mask::DanmakuMergeGroup> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::danmaku_mask::DanmakuMergeGroup>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -7287,463 +7373,469 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        9 => wire__crate__api__slive__douyin__DouyinDanmakuConnection_start_impl(
+        6 => wire__crate__api__danmaku_mask__DanmakuMask_merge_list_batch_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        12 => wire__crate__api__slive__douyu__DouyuDanmakuConnection_start_impl(
+        10 => wire__crate__api__slive__douyin__DouyinDanmakuConnection_start_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        15 => wire__crate__api__slive__huya__HuyaDanmakuConnection_start_impl(
+        13 => wire__crate__api__slive__douyu__DouyuDanmakuConnection_start_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        17 => wire__crate__api__slive__site__LiveBilibiliSite_default_impl(
+        16 => wire__crate__api__slive__huya__HuyaDanmakuConnection_start_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => wire__crate__api__slive__site__LiveBilibiliSite_get_account_info_impl(
+        18 => wire__crate__api__slive__site__LiveBilibiliSite_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => wire__crate__api__slive__site__LiveBilibiliSite_get_categories_impl(
+        19 => wire__crate__api__slive__site__LiveBilibiliSite_get_account_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        20 => wire__crate__api__slive__site__LiveBilibiliSite_get_category_rooms_impl(
+        20 => wire__crate__api__slive__site__LiveBilibiliSite_get_categories_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__slive__site__LiveBilibiliSite_get_live_status_impl(
+        21 => wire__crate__api__slive__site__LiveBilibiliSite_get_category_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        22 => wire__crate__api__slive__site__LiveBilibiliSite_get_play_qualities_impl(
+        22 => wire__crate__api__slive__site__LiveBilibiliSite_get_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__slive__site__LiveBilibiliSite_get_play_urls_impl(
+        23 => wire__crate__api__slive__site__LiveBilibiliSite_get_play_qualities_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => wire__crate__api__slive__site__LiveBilibiliSite_get_qr_code_impl(
+        24 => wire__crate__api__slive__site__LiveBilibiliSite_get_play_urls_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => wire__crate__api__slive__site__LiveBilibiliSite_get_qr_poll_result_impl(
+        25 => wire__crate__api__slive__site__LiveBilibiliSite_get_qr_code_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__api__slive__site__LiveBilibiliSite_get_recommend_rooms_impl(
+        26 => wire__crate__api__slive__site__LiveBilibiliSite_get_qr_poll_result_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__slive__site__LiveBilibiliSite_get_room_detail_impl(
+        27 => wire__crate__api__slive__site__LiveBilibiliSite_get_recommend_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__slive__site__LiveBilibiliSite_get_super_chat_messages_impl(
+        28 => wire__crate__api__slive__site__LiveBilibiliSite_get_room_detail_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        32 => wire__crate__api__slive__site__LiveBilibiliSite_search_anchors_impl(
+        29 => wire__crate__api__slive__site__LiveBilibiliSite_get_super_chat_messages_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__api__slive__site__LiveBilibiliSite_search_rooms_impl(
+        33 => wire__crate__api__slive__site__LiveBilibiliSite_search_anchors_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__slive__douyin__LiveDouyinSite_default_impl(
+        34 => wire__crate__api__slive__site__LiveBilibiliSite_search_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__slive__douyin__LiveDouyinSite_get_account_info_impl(
+        36 => wire__crate__api__slive__douyin__LiveDouyinSite_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__slive__douyin__LiveDouyinSite_get_categories_impl(
+        37 => wire__crate__api__slive__douyin__LiveDouyinSite_get_account_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__slive__douyin__LiveDouyinSite_get_category_rooms_impl(
+        38 => wire__crate__api__slive__douyin__LiveDouyinSite_get_categories_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__slive__douyin__LiveDouyinSite_get_live_status_impl(
+        39 => wire__crate__api__slive__douyin__LiveDouyinSite_get_category_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__slive__douyin__LiveDouyinSite_get_play_qualities_impl(
+        40 => wire__crate__api__slive__douyin__LiveDouyinSite_get_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => wire__crate__api__slive__douyin__LiveDouyinSite_get_play_urls_impl(
+        41 => wire__crate__api__slive__douyin__LiveDouyinSite_get_play_qualities_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__slive__douyin__LiveDouyinSite_get_qr_code_impl(
+        42 => wire__crate__api__slive__douyin__LiveDouyinSite_get_play_urls_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__slive__douyin__LiveDouyinSite_get_qr_poll_result_impl(
+        43 => wire__crate__api__slive__douyin__LiveDouyinSite_get_qr_code_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__slive__douyin__LiveDouyinSite_get_recommend_rooms_impl(
+        44 => wire__crate__api__slive__douyin__LiveDouyinSite_get_qr_poll_result_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__slive__douyin__LiveDouyinSite_get_room_detail_impl(
+        45 => wire__crate__api__slive__douyin__LiveDouyinSite_get_recommend_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        46 => wire__crate__api__slive__douyin__LiveDouyinSite_get_super_chat_messages_impl(
+        46 => wire__crate__api__slive__douyin__LiveDouyinSite_get_room_detail_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__slive__douyin__LiveDouyinSite_search_anchors_impl(
+        47 => wire__crate__api__slive__douyin__LiveDouyinSite_get_super_chat_messages_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__slive__douyin__LiveDouyinSite_search_rooms_impl(
+        51 => wire__crate__api__slive__douyin__LiveDouyinSite_search_anchors_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__slive__douyu__LiveDouyuSite_default_impl(
+        52 => wire__crate__api__slive__douyin__LiveDouyinSite_search_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__slive__douyu__LiveDouyuSite_get_account_info_impl(
+        54 => wire__crate__api__slive__douyu__LiveDouyuSite_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__slive__douyu__LiveDouyuSite_get_categories_impl(
+        55 => wire__crate__api__slive__douyu__LiveDouyuSite_get_account_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__slive__douyu__LiveDouyuSite_get_category_rooms_impl(
+        56 => wire__crate__api__slive__douyu__LiveDouyuSite_get_categories_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__slive__douyu__LiveDouyuSite_get_live_status_impl(
+        57 => wire__crate__api__slive__douyu__LiveDouyuSite_get_category_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__slive__douyu__LiveDouyuSite_get_play_qualities_impl(
+        58 => wire__crate__api__slive__douyu__LiveDouyuSite_get_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__slive__douyu__LiveDouyuSite_get_play_urls_impl(
+        59 => wire__crate__api__slive__douyu__LiveDouyuSite_get_play_qualities_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__slive__douyu__LiveDouyuSite_get_qr_code_impl(
+        60 => wire__crate__api__slive__douyu__LiveDouyuSite_get_play_urls_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => wire__crate__api__slive__douyu__LiveDouyuSite_get_qr_poll_result_impl(
+        61 => wire__crate__api__slive__douyu__LiveDouyuSite_get_qr_code_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__slive__douyu__LiveDouyuSite_get_recommend_rooms_impl(
+        62 => wire__crate__api__slive__douyu__LiveDouyuSite_get_qr_poll_result_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__slive__douyu__LiveDouyuSite_get_room_detail_impl(
+        63 => wire__crate__api__slive__douyu__LiveDouyuSite_get_recommend_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => wire__crate__api__slive__douyu__LiveDouyuSite_get_super_chat_messages_impl(
+        64 => wire__crate__api__slive__douyu__LiveDouyuSite_get_room_detail_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => wire__crate__api__slive__douyu__LiveDouyuSite_refresh_cookie_impl(
+        65 => wire__crate__api__slive__douyu__LiveDouyuSite_get_super_chat_messages_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        69 => wire__crate__api__slive__douyu__LiveDouyuSite_search_anchors_impl(
+        69 => wire__crate__api__slive__douyu__LiveDouyuSite_refresh_cookie_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        70 => wire__crate__api__slive__douyu__LiveDouyuSite_search_rooms_impl(
+        70 => wire__crate__api__slive__douyu__LiveDouyuSite_search_anchors_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        72 => wire__crate__api__slive__huya_site__LiveHuyaSite_default_impl(
+        71 => wire__crate__api__slive__douyu__LiveDouyuSite_search_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_account_info_impl(
+        73 => wire__crate__api__slive__huya_site__LiveHuyaSite_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_categories_impl(
+        74 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_account_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        75 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_category_rooms_impl(
+        75 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_categories_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        76 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_live_status_impl(
+        76 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_category_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        77 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_play_qualities_impl(
+        77 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_play_urls_impl(
+        78 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_play_qualities_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_qr_code_impl(
+        79 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_play_urls_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_qr_poll_result_impl(
+        80 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_qr_code_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_recommend_rooms_impl(
+        81 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_qr_poll_result_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_room_detail_impl(
+        82 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_recommend_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_sub_categories_impl(
+        83 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_room_detail_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_super_chat_messages_impl(
+        84 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_sub_categories_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        88 => wire__crate__api__slive__huya_site__LiveHuyaSite_search_anchors_impl(
+        85 => wire__crate__api__slive__huya_site__LiveHuyaSite_get_super_chat_messages_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        89 => wire__crate__api__slive__huya_site__LiveHuyaSite_search_rooms_impl(
+        89 => wire__crate__api__slive__huya_site__LiveHuyaSite_search_anchors_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__slive__twitch__site__LiveTwitchSite_default_impl(
+        90 => wire__crate__api__slive__huya_site__LiveHuyaSite_search_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_account_info_impl(
+        92 => wire__crate__api__slive__twitch__site__LiveTwitchSite_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        93 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_categories_impl(
+        93 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_account_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_category_rooms_impl(
+        94 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_categories_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_live_status_impl(
+        95 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_category_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_play_qualities_impl(
+        96 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_play_urls_impl(
+        97 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_play_qualities_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_qr_code_impl(
+        98 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_play_urls_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_qr_poll_result_impl(
+        99 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_qr_code_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_recommend_rooms_impl(
+        100 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_qr_poll_result_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_room_detail_impl(
+        101 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_recommend_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_super_chat_messages_impl(
+        102 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_room_detail_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__slive__twitch__site__LiveTwitchSite_search_anchors_impl(
+        103 => wire__crate__api__slive__twitch__site__LiveTwitchSite_get_super_chat_messages_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__slive__twitch__site__LiveTwitchSite_search_rooms_impl(
+        107 => wire__crate__api__slive__twitch__site__LiveTwitchSite_search_anchors_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        110 => wire__crate__api__slive__twitch__danmaku__TwitchDanmakuConnection_start_impl(
+        108 => wire__crate__api__slive__twitch__site__LiveTwitchSite_search_rooms_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        112 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
+        111 => wire__crate__api__slive__twitch__danmaku__TwitchDanmakuConnection_start_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        113 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -7767,104 +7859,104 @@ fn pde_ffi_dispatcher_sync_impl(
             data_len,
         ),
         5 => wire__crate__api__danmaku_mask__DanmakuMask_dispose_impl(ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__danmaku_mask__DanmakuMask_new_impl(ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__danmaku_mask__DanmakuMask_reset_impl(ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__slive__douyin__DouyinDanmakuConnection_new_impl(
+        7 => wire__crate__api__danmaku_mask__DanmakuMask_new_impl(ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__danmaku_mask__DanmakuMask_reset_impl(ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__slive__douyin__DouyinDanmakuConnection_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        10 => wire__crate__api__slive__douyin__DouyinDanmakuConnection_stop_impl(
+        11 => wire__crate__api__slive__douyin__DouyinDanmakuConnection_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => wire__crate__api__slive__douyu__DouyuDanmakuConnection_new_impl(
+        12 => wire__crate__api__slive__douyu__DouyuDanmakuConnection_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        13 => wire__crate__api__slive__douyu__DouyuDanmakuConnection_stop_impl(
+        14 => wire__crate__api__slive__douyu__DouyuDanmakuConnection_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        14 => wire__crate__api__slive__huya__HuyaDanmakuConnection_new_impl(
+        15 => wire__crate__api__slive__huya__HuyaDanmakuConnection_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        16 => wire__crate__api__slive__huya__HuyaDanmakuConnection_stop_impl(
+        17 => wire__crate__api__slive__huya__HuyaDanmakuConnection_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__slive__site__LiveBilibiliSite_id_impl(ptr, rust_vec_len, data_len),
-        30 => {
+        30 => wire__crate__api__slive__site__LiveBilibiliSite_id_impl(ptr, rust_vec_len, data_len),
+        31 => {
             wire__crate__api__slive__site__LiveBilibiliSite_name_impl(ptr, rust_vec_len, data_len)
         }
-        31 => wire__crate__api__slive__site__LiveBilibiliSite_new_impl(ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__slive__site__LiveBilibiliSite_set_site_attrs_impl(
+        32 => wire__crate__api__slive__site__LiveBilibiliSite_new_impl(ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__slive__site__LiveBilibiliSite_set_site_attrs_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__slive__douyin__LiveDouyinSite_id_impl(ptr, rust_vec_len, data_len),
-        48 => {
+        48 => wire__crate__api__slive__douyin__LiveDouyinSite_id_impl(ptr, rust_vec_len, data_len),
+        49 => {
             wire__crate__api__slive__douyin__LiveDouyinSite_name_impl(ptr, rust_vec_len, data_len)
         }
-        49 => wire__crate__api__slive__douyin__LiveDouyinSite_new_impl(ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__slive__douyin__LiveDouyinSite_set_site_attrs_impl(
+        50 => wire__crate__api__slive__douyin__LiveDouyinSite_new_impl(ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__slive__douyin__LiveDouyinSite_set_site_attrs_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        65 => wire__crate__api__slive__douyu__LiveDouyuSite_id_impl(ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__slive__douyu__LiveDouyuSite_name_impl(ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__slive__douyu__LiveDouyuSite_new_impl(ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__slive__douyu__LiveDouyuSite_set_site_attrs_impl(
+        66 => wire__crate__api__slive__douyu__LiveDouyuSite_id_impl(ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__slive__douyu__LiveDouyuSite_name_impl(ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__slive__douyu__LiveDouyuSite_new_impl(ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__slive__douyu__LiveDouyuSite_set_site_attrs_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        85 => wire__crate__api__slive__huya_site__LiveHuyaSite_id_impl(ptr, rust_vec_len, data_len),
-        86 => {
+        86 => wire__crate__api__slive__huya_site__LiveHuyaSite_id_impl(ptr, rust_vec_len, data_len),
+        87 => {
             wire__crate__api__slive__huya_site__LiveHuyaSite_name_impl(ptr, rust_vec_len, data_len)
         }
-        87 => {
+        88 => {
             wire__crate__api__slive__huya_site__LiveHuyaSite_new_impl(ptr, rust_vec_len, data_len)
         }
-        90 => wire__crate__api__slive__huya_site__LiveHuyaSite_set_site_attrs_impl(
+        91 => wire__crate__api__slive__huya_site__LiveHuyaSite_set_site_attrs_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__slive__twitch__site__LiveTwitchSite_id_impl(
+        104 => wire__crate__api__slive__twitch__site__LiveTwitchSite_id_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__slive__twitch__site__LiveTwitchSite_name_impl(
+        105 => wire__crate__api__slive__twitch__site__LiveTwitchSite_name_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        105 => wire__crate__api__slive__twitch__site__LiveTwitchSite_new_impl(
+        106 => wire__crate__api__slive__twitch__site__LiveTwitchSite_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => wire__crate__api__slive__twitch__site__LiveTwitchSite_set_site_attrs_impl(
+        109 => wire__crate__api__slive__twitch__site__LiveTwitchSite_set_site_attrs_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        109 => wire__crate__api__slive__twitch__danmaku__TwitchDanmakuConnection_new_impl(
+        110 => wire__crate__api__slive__twitch__danmaku__TwitchDanmakuConnection_new_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        111 => wire__crate__api__slive__twitch__danmaku__TwitchDanmakuConnection_stop_impl(
+        112 => wire__crate__api__slive__twitch__danmaku__TwitchDanmakuConnection_stop_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -8103,6 +8195,29 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::slive::error::Core
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::slive::error::CoreError> {
         self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::danmaku_mask::DanmakuMergeGroup {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.key.into_into_dart().into_dart(),
+            self.first_index.into_into_dart().into_dart(),
+            self.window_count.into_into_dart().into_dart(),
+            self.is_new.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::danmaku_mask::DanmakuMergeGroup
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::danmaku_mask::DanmakuMergeGroup>
+    for crate::api::danmaku_mask::DanmakuMergeGroup
+{
+    fn into_into_dart(self) -> crate::api::danmaku_mask::DanmakuMergeGroup {
+        self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -8962,6 +9077,16 @@ impl SseEncode for crate::api::slive::error::CoreError {
     }
 }
 
+impl SseEncode for crate::api::danmaku_mask::DanmakuMergeGroup {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.key, serializer);
+        <u32>::sse_encode(self.first_index, serializer);
+        <u32>::sse_encode(self.window_count, serializer);
+        <bool>::sse_encode(self.is_new, serializer);
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8982,6 +9107,16 @@ impl SseEncode for Vec<String> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::danmaku_mask::DanmakuMergeGroup> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::danmaku_mask::DanmakuMergeGroup>::sse_encode(item, serializer);
         }
     }
 }

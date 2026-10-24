@@ -94,6 +94,7 @@ class AppSettingsController extends GetxController {
     danmuSpeed.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuSpeed, 10.0);
     danmuEnable.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuEnable, true);
     danmakuMaskEnable.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmakuMaskEnable, false);
+    danmakuMergeEnable.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmakuMergeEnable, true);
     danmuStrokeWidth.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuStrokeWidth, 2.0);
     danmuTopMargin.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuTopMargin, 0.0);
     danmuBottomMargin.value = LocalStorageService.instance.getValue(LocalStorageService.kDanmuBottomMargin, 0.0);
@@ -580,6 +581,15 @@ class AppSettingsController extends GetxController {
   void setDanmakuMaskEnable(bool e) {
     danmakuMaskEnable.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kDanmakuMaskEnable, e);
+  }
+
+  /// 去重模式：开=同一窗口内的重复弹幕合并成一条并显示次数（保留热闹氛围），
+  /// 关=直接屏蔽重复弹幕（旧行为）。仅在 [danmakuMaskEnable] 开启时生效。
+  var danmakuMergeEnable = true.obs;
+
+  void setDanmakuMergeEnable(bool e) {
+    danmakuMergeEnable.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kDanmakuMergeEnable, e);
   }
 
   var danmuStrokeWidth = 2.0.obs;

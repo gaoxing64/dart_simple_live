@@ -93,6 +93,9 @@ class LocalStorageService extends GetxService {
   /// 弹幕去重
   static const String kDanmakuMaskEnable = "DanmakuMaskEnable";
 
+  /// 弹幕去重模式：true=重复合并计数显示，false=直接屏蔽重复
+  static const String kDanmakuMergeEnable = "DanmakuMergeEnable";
+
   /// 弹幕表情包（目前仅 B 站）
   static const String kDanmuEmoticonEnable = "DanmuEmoticonEnable";
 

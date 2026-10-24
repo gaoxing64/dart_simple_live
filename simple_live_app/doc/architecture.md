@@ -72,7 +72,10 @@ media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建�
 ## 6. Rust 桥
 
 - `RustLib.init()` 在 `main.dart` 最早；`sites.dart` 五平台直连 `Rust*Site`。
-- `DanmakuMask`（滑动窗口 + 分桶 + xxh3）做弹幕去重/频控，每 500ms 批量判定。
+- `DanmakuMask`（滑动窗口 + 分桶 + xxh3）做弹幕去重，每 500ms 批量判定，两种模式按批二选一：
+  - 屏蔽模式 `allowListBatch`：受频控上限约束，超限的重复直接丢弃；
+  - 合并模式 `mergeListBatch`：重复聚成一条并返回窗口计数（不看频控上限），聊天区原地更新「×N」，
+    飘屏只在发射那一刻定稿计数（`canvas_danmaku` 不支持更新已发射项），后续重复只增长聊天区计数。
 - FRB 2.13.0 两侧精确钉版；生成物入库。
 
 ## 7. 原生接线

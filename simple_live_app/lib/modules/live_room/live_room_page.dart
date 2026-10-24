@@ -930,21 +930,24 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                           color: Colors.grey,
                           fontSize: AppSettingsController.instance.chatTextSize.value,
                         ),
-                        children: buildChatMessageSpans(
-                          context,
-                          message,
-                          TextStyle(
-                            // 必须用本地的 Theme.of(context)：Get.isDarkMode 不建立
-                            // InheritedWidget 依赖，主题切换后这里不会重建，气泡文字
-                            // 会一直停在旧配色上（浅色底 + 白字）。
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white
-                                    : AppColors.black333,
-                            fontSize: AppSettingsController
-                                .instance.chatTextSize.value,
+                        children: [
+                          ...buildChatMessageSpans(
+                            context,
+                            message,
+                            TextStyle(
+                              // 必须用本地的 Theme.of(context)：Get.isDarkMode 不建立
+                              // InheritedWidget 依赖，主题切换后这里不会重建，气泡文字
+                              // 会一直停在旧配色上（浅色底 + 白字）。
+                              color:
+                                  Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white
+                                      : AppColors.black333,
+                              fontSize: AppSettingsController
+                                  .instance.chatTextSize.value,
+                            ),
                           ),
-                        ),
+                          ..._repeatCountSpans(message),
+                        ],
                       ),
                       contextMenuBuilder: _contextMenuBuilderFor(
                         message,
@@ -962,16 +965,19 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                   color: Colors.grey,
                   fontSize: AppSettingsController.instance.chatTextSize.value,
                 ),
-                children: buildChatMessageSpans(
-                  context,
-                  message,
-                  TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : AppColors.black333,
-                    fontSize: AppSettingsController.instance.chatTextSize.value,
+                children: [
+                  ...buildChatMessageSpans(
+                    context,
+                    message,
+                    TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : AppColors.black333,
+                      fontSize: AppSettingsController.instance.chatTextSize.value,
+                    ),
                   ),
-                ),
+                  ..._repeatCountSpans(message),
+                ],
               ),
               contextMenuBuilder: _contextMenuBuilderFor(
                 message,
@@ -979,6 +985,23 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               ),
             ),
     );
+  }
+
+  /// 合并计数的「×N」后缀：合并模式下重复弹幕只有一条展示项，计数写在这里。
+  List<InlineSpan> _repeatCountSpans(LiveMessage message) {
+    if (message.repeatCount <= 1) {
+      return const [];
+    }
+    return [
+      TextSpan(
+        text: " ×${message.repeatCount}",
+        style: TextStyle(
+          color: Colors.orangeAccent,
+          fontWeight: FontWeight.bold,
+          fontSize: AppSettingsController.instance.chatTextSize.value * 0.9,
+        ),
+      ),
+    ];
   }
 
   /// 会渲染出表情的消息，只在**选区里没有真实文字**时不建上下文菜单。
