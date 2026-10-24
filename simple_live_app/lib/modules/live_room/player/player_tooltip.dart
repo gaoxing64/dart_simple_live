@@ -2,7 +2,7 @@
 ///
 /// 目的：把「这个按钮对应哪个快捷键」直接印在 tooltip 上（参考三方播放器
 /// 「进入全屏 [H]」那种），用户不必进设置翻快捷键表。键帽显示的是**当前生效
-/// 绑定**（跟着用户改键 / 禁用走），不是写死的默认值。
+/// 绑定**（跟着用户改键 / 禁用 / 关闭自定义走），不是写死的默认值。
 ///
 /// 为什么用外部 Tooltip 而不是 `IconButton.tooltip`：后者是 `String?`，画不了
 /// 键帽。`material_ui` 的 `Tooltip.richMessage`（`InlineSpan`）可以塞 `WidgetSpan`，
@@ -10,10 +10,11 @@
 /// 继承 tooltip 的浅色，键帽自带底色，互不干扰。
 ///
 /// 约定：**凡经 [shortcutTooltip] 的按钮，内层 `tooltip:` 必须传 null**，否则
-/// 会叠两层 tooltip。本函数永远返回一个 `Tooltip`（有键帽走 `richMessage`，
-/// 无键帽走 `message`），所以未绑定动作的观感与改前逐字一致。
+/// 会叠两层 tooltip。本函数外面永远包着同一个 widget（[Obx]），里面有键帽走
+/// `richMessage`、无键帽走 `message`，所以未绑定动作的观感与改前逐字一致。
 library;
 
+import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
@@ -45,7 +46,13 @@ PlayerShortcut? shortcutForAction(PlayerActionId id) => switch (id) {
 ///
 /// - [shortcut] 为 null，或该动作被「不设置」禁用（`bindingFor` 返回 null）→
 ///   纯 [label] 文案，等价于改前的 `tooltip: label`。
+/// - 键盘控制总开关关着 → 同样只给纯 [label]：画面上根本没有键可按，
+///   还留一颗键帽等于教用户去按一个不会响应的键。
 /// - 否则 → 「label + 键帽」，键帽文字是 [shortcutBindingLabel]（如 `F`、`Ctrl + F`）。
+///
+/// 外面那层 [Obx] 不是顺手加的：设置页是**独立路由**，压在上面改键/关开关再返回时，
+/// 底下这排按钮并不会自己重建（它们不持有任何订阅），于是键帽会停在一个已经失效的
+/// 键上。订阅放在这一层，开关一动键帽立刻跟着走。
 ///
 /// [child] 必须是**没有自带 tooltip** 的按钮（内层 `tooltip:` 传 null）。
 Widget shortcutTooltip({
@@ -53,23 +60,31 @@ Widget shortcutTooltip({
   required PlayerShortcut? shortcut,
   required Widget child,
 }) {
-  final binding =
-      shortcut == null ? null : AppSettingsController.instance.bindingFor(shortcut);
-  if (binding == null) {
+  // 先判空再进 Obx：Obx 里一个 observable 都没读会被 GetX 判成滥用。
+  if (shortcut == null) {
     return Tooltip(message: label, child: child);
   }
-  return Tooltip(
-    richMessage: TextSpan(
-      children: [
-        TextSpan(text: label),
-        WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: _ShortcutKeyCap(shortcutBindingLabel(binding)),
-        ),
-      ],
-    ),
-    child: child,
-  );
+  final action = shortcut;
+  return Obx(() {
+    final settings = AppSettingsController.instance;
+    final binding =
+        settings.keyboardControl.value ? settings.bindingFor(action) : null;
+    if (binding == null) {
+      return Tooltip(message: label, child: child);
+    }
+    return Tooltip(
+      richMessage: TextSpan(
+        children: [
+          TextSpan(text: label),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: _ShortcutKeyCap(shortcutBindingLabel(binding)),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  });
 }
 
 /// 键帽：白底黑字的小圆角块，压在深色 tooltip 上（对齐参考图）。

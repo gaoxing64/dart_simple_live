@@ -156,11 +156,12 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                       }),
                 ),
                 AppStyle.divider,
-                // 快捷键的总开关与逐条改键都收进了独立页：这里十几行动作塞进
-                // 播放设置会把整页撑得没法用，而且改键要弹录制框，本身就该有自己的家。
+                // 键盘控制的总开关、自定义开关与逐条改键都收进了独立页：这里十几行
+                // 动作塞进播放设置会把整页撑得没法用，而且改键要弹录制框，本身就该
+                // 有自己的家。
                 SettingsAction(
-                  title: "播放器快捷键",
-                  subtitle: "改键 / 禁用 / 恢复默认",
+                  title: "键盘控制",
+                  subtitle: "总开关 / 自定义键位 / 恢复默认",
                   onTap: () => Get.toNamed(RoutePath.kSettingsShortcuts),
                 ),
                 AppStyle.divider,

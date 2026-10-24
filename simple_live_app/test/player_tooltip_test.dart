@@ -24,6 +24,15 @@ class _FakeSettings extends AppSettingsController {
   Future<void> onInit() async {}
 }
 
+/// 取出 [widget] 里真正的那颗 Tooltip。
+///
+/// `shortcutTooltip` 在外面包了一层 [Obx]（订阅「键盘控制」与「自定义键位」，
+/// 好在设置页返回后即时改掉键帽），直接 cast 成 Tooltip 会失败。`Obx.builder`
+/// 是公开字段，直接调一遍就是它此刻会建出来的那棵树——本组测试关心的正是这个
+/// 构造产物。
+Tooltip _tooltipOf(Widget widget) =>
+    widget is Obx ? widget.builder() as Tooltip : widget as Tooltip;
+
 /// 从 [tooltip] 的 richMessage 里取出键帽文字。
 ///
 /// **不能**用 `richMessage.toPlainText()` 读它：`WidgetSpan.toPlainText` 返回
@@ -46,6 +55,10 @@ void main() {
   setUp(() {
     Get.testMode = true;
     settings = _FakeSettings();
+    // 真实用户一旦改过键，「自定义键位」就是开着的（见 onInit 里的迁移缺省值），
+    // 而这里跳过了 onInit，所以显式打开——否则下面两组「键帽跟随配置」的用例
+    // 全会被「自定义关闭 → 一律默认值」这条新规则吃掉。
+    settings.shortcutCustom.value = true;
     Get.put<AppSettingsController>(settings);
   });
   tearDown(Get.reset);
@@ -88,12 +101,11 @@ void main() {
   group('shortcutTooltip 渲染', () {
     testWidgets('动作有默认绑定 → richMessage，label + 键帽字母 F', (tester) async {
       // 默认 fullscreen=F（onInit 被跳过，overrides 为空 → 生效表回落默认）
-      final tip = shortcutTooltip(
+      final tooltip = _tooltipOf(shortcutTooltip(
         label: '全屏播放',
         shortcut: PlayerShortcut.fullscreen,
         child: const Icon(Icons.fullscreen),
-      );
-      final tooltip = tip as Tooltip;
+      ));
       expect(tooltip.richMessage, isNotNull);
       expect(tooltip.message, isNull);
       expect(tooltip.richMessage!.toPlainText(), contains('全屏播放'));
@@ -105,11 +117,11 @@ void main() {
         PlayerShortcut.fullscreen:
             const ShortcutBinding(LogicalKeyboardKey.keyJ),
       };
-      final tooltip = shortcutTooltip(
+      final tooltip = _tooltipOf(shortcutTooltip(
         label: '全屏播放',
         shortcut: PlayerShortcut.fullscreen,
         child: const Icon(Icons.fullscreen),
-      ) as Tooltip;
+      ));
       expect(tooltip.richMessage!.toPlainText(), contains('全屏播放'));
       expect(await _keycapText(tooltip, tester), 'J');
     });
@@ -118,21 +130,21 @@ void main() {
       settings.shortcutOverrides.value = {
         PlayerShortcut.fullscreen: null,
       };
-      final tooltip = shortcutTooltip(
+      final tooltip = _tooltipOf(shortcutTooltip(
         label: '全屏播放',
         shortcut: PlayerShortcut.fullscreen,
         child: const Icon(Icons.fullscreen),
-      ) as Tooltip;
+      ));
       expect(tooltip.richMessage, isNull);
       expect(tooltip.message, '全屏播放');
     });
 
     test('shortcut 为 null → 纯 message（与改前 IconButton.tooltip 等价）', () {
-      final tooltip = shortcutTooltip(
+      final tooltip = _tooltipOf(shortcutTooltip(
         label: '弹幕设置',
         shortcut: null,
         child: const Icon(Icons.tune),
-      ) as Tooltip;
+      ));
       expect(tooltip.richMessage, isNull);
       expect(tooltip.message, '弹幕设置');
     });
@@ -144,12 +156,39 @@ void main() {
           ctrl: true,
         ),
       };
-      final tooltip = shortcutTooltip(
+      final tooltip = _tooltipOf(shortcutTooltip(
         label: '全屏播放',
         shortcut: PlayerShortcut.fullscreen,
         child: const Icon(Icons.fullscreen),
-      ) as Tooltip;
+      ));
       expect(await _keycapText(tooltip, tester), 'Ctrl + F');
+    });
+
+    test('键盘控制关闭 → 键帽隐藏，只剩 label', () {
+      settings.keyboardControl.value = false;
+      final tooltip = _tooltipOf(shortcutTooltip(
+        label: '全屏播放',
+        shortcut: PlayerShortcut.fullscreen,
+        child: const Icon(Icons.fullscreen),
+      ));
+      // 键位本身没变（还是默认的 F），但画面上已经不响应键盘了，
+      // 提示里再挂一颗键帽就是在教用户按一个没有反应的键。
+      expect(tooltip.richMessage, isNull);
+      expect(tooltip.message, '全屏播放');
+    });
+
+    testWidgets('自定义关闭 → 改过的键不生效，键帽回到默认 F', (tester) async {
+      settings.shortcutCustom.value = false;
+      settings.shortcutOverrides.value = {
+        PlayerShortcut.fullscreen:
+            const ShortcutBinding(LogicalKeyboardKey.keyJ),
+      };
+      final tooltip = _tooltipOf(shortcutTooltip(
+        label: '全屏播放',
+        shortcut: PlayerShortcut.fullscreen,
+        child: const Icon(Icons.fullscreen),
+      ));
+      expect(await _keycapText(tooltip, tester), 'F');
     });
   });
 }

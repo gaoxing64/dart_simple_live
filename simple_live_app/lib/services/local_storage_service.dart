@@ -221,6 +221,9 @@ class LocalStorageService extends GetxService {
   /// 而这份数据本来就要按动作名做增删。
   static const String kPlayerShortcuts = "PlayerShortcuts";
 
+  /// 是否启用自定义键位（关＝全部走默认值，覆盖表保留但不生效）
+  static const String kPlayerShortcutsCustom = "PlayerShortcutsCustom";
+
   /// 小窗隐藏弹幕
   static const String kPIPHideDanmu = "PIPHideDanmu";
 

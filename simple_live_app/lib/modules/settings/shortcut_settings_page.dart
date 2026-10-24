@@ -1,7 +1,12 @@
-/// 「播放器快捷键」设置页：每个动作一行，可改键、可单独恢复默认、可「不设置」。
+/// 「键盘控制」设置页：总开关 + 一张「自定义键位」卡（开关 + 键位列表）。
 ///
-/// 布局对齐参考图：一个分组卡，表头是标题 + 副标题 + ↺（全部恢复默认）+ 折叠箭头，
-/// 下面是动作行（动作名 + 当前按键 + ✏️）。
+/// 三层结构（自上而下）：
+/// 1. **启用键盘控制** —— 总开关，独占一行。关掉后播放器不再消费任何按键，
+///    按钮 Tooltip 上的键帽也一并隐藏。
+/// 2. **自定义键位** —— 卡片里的第一行。关掉时所有动作走默认值，并收起下面的键位
+///    列表；覆盖表**原样保留**，重新打开就回来。
+/// 3. **键位列表** —— 同一张卡的下半截。每个动作一行，可改键、可单独恢复默认、
+///    可「不设置」。
 ///
 /// 页内不写任何键位规则：默认值、匹配、冲突判定、编解码全在 `shortcut_binding.dart`，
 /// 读写走 `AppSettingsController`。这一层只负责「显示当前生效的那份」与「把用户
@@ -25,37 +30,65 @@ class ShortcutSettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("播放器快捷键"),
+        title: const Text("键盘控制"),
       ),
       body: ListView(
         padding: AppStyle.edgeInsetsA12,
         children: [
           Obx(
             () => SettingsSwitch(
-              title: "启用键盘快捷键",
-              subtitle:
-                  "关闭后视频区不再响应任何按键（Esc 的关弹窗/退全屏不受影响）",
+              title: "启用键盘控制",
+              subtitle: "关闭后播放器不再响应任何按键，按钮提示里的按键一并隐藏"
+                  "（Esc 关弹窗/退全屏不受影响）",
               value: AppSettingsController.instance.keyboardControl.value,
               onChanged: AppSettingsController.instance.setKeyboardControl,
             ),
           ),
           AppStyle.divider,
-          const _ShortcutListCard(),
+          // 自定义开关与它控制的键位列表放在**同一张卡**里：这个开关不是一条独立
+          // 设置，它就是这个区块的入口，拆成两张卡会让「我到底在开什么」变模糊。
+          // 关掉自定义时列表整块收起（恢复默认 ↺ 跟着藏），卡片只剩开关一行——
+          // 覆盖表还留着，想清掉它得先打开自定义，这个顺序本身就是一种确认。
+          // 分隔线也收进条件里，否则关掉后会剩一条悬在卡片底部的横线。
+          Obx(() {
+            final settings = AppSettingsController.instance;
+            final custom = settings.shortcutCustom.value;
+            return SettingsCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SettingsSwitch(
+                    title: "自定义键位",
+                    subtitle: "关闭时全部使用默认键位，自定义过的按键仍会保留",
+                    value: custom,
+                    onChanged: settings.setShortcutCustom,
+                  ),
+                  if (custom) ...[
+                    AppStyle.divider,
+                    const _ShortcutListBody(),
+                  ],
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
   }
 }
 
-/// 那张分组卡：表头 + 可折叠的动作行列表。
-class _ShortcutListCard extends StatefulWidget {
-  const _ShortcutListCard();
+/// 卡片里的下半截：折叠表头 + 动作行列表。
+///
+/// 只负责内容、**不套 `SettingsCard`**：底纹由调用方（「自定义键位」那一段）统一
+/// 持有，否则开关与列表各裹一层，正是要避免的「看不出谁管谁」。
+class _ShortcutListBody extends StatefulWidget {
+  const _ShortcutListBody();
 
   @override
-  State<_ShortcutListCard> createState() => _ShortcutListCardState();
+  State<_ShortcutListBody> createState() => _ShortcutListBodyState();
 }
 
-class _ShortcutListCardState extends State<_ShortcutListCard> {
+class _ShortcutListBodyState extends State<_ShortcutListBody> {
   /// 折叠状态是会话内的，不落盘：它不是用户偏好，只是这一次浏览的临时姿态。
   bool _collapsed = false;
 
@@ -98,86 +131,83 @@ class _ShortcutListCardState extends State<_ShortcutListCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SettingsCard(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 表头：标题 + 副标题 + ↺ + 折叠箭头。整行可点，点一下折叠/展开。
-          InkWell(
-            borderRadius: AppStyle.radius8,
-            onTap: () => setState(() => _collapsed = !_collapsed),
-            child: Padding(
-              padding: AppStyle.edgeInsetsA12,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.keyboard,
-                    size: 20,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  AppStyle.hGap8,
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("播放器快捷键", style: theme.textTheme.titleSmall),
-                        Text(
-                          "直播画面获得焦点时生效",
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 表头：标题 + 副标题 + ↺ + 折叠箭头。整行可点，点一下折叠/展开。
+        InkWell(
+          borderRadius: AppStyle.radius8,
+          onTap: () => setState(() => _collapsed = !_collapsed),
+          child: Padding(
+            padding: AppStyle.edgeInsetsA12,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.keyboard,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                AppStyle.hGap8,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("键位列表", style: theme.textTheme.titleSmall),
+                      Text(
+                        "直播画面获得焦点时生效",
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  // ↺ 单独吃掉点击：它就在可折叠行的正中间，不挡住就会「重置顺带折叠」。
-                  IconButton(
-                    tooltip: "全部恢复默认",
-                    onPressed: () {
-                      final settings = AppSettingsController.instance;
-                      if (settings.shortcutOverrides.value.isEmpty) {
-                        SmartDialog.showToast("已经是默认键位了");
-                        return;
-                      }
-                      settings.resetAllShortcuts();
-                      SmartDialog.showToast("已恢复默认键位");
-                    },
-                    icon: const Icon(Icons.restore),
-                  ),
-                  AnimatedRotation(
-                    turns: _collapsed ? 0 : 0.5,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(Icons.expand_more),
-                  ),
-                ],
-              ),
+                ),
+                // ↺ 单独吃掉点击：它就在可折叠行的正中间，不挡住就会「重置顺带折叠」。
+                IconButton(
+                  tooltip: "全部恢复默认",
+                  onPressed: () {
+                    final settings = AppSettingsController.instance;
+                    if (settings.shortcutOverrides.value.isEmpty) {
+                      SmartDialog.showToast("已经是默认键位了");
+                      return;
+                    }
+                    settings.resetAllShortcuts();
+                    SmartDialog.showToast("已恢复默认键位");
+                  },
+                  icon: const Icon(Icons.restore),
+                ),
+                AnimatedRotation(
+                  turns: _collapsed ? 0 : 0.5,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more),
+                ),
+              ],
             ),
           ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            alignment: Alignment.topCenter,
-            child: _collapsed
-                ? const SizedBox(width: double.infinity)
-                : Obx(() {
-                    // 订阅覆盖表：改完一行，整张表（含别的行上可能出现的冲突态）
-                    // 跟着重建。读 effectiveShortcuts 必须在这个 Obx 里面。
-                    final effective = AppSettingsController
-                        .instance
-                        .effectiveShortcuts;
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final (i, action) in kShortcutOrder.indexed) ...[
-                          if (i > 0) AppStyle.divider,
-                          _buildRow(context, action, effective[action]),
-                        ],
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: _collapsed
+              ? const SizedBox(width: double.infinity)
+              : Obx(() {
+                  // 订阅覆盖表：改完一行，整张表（含别的行上可能出现的冲突态）
+                  // 跟着重建。读 effectiveShortcuts 必须在这个 Obx 里面。
+                  final effective =
+                      AppSettingsController.instance.effectiveShortcuts;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final (i, action) in kShortcutOrder.indexed) ...[
+                        if (i > 0) AppStyle.divider,
+                        _buildRow(context, action, effective[action]),
                       ],
-                    );
-                  }),
-          ),
-        ],
-      ),
+                    ],
+                  );
+                }),
+        ),
+      ],
     );
   }
 

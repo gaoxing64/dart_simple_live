@@ -135,7 +135,7 @@ class AppPages {
       name: RoutePath.kSettingsPlay,
       page: () => const PlaySettingsPage(),
     ),
-    //播放器快捷键
+    //键盘控制
     GetPage(
       name: RoutePath.kSettingsShortcuts,
       page: () => const ShortcutSettingsPage(),

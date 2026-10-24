@@ -179,6 +179,14 @@ class AppSettingsController extends GetxController {
 
     loadShortcuts();
 
+    // 「自定义键位」开关比覆盖表晚出现：从旧版本升上来的用户覆盖表里已经有内容，
+    // 若缺省按「关」处理，他们之前改的键会静默失效。所以缺省值取「覆盖表是否为空」，
+    // 一旦用户拨过这个开关，就以磁盘上的值为准。
+    shortcutCustom.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kPlayerShortcutsCustom,
+      shortcutOverrides.value.isNotEmpty,
+    );
+
     // ignore: invalid_use_of_protected_member
     shieldList.value = LocalStorageService.instance.shieldBox.values.toSet();
 
@@ -711,12 +719,28 @@ class AppSettingsController extends GetxController {
     LocalStorageService.instance.setValue(LocalStorageService.kVerticalDragLock, e);
   }
 
-  /// 直播间键盘快捷键。关掉后视频区不再消费任何按键（Tab 导航等默认行为不受影响）。
+  /// 「键盘控制」总开关。关掉后视频区不再消费任何按键（Tab 导航等默认行为不受影响），
+  /// 按钮 Tooltip 上的键帽也一并隐藏（见 `player_tooltip.dart`）。
   var keyboardControl = true.obs;
 
   void setKeyboardControl(bool e) {
     keyboardControl.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kKeyboardControl, e);
+  }
+
+  /// 「自定义键位」开关。关＝所有动作走默认键位、设置页隐藏逐条改键区。
+  ///
+  /// 关掉时**不动** [shortcutOverrides] 里存的东西：用户的心血留在磁盘上，
+  /// 重新打开开关就原样回来。这也是它独立于 [resetAllShortcuts] 的意义——
+  /// 「暂时不用自定义」和「忘掉我的自定义」是两件事。
+  var shortcutCustom = false.obs;
+
+  void setShortcutCustom(bool e) {
+    shortcutCustom.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kPlayerShortcutsCustom,
+      e,
+    );
   }
 
   /// 播放器快捷键的**用户覆盖表**（不是生效表——生效表见 [effectiveShortcuts]）。
@@ -732,9 +756,15 @@ class AppSettingsController extends GetxController {
 
   /// 当前生效的完整键位表（每个动作一项；值为 null 表示该动作被「不设置」禁用）。
   ///
-  /// 读它要在 `Obx` 里（会订阅 [shortcutOverrides]）。播放器挂件是在按键发生时
-  /// 现读，不建订阅——它不需要「键位变了就重建」，只需要「按下的那一刻按最新配置解释」。
-  Map<PlayerShortcut, ShortcutBinding?> get effectiveShortcuts => resolveEffectiveShortcuts(shortcutOverrides.value);
+  /// 自定义关闭时喂给 [resolveEffectiveShortcuts] 的是一张空覆盖表，于是每个动作
+  /// 都落到默认值——「关掉自定义」不需要逐条写回默认值，也不会污染用户存的覆盖表。
+  /// 读它要在 `Obx` 里（会订阅 [shortcutOverrides] 与 [shortcutCustom]）。播放器
+  /// 挂件是在按键发生时现读，不建订阅——它不需要「键位变了就重建」，只需要
+  /// 「按下的那一刻按最新配置解释」。
+  Map<PlayerShortcut, ShortcutBinding?> get effectiveShortcuts =>
+      resolveEffectiveShortcuts(
+        shortcutCustom.value ? shortcutOverrides.value : const {},
+      );
 
   /// 某个动作此刻的绑定（含「不设置」＝null）。
   ShortcutBinding? bindingFor(PlayerShortcut action) => effectiveShortcuts[action];
