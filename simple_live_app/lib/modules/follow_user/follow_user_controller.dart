@@ -6,7 +6,6 @@ import 'package:easy_refresh/easy_refresh.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
-import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/app_scroll_behavior.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
@@ -20,6 +19,7 @@ import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.d
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_selection.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
+import 'package:simple_live_app/modules/follow_user/widgets/follow_card_preview_dialog.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_quick_group_sheet.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_sidebar.dart';
 import 'package:simple_live_app/services/follow_service.dart';
@@ -663,32 +663,12 @@ class FollowUserController extends BasePageController<FollowUser> {
     await FollowService.instance.updateFollowUserTag(followUserTag);
   }
 
-  // 弹出底部菜单栏
+  // 右键 / 长按后弹出的预览卡片：展示当前封面与标题，操作收在右下角。
   void showBottomMenu(FollowUser item) {
-    Get.bottomSheet(
-      SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Remix.price_tag_3_line),
-              title: const Text('设置分组'),
-              onTap: () {
-                Get.back();
-                setFollowTagDialog(item);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Remix.information_line),
-              title: const Text('查看详情'),
-              onTap: () {
-                Get.back();
-                AppNavigator.toFollowInfo(item);
-              },
-            ),
-          ],
-        ),
-      ),
-      backgroundColor: Get.theme.cardColor,
+    showFollowCardPreviewDialog(
+      item: item,
+      onSetGroup: () => setFollowTagDialog(item),
+      onViewDetail: () => AppNavigator.toFollowInfo(item),
     );
   }
 
