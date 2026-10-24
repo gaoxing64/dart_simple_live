@@ -656,8 +656,10 @@ class LiveRoomController extends PlayerController
         return;
       }
 
-      //  messages.length>n 预加载部分弹幕后启用去重功能
-      if (AppSettingsController.instance.danmakuMaskEnable.value && messages.length > 50) {
+      // 弹幕去重（Rust DanmakuMask，每 500ms 批量判定）：开启即全量生效。
+      // 早期的"前 50 条跳过去重"热身门槛是 Dart 逐条同步实现防开屏卡 UI 的遗留，
+      // Rust FFI 批量判定无此顾虑，且进房历史弹幕回放恰是最需要去重的场景。
+      if (AppSettingsController.instance.danmakuMaskEnable.value) {
         danmakuBuffer.add(msg);
       } else {
         if (messages.length > _kMaxChatMessageCount && !disableAutoScroll.value) {
