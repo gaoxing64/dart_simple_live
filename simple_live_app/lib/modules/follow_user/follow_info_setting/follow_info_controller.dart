@@ -14,6 +14,10 @@ import 'package:simple_live_core/simple_live_core.dart';
 
 class FollowInfoController extends BasePageController<FollowUser> {
   final Rxn<FollowUser> followUser = Rxn<FollowUser>();
+  final Rxn<History> watchHistory = Rxn<History>();
+  final RxList<int> watchYears = <int>[].obs;
+  late final RxInt selectedWatchYear = DateTime.now().year.obs;
+  final RxBool isFollowed = false.obs;
 
   // 所属分组候选：用户自定义分组（多选 chips）
   final RxList<FollowUserTag> tagOptions = <FollowUserTag>[].obs;
@@ -37,9 +41,40 @@ class FollowInfoController extends BasePageController<FollowUser> {
     } else if (args is Map && args['follow'] is FollowUser) {
       followUser.value = args['follow'] as FollowUser;
     }
+    final current = followUser.value;
+    isFollowed.value = current != null && FollowService.instance.getFollowExist(current.id);
 
     _initTagOptions();
     _initMigrationSites();
+    loadWatchHistory();
+  }
+
+  void loadWatchHistory() {
+    final current = followUser.value;
+    if (current == null) {
+      watchHistory.value = null;
+      watchYears.assignAll([DateTime.now().year]);
+      return;
+    }
+    final history = HistoryService.instance.getHistory(current.id);
+    watchHistory.value = history;
+    final years = <int>{DateTime.now().year};
+    for (final key in history?.dailyWatchSeconds.keys ?? const <String>[]) {
+      if (key.length < 4) continue;
+      final year = int.tryParse(key.substring(0, 4));
+      if (year != null) years.add(year);
+    }
+    final sorted = years.toList()..sort((a, b) => b.compareTo(a));
+    watchYears.assignAll(sorted);
+    if (!sorted.contains(selectedWatchYear.value)) {
+      selectedWatchYear.value = sorted.first;
+    }
+  }
+
+  @override
+  void onClose() {
+    migrationUrlController.dispose();
+    super.onClose();
   }
 
   void _initTagOptions() {
@@ -151,11 +186,16 @@ class FollowInfoController extends BasePageController<FollowUser> {
 
   @override
   Future<void> refreshData() async {
+    final current = followUser.value;
+    final site = Sites.allSites[current?.siteId];
+    if (current == null || site == null) return;
     pageLoadding.value = true;
-    var site = Sites.allSites[followUser.value?.siteId]!;
-    await _migrateTo(site, followUser.value!.roomId);
-    pageLoadding.value = false;
-    SmartDialog.showToast('已刷新用户信息');
+    try {
+      await _migrateTo(site, current.roomId);
+      SmartDialog.showToast('已刷新用户信息');
+    } finally {
+      pageLoadding.value = false;
+    }
   }
 
   Future<void> _migrateTo(Site targetSite, String targetRoomId) async {
@@ -173,6 +213,8 @@ class FollowInfoController extends BasePageController<FollowUser> {
         addTime: current.addTime,
         watchDuration: current.watchDuration,
         watchDurationSec: current.watchDurationSec,
+        syncDuration: current.syncDuration,
+        lastWatchTime: current.lastWatchTime,
         remark: current.remark,
         romanName: current.romanName)
       ..liveStatus.value = current.liveStatus.value;
@@ -201,7 +243,10 @@ class FollowInfoController extends BasePageController<FollowUser> {
       userName: detail.userName,
       face: detail.userAvatar,
       watchDuration: newFollow.watchDuration,
-      updateTime: DateTime.now(),
+      syncDuration: oldHistory?.syncDuration ?? 0,
+      dailyWatchSeconds: Map<String, int>.from(oldHistory?.dailyWatchSeconds ?? const {}),
+      dailySyncSeconds: Map<String, int>.from(oldHistory?.dailySyncSeconds ?? const {}),
+      updateTime: oldHistory?.updateTime ?? DateTime.now(),
     );
     await HistoryService.instance.addOrUpdateHistory(newHistory);
 
@@ -209,5 +254,6 @@ class FollowInfoController extends BasePageController<FollowUser> {
     await FollowService.instance.loadData(updateStatus: false);
     followUser.value = newFollow;
     _initMigrationSites();
+    loadWatchHistory();
   }
 }
