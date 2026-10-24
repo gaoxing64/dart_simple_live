@@ -824,59 +824,63 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           ),
         ],
         views: [
-          Obx(
-            () => _ChatScrollOnMount(
-              room: room,
-              child: Stack(
-                children: [
-                  ListView.separated(
-                    controller: room.scrollController,
-                    separatorBuilder: (_, i) => Obx(
-                      () => SizedBox(
-                        // *2与原来的EdgeInsets.symmetric(vertical: )做兼容
-                        height: AppSettingsController.instance.chatTextGap.value * 2,
+          KeepAliveWrapper(
+            // 聊天项包含 SelectableText 与表情，切页销毁后会在返回时集中重建，
+            // 造成可见的卡顿；保留列表和滚动状态，避免每次切回都从零挂载。
+            child: Obx(
+              () => _ChatScrollOnMount(
+                room: room,
+                child: Stack(
+                  children: [
+                    ListView.separated(
+                      controller: room.scrollController,
+                      separatorBuilder: (_, i) => Obx(
+                        () => SizedBox(
+                          // *2与原来的EdgeInsets.symmetric(vertical: )做兼容
+                          height: AppSettingsController.instance.chatTextGap.value * 2,
+                        ),
+                      ),
+                      padding: AppStyle.edgeInsetsA12,
+                      itemCount: room.messages.length,
+                      // 到上限后头部会裁掉旧消息、所有下标整体前移。没有这个回调，
+                      // 每个可见项都会因 key 对不上被销毁重建（入场动画状态、文字
+                      // 选区都会丢）；返回消息的新下标后列表项才能跟着消息移动。
+                      findItemIndexCallback: (key) {
+                        if (key is! ValueKey<LiveMessage>) {
+                          return null;
+                        }
+                        final index = room.messages.indexOf(key.value);
+                        return index == -1 ? null : index;
+                      },
+                      itemBuilder: (context, i) {
+                        var item = room.messages[i];
+                        return _ChatMessageEntrance(
+                          // 到达上限后每来一条都会移除头部一条；按对象身份建 key，
+                          // 列表项才会跟着消息走，而不是原地换内容。
+                          key: ValueKey(item),
+                          room: room,
+                          message: item,
+                          child: buildMessageItem(item, context),
+                        );
+                      },
+                    ),
+                    Visibility(
+                      visible: room.disableAutoScroll.value,
+                      child: Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            room.disableAutoScroll.value = false;
+                            room.chatScrollToBottom(animate: false);
+                          },
+                          icon: const Icon(Icons.expand_more),
+                          label: const Text("最新"),
+                        ),
                       ),
                     ),
-                    padding: AppStyle.edgeInsetsA12,
-                    itemCount: room.messages.length,
-                    // 到上限后头部会裁掉旧消息、所有下标整体前移。没有这个回调，
-                    // 每个可见项都会因 key 对不上被销毁重建（入场动画状态、文字
-                    // 选区都会丢）；返回消息的新下标后列表项才能跟着消息移动。
-                    findItemIndexCallback: (key) {
-                      if (key is! ValueKey<LiveMessage>) {
-                        return null;
-                      }
-                      final index = room.messages.indexOf(key.value);
-                      return index == -1 ? null : index;
-                    },
-                    itemBuilder: (context, i) {
-                      var item = room.messages[i];
-                      return _ChatMessageEntrance(
-                        // 到达上限后每来一条都会移除头部一条；按对象身份建 key，
-                        // 列表项才会跟着消息走，而不是原地换内容。
-                        key: ValueKey(item),
-                        room: room,
-                        message: item,
-                        child: buildMessageItem(item, context),
-                      );
-                    },
-                  ),
-                  Visibility(
-                    visible: room.disableAutoScroll.value,
-                    child: Positioned(
-                      right: 12,
-                      bottom: 12,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          room.disableAutoScroll.value = false;
-                          room.chatScrollToBottom(animate: false);
-                        },
-                        icon: const Icon(Icons.expand_more),
-                        label: const Text("最新"),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
