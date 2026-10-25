@@ -579,8 +579,8 @@ class FollowUserPage extends GetView<FollowUserController> {
             final selected = controller.selectedIds.contains(u.id);
             return FollowMemberRow(
               item: u,
-              // 标签只在选中项上展示：普通浏览时避免遮挡内容。
-              groupNames: selected ? groups : const [],
+              // 进入选择态后全页展示标签，便于批量判断与多选。
+              groupNames: controller.selectedIds.isNotEmpty ? groups : const [],
               draggable: false,
               selected: selected,
               onToggleSelect: () => controller.toggleSelected(u.id),
@@ -630,7 +630,7 @@ class FollowUserPage extends GetView<FollowUserController> {
             final selected = controller.selectedIds.contains(u.id);
             return FollowMemberRow(
               item: u,
-              groupNames: selected ? groups : const [],
+              groupNames: controller.selectedIds.isNotEmpty ? groups : const [],
               selected: selected,
               onToggleSelect: () => controller.toggleSelected(u.id),
               onRemove: hide ? null : () => controller.removeFollow(u),
@@ -724,7 +724,7 @@ class FollowUserPage extends GetView<FollowUserController> {
             final selected = controller.selectedIds.contains(u.id);
             return FollowMemberRow(
               item: u,
-              groupNames: selected ? groups : const [],
+              groupNames: controller.selectedIds.isNotEmpty ? groups : const [],
               // 平铺态没有分组卡片可拖，头像不起拖（换组走顶栏「移入分组」）。
               draggable: false,
               selected: selected,
@@ -778,8 +778,8 @@ class FollowUserPage extends GetView<FollowUserController> {
             online: item.online.value,
           ),
           avatar: isLive ? '' : item.face,
-          // 标签只在选中项上出现，避免常驻遮挡封面。
-          groupNames: selected ? groupNames : const [],
+          // 选择态下所有卡片都展示标签，未选中项也必须可比较。
+          groupNames: controller.selectedIds.isNotEmpty ? groupNames : const [],
           onLongPress: () => controller.showBottomMenu(item),
           selected: selected,
           onToggleSelect: () => controller.toggleSelected(item.id),

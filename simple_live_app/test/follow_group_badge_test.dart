@@ -127,7 +127,7 @@ void main() {
           ],
         );
 
-    testWidgets('紧凑行：仅选中项显示分组；首个分组 +N；长按仍透传', (tester) async {
+    testWidgets('紧凑行：进入选择态后全部展示分组；首个分组 +N；长按仍透传', (tester) async {
       final indexed = await pumpIndexed(tester, followService: seed());
       await gotoFollowPage(tester, indexed);
       await settle(tester);
@@ -136,8 +136,8 @@ void main() {
       expect(find.byType(GroupBadge), findsNothing);
 
       final c = Get.find<FollowUserController>();
+      // 只选中甲：乙本身未被选中，但已进入选择态，也要显示自己的分组。
       c.toggleSelected('huya_甲');
-      c.toggleSelected('huya_乙');
       await settle(tester);
 
       final jiaBadge = find.descendant(of: rowOf('甲'), matching: find.byType(GroupBadge));
@@ -174,7 +174,7 @@ void main() {
       await settleEnd(tester);
     });
 
-    testWidgets('卡片模式：仅选中卡片显示封面左上角胶囊', (tester) async {
+    testWidgets('卡片模式：进入选择态后全部展示封面左上角胶囊', (tester) async {
       final indexed = await pumpIndexed(tester, followService: seed());
       Get.find<AppSettingsController>().setFollowStyleNotGrid(false);
       await _withCardOverflowTolerated(() async {
@@ -197,7 +197,8 @@ void main() {
       final yiIndex = cards.indexWhere((c) => c.item.userName == '乙');
       final dingIndex = cards.indexWhere((c) => c.item.userName == '丁');
       expect(cards[jiaIndex].groupNames, ['CS解说', 'LOL解说']);
-      expect(cards[yiIndex].groupNames, isEmpty);
+      // 乙未被选中，但选择态下也要显示自己的分组，供批量比较。
+      expect(cards[yiIndex].groupNames, ['CS解说']);
       expect(cards[dingIndex].groupNames, isEmpty);
 
       final jiaCard = cardFinder.at(jiaIndex);
@@ -210,6 +211,10 @@ void main() {
       expect(badgeRect.top - cardRect.top, inInclusiveRange(4, 10));
       expect(badgeRect.bottom, lessThan(cardRect.top + 110));
       expect(cardRect.height, closeTo(PageGridView.kDefaultItemExtent, 0.5));
+      expect(
+        find.descendant(of: cardFinder.at(yiIndex), matching: find.byType(GroupBadge)),
+        findsOneWidget,
+      );
       expect(
         find.descendant(of: cardFinder.at(dingIndex), matching: find.byType(GroupBadge)),
         findsNothing,
