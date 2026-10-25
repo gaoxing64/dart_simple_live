@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:simple_live_app/app/utils/watch_history_stats.dart';
 
 const double _cellSize = 12;
@@ -40,15 +40,36 @@ String formatWatchSeconds(int seconds) {
 
 String _fullDate(DateTime date) => '${date.year} 年 ${date.month} 月 ${date.day} 日';
 
-class WatchHeatmap extends StatelessWidget {
+class WatchHeatmap extends StatefulWidget {
   final int year;
   final Map<String, int> dailyWatchSeconds;
+
+  /// 注入用；默认系统今天，用于移动端首帧对齐当前日期。
+  final DateTime? today;
 
   const WatchHeatmap({
     super.key,
     required this.year,
     required this.dailyWatchSeconds,
+    this.today,
   });
+
+  @override
+  State<WatchHeatmap> createState() => _WatchHeatmapState();
+}
+
+class _WatchHeatmapState extends State<WatchHeatmap> {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _todayCellKey = GlobalKey();
+
+  /// 已做过“对齐当前日期”的年份。避免父级 Obx 重建时把用户手动滚动拉回去。
+  int? _alignedYear;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Color _levelColor(ColorScheme scheme, int level) {
     if (level == 0) {
@@ -60,15 +81,44 @@ class WatchHeatmap extends StatelessWidget {
     return scheme.primary.withValues(alpha: alphas[level]);
   }
 
+  /// 当前日期所在周列的横向居中偏移；非当前年份回到最前面。
+  void _alignToTodayOnce(DateTime today) {
+    if (_alignedYear == widget.year) {
+      return;
+    }
+    _alignedYear = widget.year;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final todayContext = _todayCellKey.currentContext;
+      if (todayContext != null) {
+        // alignment 0.5 = 让当天格尽量居中；贴边年份由框架自动夹到边界。
+        Scrollable.ensureVisible(
+          todayContext,
+          alignment: 0.5,
+          duration: Duration.zero,
+        );
+        return;
+      }
+      // 非当前年份没有当天格：切换年份后回到 1 月。
+      if (_scrollController.hasClients && _scrollController.offset != 0) {
+        _scrollController.jumpTo(0);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final weeks = buildWatchHeatmapWeeks(year);
-    final firstDay = DateTime(year);
+    final weeks = buildWatchHeatmapWeeks(widget.year);
+    final firstDay = DateTime(widget.year);
     final gridStart = firstDay.subtract(Duration(days: firstDay.weekday % 7));
     final gridWidth = weeks.length * _cellStride;
     // 7 行格子：6 行完整 stride + 最后一行只占格子本身。
     final gridHeight = _cellStride * 6 + _cellSize;
+    final today = widget.today ?? DateTime.now();
+    final normalizedToday = DateTime(today.year, today.month, today.day);
     final labelStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
           color: scheme.onSurfaceVariant,
           fontSize: 11,
@@ -81,7 +131,7 @@ class WatchHeatmap extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _MonthLabels(
-            year: year,
+            year: widget.year,
             gridStart: gridStart,
             width: gridWidth,
             labelStyle: labelStyle,
@@ -102,17 +152,18 @@ class WatchHeatmap extends StatelessWidget {
                         Padding(
                           padding: EdgeInsets.only(bottom: weekday == 6 ? 0 : _cellGap),
                           child: _DayCell(
+                            key: week[weekday] == normalizedToday ? _todayCellKey : null,
                             date: week[weekday],
                             seconds: week[weekday] == null
                                 ? 0
-                                : dailyWatchSeconds[watchDateKey(week[weekday]!)] ?? 0,
+                                : widget.dailyWatchSeconds[watchDateKey(week[weekday]!)] ?? 0,
                             emptyColor: _levelColor(scheme, 0),
                             color: _levelColor(
                               scheme,
                               watchHeatmapLevel(
                                 week[weekday] == null
                                     ? 0
-                                    : dailyWatchSeconds[watchDateKey(week[weekday]!)] ?? 0,
+                                    : widget.dailyWatchSeconds[watchDateKey(week[weekday]!)] ?? 0,
                               ),
                             ),
                           ),
@@ -144,27 +195,32 @@ class WatchHeatmap extends StatelessWidget {
                   ],
                 ),
               )
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: _dayLabelWidth,
-                    // 顶部 20dp 是月份标签行，保证“一/三/五”始终对齐格子行。
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        weekdayLabels,
-                      ],
+            : () {
+                // 首帧（以及切换年份后）对齐当前日期；用户随后手动滚动不被覆盖。
+                _alignToTodayOnce(today);
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: _dayLabelWidth,
+                      // 顶部 20dp 是月份标签行，保证“一/三/五”始终对齐格子行。
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+                          weekdayLabels,
+                        ],
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: grid,
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        controller: _scrollController,
+                        child: grid,
+                      ),
                     ),
-                  ),
-                ],
-              );
+                  ],
+                );
+              }();
 
         final legendWidth = canFit ? requiredWidth : constraints.maxWidth;
         return Column(
@@ -271,6 +327,7 @@ class _DayCell extends StatelessWidget {
   final Color color;
 
   const _DayCell({
+    super.key,
     required this.date,
     required this.seconds,
     required this.emptyColor,
