@@ -4,8 +4,10 @@
 //! `slive-core` 零 FRB 依赖带来的可移植性：CLI / Tauri 可各自装配连接。
 //!
 //! 两种帧源：
-//! - [`connect_binary`]：二进制帧（B站/斗鱼/虎牙/抖音），Text 帧忽略；
+//! - [`connect_binary`]：二进制帧（B站/虎牙/抖音），Text 帧忽略；
 //! - [`connect_text`]：IRC 文本帧（Twitch），Binary 帧也照收。
+//!
+//! 斗鱼弹幕不走 WS：见 `slive_core::ws::tcp`（ADR-015）。
 
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};

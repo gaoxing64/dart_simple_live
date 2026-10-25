@@ -12,7 +12,6 @@
 
 use std::sync::Arc;
 
-use crate::error::SliveError;
 use crate::models::{LiveDanmuControlEvent, LiveDanmuItem};
 use crate::time::TimeSource;
 use crate::ws::{ConnectFactory, FrameSource, SessionTuning};
@@ -159,13 +158,11 @@ async fn reconnect_or_close(
     }
 }
 
-/// 便捷别名：斗鱼会话所需的错误类型（供桥层 `FrameSource` 实现复用）。
-pub type DouyuWsError = SliveError;
-
 #[cfg(test)]
 mod tests {
     use super::super::protocol::deserialize;
     use super::*;
+    use crate::error::SliveError;
     use crate::models::LiveMessageType;
     use crate::testing::{FakeTime, ScriptedFrameSource};
     use std::collections::VecDeque;

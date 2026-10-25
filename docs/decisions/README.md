@@ -18,6 +18,9 @@
 | ADR-010 | 图标统一 Remix Icon，禁止 emoji 作功能图标 | Accepted |
 | ADR-011 | 离线夹具采用「录制 + 合成 + MockTransport 注入 + held-out 留出集」 | Accepted |
 | ADR-012 | D4 对齐口径 = 命名风格对齐上游、能力语义以 Dart core 为准；data 通道落 JSON String | Accepted |
+| ADR-013 | 弹幕 WSS 的 TLS 后端按平台分层（桌面 native-tls / 移动 rustls） | Superseded by ADR-015 |
+| ADR-014 | 全面采用 Rust core —— 开关移除 / 绑定层下沉 / TV 迁移 | Accepted（Implemented） |
+| ADR-015 | 斗鱼弹幕统一走明文 TCP（`danmuproxy.douyu.com:8601`） | Accepted |
 
 > 总监裁决映射：裁决 1（账号全进纯 HTTP）→ ADR-012；裁决 2（LiveMessage 保留 color/emoticons/data）→ ADR-007/012；裁决 3（保留 pageSize）→ ADR-012；裁决 4（命名风格对齐上游）→ ADR-012；裁决 5（错误口径）→ ADR-006/012；**R-13（绑定层边界刚性）→ ADR-008**。RISK-02（含 JSON 通道固化 + 单测 + Dart 解析失败行为）→ ADR-012；RISK-07 → ADR-011；RISK-10 → ADR-009。
 

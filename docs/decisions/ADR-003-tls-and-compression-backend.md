@@ -12,7 +12,7 @@ Accepted (2026-10-16)
 1. `reqwest` 显式 `default-features = false`，启用 `["rustls-tls","json","stream","cookies","brotli","gzip"]`。
    > 版本说明（spike 后补充）：实际采用 **reqwest 0.12**（DTV 的 0.11 偏旧；0.12 的 rustls 支持稳定且本机缓存为 0.12）。本 ADR 的「rustls/纯 Rust 后端」结论不随版本变化。
 2. ~~WSS 用 `tokio-tungstenite` 的 `rustls-tls-webpki-roots`；不使用 `native-tls`。~~
-   > **⚠️ SUPERSEDED（2026-10-17，见 ADR-013）**：斗鱼弹幕服务器对 rustls ClientHello 做 TLS 指纹风控
+   > **⚠️ SUPERSEDED（2026-10-17，见 ADR-013；2026-10-25 斗鱼改明文 TCP，见 ADR-015）**：斗鱼弹幕服务器对 rustls ClientHello 做 TLS 指纹风控
    > （真机实证：rustls 握手被拒 / 系统 TLS 101 通过）。WSS 的 TLS 后端已改为**按平台分层** ——
    > 桌面 native-tls、移动 rustls（保本 ADR「移动端零 OpenSSL」动机）。本条仅 WSS 部分被取代，
    > reqwest（HTTP）仍为 rustls，不变。

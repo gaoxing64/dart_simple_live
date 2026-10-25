@@ -1,7 +1,7 @@
 //! 斗鱼弹幕（IP-3）：STT 文本协议 + 12 字节小端包头。
 //!
 //! 分层（对齐 B站 `platforms/bilibili/danmaku/`）：
-//! - [`args`]：连接参数（斗鱼只需房间号）+ WS 地址/握手头；
+//! - [`args`]：连接参数（斗鱼只需房间号）+ 明文 TCP 地址（ADR-015）；
 //! - [`protocol`]：封包/解包/STT 解析（纯函数，golden 断言落点）；
 //! - [`parse`]：STT -> [`crate::models::LiveMessage`]；
 //! - [`session`]：会话主循环（连接 -> 登录 -> 进组 -> 帧循环 -> 心跳 -> 重连）。

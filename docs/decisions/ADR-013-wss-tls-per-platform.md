@@ -1,7 +1,7 @@
 # ADR-013: 弹幕 WSS 的 TLS 后端按平台分层（桌面 native-tls / 移动 rustls）
 
 ## Status
-Accepted (2026-10-17)，**Supersedes ADR-003 Decision #2（仅 WSS 部分）**；ADR-003 其余决策（reqwest rustls、压缩、证书库口径）不变。
+Superseded by [ADR-015](ADR-015-douyu-danmaku-plain-tcp.md)（2026-10-25）。原记录：Accepted (2026-10-17)，**Supersedes ADR-003 Decision #2（仅 WSS 部分）**；ADR-003 其余决策（reqwest rustls、压缩、证书库口径）不变。
 
 ## Background
 

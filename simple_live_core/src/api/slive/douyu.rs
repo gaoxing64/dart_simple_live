@@ -16,7 +16,6 @@ use slive_core::ws::ConnectFactory;
 use std::sync::Arc;
 use tokio::sync::watch;
 
-use crate::api::slive::danmaku::connect_ws_frame_source;
 use crate::api::slive::error::CoreError;
 use crate::api::slive::models::LiveDanmuItem;
 use crate::api::slive::models::{
@@ -53,13 +52,7 @@ impl DouyuDanmakuConnection {
         let args = DouyuDanmakuArgs::new(&room_id).map_err(CoreError::from)?;
         let stop_rx = self.stop_tx.subscribe();
 
-        let ws_url = args.ws_url();
-        let ws_headers = args.connect_headers();
-        let connect: ConnectFactory = Box::new(move || {
-            let url = ws_url.clone();
-            let headers = ws_headers.clone();
-            Box::pin(async move { connect_ws_frame_source(url, headers).await })
-        });
+        let connect: ConnectFactory = slive_core::ws::tcp::factory(args.connect_url());
 
         // ⚠️ FRB 的 FFI 调用线程没有 tokio runtime —— 在这里 `tokio::spawn` 会 panic
         // （"there is no reactor running"，B站真机日志抓到）。必须独立线程 + 自建 runtime。

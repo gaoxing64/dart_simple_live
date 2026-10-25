@@ -67,7 +67,7 @@ simple_live_core/
 | --- | --- | --- |
 | Rust 核心 + FRB | 一套协议多前端；性能与并发 | 双份模型、FRB 版本锁 |
 | 手写 TARS/TUP | `tars-stream` 依赖 nightly specialization | 协议变更需人工跟踪 |
-| HTTP 全 rustls | 移动端零 OpenSSL/NDK C 依赖 | 斗鱼 WSS 需桌面 native-tls（ADR-013） |
+| HTTP 全 rustls | 移动端零 OpenSSL/NDK C 依赖 | 斗鱼弹幕改走明文 TCP（ADR-015） |
 | `TimeSource` 注入 | 重连/心跳测试不 flaky | 每个 Site 需 `with_deps` |
 | 离线夹具 + held-out | 少联网、可回归 | 夹具需随平台更新 |
 

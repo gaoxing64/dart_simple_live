@@ -44,7 +44,7 @@
 - 斗鱼推荐「本页非空即还有更多」：pgcnt 恒 0。
 - 抖音首屏 `has_more` 恒 true：必须让 App 续接。
 - TARS 手写、不用 `tars-stream`（nightly 依赖）。
-- WSS TLS 分平台（桌面 native-tls / 移动 rustls，ADR-013）。
+- ~~WSS TLS 分平台（桌面 native-tls / 移动 rustls，ADR-013）。~~ → 斗鱼弹幕改走明文 TCP（ADR-015），其余平台保留平台分层。
 - 抖音详情/分页脏数据跳过而不整页失败。
 
 ## 历史锚点

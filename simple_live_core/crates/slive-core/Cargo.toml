@@ -31,7 +31,8 @@ reqwest = { version = "0.12", default-features = false, features = [
 ] }
 
 # 异步运行时（FRB 自带运行库；此处供 core 独立单测使用）
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+# net/io-util：斗鱼弹幕的明文 TCP 帧源（ADR-015）
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util"] }
 futures-util = "0.3"
 
 # 协议辅助
