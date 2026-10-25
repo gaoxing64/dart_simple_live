@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/widgets/follow_card_preview_dialog.dart';
 
@@ -75,6 +76,8 @@ void main() {
       expect(find.text(tag), findsOneWidget);
     }
     expect(find.text('+1'), findsNothing);
+    // 标签胶囊不搭配文件夹图标。
+    expect(find.byIcon(Remix.folder_3_line), findsNothing);
 
     await tester.pumpWidget(
       MaterialApp(

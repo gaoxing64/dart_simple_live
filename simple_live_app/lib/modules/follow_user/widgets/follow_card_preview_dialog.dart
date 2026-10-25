@@ -167,44 +167,28 @@ class FollowCardPreviewDialog extends StatelessWidget {
                       ],
                     ),
                     AppStyle.vGap8,
-                    Row(
+                    Wrap(
                       key: const ValueKey('preview-group-tags'),
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Icon(
-                            Remix.folder_3_line,
-                            size: 16,
-                            color: scheme.onSurfaceVariant,
+                        for (final tag in displayTags)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              tag,
+                              style: TextStyle(
+                                fontSize: 11,
+                                height: 1.2,
+                                fontWeight: FontWeight.w500,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              for (final tag in displayTags)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.65),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    tag,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      height: 1.2,
-                                      fontWeight: FontWeight.w500,
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                     AppStyle.vGap4,
