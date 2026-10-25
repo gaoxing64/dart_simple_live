@@ -661,16 +661,38 @@ class LiveRoomPage extends GetView<LiveRoomController> {
         () => Row(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withAlpha(50)),
-                borderRadius: AppStyle.radius24,
-              ),
-              child: NetImage(
-                room.detail.value?.userAvatar ?? "",
-                width: 48,
-                height: 48,
-                borderRadius: 24,
+            Tooltip(
+              message: "查看主播详情",
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.withAlpha(50)),
+                      borderRadius: AppStyle.radius24,
+                    ),
+                    child: NetImage(
+                      room.detail.value?.userAvatar ?? "",
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                    ),
+                  ),
+                  // 覆盖层负责点击/水波纹：头像是网络图，直接包 InkWell 时
+                  // splash 会被不透明图片盖住。
+                  Positioned.fill(
+                    child: Material(
+                      type: MaterialType.transparency,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        key: const ValueKey("live-room-anchor-avatar"),
+                        customBorder: const CircleBorder(),
+                        onTap: room.showAnchorDetail,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             AppStyle.hGap12,

@@ -27,6 +27,7 @@ import 'package:simple_live_app/modules/live_room/player/player_controller.dart'
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_session.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_volume.dart';
 import 'package:simple_live_app/modules/settings/danmu_settings_page.dart';
+import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_block_service.dart';
@@ -1270,6 +1271,37 @@ class LiveRoomController extends PlayerController
     );
     followed.value = true;
     EventBus.instance.emit(Constant.kUpdateFollow, id);
+  }
+
+  /// 打开当前主播详情页。
+  ///
+  /// 已关注时直接复用列表里的关注对象；未关注时用当前房间详情临时构造一份，
+  /// 详情页会据 [FollowService.getFollowExist] 隐藏分组/备注/迁移等关注专属操作。
+  void showAnchorDetail() {
+    final info = detail.value;
+    if (info == null) return;
+    final id = "${site.id}_$roomId";
+    final follow = DBService.instance.getFollow(id) ??
+        FollowUser(
+          id: id,
+          roomId: roomId,
+          siteId: site.id,
+          userName: info.userName,
+          face: info.userAvatar,
+          addTime: DateTime.now(),
+          watchDurationSec: HistoryService.instance.getHistoryDurationSec(
+            followUserId: id,
+          ),
+          lastWatchTime: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        );
+    follow
+      ..userName = info.userName
+      ..face = info.userAvatar
+      ..liveStatus.value = liveStatus.value ? 2 : 1
+      ..cover.value = info.cover
+      ..title.value = info.title
+      ..online.value = info.online;
+    AppNavigator.toFollowInfo(follow);
   }
 
   /// 取消关注用户
