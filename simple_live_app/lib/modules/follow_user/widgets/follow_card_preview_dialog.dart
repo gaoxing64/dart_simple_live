@@ -15,6 +15,7 @@ Future<void> showFollowCardPreviewDialog({
   required List<String> groupNames,
   required VoidCallback onSetGroup,
   required VoidCallback onViewDetail,
+  required VoidCallback onRemove,
 }) {
   return Get.generalDialog(
     barrierDismissible: true,
@@ -27,6 +28,7 @@ Future<void> showFollowCardPreviewDialog({
         groupNames: groupNames,
         onSetGroup: onSetGroup,
         onViewDetail: onViewDetail,
+        onRemove: onRemove,
       );
     },
     transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -56,6 +58,7 @@ class FollowCardPreviewDialog extends StatelessWidget {
   final List<String> groupNames;
   final VoidCallback onSetGroup;
   final VoidCallback onViewDetail;
+  final VoidCallback onRemove;
 
   const FollowCardPreviewDialog({
     super.key,
@@ -63,6 +66,7 @@ class FollowCardPreviewDialog extends StatelessWidget {
     this.groupNames = const [],
     required this.onSetGroup,
     required this.onViewDetail,
+    required this.onRemove,
   });
 
   @override
@@ -207,6 +211,15 @@ class FollowCardPreviewDialog extends StatelessWidget {
                             onSetGroup();
                           },
                           icon: const Icon(Remix.price_tag_3_line),
+                        ),
+                        IconButton(
+                          tooltip: '取消关注',
+                          style: AppStyle.iconButtonStyle(scheme),
+                          onPressed: () {
+                            Get.back();
+                            onRemove();
+                          },
+                          icon: const Icon(Remix.dislike_line),
                         ),
                         IconButton(
                           tooltip: '查看详情',

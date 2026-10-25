@@ -506,7 +506,7 @@ class FollowUserPage extends GetView<FollowUserController> {
                             crossAxisSpacing: 12,
                             scrollOverride: controller.liveScrollController,
                             refreshOverride: controller.liveRefreshController,
-                            sections: _liveSections(live, count, c, groupNames),
+                            sections: _liveSections(live, count, c, hide, groupNames),
                           ),
                           PageGridView(
                             pageController: controller,
@@ -556,6 +556,7 @@ class FollowUserPage extends GetView<FollowUserController> {
     List<FollowUser> live,
     int count,
     int c,
+    bool hide,
     Map<String, List<String>> groupNames,
   ) {
     final cardMode = AppSettingsController.instance.followStyleNotGrid.value == false;
@@ -584,6 +585,7 @@ class FollowUserPage extends GetView<FollowUserController> {
               draggable: false,
               selected: selected,
               onToggleSelect: () => controller.toggleSelected(u.id),
+              onRemove: hide ? null : () => controller.removeFollow(u),
               onTap: () => _toDetail(u),
               onLongPress: () => controller.showBottomMenu(u),
             );

@@ -165,6 +165,12 @@ void main() {
         findsNothing,
       );
 
+      // 直播中行同样提供快速取关，不能只在未开播行出现。
+      expect(
+        find.descendant(of: rowOf('甲'), matching: find.byTooltip('取消关注')),
+        findsOneWidget,
+      );
+
       // 胶囊在取消关注按钮左侧（乙是未开播行，有行尾按钮）
       final remove = find.descendant(of: rowOf('乙'), matching: find.byTooltip('取消关注'));
       expect(remove, findsOneWidget);

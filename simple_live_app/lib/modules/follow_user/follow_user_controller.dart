@@ -679,6 +679,7 @@ class FollowUserController extends BasePageController<FollowUser> {
       groupNames: groupNamesByFollowId[item.id] ?? const [],
       onSetGroup: () => setFollowTagDialog(item),
       onViewDetail: () => AppNavigator.toFollowInfo(item),
+      onRemove: () => removeFollow(item),
     );
   }
 

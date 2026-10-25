@@ -26,6 +26,7 @@ void main() {
               item: item,
               onSetGroup: () {},
               onViewDetail: () {},
+              onRemove: () {},
             ),
           ),
         ),
@@ -66,6 +67,7 @@ void main() {
               groupNames: const ['CS解说', 'LOL解说', '单机', '手游'],
               onSetGroup: () {},
               onViewDetail: () {},
+              onRemove: () {},
             ),
           ),
         ),
@@ -91,6 +93,7 @@ void main() {
               item: item,
               onSetGroup: () {},
               onViewDetail: () {},
+              onRemove: () {},
             ),
           ),
         ),
@@ -120,6 +123,7 @@ void main() {
                 item: item,
                 onSetGroup: () {},
                 onViewDetail: () {},
+                onRemove: () {},
               ),
             ),
           ),
@@ -159,6 +163,7 @@ void main() {
                   groupNames: const [],
                   onSetGroup: () {},
                   onViewDetail: () {},
+                  onRemove: () {},
                 ),
                 child: const Text('打开预览'),
               ),
@@ -209,6 +214,7 @@ void main() {
               item: item,
               onSetGroup: () => groupTaps++,
               onViewDetail: () => detailTaps++,
+              onRemove: () {},
             ),
           ),
         ),
@@ -218,6 +224,53 @@ void main() {
     await tester.tap(find.byTooltip('设置分组'));
     await tester.pump();
     expect(groupTaps, 1);
+    expect(detailTaps, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('取消关注排在设置分组与查看详情中间，只触发取关', (tester) async {
+    var groupTaps = 0;
+    var detailTaps = 0;
+    var removeTaps = 0;
+    final item = FollowUser(
+      id: 'huya_123',
+      roomId: '123',
+      siteId: 'huya',
+      userName: '主播名',
+      face: '',
+      addTime: DateTime(2026),
+    )..title.value = '直播标题';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: FollowCardPreviewDialog(
+              item: item,
+              onSetGroup: () => groupTaps++,
+              onViewDetail: () => detailTaps++,
+              onRemove: () => removeTaps++,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byTooltip('取消关注'), findsOneWidget);
+    // 排列：设置分组 → 取消关注 → 查看详情。
+    expect(
+      tester.getCenter(find.byTooltip('设置分组')).dx,
+      lessThan(tester.getCenter(find.byTooltip('取消关注')).dx),
+    );
+    expect(
+      tester.getCenter(find.byTooltip('取消关注')).dx,
+      lessThan(tester.getCenter(find.byTooltip('查看详情')).dx),
+    );
+
+    await tester.tap(find.byTooltip('取消关注'));
+    await tester.pump();
+    expect(removeTaps, 1);
+    expect(groupTaps, 0);
     expect(detailTaps, 0);
     expect(tester.takeException(), isNull);
   });
