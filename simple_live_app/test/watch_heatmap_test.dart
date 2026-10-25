@@ -72,5 +72,36 @@ void main() {
       ),
     );
     expect(tooltip.message, '2026 年 10 月 24 日\n观看 1 小时 1 分钟');
+
+    // 移动端只滚动格子区：横向滚动后，周标签必须留在原位。
+    final weekdayLabelBefore = tester.getRect(find.text('一')).left;
+    final monthLabelBefore = tester.getRect(find.text('1 月')).left;
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.text('一')).left, closeTo(weekdayLabelBefore, 0.5));
+    expect(tester.getRect(find.text('1 月')).left, lessThan(monthLabelBefore));
+  });
+
+  testWidgets('宽屏整年直接放下，不需要横向滚动', (tester) async {
+    tester.view.physicalSize = const Size(1800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 900,
+              child: WatchHeatmap(year: 2026, dailyWatchSeconds: const {}),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(find.text('12 月'), findsOneWidget);
   });
 }
