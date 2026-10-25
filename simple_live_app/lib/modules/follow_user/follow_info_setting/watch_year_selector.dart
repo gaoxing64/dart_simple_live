@@ -28,7 +28,9 @@ class WatchYearSelector extends StatelessWidget {
       child: PopupMenuButton<int>(
         key: const ValueKey('watch-year-menu'),
         tooltip: '选择年份',
-        initialValue: value,
+        // 不传 initialValue：material_ui 会把代表初始值的菜单项包一层
+        // 满宽 `Theme.highlightColor`，和 AppPopupMenuItem 的圆角 hover
+        // 叠成“外层直角 + 内层圆角”。当前年份已经由触发器文案表达。
         position: PopupMenuPosition.under,
         offset: const Offset(0, 4),
         borderRadius: _kTriggerRadius,
