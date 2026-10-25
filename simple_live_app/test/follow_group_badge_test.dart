@@ -69,6 +69,11 @@ void main() {
       await _pumpBadge(tester, const GroupBadge(names: ['CS解说']));
       expect(find.text('CS解说'), findsOneWidget);
       expect(find.textContaining('+'), findsNothing);
+      // 胶囊内不再搭配文件夹等图标。
+      expect(
+        find.descendant(of: find.byType(GroupBadge), matching: find.byType(Icon)),
+        findsNothing,
+      );
     });
 
     testWidgets('多组显示第一个 + 剩余数量', (tester) async {

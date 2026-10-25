@@ -1,5 +1,4 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 
 /// 关注分组的小胶囊：只展示，不参与任何手势。
@@ -20,7 +19,6 @@ class GroupBadge extends StatelessWidget {
   });
 
   static const double _kFontSize = 11;
-  static const double _kIconSize = 12;
   static const double _kRadius = 6;
   static const EdgeInsets _kPadding = EdgeInsets.symmetric(horizontal: 8, vertical: 3);
   static const TextStyle _kTextStyle = TextStyle(
@@ -47,7 +45,7 @@ class GroupBadge extends StatelessWidget {
         label: "分组 ${visible.join('、')}",
         child: ExcludeSemantics(
           // 生产环境全局钉了 textScaler=1.0；这里只防单测/外部宿主传入
-          // 极端字号时固定尺寸的图标与 +N 撑破胶囊。
+          // 极端字号时 +N 撑破胶囊。
           child: MediaQuery.withClampedTextScaling(
             maxScaleFactor: 2,
             child: DecoratedBox(
@@ -60,12 +58,6 @@ class GroupBadge extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Remix.folder_3_line,
-                      size: _kIconSize,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    AppStyle.hGap4,
                     // +N 放在 Flexible 外面：组名被省略时数量仍然可见。
                     Flexible(
                       child: Text(

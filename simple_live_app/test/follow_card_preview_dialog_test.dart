@@ -78,6 +78,10 @@ void main() {
     expect(find.text('+1'), findsNothing);
     // 标签胶囊不搭配文件夹图标。
     expect(find.byIcon(Remix.folder_3_line), findsNothing);
+    // 标签与平台 / 直播状态同一行，不再单独占一行。
+    final statusCenter = tester.getCenter(find.text('未开播'));
+    final tagCenter = tester.getCenter(find.text('CS解说'));
+    expect((tagCenter.dy - statusCenter.dy).abs(), lessThan(6));
 
     await tester.pumpWidget(
       MaterialApp(

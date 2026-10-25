@@ -138,6 +138,7 @@ class FollowCardPreviewDialog extends StatelessWidget {
                     ),
                     AppStyle.vGap4,
                     Wrap(
+                      key: const ValueKey('preview-meta-row'),
                       spacing: 8,
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -164,14 +165,7 @@ class FollowCardPreviewDialog extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    AppStyle.vGap8,
-                    Wrap(
-                      key: const ValueKey('preview-group-tags'),
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
+                        // 标签跟随平台 / 直播状态排布，空间足够时同一行，不单独占一行。
                         for (final tag in displayTags)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
