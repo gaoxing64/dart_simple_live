@@ -190,7 +190,7 @@ class FollowCardPreviewDialog extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            item.userName,
+                            item.displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(

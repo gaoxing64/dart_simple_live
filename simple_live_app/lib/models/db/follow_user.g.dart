@@ -25,6 +25,7 @@ class FollowUserAdapter extends TypeAdapter<FollowUser> {
       addTime: fields[5] as DateTime,
       watchDuration: fields[6] == null ? "00:00:00" : fields[6] as String?,
       remark: fields[8] == null ? "" : fields[8] as String?,
+      showRemarkAsName: fields[15] == null ? true : fields[15] as bool,
       romanName: fields[9] == null ? "" : fields[9] as String?,
       syncDuration: fields[10] == null ? 0 : (fields[10] as num).toInt(),
       watchDurationSec: fields[11] == null ? 0 : (fields[11] as num).toInt(),
@@ -37,7 +38,7 @@ class FollowUserAdapter extends TypeAdapter<FollowUser> {
   @override
   void write(BinaryWriter writer, FollowUser obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -54,6 +55,8 @@ class FollowUserAdapter extends TypeAdapter<FollowUser> {
       ..write(obj.watchDuration)
       ..writeByte(8)
       ..write(obj.remark)
+      ..writeByte(15)
+      ..write(obj.showRemarkAsName)
       ..writeByte(9)
       ..write(obj.romanName)
       ..writeByte(10)

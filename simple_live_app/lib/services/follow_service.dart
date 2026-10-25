@@ -815,6 +815,7 @@ class FollowService extends GetxService {
             "watchDurationSec": item.watchDurationSec,
             "addTime": item.addTime.toString(),
             "remark": item.remark,
+            "showRemarkAsName": item.showRemarkAsName,
             "romanName": item.romanName,
             // tag 是「主分组」展示缓存，保留给旧版本读取（旧版本只认这个字段）；
             // tags 是归属真源（多分组），新版本读取以它为准。

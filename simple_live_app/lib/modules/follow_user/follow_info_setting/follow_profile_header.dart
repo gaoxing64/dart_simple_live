@@ -176,7 +176,7 @@ class FollowProfileHeader extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                     child: Text(
-                      follow.userName,
+                      follow.displayName,
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -186,7 +186,9 @@ class FollowProfileHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              if (remark.isNotEmpty) ...[
+              // 「显示为昵称」开启时标题已是备注，再重复一行反而冗余；
+              // 只有关闭开关、显示主播原名时才把备注单独列出。
+              if (remark.isNotEmpty && !follow.showRemarkAsName) ...[
                 AppStyle.vGap4,
                 Text(
                   '备注：$remark',

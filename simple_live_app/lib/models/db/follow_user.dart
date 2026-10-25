@@ -16,6 +16,7 @@ class FollowUser implements Mappable {
     required this.addTime,
     this.watchDuration = "00:00:00",
     this.remark = "",
+    this.showRemarkAsName = true,
     this.romanName = "",
     this.syncDuration = 0,
     this.watchDurationSec = 0,
@@ -54,6 +55,19 @@ class FollowUser implements Mappable {
 
   @HiveField(8)
   String? remark;
+
+  /// 是否把 [remark] 作为昵称替换 [userName] 显示。
+  ///
+  /// 默认 true：老版本没有这个字段，而旧逻辑只要备注非空就自动用备注当名字；
+  /// 新字段默认开启，老用户升级后显示行为不变，只有主动关掉才回到主播原名。
+  @HiveField(15, defaultValue: true)
+  bool showRemarkAsName;
+
+  /// 实际展示名：开关开启且备注非空时用备注，否则回退主播原名。
+  String get displayName {
+    final nickname = remark?.trim() ?? '';
+    return showRemarkAsName && nickname.isNotEmpty ? nickname : userName;
+  }
 
   @HiveField(9)
   String? romanName;
@@ -100,6 +114,7 @@ class FollowUser implements Mappable {
         addTime: DateTime.parse(json['addTime']),
         watchDuration: json["watchDuration"] ?? "00:00:00",
         remark: json["remark"] ?? "",
+        showRemarkAsName: json["showRemarkAsName"] ?? true,
         romanName: json["romanName"] ?? "",
         syncDuration: json["syncDuration"] ?? 0,
         watchDurationSec: json["watchDurationSec"] ?? 0,
@@ -117,6 +132,7 @@ class FollowUser implements Mappable {
         'addTime': addTime.toString(),
         "watchDuration": watchDuration ?? "00:00:00",
         "remark": remark,
+        "showRemarkAsName": showRemarkAsName,
         "romanName": romanName,
         "syncDuration": syncDuration,
         "watchDurationSec": watchDurationSec,

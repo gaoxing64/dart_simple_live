@@ -10,6 +10,7 @@ import 'package:simple_live_app/modules/follow_user/follow_info_setting/follow_p
 import 'package:simple_live_app/modules/follow_user/follow_info_setting/watch_heatmap.dart';
 import 'package:simple_live_app/modules/follow_user/follow_info_setting/watch_year_selector.dart';
 import 'package:simple_live_app/widgets/filter_button.dart';
+import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 
 class FollowInfoPage extends GetView<FollowInfoController> {
   const FollowInfoPage({super.key});
@@ -321,6 +322,20 @@ class _FollowSettingsCard extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showRemarkDialog(context),
             ),
+          ),
+          Material(
+            type: MaterialType.transparency,
+            child: Obx(() {
+              final current = controller.followUser.value;
+              final hasRemark = current?.remark?.isNotEmpty == true;
+              return SettingsSwitch(
+                key: const ValueKey('show-remark-as-name'),
+                value: current?.showRemarkAsName ?? true,
+                title: '显示为昵称',
+                subtitle: hasRemark ? '使用备注替换主播原名' : '未设置备注时仍显示主播原名',
+                onChanged: controller.setShowRemarkAsName,
+              );
+            }),
           ),
           Divider(height: 24, color: Theme.of(context).colorScheme.outlineVariant),
           Text('平台迁移', style: Theme.of(context).textTheme.bodyLarge),

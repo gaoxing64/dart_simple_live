@@ -124,6 +124,15 @@ class FollowInfoController extends BasePageController<FollowUser> {
     followUser.refresh();
   }
 
+  /// 开启/关闭「显示为昵称」：开启时备注替换主播原名，关闭时恢复原名。
+  Future<void> setShowRemarkAsName(bool value) async {
+    final current = followUser.value;
+    if (current == null) return;
+    current.showRemarkAsName = value;
+    await FollowService.instance.addFollow(current);
+    followUser.refresh();
+  }
+
   Future<void> pasteFromClipboard() async {
     final content = await Utils.getClipboard();
     if (content != null) {
@@ -216,6 +225,7 @@ class FollowInfoController extends BasePageController<FollowUser> {
         syncDuration: current.syncDuration,
         lastWatchTime: current.lastWatchTime,
         remark: current.remark,
+        showRemarkAsName: current.showRemarkAsName,
         romanName: current.romanName)
       ..liveStatus.value = current.liveStatus.value;
 

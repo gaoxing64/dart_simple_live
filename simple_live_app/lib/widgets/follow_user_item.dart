@@ -85,7 +85,7 @@ class FollowUserItem extends StatelessWidget {
       leading: Obx(() => _buildFace()),
       title: Text.rich(
         TextSpan(
-          text: item.remark?.isNotEmpty == true ? item.remark : item.userName,
+          text: item.displayName,
           children: [
               WidgetSpan(
                 alignment: ui.PlaceholderAlignment.middle,

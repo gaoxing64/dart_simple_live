@@ -65,7 +65,7 @@ class FollowMemberRow extends StatelessWidget {
   /// 分组胶囊上限：给主播名留出至少一段可读宽度。
   static const double _kBadgeMaxWidth = 96;
 
-  static String displayName(FollowUser item) => item.remark?.isNotEmpty == true ? item.remark! : item.userName;
+  static String displayName(FollowUser item) => item.displayName;
 
   /// 第二行的「平台 · 累计观看 N 小时」。没有观看记录时只显示平台名，
   /// 不留孤零零的分隔符。

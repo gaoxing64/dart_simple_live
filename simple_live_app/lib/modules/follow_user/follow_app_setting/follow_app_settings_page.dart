@@ -112,7 +112,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                       title: '选择要清理的用户',
                       subtitle: '默认条件为：观看时常低于30分钟，历史观看底部15',
                       confirmText: '清理',
-                      itemToString: (user) => user.userName, // 告诉组件如何显示用户名
+                      itemToString: (user) => user.displayName, // 告诉组件如何显示用户名
 
                       // 这里传入您自己的筛选函数
                       itemsProvider: () async {

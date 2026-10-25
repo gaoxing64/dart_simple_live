@@ -774,7 +774,7 @@ class FollowUserPage extends GetView<FollowUserController> {
             roomId: item.roomId,
             title: item.title.value.isEmpty && !isLive ? "未开播" : item.title.value,
             cover: item.cover.value,
-            userName: item.userName,
+            userName: item.displayName,
             online: item.online.value,
           ),
           avatar: isLive ? '' : item.face,

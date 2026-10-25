@@ -322,9 +322,10 @@ class FollowUserController extends BasePageController<FollowUser> {
       return list;
     }
     return list.where((u) {
-      final name = u.remark?.isNotEmpty == true ? u.remark! : u.userName;
+      final name = u.displayName;
       return name.toLowerCase().contains(q) ||
           u.userName.toLowerCase().contains(q) ||
+          (u.remark?.toLowerCase().contains(q) ?? false) ||
           u.title.value.toLowerCase().contains(q);
     }).toList();
   }
@@ -653,7 +654,7 @@ class FollowUserController extends BasePageController<FollowUser> {
   }
 
   void removeFollow(FollowUser follow) async {
-    var result = await Utils.showAlertDialog("确定要取消关注${follow.userName}吗?", title: "取消关注");
+    var result = await Utils.showAlertDialog("确定要取消关注${follow.displayName}吗?", title: "取消关注");
     if (!result) {
       return;
     }
