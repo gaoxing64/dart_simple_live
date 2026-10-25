@@ -9,6 +9,10 @@ class WatchYearSelector extends StatelessWidget {
   final int value;
   final ValueChanged<int> onChanged;
 
+  /// 触发器胶囊圆角。必须同时传给 `PopupMenuButton.borderRadius`：
+  /// 否则 hover / splash 由内部 InkWell 按矩形区域绘制，会在胶囊外露出一块方角。
+  static const BorderRadius _kTriggerRadius = BorderRadius.all(Radius.circular(20));
+
   const WatchYearSelector({
     super.key,
     required this.years,
@@ -27,6 +31,7 @@ class WatchYearSelector extends StatelessWidget {
         initialValue: value,
         position: PopupMenuPosition.under,
         offset: const Offset(0, 4),
+        borderRadius: _kTriggerRadius,
         shape: RoundedRectangleBorder(borderRadius: AppStyle.radius16),
         onSelected: onChanged,
         itemBuilder: (context) => [
@@ -40,7 +45,7 @@ class WatchYearSelector extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: _kTriggerRadius,
             border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
           ),
           child: Row(

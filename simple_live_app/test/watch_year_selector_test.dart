@@ -27,6 +27,18 @@ void main() {
     final shape = button.shape! as RoundedRectangleBorder;
     expect(shape.borderRadius, AppStyle.radius16);
     expect(button.position, PopupMenuPosition.under);
+    // hover / splash 必须与胶囊同为 20dp 圆角，而不是矩形。
+    const triggerRadius = BorderRadius.all(Radius.circular(20));
+    expect(button.borderRadius, triggerRadius);
+    final triggerInk = tester.widget<InkWell>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('watch-year-menu')),
+            matching: find.byType(InkWell),
+          )
+          .first,
+    );
+    expect(triggerInk.borderRadius, triggerRadius);
 
     await tester.tap(find.byKey(const ValueKey('watch-year-menu')));
     await tester.pumpAndSettle();
