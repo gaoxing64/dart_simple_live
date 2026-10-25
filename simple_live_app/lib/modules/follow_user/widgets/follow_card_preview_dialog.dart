@@ -12,6 +12,7 @@ import 'package:simple_live_app/widgets/net_image.dart';
 /// 看起来像直接出现。这里同时动透明度和缩放，开关都有明确但不过度的过渡。
 Future<void> showFollowCardPreviewDialog({
   required FollowUser item,
+  required List<String> groupNames,
   required VoidCallback onSetGroup,
   required VoidCallback onViewDetail,
 }) {
@@ -23,6 +24,7 @@ Future<void> showFollowCardPreviewDialog({
     pageBuilder: (context, animation, secondaryAnimation) {
       return FollowCardPreviewDialog(
         item: item,
+        groupNames: groupNames,
         onSetGroup: onSetGroup,
         onViewDetail: onViewDetail,
       );
@@ -51,12 +53,14 @@ Future<void> showFollowCardPreviewDialog({
 /// 原动作，避免弹层叠着弹层。
 class FollowCardPreviewDialog extends StatelessWidget {
   final FollowUser item;
+  final List<String> groupNames;
   final VoidCallback onSetGroup;
   final VoidCallback onViewDetail;
 
   const FollowCardPreviewDialog({
     super.key,
     required this.item,
+    this.groupNames = const [],
     required this.onSetGroup,
     required this.onViewDetail,
   });
@@ -68,6 +72,11 @@ class FollowCardPreviewDialog extends StatelessWidget {
     final cover = item.cover.value;
     final title = item.title.value.trim();
     final isLive = item.liveStatus.value == 2;
+    final tags = [
+      for (final tag in groupNames)
+        if (tag.trim().isNotEmpty) tag.trim(),
+    ];
+    final displayTags = tags.isEmpty ? const ['未分组'] : tags;
     final screenWidth = MediaQuery.sizeOf(context).width;
     // 桌面端按窗口比例放大，移动端保持窗口减边距；封面图的分辨率不参与
     // 布局计算，只由这里的宽度和下方 AspectRatio 决定显示尺寸。
@@ -153,6 +162,47 @@ class FollowCardPreviewDialog extends StatelessWidget {
                               fontSize: 12,
                               color: isLive ? scheme.primary : scheme.onSurfaceVariant,
                             ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    AppStyle.vGap8,
+                    Row(
+                      key: const ValueKey('preview-group-tags'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Remix.folder_3_line,
+                            size: 16,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final tag in displayTags)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.65),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    tag,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      height: 1.2,
+                                      fontWeight: FontWeight.w500,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],

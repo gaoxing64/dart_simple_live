@@ -68,7 +68,6 @@ class FollowInfoPage extends GetView<FollowInfoController> {
                         follow: follow,
                         site: site,
                         isFollowed: controller.isFollowed.value,
-                        groupNames: controller.checkedTags.toList(),
                       ),
                       AppStyle.vGap12,
                       _WatchStatsCard(controller: controller, follow: follow),

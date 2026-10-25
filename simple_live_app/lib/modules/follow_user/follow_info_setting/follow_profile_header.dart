@@ -14,14 +14,12 @@ class FollowProfileHeader extends StatelessWidget {
   final FollowUser follow;
   final Site site;
   final bool isFollowed;
-  final List<String> groupNames;
 
   const FollowProfileHeader({
     super.key,
     required this.follow,
     required this.site,
     required this.isFollowed,
-    this.groupNames = const [],
   });
 
   Future<void> _copyText(
@@ -161,10 +159,6 @@ class FollowProfileHeader extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isLive = follow.liveStatus.value == 2;
     final remark = follow.remark?.trim() ?? '';
-    final tags = [
-      for (final tag in groupNames)
-        if (tag.trim().isNotEmpty) tag.trim(),
-    ];
     final profile = Row(
       children: [
         _buildAvatar(context),
@@ -199,39 +193,6 @@ class FollowProfileHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
-              if (isFollowed && tags.isNotEmpty) ...[
-                AppStyle.vGap4,
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      '分组',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                    ),
-                    for (final tag in tags)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest.withValues(alpha: 0.65),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          tag,
-                          style: TextStyle(
-                            fontSize: 11,
-                            height: 1.2,
-                            fontWeight: FontWeight.w500,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                  ],
                 ),
               ],
               AppStyle.vGap4,

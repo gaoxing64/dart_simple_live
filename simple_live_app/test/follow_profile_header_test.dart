@@ -16,7 +16,6 @@ FollowUser _follow() => FollowUser(
 
 Future<void> _pumpHeader(
   WidgetTester tester, {
-  List<String> groupNames = const [],
   bool isFollowed = true,
 }) async {
   await tester.pumpWidget(
@@ -27,7 +26,6 @@ Future<void> _pumpHeader(
             follow: _follow(),
             site: Sites.allSites['huya']!,
             isFollowed: isFollowed,
-            groupNames: groupNames,
           ),
         ),
       ),
@@ -79,24 +77,6 @@ void main() {
     expect(find.text('已复制房间号'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-  });
-
-  testWidgets('详情页展示全部所属分组，未关注不展示', (tester) async {
-    await _pumpHeader(
-      tester,
-      groupNames: const ['CS解说', 'LOL解说'],
-    );
-    expect(find.text('分组'), findsOneWidget);
-    expect(find.text('CS解说'), findsOneWidget);
-    expect(find.text('LOL解说'), findsOneWidget);
-
-    await _pumpHeader(
-      tester,
-      groupNames: const ['CS解说'],
-      isFollowed: false,
-    );
-    expect(find.text('分组'), findsNothing);
-    expect(find.text('CS解说'), findsNothing);
   });
 
   testWidgets('点击头像打开预览并可关闭', (tester) async {

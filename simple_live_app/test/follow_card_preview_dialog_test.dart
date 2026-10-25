@@ -46,6 +46,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('中间页完整展示全部标签，未分组有占位', (tester) async {
+    final item = FollowUser(
+      id: 'huya_123',
+      roomId: '123',
+      siteId: 'huya',
+      userName: '主播名',
+      face: '',
+      addTime: DateTime(2026),
+    )..title.value = '直播标题';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: FollowCardPreviewDialog(
+              item: item,
+              groupNames: const ['CS解说', 'LOL解说', '单机', '手游'],
+              onSetGroup: () {},
+              onViewDetail: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (final tag in ['CS解说', 'LOL解说', '单机', '手游']) {
+      expect(find.text(tag), findsOneWidget);
+    }
+    expect(find.text('+1'), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: FollowCardPreviewDialog(
+              item: item,
+              onSetGroup: () {},
+              onViewDetail: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('未分组'), findsOneWidget);
+  });
+
   testWidgets('桌面弹卡随窗口放大，窄屏保持窗口减边距', (tester) async {
     final item = FollowUser(
       id: 'huya_123',
@@ -103,6 +149,7 @@ void main() {
               builder: (context) => FilledButton(
                 onPressed: () => showFollowCardPreviewDialog(
                   item: item,
+                  groupNames: const [],
                   onSetGroup: () {},
                   onViewDetail: () {},
                 ),

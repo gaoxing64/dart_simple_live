@@ -675,6 +675,7 @@ class FollowUserController extends BasePageController<FollowUser> {
   void showBottomMenu(FollowUser item) {
     showFollowCardPreviewDialog(
       item: item,
+      groupNames: groupNamesByFollowId[item.id] ?? const [],
       onSetGroup: () => setFollowTagDialog(item),
       onViewDetail: () => AppNavigator.toFollowInfo(item),
     );
