@@ -40,10 +40,10 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: '0',
-    appId: '1:000000000000:android:0000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'com-slotsun-slive',
-    storageBucket: 'com-slotsun-slive.firebasestorage.app',
+    apiKey: 'AIzaSyBvrhMTUWpZ9aENKTe4crDR84Dec2k0664',
+    appId: '1:433167251149:android:822b7304dd16ca1d1f5b84',
+    messagingSenderId: '433167251149',
+    projectId: 'slive-gaoxing',
+    storageBucket: 'slive-gaoxing.firebasestorage.app',
   );
 }
