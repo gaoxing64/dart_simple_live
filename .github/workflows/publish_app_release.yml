@@ -17,6 +17,7 @@ jobs:
         with:
           # 生成更新日志需要完整历史与标签
           fetch-depth: 0
+          submodules: recursive
 
       # APK 签名设置
       - name: Download Android keystore
@@ -170,6 +171,7 @@ jobs:
         with:
           # 生成更新日志需要完整历史与标签
           fetch-depth: 0
+          submodules: recursive
       # 设置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -309,6 +311,7 @@ jobs:
         with:
           # 生成更新日志需要完整历史与标签
           fetch-depth: 0
+          submodules: recursive
       # 设置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -448,6 +451,7 @@ jobs:
         with:
           # 生成更新日志需要完整历史与标签
           fetch-depth: 0
+          submodules: recursive
       # 安装依赖
       - name: Install dependencies
         run: |

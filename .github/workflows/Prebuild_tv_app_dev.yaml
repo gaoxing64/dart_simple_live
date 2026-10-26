@@ -21,6 +21,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: dev
+          submodules: recursive
 
       # APK 签名设置
       - name: Download tv keystore

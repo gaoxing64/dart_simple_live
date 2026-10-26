@@ -66,9 +66,17 @@ fvm install 3.38.6
 
 ### 克隆仓库
 
+仓库中 `simple_live_core` 与 `simple_live_tv_app` 是 git submodule，克隆时需要一并拉取：
+
 ```bash
-git clone https://github.com/SlotSun/dart_simple_live.git
+git clone --recurse-submodules https://github.com/SlotSun/dart_simple_live.git
 cd dart_simple_live/simple_live_app
+```
+
+如果已经克隆过，补拉 submodule：
+
+```bash
+git submodule update --init --recursive
 ```
 
 ## 🏷️ 认领任务
@@ -142,10 +150,10 @@ flutter build apk --release --split-per-abi
 ## 📁 代码结构
 
 ### 项目目录速览
-- `simple_live_core` 项目核心库，实现获取各个网站的信息及弹幕。
+- `simple_live_core` 项目核心库（独立仓库 [dart_simple_live_core](https://github.com/gaoxing64/dart_simple_live_core)，以 submodule 引入），实现获取各个网站的信息及弹幕。
 - `simple_live_console` 基于simple_live_core的控制台程序。
 - `simple_live_app` 基于核心库实现的Flutter APP客户端。
-- `simple_live_tv_app` 基于核心库实现的Flutter Android TV客户端。
+- `simple_live_tv_app` 基于核心库实现的Flutter Android TV客户端（独立仓库 [dart_simple_live_tv_app](https://github.com/gaoxing64/dart_simple_live_tv_app)，以 submodule 引入）。
 
 ### 技术栈
 

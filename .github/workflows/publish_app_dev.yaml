@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: dev
+          submodules: recursive
 
       # APK 签名设置
       - name: Download Android keystore
@@ -116,6 +117,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: dev
+          submodules: recursive
 
       # 设置 JAVA 环境
       - uses: actions/setup-java@v5
@@ -230,6 +232,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: dev
+          submodules: recursive
       # 设置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -312,6 +315,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: dev
+          submodules: recursive
       # 设置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -392,6 +396,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: dev
+          submodules: recursive
       # 安装依赖
       - name: Install dependencies
         run: |
