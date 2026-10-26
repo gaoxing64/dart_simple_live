@@ -191,10 +191,22 @@ class LiveRoomController extends PlayerController
       ? AppSettingsController.instance.multiPlayTileBufferSize.value * 1024 * 1024
       : super.playerBufferSize;
 
+  /// Twitch 的 mpv 前向预读秒数（`cache-secs`）。
+  ///
+  /// 依据是**外部事实**：Twitch 的 HLS 按 2 秒切片（分片时长是平台投放配置，
+  /// 本仓库不可验证），1 秒预读连一个完整分片都覆盖不住，网络稍抖即卡。
+  /// 10 ≈ 5 个分片的容错带。
+  ///
+  /// 代价必须写明白：mpv 对直播会尽量维持 `cache-secs` 的前向水位，
+  /// 这 10 秒**直接变成画面延迟**——相对其他站点（1/3 秒），Twitch 的视频
+  /// 会比弹幕/聊天慢约 10 秒。这是按站点刻意做的「流畅优先」取舍；
+  /// 若日后要降到 4~6 或做成设置项，那是产品决定，别在这里顺手改数。
+  static const int kTwitchPlayerCacheSecs = 10;
+
   @override
   int resolvePlayerCacheSecs(bool doubleBuffering) {
     if (site.id == Constant.kTwitch) {
-      return 10;
+      return kTwitchPlayerCacheSecs;
     }
     return super.resolvePlayerCacheSecs(doubleBuffering);
   }

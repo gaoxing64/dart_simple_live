@@ -92,6 +92,62 @@ const List<String> _kPlayerConfigProps = [
   'hr-seek',
 ];
 
+/// 直播缓存策略：本场景要下发给 mpv 的**完整属性表**（键 → 值，插入顺序即写入顺序）。
+///
+/// 抽成纯函数是为了可测：`test/player_cache_policy_test.dart` 直接钉住这张表的
+/// 最终键值，覆盖三种形态（桌面、Android+双重缓冲开、Android+关）。
+/// [initializePlayer] 只负责按序 `setProperty`，**别再在别处补写这些键**——
+/// 绕过本函数的写入不会被测试覆盖。
+///
+/// 根据：https://mpv.io/manual/stable/#cache
+/// - `cache=<yes|no|auto>`：前向预读开关。设 no 省不了多少内存，却会让预读退回
+///   `--demuxer-readahead-secs`（约 1s），且 mpv 不再上报 cache-buffering-state /
+///   paused-for-cache，网络抖动时只能硬卡。
+/// - `cache-secs=<seconds>`：预读秒数，直接决定直播延迟。值由
+///   `PlayerMixin.resolvePlayerCacheSecs` 按站点解析后以 [cacheSecs] 传入。
+/// - `demuxer-max-back-bytes`：回退缓存，直播不 seek → 0 省内存；双重缓冲再复位。
+/// - 内存上限由 media_kit 的 `PlayerConfiguration.bufferSize` 写入
+///   `demuxer-max-bytes` 封顶，不在本表内。
+///
+/// 平台差异是刻意的（Android 的 force-seekable 属同一组 temporary fix）：
+/// **Android 且关双重缓冲时整表为空**，一个键都不写——那是改前既有行为，
+/// cache-secs 留在 mpv 默认值上；在这里"顺手补写"会静默改变手机端的实际延迟。
+Map<String, String> buildLiveCacheProperties({
+  required bool isAndroid,
+  required bool doubleBuffering,
+  required int cacheSecs,
+}) {
+  final props = <String, String>{};
+  if (!isAndroid) {
+    props['cache'] = 'yes';
+    // media_kit 默认 cache-on-disk=yes，会把流缓存写到磁盘，直播没必要。
+    props['cache-on-disk'] = 'no';
+    // 直播不往回看 → 不要回退缓存
+    props['demuxer-max-back-bytes'] = '0';
+    props['demuxer-seekable-cache'] = 'no';
+  }
+  // 前向预读秒数只写一次。条件与历史行为一致：Android 关双重缓冲时不写。
+  if (!isAndroid || doubleBuffering) {
+    props['cache-secs'] = cacheSecs.toString();
+  }
+  // 双重缓冲：加大前向预读 + 保留回退缓存（抗抖动 + 允许小幅回看）。
+  //
+  // 注意 `demuxer-max-back-bytes` 缓存的是**已播放**的数据，作用只是允许往回 seek，
+  // 本身不会让画面更流畅；抗抖动靠的是上面的 `cache-secs`。
+  if (doubleBuffering) {
+    props['cache'] = 'yes';
+    // 上一段已把回退缓存压到 0，这里必须复位，否则「双重缓冲」名不副实。
+    // Map 同键后写覆盖先写，与逐条 setProperty 的先后顺序语义一致。
+    props['demuxer-max-back-bytes'] = '16777216';
+    props['demuxer-seekable-cache'] = 'yes';
+    props['demuxer-donate-buffer'] = 'yes';
+    // 不设 demuxer-cache-dir：mpv 文档明确该选项只对 cache-on-disk 生效，而基础分支
+    // 已把 cache-on-disk 关掉（磁盘缓存文件是 append-only，直播越久占用越大）。
+    // 缓存上限仍由 media_kit 的 bufferSize 写入 demuxer-max-bytes 封顶。
+  }
+  return props;
+}
+
 mixin PlayerMixin {
   GlobalKey<VideoState> globalPlayerKey = GlobalKey<VideoState>();
   GlobalKey globalDanmuKey = GlobalKey();
@@ -111,6 +167,10 @@ mixin PlayerMixin {
   /// 所以副格走设置项压低（`LiveRoomController` 覆写），主格保持默认不动。
   int get playerBufferSize => 32 * 1024 * 1024;
 
+  /// 本实例的 mpv 前向预读秒数，喂给 [buildLiveCacheProperties] 的 `cache-secs`。
+  ///
+  /// 低延迟优先：多留 1 秒预读就多 1 秒画面与弹幕的错位；站点特例
+  /// （Twitch）由 `LiveRoomController` 覆写。
   int resolvePlayerCacheSecs(bool doubleBuffering) => doubleBuffering ? 3 : 1;
 
   /// 播放器标题：多开时每格带槽位，便于在 mpv 日志里区分是哪一路。
@@ -176,53 +236,18 @@ mixin PlayerMixin {
       // 通过错误参数强制media_kit不seek, 解决了加载-pause-seek 在直播流上的开屏问题
       await pp.setProperty('force-seekable', 'yes');
     }
-    // 直播缓存策略
-    //
-    // 根据：https://mpv.io/manual/stable/#cache
-    // --cache=<yes|no|auto>          流缓存（前向预读）
-    // --cache-secs=<seconds>         预读秒数，直接决定直播延迟
-    // --demuxer-max-back-bytes       回退缓存，直播不 seek → 0 省内存
-    // --demuxer-seekable-cache=<yes|no|auto>
-    // --demuxer-donate-buffer==<yes|no>
-    //
-    // 注意：`cache` 控制的是前向预读，不是「回放缓存」。设成 no 省不了多少内存，
-    // 却会让预读退回 --demuxer-readahead-secs（约 1s），且 mpv 不再上报
-    // cache-buffering-state / paused-for-cache，网络抖动时只能硬卡。
-    // 内存上限由 media_kit 的 PlayerConfiguration.bufferSize（默认 32MiB）
-    // 写入 demuxer-max-bytes 来封顶。
+    // 直播缓存策略：属性表由 [buildLiveCacheProperties] 生成（键值被
+    // test/player_cache_policy_test.dart 钉住），这里只按序下发。
     // hls流/令牌流/.. 根据mdk-sdk作者回复, rtsp 在 ffmpeg存在内存泄露, 这意味着我们只能等待修复
     // temporary fix of android platform
     final doubleBuffering = AppSettingsController.instance.videoDoubleBuffering.value;
-    if (!Platform.isAndroid) {
-      await pp.setProperty('cache', 'yes');
-      // Twitch 的 2 秒 HLS 分片需要更大预读，由直播间按站点覆盖。
-      await pp.setProperty(
-        'cache-secs',
-        resolvePlayerCacheSecs(doubleBuffering).toString(),
-      );
-      // media_kit 默认 cache-on-disk=yes，会把流缓存写到磁盘，直播没必要。
-      await pp.setProperty('cache-on-disk', 'no');
-      // 直播不往回看 → 不要回退缓存
-      await pp.setProperty('demuxer-max-back-bytes', '0');
-      await pp.setProperty('demuxer-seekable-cache', 'no');
-    }
-    // 双重缓冲：加大前向预读 + 保留回退缓存（抗抖动 + 允许小幅回看）
-    //
-    // 注意 `demuxer-max-back-bytes` 缓存的是**已播放**的数据，作用只是允许往回 seek，
-    // 本身不会让画面更流畅；抗抖动靠的是上面的 `cache-secs`。
-    if (doubleBuffering) {
-      await pp.setProperty('cache', 'yes');
-      await pp.setProperty(
-        'cache-secs',
-        resolvePlayerCacheSecs(doubleBuffering).toString(),
-      );
-      // 上一段已把回退缓存压到 0，这里必须复位，否则「双重缓冲」名不副实。
-      await pp.setProperty('demuxer-max-back-bytes', '16777216');
-      await pp.setProperty('demuxer-seekable-cache', 'yes');
-      await pp.setProperty('demuxer-donate-buffer', 'yes');
-      // 不设 demuxer-cache-dir：mpv 文档明确该选项只对 cache-on-disk 生效，而基础分支
-      // 已把 cache-on-disk 关掉（磁盘缓存文件是 append-only，直播越久占用越大）。
-      // 缓存上限仍由 media_kit 的 bufferSize 写入 demuxer-max-bytes 封顶。
+    final cacheProps = buildLiveCacheProperties(
+      isAndroid: Platform.isAndroid,
+      doubleBuffering: doubleBuffering,
+      cacheSecs: resolvePlayerCacheSecs(doubleBuffering),
+    );
+    for (final entry in cacheProps.entries) {
+      await pp.setProperty(entry.key, entry.value);
     }
     // bili/douyin流存在时间戳跳变问题
     // 真机建议-空间换内存-暂时不需要
