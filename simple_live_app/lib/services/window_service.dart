@@ -132,7 +132,7 @@ class WindowService extends GetxService implements WindowListener {
       //（100% 缩放）下 = 436 物理像素——跨缩放下「至少 2 列」语义一致。
       minimumSize: _normalMinimumSize, // 防止无脑小窗导致界面报错
       center: false,
-      title: "Slive",
+      title: "Slive (gaoxing)",
     );
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       if (Platform.isWindows) {

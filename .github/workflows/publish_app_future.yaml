@@ -427,7 +427,7 @@ jobs:
             --install-deps-from=flathub \
             --ccache \
             --disable-rofiles-fuse
-          flatpak build-bundle ${{ matrix.arch }} "Slive_V${VERSION}_linux-${{ matrix.arch }}_flatpak_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).flatpak" io.github.SlotSun.Slive
+          flatpak build-bundle ${{ matrix.arch }} "Slive_V${VERSION}_linux-${{ matrix.arch }}_flatpak_(zh-cn)_release_${{ github.run_number }}_(Build${BUILD_TS}).flatpak" io.github.gaoxing.Slive
 
       # 上传 Flatpak 包至 Artifacts
       - name: Upload linux flatpak to artifacts

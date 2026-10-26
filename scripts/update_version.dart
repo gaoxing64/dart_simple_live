@@ -12,7 +12,7 @@ void main(List<String> args) {
   final changelogFile = File('$projectRoot/CHANGELOG.md');
   final versionFile = File('$projectRoot/assets/app_version.json');
   final metainfoFile = File(
-    '$projectRoot/simple_live_app/assets/io.github.SlotSun.Slive.metainfo.xml',
+    '$projectRoot/simple_live_app/assets/io.github.gaoxing.Slive.metainfo.xml',
   );
 
   if (!changelogFile.existsSync()) {
