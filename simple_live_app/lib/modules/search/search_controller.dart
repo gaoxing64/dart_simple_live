@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:get/get.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
+import 'package:simple_live_app/modules/search/aggregate_search_controller.dart';
 import 'package:simple_live_app/modules/search/search_list_controller.dart';
 
 class AppSearchController extends GetxController
@@ -73,6 +75,10 @@ class AppSearchController extends GetxController
 
   @override
   void onInit() {
+    Get.put(
+      AggregateSearchController(),
+      tag: AggregateSearchController.tag,
+    );
     for (var site in Sites.supportSites) {
       // if (site.id == Constant.kDouyin) {
       //   Get.put(DouyinSearchController(site));
@@ -88,6 +94,20 @@ class AppSearchController extends GetxController
   }
 
   void doSearch() {
+    if (AppSettingsController.instance.aggregateSearchEnabled.value) {
+      final aggregateController = Get.find<AggregateSearchController>(
+        tag: AggregateSearchController.tag,
+      );
+      if (searchController.text.isEmpty) {
+        aggregateController.updateSearchMode(searchMode.value);
+      } else {
+        aggregateController.startSearch(
+          keyword: searchController.text,
+          searchMode: searchMode.value,
+        );
+      }
+      return;
+    }
     if (searchController.text.isEmpty) {
       return;
     }

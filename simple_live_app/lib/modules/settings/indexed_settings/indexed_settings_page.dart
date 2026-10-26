@@ -33,6 +33,23 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
           Padding(
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
+              "搜索",
+              style: context.textTheme.titleSmall,
+            ),
+          ),
+          SettingsCard(
+            child: Obx(
+              () => SettingsSwitch(
+                value: AppSettingsController.instance.aggregateSearchEnabled.value,
+                title: "聚合搜索",
+                subtitle: "开启后一次搜索所有支持平台，关闭后按平台搜索",
+                onChanged: AppSettingsController.instance.setAggregateSearchEnabled,
+              ),
+            ),
+          ),
+          Padding(
+            padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
+            child: Text(
               "顶/底栏收起",
               style: context.textTheme.titleSmall,
             ),

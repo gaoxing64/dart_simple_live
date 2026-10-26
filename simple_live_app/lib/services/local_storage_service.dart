@@ -375,6 +375,9 @@ class LocalStorageService extends GetxService {
   /// 休眠阈值（天）
   static const String kDormancyThreshold = "DormancyThreshold";
 
+  /// 聚合搜索：一次搜索所有支持平台，结果不按平台 Tab 分隔
+  static const String kAggregateSearchEnabled = "AggregateSearchEnabled";
+
   late Box settingsBox;
   late Box<String> shieldBox;
 

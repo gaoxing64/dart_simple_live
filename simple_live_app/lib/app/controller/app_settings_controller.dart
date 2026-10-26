@@ -178,6 +178,8 @@ class AppSettingsController extends GetxController {
 
     keyboardControl.value = LocalStorageService.instance.getValue(LocalStorageService.kKeyboardControl, true);
 
+    loadAggregateSearchEnabled();
+
     loadShortcuts();
 
     // 「自定义键位」开关比覆盖表晚出现：从旧版本升上来的用户覆盖表里已经有内容，
@@ -736,6 +738,24 @@ class AppSettingsController extends GetxController {
   void setKeyboardControl(bool e) {
     keyboardControl.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kKeyboardControl, e);
+  }
+
+  /// 聚合搜索开关。开启后搜索页一次查询所有支持平台，不再使用平台 Tab。
+  var aggregateSearchEnabled = false.obs;
+
+  void loadAggregateSearchEnabled() {
+    aggregateSearchEnabled.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kAggregateSearchEnabled,
+      false,
+    );
+  }
+
+  void setAggregateSearchEnabled(bool e) {
+    aggregateSearchEnabled.value = e;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kAggregateSearchEnabled,
+      e,
+    );
   }
 
   /// 「自定义键位」开关。关＝所有动作走默认键位、设置页隐藏逐条改键区。
