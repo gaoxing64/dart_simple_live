@@ -43,9 +43,9 @@
 ```bash
   # 启动参数的用法
   # Windows_PowerShell
-  .\slive.exe -p  #数据启动目录为 ./data_hive_ce
-  .\slive.exe --portable #数据启动目录为 ./data_hive_ce
-  .\slive.exe -h 
+  .\slive-gaoxing.exe -p  #数据启动目录为 ./data_hive_ce
+  .\slive-gaoxing.exe --portable #数据启动目录为 ./data_hive_ce
+  .\slive-gaoxing.exe -h 
   # linux 同上
   # 后续根据需求添加其他参数
 ```

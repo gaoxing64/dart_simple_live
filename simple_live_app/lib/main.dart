@@ -337,7 +337,7 @@ class MyApp extends StatelessWidget {
       }
       return Obx(
         () => GetMaterialApp(
-          title: "Slive",
+          title: "Slive (gaoxing)",
           theme: AppStyle.light(
             fontFamily: AppStyleSettingController.instance.curFontName.value,
           ).copyWith(

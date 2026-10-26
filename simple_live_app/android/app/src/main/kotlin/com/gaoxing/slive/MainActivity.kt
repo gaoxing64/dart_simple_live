@@ -1,4 +1,4 @@
-package com.slotsun.slive
+package com.gaoxing.slive
 
 import com.ryanheise.audioservice.AudioServiceActivity
 

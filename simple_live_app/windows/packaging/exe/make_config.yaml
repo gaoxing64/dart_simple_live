@@ -1,10 +1,10 @@
 display_name: Slive
-app_id: 45F6FA98-DA23-4795-8685-60F607317A1F
-publisher: slotsun
-publisher_url: https://github.com/fastforgedev/fastforge
+app_id: BCE31BC2-8E9A-4387-A02A-1BE79A663297
+publisher: gaoxing
+publisher_url: https://github.com/gaoxing64/dart_simple_live
 create_desktop_icon: true
 # See: https://jrsoftware.org/ishelp/index.php?topic=setup_defaultdirname
-install_dir_name: "D:\\Program Files (x86)\\simple_live"
+install_dir_name: "D:\\Program Files (x86)\\simple_live_gaoxing"
 # 这里的路径是相对于项目根目录的路径； 图标格式必须是ico格式，不能是png或其它
 setup_icon_file: assets/icons/app_icon.ico
 locales:

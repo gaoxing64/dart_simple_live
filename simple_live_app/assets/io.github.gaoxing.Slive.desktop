@@ -2,8 +2,8 @@
 Type=Application
 Name=Slive
 GenericName=Livestream Player
-Icon=io.github.SlotSun.Slive
-Exec=io.github.SlotSun.Slive %U
+Icon=io.github.gaoxing.Slive
+Exec=io.github.gaoxing.Slive %U
 Categories=AudioVideo;Audio;Video;Network
 Keywords=Livestream;Video
 StartupNotify=true

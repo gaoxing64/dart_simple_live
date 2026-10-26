@@ -294,9 +294,9 @@ Future<void> initLivePlaybackAudioHandler() async {
       // CanGoNext/CanGoPrevious 恒为 false——直播没有「下一集」，一个按得动却
       // 没反应的键比没有更糟（与 PlaybackState 里只发 play/pause/stop 同一取舍）。
       AudioServiceMpris.init(
-        dBusName: 'slive',
+        dBusName: 'io.github.gaoxing.Slive',
         identity: 'Slive',
-        desktopEntry: 'io.github.SlotSun.Slive',
+        desktopEntry: 'io.github.gaoxing.Slive',
         canControl: true,
         canPlay: true,
         canPause: true,
@@ -306,7 +306,7 @@ Future<void> initLivePlaybackAudioHandler() async {
     final handler = await AudioService.init(
       builder: () => LivePlaybackAudioHandler(),
       config: const AudioServiceConfig(
-        androidNotificationChannelId: 'com.slotsun.slive.playback',
+        androidNotificationChannelId: 'com.gaoxing.slive.playback',
         androidNotificationChannelName: '直播播放',
         androidNotificationChannelDescription: '锁屏或切到后台时控制直播播放',
         // 必须是纯白单色图标；默认值 mipmap/ic_launcher 是彩色的，在状态栏里会糊成

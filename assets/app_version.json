@@ -1,7 +1,7 @@
 {
     "version": "1.9.1",
     "version_num": 10901,
-    "version_desc": "- feat: 切台预取与 CDN 顺序缓存 \n- feat: 系统媒体控制（Windows SMTC / Linux MPRIS / Apple Now Playing） \n- feat: 关注开播状态增量刷新，直播间继承进行中的刷新 \n- feat: 多播放格子加载态沿用播放器加载浮层 \n- feat: 直播间快捷键优化，Esc 统一返回 \n- feat: 核心解耦并新增 C ABI（ADR-016） \n- fix: 修复抖音部分直播间反复缓冲 \n- fix: 修复 Android 端 mpv 内置 stats OSD 不可用 \n- fix: 修复 B 站登录入口悬空路由与缺失账号参数 \n- fix: 统一媒体控制与自动暂停的开关口径 \n- chore: media-kit 升级到 917d80ca（新 libmpv）",
+    "version_desc": "gaoxing 标识共存版：全平台应用标识改为 gaoxing，可与上游 SlotSun 官方版并行安装\n\n🪪 标识变更\n- Android / iOS / macOS：com.gaoxing.slive\n- Linux / Flatpak：io.github.gaoxing.Slive\n- Windows：独立安装目录 slive-gaoxing，窗口标题 Slive (gaoxing)\n\n✨ 1.9.1 更新\n- feat: 切台预取与 CDN 顺序缓存\n- feat: 系统媒体控制（Windows SMTC / Linux MPRIS / Apple Now Playing）\n- feat: 关注开播状态增量刷新\n- feat: 多播放格子加载态沿用播放器加载浮层\n- feat: 直播间快捷键优化，Esc 统一返回\n- feat: 核心解耦并新增 C ABI（ADR-016）\n- fix: 修复抖音部分直播间反复缓冲\n- fix: 修复 Android 端 mpv 内置 stats OSD 不可用\n- fix: 修复 B 站登录入口悬空路由与缺失账号参数\n- fix: 统一媒体控制与自动暂停的开关口径\n- chore: media-kit 升级到 917d80ca（新 libmpv）\n\n💾 数据说明\n- Windows：与原 Slive 版共享 %APPDATA% 数据目录，关注/历史/设置无缝延续\n- Android / iOS / macOS / Linux：数据目录跟随新包名，首次启动为空（可用 WebDAV 备份迁移）\n- Android 需重新登录账号，通知渠道重新授权\n\n📦 安装提示\n- 与上游 SlotSun 官方版（com.slotsun.slive）可共存安装，互不覆盖\n- 本版应用内检查更新指向 gaoxing64 仓库",
     "prerelease": false,
-    "download_url": "https://github.com/SlotSun/dart_simple_live/releases"
+    "download_url": "https://github.com/gaoxing64/dart_simple_live/releases"
 }

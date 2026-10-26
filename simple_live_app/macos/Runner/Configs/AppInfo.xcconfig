@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = Simple Live
+PRODUCT_NAME = Slive (gaoxing)
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.xycz.simpleLiveApp
+PRODUCT_BUNDLE_IDENTIFIER = com.gaoxing.slive
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2023 com.xycz. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2023 com.xycz and com.gaoxing. All rights reserved.
