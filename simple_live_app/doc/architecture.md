@@ -1,6 +1,6 @@
 # simple_live_app 架构与选型对照
 
-> 锚点：future `c1dd7769`（2026-10-26）｜App v1.8.15+10815｜Flutter 3.47.8
+> 锚点：future `3359b76e`（2026-10-26）｜App v1.8.15+10815｜Flutter 3.47.8
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/architecture.md)｜播放：[media-kit](../../media-kit/doc/architecture.md)
 

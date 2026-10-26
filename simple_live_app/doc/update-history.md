@@ -1,6 +1,6 @@
 # simple_live_app 修改历史（Git 完整复现）
 
-> 锚点：future `c1dd7769`（2026-10-26）｜`git log future -- simple_live_app` 全量 **276** 条
+> 锚点：future `3359b76e`（2026-10-26）｜`git log future -- simple_live_app` 全量 **278** 条
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/update-history.md)｜播放：[media-kit](../../media-kit/doc/update-history.md)
 
@@ -23,7 +23,7 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 
 | 阶段 | 日期范围 | 条数 | 主题 |
 | --- | --- | --- | --- |
-| 知识库重写 + 关注详情/弹幕合并/聚合搜索 | 2026-10-23 ~ 10-26 | 35 | 五件套按 Git 重写、主播详情页与观看热力图、重复弹幕合并、AGP 9、聚合搜索与播放器缓存键值表 |
+| 知识库重写 + 关注详情/弹幕合并/聚合搜索 | 2026-10-23 ~ 10-26 | 37 | 五件套按 Git 重写、主播详情页与观看热力图、重复弹幕合并、AGP 9、聚合搜索与播放器缓存键值表、聊天滑回底部自动跟随 |
 | 关注页定稿 | 2026-10-20 ~ 10-21 | 10 | 三栏布局、标签过滤、分组胶囊、搜索展开收刷新、增量重排 |
 | Rust 迁移 + 播放/多开修复 | 2026-10-16 ~ 10-19 | 19 | FRB 资产下沉、Dart 协议删除、斗鱼续流、小窗/手势/常亮 |
 | 关注多归属/后台播放 | 2026-10-09 ~ 10-15 | 55 | 后台播放、多开动作、成员表、快捷键、上游同步 |
@@ -43,10 +43,12 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 | 2026-09-18 | `a38cbc75` | 合并 dev（v1.8.11） |
 | 2026-09-18 | `899212ba` | 合并 dev |
 
-## 4. 全量时间线（276 条，新→旧）
+## 4. 全量时间线（278 条，新→旧）
 
 | 日期 | 提交 | 作者 | 内容 |
 | --- | --- | --- | --- |
+| 2026-10-26 | `3359b76e` | G | fix(chat): 手动滑回底部并停手后自动恢复跟随最新 |
+| 2026-10-26 | `65a83983` | G | docs(app): 知识库五件套跟到 c1dd7769 |
 | 2026-10-26 | `c1dd7769` | G | refactor(player): 直播缓存属性改为可测的键值表 |
 | 2026-10-26 | `36249272` | G | fix(search): 聚合搜索模式改单一真值并收紧失败与首屏反馈 |
 | 2026-10-26 | `8947bcdc` | G | refactor(base): 列表底部重试条文案改为可覆写 |

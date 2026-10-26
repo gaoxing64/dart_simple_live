@@ -1,6 +1,6 @@
 # simple_live_app 测试案例库（面向 AI）
 
-> 锚点：future `c1dd7769`（2026-10-26）｜70 个 `*_test.dart`，全部离线
+> 锚点：future `3359b76e`（2026-10-26）｜70 个 `*_test.dart`，全部离线
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/test-suite.md)
 

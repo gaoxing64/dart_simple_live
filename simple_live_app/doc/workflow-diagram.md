@@ -1,6 +1,6 @@
 # simple_live_app 工作流程图
 
-> 锚点：future `c1dd7769`（2026-10-26）｜App v1.8.15+10815
+> 锚点：future `3359b76e`（2026-10-26）｜App v1.8.15+10815
 > 五件套：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/workflow-diagram.md)｜播放：[media-kit](../../media-kit/doc/workflow-diagram.md)
 
@@ -182,3 +182,4 @@ B站是否登录现查 DB，不缓存 UI 布尔。
 | 聚合搜索（并发/交错/失败隔离/单一真值） | `446d613f`、`3624927b`、`8947bcdc` |
 | 播放缓存组表与 Twitch 预读 | `0e99306a`、`c1dd7769` |
 | 按平台搜索回写 serverHasMore（更正旧文档误记） | `7b31c568` |
+| 聊天「最新」按钮与自动跟随共用 `resumeChatFollow` | `3359b76e` |
