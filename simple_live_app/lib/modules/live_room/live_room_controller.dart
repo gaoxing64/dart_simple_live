@@ -584,8 +584,9 @@ class LiveRoomController extends PlayerController
     final position = scrollController.position;
     _lastChatScrollOffset = position.pixels;
     final atBottom = position.extentAfter <= _kChatBottomTolerance;
-    // 在底部附近往上轻推不进「暂停跟随」：那一瞬最新消息仍看得见，切进去
-    // 只会让「最新」按钮闪一下、再被恢复计时器撤销。
+    // 已经贴底时上滑不暂停跟随：`extentAfter` 只按剩余可滚距离判断，用户此时
+    // 看到的仍是最新一条；这类「轻推一下就回弹」若切进暂停态，会出现按钮闪一下
+    // 又被恢复计时器撤销的观感。
     if (position.userScrollDirection == ScrollDirection.forward && !atBottom) {
       disableAutoScroll.value = true;
     }
@@ -614,7 +615,9 @@ class LiveRoomController extends PlayerController
         _chatFollowResumeTimer = null;
         return;
       }
-      // 手指还按着或惯性没停：再等一轮，别在用户手里抢滚动位置。
+      // 拖动或惯性还没停：再等一轮，别在用户手里抢滚动位置。按住不动时框架
+      // 走 HoldScrollActivity（isScrolling 为 false），这里识别不到；那一瞬列表
+      // 本就贴底，恢复也只会落回原位。
       if (scrollController.position.isScrollingNotifier.value) {
         _startChatFollowResumeTimer();
         return;
@@ -1987,6 +1990,9 @@ class LiveRoomController extends PlayerController
     _chatScrollTimer = null;
     _chatScrollPending = false;
     _cancelChatFollowResume();
+    // 换台要复位跟随：新房间的消息不会再触发滚动事件，暂停态留着会让聊天区
+    // 停在该房间最旧一条、只能靠「最新」按钮救回来。
+    disableAutoScroll.value = false;
     superChats.clear();
     danmakuController?.clear();
     // 表情包是分房间下发的，换房间后上一个房间的合成位图没有复用价值；
