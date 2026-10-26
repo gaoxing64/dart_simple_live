@@ -14,13 +14,74 @@ class AggregateSearchView extends StatelessWidget {
   AggregateSearchController get controller =>
       Get.find<AggregateSearchController>(tag: AggregateSearchController.tag);
 
+  /// 按条目**自带的数据**渲染，不按当前模式猜类型。
+  ///
+  /// 猜类型就得写 `item.room!` / `item.anchor!`：模式切换与列表清空之间一旦出现
+  /// 混排，强解包直接 Null check 崩溃、整页红屏，而这个不变量视图侧看不见也不设防。
+  Widget _itemWidget(AggregateSearchItem item) {
+    final room = item.room;
+    if (room != null) {
+      return LiveRoomCard(item.site, room);
+    }
+    final anchor = item.anchor;
+    if (anchor == null) {
+      return const SizedBox.shrink();
+    }
+
+    return ListTile(
+      leading: NetImage(
+        anchor.avatar,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+      ),
+      title: Text(anchor.userName),
+      subtitle: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(item.site.name),
+          AppStyle.hGap8,
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: anchor.liveStatus ? Colors.green : Colors.grey,
+              borderRadius: AppStyle.radius12,
+            ),
+          ),
+          AppStyle.hGap4,
+          Text(
+            anchor.liveStatus ? "直播中" : "未开播",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.normal,
+              color: anchor.liveStatus ? null : Colors.grey,
+            ),
+          ),
+        ],
+      ),
+      onTap: () {
+        AppNavigator.toLiveRoomDetail(
+          site: item.site,
+          roomId: anchor.roomId,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    var roomRowCount = MediaQuery.sizeOf(context).width ~/ 200;
-    if (roomRowCount < 2) roomRowCount = 2;
+    var roomRowCount = AppStyle.gridRowCount(
+      MediaQuery.sizeOf(context).width,
+      itemWidth: 200,
+      minCount: 2,
+    );
 
-    var userRowCount = MediaQuery.sizeOf(context).width ~/ 500;
-    if (userRowCount < 1) userRowCount = 1;
+    var userRowCount = AppStyle.gridRowCount(
+      MediaQuery.sizeOf(context).width,
+      itemWidth: 500,
+      minCount: 1,
+    );
 
     return Obx(
       () => controller.searchMode.value == 0
@@ -33,10 +94,7 @@ class AggregateSearchView extends StatelessWidget {
               crossAxisSpacing: 12,
               crossAxisCount: roomRowCount,
               showPageLoadding: true,
-              itemBuilder: (_, index) {
-                final item = controller.list[index];
-                return LiveRoomCard(item.site, item.room!);
-              },
+              itemBuilder: (_, index) => _itemWidget(controller.list[index]),
             )
           : PageGridView(
               pageController: controller,
@@ -46,51 +104,9 @@ class AggregateSearchView extends StatelessWidget {
               crossAxisSpacing: 12,
               crossAxisCount: userRowCount,
               itemExtent: 76,
+              showPageLoadding: true,
               skeletonBuilder: (_, __) => const ListRowSkeleton(),
-              itemBuilder: (_, index) {
-                final site = controller.list[index].site;
-                final item = controller.list[index].anchor!;
-
-                return ListTile(
-                  leading: NetImage(
-                    item.avatar,
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                  ),
-                  title: Text(item.userName),
-                  subtitle: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(site.name),
-                      AppStyle.hGap8,
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: item.liveStatus ? Colors.green : Colors.grey,
-                          borderRadius: AppStyle.radius12,
-                        ),
-                      ),
-                      AppStyle.hGap4,
-                      Text(
-                        item.liveStatus ? "直播中" : "未开播",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.normal,
-                          color: item.liveStatus ? null : Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  onTap: () {
-                    AppNavigator.toLiveRoomDetail(
-                      site: site,
-                      roomId: item.roomId,
-                    );
-                  },
-                );
-              },
+              itemBuilder: (_, index) => _itemWidget(controller.list[index]),
             ),
     );
   }

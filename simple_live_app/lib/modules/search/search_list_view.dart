@@ -17,11 +17,17 @@ class SearchListView extends StatelessWidget {
   SearchListController get controller => Get.find<SearchListController>(tag: tag);
   @override
   Widget build(BuildContext context) {
-    var roomRowCount = MediaQuery.of(context).size.width ~/ 200;
-    if (roomRowCount < 2) roomRowCount = 2;
+    var roomRowCount = AppStyle.gridRowCount(
+      MediaQuery.of(context).size.width,
+      itemWidth: 200,
+      minCount: 2,
+    );
 
-    var userRowCount = MediaQuery.of(context).size.width ~/ 500;
-    if (userRowCount < 1) userRowCount = 1;
+    var userRowCount = AppStyle.gridRowCount(
+      MediaQuery.of(context).size.width,
+      itemWidth: 500,
+      minCount: 1,
+    );
     return KeepAliveWrapper(
       child: Obx(
         () => controller.searchMode.value == 0

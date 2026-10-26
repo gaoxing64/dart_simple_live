@@ -25,7 +25,15 @@ class AppSearchController extends GetxController
 
   late TabController tabController;
 
+  /// 「房间/主播」当前选择，**只服务非聚合（按平台 Tab）那条路径**。
+  ///
+  /// 聚合模式下这一份不存在第二份拷贝：模式只有 [aggregateController] 里的
+  /// `searchMode` 一份，界面读它、请求也带它，避免「标签与列表内容各读一份真值」
+  /// 在在途请求期间错位（见 `AggregateSearchController._requestedMode`）。
   var searchMode = 0.obs;
+
+  AggregateSearchController get aggregateController =>
+      Get.find<AggregateSearchController>(tag: AggregateSearchController.tag);
 
   AppSearchController({this.initialSiteId}) {
     // 必须把 index 一起对齐：TabController 带 initialIndex 时不会走切换动画，
@@ -93,19 +101,32 @@ class AppSearchController extends GetxController
     super.onInit();
   }
 
+  /// 「房间/主播」被点选。按开关分别走各自的单一事实源。
+  void onSearchModeChanged(int mode) {
+    if (AppSettingsController.instance.aggregateSearchEnabled.value) {
+      final keyword = searchController.text;
+      // 输入框里有字就按新写的词搜；空着则是「用上次真正搜过的词换模式重搜」，
+      // 由 updateSearchMode 内部决定要不要发起请求。
+      if (keyword.isEmpty) {
+        aggregateController.updateSearchMode(mode);
+      } else {
+        aggregateController.startSearch(keyword: keyword, searchMode: mode);
+      }
+      return;
+    }
+    searchMode.value = mode;
+    doSearch();
+  }
+
   void doSearch() {
     if (AppSettingsController.instance.aggregateSearchEnabled.value) {
-      final aggregateController = Get.find<AggregateSearchController>(
-        tag: AggregateSearchController.tag,
-      );
       if (searchController.text.isEmpty) {
-        aggregateController.updateSearchMode(searchMode.value);
-      } else {
-        aggregateController.startSearch(
-          keyword: searchController.text,
-          searchMode: searchMode.value,
-        );
+        return;
       }
+      aggregateController.startSearch(
+        keyword: searchController.text,
+        searchMode: aggregateController.searchMode.value,
+      );
       return;
     }
     if (searchController.text.isEmpty) {

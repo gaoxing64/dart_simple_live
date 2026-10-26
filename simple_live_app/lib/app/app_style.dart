@@ -156,6 +156,26 @@ class AppStyle {
   /// 要整体调大调小只改这一个数。
   static const double kIconButtonSize = 40;
 
+  /// 宽度驱动网格的列数上限，与首页 [kMaxColumns]（home_list_view.dart）同值：
+  /// 首页卡片与搜索房间卡是同一种 `LiveRoomCard`、行高同为固定 168，
+  /// 超宽屏下不封顶都会稀排出十几列、竖直方向露白。
+  static const int kGridMaxColumns = 12;
+
+  /// 宽度驱动网格的列数：`width ~/ itemWidth`，下限 [minCount]、上限 [maxCount]。
+  ///
+  /// 收敛搜索 / 聚合搜索 / 抖音搜索三处逐字拷贝的
+  /// 「`width ~/ 200` 下限 2」「`width ~/ 500` 下限 1」公式。
+  /// 除数与下限保持各处原值，**上限是本次新引入的**：只在极端超宽
+  /// （房间列 >2400 宽、主播行 >6000 宽）才生效，常规窗口视觉不变。
+  static int gridRowCount(
+    double width, {
+    required double itemWidth,
+    required int minCount,
+    int maxCount = kGridMaxColumns,
+  }) {
+    return (width ~/ itemWidth).clamp(minCount, maxCount);
+  }
+
   /// 圆形图标按钮的统一规格：形状、尺寸、hover / 按压 / 聚焦反馈完全一致。
   ///
   /// **为什么必须显式传给按钮、不能只靠 `ThemeData.iconButtonTheme`**：

@@ -178,6 +178,7 @@ void main() {
     expect(controller.list.length, 1);
     expect(controller.loadMoreFailed.value, isTrue);
     expect(controller.canLoadMore.value, isTrue);
+    expect(controller.loadMoreFailedText, 'flaky 加载失败，点击重试');
 
     await controller.retryLoadMore();
 
@@ -189,6 +190,7 @@ void main() {
       'flaky:f1',
     ]);
     expect(controller.loadMoreFailed.value, isFalse);
+    expect(controller.loadMoreFailedText, '加载失败，点击重试');
   });
 
   test('所有适用平台均失败且没有结果时进入整页错误', () async {

@@ -30,6 +30,13 @@ class _SourceState {
   int nextPage = 1;
   bool hasMore;
   int duplicatePages = 0;
+
+  /// 本来源**连续**失败次数，成功一轮即清零。
+  ///
+  /// 达到 [AggregateSearchController._maxConsecutiveSourceFailures] 后置
+  /// [hasMore]=false：永久坏掉的源（鉴权失效、接口改版）不该让「加载更多」
+  /// 永远挂着、被用户无限重试。
+  int failedPages = 0;
 }
 
 class _SourceResponse {
@@ -48,6 +55,10 @@ class _SourceResponse {
 class AggregateSearchController extends BasePageController<AggregateSearchItem> {
   static const String tag = "aggregate-search";
 
+  /// 单来源连续失败上限：达到后该源退役（`hasMore=false`），不再参与重试。
+  /// 3 次给瞬断与临时限流留了两次重试机会，又不至于让坏源永远吊着列表。
+  static const int _maxConsecutiveSourceFailures = 3;
+
   AggregateSearchController({List<Site>? sites})
       : _sites = sites ?? Sites.supportSites;
 
@@ -56,15 +67,32 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
 
   String _keyword = '';
   int _generation = 0;
+
+  /// 用户最后一次点选、但尚未生效的模式。
+  ///
+  /// 生效点必须在 [_awaitPendingLoad] 之后（旧查询还在跑时改模式，新几何会套在旧
+  /// 条目上）。可在那之前「房间/主播」已经被点掉了，所以这里单独记一份意图，
+  /// 等真正能生效的那一刻再应用；期间界面显示的始终是 [searchMode]（列表实际内容），
+  /// 不会出现「标签写着主播、下面还是房间卡片」。
+  int _requestedMode = 0;
   bool _closed = false;
   Future<void>? _activeLoad;
   List<_SourceState> _states = [];
   Set<String> _seen = {};
 
+  /// 本轮加载中失败的来源平台名，供底部重试条点名「是谁失败了」。
+  ///
+  /// 合并列表后用户看不出少了哪个平台，只会读成「那个平台就是没内容」；
+  /// 每次 [getData] 完整跑完后整体覆写（成功轮为空），陈旧查询在
+  /// `_generation` 守卫处提前返回、不会触碰它。
+  final List<String> _failedSourceNames = [];
+
   Future<void> startSearch({
     required String keyword,
     required int searchMode,
   }) async {
+    _requestedMode = searchMode;
+    _invalidateInflightLoad();
     await _awaitPendingLoad();
     _keyword = keyword;
     this.searchMode.value = searchMode;
@@ -76,10 +104,32 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
   }
 
   Future<void> updateSearchMode(int mode) async {
+    _requestedMode = mode;
+    // 点的就是当前生效模式（连点两下点回原样）：在途查询依然有效，
+    // 这里既不作废也不重启，省掉一轮全平台请求。
     if (searchMode.value == mode) {
       return;
     }
+    _invalidateInflightLoad();
+    final invalidated = _generation;
     await _awaitPendingLoad();
+    // 连点两次以最后一次为准：更早的那次点选在这里发现已有新意图就让路出去。
+    if (_requestedMode != mode || searchMode.value == mode) {
+      // 让路之前得确认「有人接手」。可能没人接手：新意图若等于当前生效模式，
+      // 它在 await 之前就被上面那条 guard 直接挡回去了，于是本次作废的在途轮次
+      // 无人重启 —— 首页被取消会留下 _doLoad 置起的 pageEmpty，翻页被取消会留下
+      // canLoadMore=false 的假「已到底」。这里补一次兜底重启。
+      // `_generation == invalidated` 保证期间没人开启新查询（_beginQuery /
+      // refreshData 都会再递增），免得连点同一模式时把别人刚起好的查询又清一遍。
+      // 必须走本类的 refreshData：只有 _beginQuery 会清 _seen，直接调 super 会把
+      // 重启后的条目全判成重复项。
+      if (_generation == invalidated &&
+          _requestedMode == searchMode.value &&
+          _keyword.isNotEmpty) {
+        await refreshData();
+      }
+      return;
+    }
     searchMode.value = mode;
     _beginQuery();
     if (_keyword.isNotEmpty) {
@@ -108,6 +158,9 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
     if (_keyword.isEmpty) {
       return;
     }
+    // 先作废再等：下拉刷新与「空/错误态的重试」都走这里，等在途查询跑完再递增
+    // 等于让它把剩下的轮次全打完（详见 [_invalidateInflightLoad]）。
+    _invalidateInflightLoad();
     await _awaitPendingLoad();
     _beginQuery();
     await super.refreshData();
@@ -130,6 +183,17 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
   }
 
   @override
+  String get loadMoreFailedText {
+    if (_failedSourceNames.isEmpty) {
+      return super.loadMoreFailedText;
+    }
+    final names = _failedSourceNames.length <= 3
+        ? _failedSourceNames.join('、')
+        : '${_failedSourceNames.take(3).join('、')}等';
+    return '$names 加载失败，点击重试';
+  }
+
+  @override
   Future<List<AggregateSearchItem>> getData(
     int page,
     int pageSize,
@@ -148,6 +212,7 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
 
     final active = _states.where((state) => state.hasMore).toList();
     final output = <AggregateSearchItem>[];
+    final failedNames = <String>[];
     Object? firstError;
 
     while (active.isNotEmpty) {
@@ -163,11 +228,21 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
         final error = response.error;
         if (error != null) {
           firstError ??= error;
+          final state = response.state;
+          final siteName = state.site.name;
+          if (!failedNames.contains(siteName)) {
+            failedNames.add(siteName);
+          }
+          state.failedPages++;
+          if (state.failedPages >= _maxConsecutiveSourceFailures) {
+            state.hasMore = false;
+          }
           freshBatches.add(const []);
           continue;
         }
 
         final state = response.state;
+        state.failedPages = 0;
         final fresh = _takeFreshItems(response.items);
         if (response.items.isEmpty) {
           state.hasMore = false;
@@ -198,7 +273,13 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
       }
     }
 
-    serverHasMore = _states.any((state) => state.hasMore) || firstError != null;
+    // 不再因 firstError 强制 true：失败源的重试寿命由
+    // [_maxConsecutiveSourceFailures] 决定，触顶即 hasMore=false 退役；
+    // 未触顶时它本身仍是 hasMore，`any` 已经为 true。
+    serverHasMore = _states.any((state) => state.hasMore);
+    _failedSourceNames
+      ..clear()
+      ..addAll(failedNames);
     final error = firstError;
     if (error != null) {
       loadMoreFailed.value = true;
@@ -207,6 +288,22 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
       }
     }
     return output;
+  }
+
+  /// 作废当前在途查询：让它在**当前轮**请求回来之后就收手。
+  ///
+  /// 必须在 `await _awaitPendingLoad()` **之前**递增。[getData] 只在每轮
+  /// `Future.wait` 返回后核对代际，等旧查询跑完再递增等于放它把剩下的轮次全打完
+  /// —— 聚合搜索一次并发打满全平台，遇到连续重复页还会自行续轮，新查询就得排在
+  /// 这串请求后面，用户点一下要空等好几秒。提前递增，旧查询当前轮结束即止损。
+  ///
+  /// 代价与边界：被取消的那轮返回空列表，`BasePageController._doLoad` 会把「首页
+  /// 空结果」判成没有数据并置起 `pageEmpty`。**不会闪出空态** —— 调用方紧接着就
+  /// 走 [_beginQuery] 把它复位，两步之间只有微任务、没有帧边界，界面拿不到中间帧
+  /// （`updateSearchMode` 让路给新意图的那条分支是唯一可能没人接手的路径，
+  /// 那里有显式重启兜底）。
+  void _invalidateInflightLoad() {
+    _generation++;
   }
 
   void _beginQuery() {
@@ -218,6 +315,7 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
     errorMsg.value = '';
     loadFailed = false;
     loadMoreFailed.value = false;
+    _failedSourceNames.clear();
     _initSources();
   }
 

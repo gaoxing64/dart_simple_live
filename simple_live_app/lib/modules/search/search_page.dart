@@ -44,25 +44,33 @@ class _SearchModeSelector extends StatelessWidget {
           ),
         ),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-            borderRadius: _kTriggerRadius,
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.5),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(_modeLabels[_modeValues.indexOf(value)]),
-              AppStyle.hGap4,
-              Icon(
-                Remix.arrow_down_s_line,
-                size: 16,
-                color: scheme.onSurfaceVariant,
+          // 传了 `child` 时 material_ui 的 PopupMenuButton 走 shrinkWrap，不给
+          // kMinInteractiveDimension 下限（旧 DropdownButton 本来自带 48dp）。
+          // 这里自己把可点区撑到 48：同一行的前后缀都是 IconButton，字段本来就有
+          // 48dp 高，所以只有点击区变大，胶囊视觉仍是内容高度。
+          height: 48,
+          alignment: Alignment.center,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+              borderRadius: _kTriggerRadius,
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.5),
               ),
-            ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_modeLabels[_modeValues.indexOf(value)]),
+                AppStyle.hGap4,
+                Icon(
+                  Remix.arrow_down_s_line,
+                  size: 16,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -98,13 +106,14 @@ class SearchPage extends GetView<AppSearchController> {
                     onPressed: Get.back,
                     icon: const Icon(Icons.arrow_back),
                   ),
+                  // 模式只有一份真值：聚合时读聚合控制器（布局与请求都跟着它走），
+                  // 按平台时读本页这一份。点下去不再先改标签再等业务生效。
                   Obx(
                     () => _SearchModeSelector(
-                      value: controller.searchMode.value,
-                      onChanged: (mode) {
-                        controller.searchMode.value = mode;
-                        controller.doSearch();
-                      },
+                      value: aggregateEnabled
+                          ? controller.aggregateController.searchMode.value
+                          : controller.searchMode.value,
+                      onChanged: controller.onSearchModeChanged,
                     ),
                   ),
                   AppStyle.hGap8,
