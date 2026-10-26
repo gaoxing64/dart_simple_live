@@ -33,7 +33,7 @@
 
 ## 3. 冲突统计
 
-- **预演**：177 个冲突文件，其中 162 个位于 `simple_live_app`。
+- **预演**：177 个冲突文件，其中 162 个位于 `simple_live_app`。完整清单见 [2026-10-27-future-to-master-conflicts.txt](./2026-10-27-future-to-master-conflicts.txt)（每行一个路径，末两行 `simple_live_core~future`、`simple_live_tv_app~future` 为 file/directory 冲突标记）。
 - **实际合并**：175 个 add/add 冲突 + 2 个 file/directory 冲突（`simple_live_core`、`simple_live_tv_app`，目录与子模块 gitlink 冲突）。
 - **解决方式**：
   - 172 个文件取 future 侧；
@@ -112,7 +112,7 @@
 
 ### Low（11 条）
 
-死代码（`_editDistance`、lazy_static 冗余依赖、BOM/行尾）、SPDX 标识弃用（GPL-3.0）、toJson/fromJson 字段不对称（id_str）、扫码轮询 Toast 刷屏、截图 URL 停在 v1.7.18 等，明细见 ocr-review-report 存档。
+死代码（`_editDistance`、lazy_static 冗余依赖、BOM/行尾）、SPDX 标识弃用（GPL-3.0）、toJson/fromJson 字段不对称（id_str）、扫码轮询 Toast 刷屏、截图 URL 停在 v1.7.18 等，明细见 [2026-10-27-review-synthesis.md](./2026-10-27-review-synthesis.md)（主编审合并稿）与 [2026-10-27-ocr-review-report.txt](./2026-10-27-ocr-review-report.txt)（工具原始输出）。
 
 ### 覆盖缺口
 
