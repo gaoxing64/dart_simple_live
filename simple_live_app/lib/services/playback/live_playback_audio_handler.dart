@@ -279,7 +279,7 @@ Future<void> initLivePlaybackAudioHandler() async {
     final handler = await AudioService.init(
       builder: () => LivePlaybackAudioHandler(),
       config: const AudioServiceConfig(
-        androidNotificationChannelId: 'com.slotsun.slive.playback',
+        androidNotificationChannelId: 'com.gaoxing.slive.playback',
         androidNotificationChannelName: '直播播放',
         androidNotificationChannelDescription: '锁屏或切到后台时控制直播播放',
         // 必须是纯白单色图标；默认值 mipmap/ic_launcher 是彩色的，在状态栏里会糊成

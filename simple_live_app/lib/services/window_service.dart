@@ -59,7 +59,7 @@ class WindowService extends GetxService implements WindowListener {
 
   /// Flutter Windows runner 的窗口类名，用于定位窗口句柄
   /// （窗口标题可能被修改，按类名查找更可靠）
-  static const String _windowClassName = 'FLUTTER_RUNNER_WIN32_WINDOW';
+  static const String _windowClassName = 'FLUTTER_RUNNER_GAOXING_WINDOW';
 
   /// DWMWA_USE_IMMERSIVE_DARK_MODE 在 Windows 10 20H1 之前的值
   static const int _dwmwaUseImmersiveDarkModeLegacy = 19;

@@ -1,7 +1,7 @@
 {
-    "version": "1.8.15",
-    "version_num": 10815,
-    "version_desc": "future 分支合入 master：Rust 核心迁移 + 关注体系 + 播放器体验全面升级\n\n🚀 主要更新\n- Rust 核心迁移：B站/斗鱼/虎牙/Twitch/抖音五平台迁移至 slive-core（simple_live_core 子模块），App 直连 Rust\n- 关注体系：主播详情页与观看统计热力图、多分组归属与一键智能分组、按日观看记录\n- 弹幕：重复弹幕合并计数（去重/屏蔽双模式）、虎牙大表情与梗表情、抖音会员表情\n- 搜索：多平台聚合搜索\n- 播放器：键盘自定义键位、多开窗口几何修复、OSD 与音量浮层优化\n- 新增 slive 命令行工具（直连 Rust 核心）\n\n🐛 修复（节选）\n- 斗鱼明文 TCP 弹幕与本地续流中转，修复断流\n- 虎牙 SC 拉取与个别线路断流修复\n- B站账号失效误判与弹幕 cookie 配对\n- Twitch 预读提高，减少反复缓冲\n- 聊天跟随最新与滚动位置恢复\n\n♻️ 架构\n- simple_live_core 与 simple_live_tv_app 改为 git submodule\n- 删除 Dart 协议实现，console 由 slive-cli 取代\n\n⚠️ 平台验证状态\n- Windows / Android：已验证 ✅\n- Linux / macOS / iOS / Android TV：本次未验证，请自行测试后使用",
+    "version": "1.9.0",
+    "version_num": 10900,
+    "version_desc": "gaoxing 标识共存版：全平台应用标识改为 gaoxing，可与上游 SlotSun 官方版并行安装\n\n🪪 标识变更\n- Android / iOS / macOS：com.gaoxing.slive\n- Linux / Flatpak：io.github.gaoxing.Slive\n- Windows：新安装身份（独立安装目录 slive-gaoxing，exe 名 slive-gaoxing.exe）\n\n💾 数据说明（重要）\n- Windows：与原 Slive 版共享 %APPDATA% 数据目录，关注/历史/设置无缝延续 ✅\n- Android / iOS / macOS / Linux：数据目录跟随新包名，为全新目录，首次启动为空（可用 WebDAV 备份从旧版迁移）\n- Android 需重新登录账号，通知渠道重新授权\n\n📦 安装提示\n- 与上游 SlotSun 官方版（com.slotsun.slive）可共存安装，互不覆盖\n- 窗口标题与显示名保持 Slive 不变，桌面多图标时可从安装目录区分\n- 本版应用内检查更新指向 gaoxing64 仓库\n\n⚠️ 平台验证状态\n- Windows / Android：已验证 ✅\n- Linux / macOS / iOS / Android TV：本次未验证，请自行测试后使用",
     "prerelease": false,
     "download_url": "https://github.com/gaoxing64/dart_simple_live/releases"
 }
