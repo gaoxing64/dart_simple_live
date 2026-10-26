@@ -59,7 +59,7 @@ class WindowService extends GetxService implements WindowListener {
 
   /// Flutter Windows runner 的窗口类名，用于定位窗口句柄
   /// （窗口标题可能被修改，按类名查找更可靠）
-  static const String _windowClassName = 'FLUTTER_RUNNER_WIN32_WINDOW';
+  static const String _windowClassName = 'FLUTTER_RUNNER_GAOXING_WINDOW';
 
   /// DWMWA_USE_IMMERSIVE_DARK_MODE 在 Windows 10 20H1 之前的值
   static const int _dwmwaUseImmersiveDarkModeLegacy = 19;
@@ -132,7 +132,7 @@ class WindowService extends GetxService implements WindowListener {
       //（100% 缩放）下 = 436 物理像素——跨缩放下「至少 2 列」语义一致。
       minimumSize: _normalMinimumSize, // 防止无脑小窗导致界面报错
       center: false,
-      title: "Slive (gaoxing)",
+      title: "Slive",
     );
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       if (Platform.isWindows) {

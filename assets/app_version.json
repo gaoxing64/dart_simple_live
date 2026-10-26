@@ -1,7 +1,7 @@
 {
     "version": "1.9.0",
     "version_num": 10900,
-    "version_desc": "gaoxing 标识共存版：全平台应用标识改为 gaoxing，可与上游 SlotSun 官方版并行安装\n\n🪪 标识变更\n- Android / iOS / macOS：com.gaoxing.slive\n- Linux / Flatpak：io.github.gaoxing.Slive\n- Windows：新安装身份（独立安装目录 slive-gaoxing，窗口标题 Slive (gaoxing)）\n\n💾 数据说明（重要）\n- Windows：与原 Slive 版共享 %APPDATA% 数据目录，关注/历史/设置无缝延续 ✅\n- Android / iOS / macOS / Linux：数据目录跟随新包名，为全新目录，首次启动为空（可用 WebDAV 备份从旧版迁移）\n- Android 需重新登录账号，通知渠道重新授权\n\n📦 安装提示\n- 与上游 SlotSun 官方版（com.slotsun.slive）可共存安装，互不覆盖\n- 本版应用内检查更新指向 gaoxing64 仓库\n\n⚠️ 平台验证状态\n- Windows / Android：已验证 ✅\n- Linux / macOS / iOS / Android TV：本次未验证，请自行测试后使用",
+    "version_desc": "gaoxing 标识共存版：全平台应用标识改为 gaoxing，可与上游 SlotSun 官方版并行安装\n\n🪪 标识变更\n- Android / iOS / macOS：com.gaoxing.slive\n- Linux / Flatpak：io.github.gaoxing.Slive\n- Windows：新安装身份（独立安装目录 slive-gaoxing，exe 名 slive-gaoxing.exe）\n\n💾 数据说明（重要）\n- Windows：与原 Slive 版共享 %APPDATA% 数据目录，关注/历史/设置无缝延续 ✅\n- Android / iOS / macOS / Linux：数据目录跟随新包名，为全新目录，首次启动为空（可用 WebDAV 备份从旧版迁移）\n- Android 需重新登录账号，通知渠道重新授权\n\n📦 安装提示\n- 与上游 SlotSun 官方版（com.slotsun.slive）可共存安装，互不覆盖\n- 窗口标题与显示名保持 Slive 不变，桌面多图标时可从安装目录区分\n- 本版应用内检查更新指向 gaoxing64 仓库\n\n⚠️ 平台验证状态\n- Windows / Android：已验证 ✅\n- Linux / macOS / iOS / Android TV：本次未验证，请自行测试后使用",
     "prerelease": false,
     "download_url": "https://github.com/gaoxing64/dart_simple_live/releases"
 }

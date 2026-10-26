@@ -7,10 +7,20 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  HWND hwnd = ::FindWindow(NULL, L"Slive (gaoxing)");
-  if (hwnd != NULL) {
-    ::ShowWindow(hwnd, SW_NORMAL);
-    ::SetForegroundWindow(hwnd);
+  // 单实例检测用命名互斥量而非窗口标题：上游 Slive 版窗口标题同为 "Slive"，
+  // 按标题 FindWindow 会把上游窗口误判为本应用实例导致拒绝启动。
+  // 互斥量名带构建标识，与上游版互不干扰；检测到已有实例时尝试将其前置。
+  HANDLE single_instance = ::CreateMutexW(nullptr, TRUE, L"Local\\Slive-gaoxing-SingleInstance");
+  if (single_instance == nullptr) {
+    return EXIT_FAILURE;
+  }
+  if (::GetLastError() == ERROR_ALREADY_EXISTS) {
+    HWND hwnd = ::FindWindow(L"FLUTTER_RUNNER_GAOXING_WINDOW", nullptr);
+    if (hwnd != NULL) {
+      ::ShowWindow(hwnd, SW_NORMAL);
+      ::SetForegroundWindow(hwnd);
+    }
+    ::CloseHandle(single_instance);
     return EXIT_FAILURE;
   }
 
@@ -37,7 +47,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"Slive (gaoxing)", origin, size)) {
+  if (!window.Create(L"Slive", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
@@ -49,5 +59,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   ::CoUninitialize();
+  ::CloseHandle(single_instance);
   return EXIT_SUCCESS;
 }
