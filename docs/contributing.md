@@ -79,6 +79,10 @@ cd dart_simple_live/simple_live_app
 git submodule update --init --recursive
 ```
 
+> **重要**：`simple_live_app`、`simple_live_tv_app` 的 `pubspec.yaml` 通过 `path: ../simple_live_core`（以及 `../simple_live_core/rust_builder`）引用核心库。没有拉取 submodule 时 `flutter pub get` 会因找不到路径依赖而失败，且跳过 `git submodule update` 直接构建也会缺文件。子模块更新后记得在对应子项目目录里重新执行 `flutter pub get`。
+>
+> 子仓库地址：[dart_simple_live_core](https://github.com/SlotSun/dart_simple_live_core) / [dart_simple_live_tv_app](https://github.com/SlotSun/dart_simple_live_tv_app)（fork 者请使用各自账号下的同名仓库）。
+
 ## 🏷️ 认领任务
 
 ### 查找任务
