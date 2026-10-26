@@ -320,6 +320,9 @@ class LiveRoomController extends PlayerController
   Timer? _chatScrollTimer;
   bool _chatScrollPending = false;
 
+  /// 上滑暂停跟随后，手动滑回底部并停手时的恢复倒计时（见 [_scheduleChatFollowResume]）。
+  Timer? _chatFollowResumeTimer;
+
   /// 已经播过入场动画的消息（按对象身份记账）。
   ///
   /// 列表项滑出屏幕会被回收，重建时不能重播；超过消息上限两倍时剔除已离场
@@ -347,6 +350,12 @@ class LiveRoomController extends PlayerController
   /// 画面是连续的，而不是每来一条就打断上一次缓动从头再跑。
   static const Duration _kChatScrollDuration = Duration(milliseconds: 500);
   static const Duration _kChatScrollThrottle = Duration(milliseconds: 500);
+
+  /// 滑到底部后静止这么久就恢复「跟随最新」，期间再滚动一次就重新计时。
+  static const Duration _kChatFollowResumeDelay = Duration(seconds: 1);
+
+  /// 「已在底部」的判定容差（逻辑像素）：吸收亚像素舍入，贴底时不会因浮点误差判成未到底。
+  static const double _kChatBottomTolerance = 1.0;
 
   @override
   void onInit() {
@@ -572,10 +581,64 @@ class LiveRoomController extends PlayerController
     if (!scrollController.hasClients) {
       return;
     }
-    _lastChatScrollOffset = scrollController.position.pixels;
-    if (scrollController.position.userScrollDirection == ScrollDirection.forward) {
+    final position = scrollController.position;
+    _lastChatScrollOffset = position.pixels;
+    final atBottom = position.extentAfter <= _kChatBottomTolerance;
+    // 在底部附近往上轻推不进「暂停跟随」：那一瞬最新消息仍看得见，切进去
+    // 只会让「最新」按钮闪一下、再被恢复计时器撤销。
+    if (position.userScrollDirection == ScrollDirection.forward && !atBottom) {
       disableAutoScroll.value = true;
     }
+    if (disableAutoScroll.value) {
+      _scheduleChatFollowResume(atBottom: atBottom);
+    }
+  }
+
+  /// 上滑翻历史后，手动滑回底部并停手 [_kChatFollowResumeDelay] 就恢复跟随最新。
+  ///
+  /// 以前只有「最新」按钮能解除 [disableAutoScroll]，用户滑回底部后再来新消息
+  /// 列表会停在原处。这里按「已到底 + 滚动静止」判定：每次滚动都重排倒计时，
+  /// 因此计时从**最后一次**滚动开始算；期间到达的新消息不会取消它——人已经在
+  /// 底部，意图就是继续跟最新。
+  void _scheduleChatFollowResume({required bool atBottom}) {
+    _cancelChatFollowResume();
+    if (!atBottom) {
+      return;
+    }
+    _startChatFollowResumeTimer();
+  }
+
+  void _startChatFollowResumeTimer() {
+    _chatFollowResumeTimer = Timer(_kChatFollowResumeDelay, () {
+      if (!disableAutoScroll.value || !scrollController.hasClients) {
+        _chatFollowResumeTimer = null;
+        return;
+      }
+      // 手指还按着或惯性没停：再等一轮，别在用户手里抢滚动位置。
+      if (scrollController.position.isScrollingNotifier.value) {
+        _startChatFollowResumeTimer();
+        return;
+      }
+      resumeChatFollow(animate: true);
+    });
+  }
+
+  void _cancelChatFollowResume() {
+    _chatFollowResumeTimer?.cancel();
+    _chatFollowResumeTimer = null;
+  }
+
+  /// 立刻回到「跟随最新」：解除上滑暂停并落到底。
+  ///
+  /// 「最新」按钮与 [_startChatFollowResumeTimer] 共用这一条出口，避免两条
+  /// 路径对「是否还排着恢复倒计时」各持一份判断。
+  ///
+  /// [animate] 默认 false（瞬移）：按钮可能要跨过上百条积压。自动恢复时用户
+  /// 本就停在底部附近，交给平滑滚底更自然。
+  void resumeChatFollow({bool animate = false}) {
+    _cancelChatFollowResume();
+    disableAutoScroll.value = false;
+    chatScrollToBottom(animate: animate);
   }
 
   /// 聊天列表重新挂载（退出全屏、切换布局）时接回滚动位置。
@@ -1923,6 +1986,7 @@ class LiveRoomController extends PlayerController
     _chatScrollTimer?.cancel();
     _chatScrollTimer = null;
     _chatScrollPending = false;
+    _cancelChatFollowResume();
     superChats.clear();
     danmakuController?.clear();
     // 表情包是分房间下发的，换房间后上一个房间的合成位图没有复用价值；
@@ -2159,6 +2223,7 @@ ${error?.stackTrace}''');
     autoExitTimer?.cancel();
     danmakuTimer?.cancel();
     _chatScrollTimer?.cancel();
+    _cancelChatFollowResume();
     // 这个 EventBus 订阅原来一直没被取消：每关一个直播间就漏一个 kUpdateDanmaku
     // 监听者，多开时泄漏量翻四倍。
     subscription?.cancel();

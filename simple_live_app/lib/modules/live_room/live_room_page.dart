@@ -892,10 +892,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                         right: 12,
                         bottom: 12,
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            room.disableAutoScroll.value = false;
-                            room.chatScrollToBottom(animate: false);
-                          },
+                          onPressed: () => room.resumeChatFollow(),
                           icon: const Icon(Icons.expand_more),
                           label: const Text("最新"),
                         ),
