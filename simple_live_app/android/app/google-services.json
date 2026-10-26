@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "com-gaoxing-slive",
-    "storage_bucket": "com-gaoxing-slive.firebasestorage.app"
+    "project_number": "433167251149",
+    "project_id": "slive-gaoxing",
+    "storage_bucket": "slive-gaoxing.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:433167251149:android:822b7304dd16ca1d1f5b84",
         "android_client_info": {
           "package_name": "com.gaoxing.slive"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "0"
+          "current_key": "AIzaSyBvrhMTUWpZ9aENKTe4crDR84Dec2k0664"
         }
       ],
       "services": {
