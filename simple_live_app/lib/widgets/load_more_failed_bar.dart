@@ -26,7 +26,7 @@ class LoadMoreFailedBar extends StatelessWidget {
         alignment: Alignment.center,
         padding: AppStyle.edgeInsetsV12,
         child: Text(
-          "加载失败，点击重试",
+          pageController.loadMoreFailedText,
           style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor),
         ),
       ),
