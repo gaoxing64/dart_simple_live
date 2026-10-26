@@ -10,12 +10,23 @@
 analyzer:
   errors:
     unintended_html_in_doc_comment: ignore
+    deprecated_member_use_from_same_package: warning
+    # FRB 生成物（simple_live_core/lib/src/rust）即 Rust 桥公共 API，深导入属既定用法
+    implementation_imports: ignore
   exclude:
     - "**/frb_generated.web.dart"
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 include: package:flutter_lints/flutter.yaml
 
 formatter:
   trailing_commas: preserve
+  page_width: 120
 
 linter:
   # The lint rules applied to this project can be customized in the
@@ -33,6 +44,7 @@ linter:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
     constant_identifier_names: false
+    deprecated_member_use_from_same_package: true
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

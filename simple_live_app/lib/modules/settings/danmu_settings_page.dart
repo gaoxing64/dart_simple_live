@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:simple_live_app/app/app_style.dart';
@@ -48,7 +50,7 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
           padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
           child: Text(
             "弹幕筛选",
-            style: Get.textTheme.titleSmall,
+            style: context.textTheme.titleSmall,
           ),
         ),
         SettingsCard(
@@ -57,13 +59,12 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
             children: [
               SettingsAction(
                 title: "关键词屏蔽",
-                onTap: onTapDanmuShield ??
-                    () => Get.toNamed(RoutePath.kSettingsDanmuShield),
+                onTap: onTapDanmuShield ?? () => Get.toNamed(RoutePath.kSettingsDanmuShield),
               ),
               Obx(
                 () => SettingsSwitch(
                   title: "弹幕去重",
-                  subtitle: "测试性功能",
+                  subtitle: "过滤短时间内的重复弹幕，防止刷屏",
                   value: controller.danmakuMaskEnable.value,
                   onChanged: (e) {
                     controller.setDanmakuMaskEnable(e);
@@ -77,7 +78,7 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
           padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
           child: Text(
             "弹幕设置",
-            style: Get.textTheme.titleSmall,
+            style: context.textTheme.titleSmall,
           ),
         ),
         SettingsCard(
@@ -137,8 +138,7 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
                   onChanged: (e) {
                     controller.setDanmuSize(e.toDouble());
                     updateDanmuOption(
-                      danmakuController?.option
-                          .copyWith(fontSize: e.toDouble()),
+                      danmakuController?.option.copyWith(fontSize: e.toDouble()),
                     );
                   },
                 ),
@@ -151,18 +151,8 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
                   min: 0,
                   max: 8,
                   step: 1,
-                  displayValue: [
-                    "极细",
-                    "很细",
-                    "细",
-                    "正常",
-                    "小粗",
-                    "偏粗",
-                    "粗",
-                    "很粗",
-                    "极粗"
-                  ][controller.danmuFontWeight.value]
-                      .toString(),
+                  displayValue:
+                      ["极细", "很细", "细", "正常", "小粗", "偏粗", "粗", "很粗", "极粗"][controller.danmuFontWeight.value].toString(),
                   onChanged: (e) {
                     controller.setDanmuFontWeight(e);
                     updateDanmuOption(
@@ -232,70 +222,139 @@ class DanmuSettingsView extends GetView<AppSettingsController> {
                   },
                 ),
               ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
-          child: Text(
-            "弹幕去重参数设置",
-            style: Get.textTheme.titleSmall,
-          ),
-        ),
-        SettingsCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Obx(
-                () => SettingsNumber(
-                  title: "去重窗口大小(秒)",
-                  value: AppSettingsController.instance.danmuWindowMs.value,
-                  step: 1,
-                  max: 45,
-                  min: 10,
-                  onChanged: (e) {
-                    AppSettingsController.instance.setDanmuWindowMs(e);
-                  },
-                ),
-              ),
-              Obx(
-                () => SettingsSwitch(
-                  value: AppSettingsController
-                      .instance.danmuTextNormalization.value,
-                  title: "文本归一化",
-                  onChanged: (e) {
-                    AppSettingsController.instance.setDanmuTextNormalization(e);
-                  },
-                ),
-              ),
-              Obx(
-                () => SettingsSwitch(
-                  value: AppSettingsController
-                      .instance.danmuFrequencyControl.value,
-                  title: "弹幕显示频率",
-                  onChanged: (e) {
-                    AppSettingsController.instance.setDanmuFrequencyControl(e);
-                  },
+              Visibility(
+                visible: Platform.isWindows || Platform.isLinux || Platform.isMacOS,
+                child: Obx(
+                  () => SettingsSwitch(
+                    title: "弹幕随窗口大小缩放",
+                    subtitle: '以窗口高度为准,窗口变化后生效',
+                    value: controller.danmakuFontClamped.value,
+                    onChanged: (e) {
+                      controller.setDanmakuFontClamped(e);
+                      // 直接调用 window_service.danmakuFontClamped() 多链路调用通知过重，用户手动即可
+                    },
+                  ),
                 ),
               ),
               Obx(
                 () => Visibility(
-                  visible: AppSettingsController
-                      .instance.danmuFrequencyControl.value,
+                  visible: controller.danmakuFontClamped.value,
                   child: SettingsNumber(
-                    title: "显示频率(次)",
-                    value: AppSettingsController
-                        .instance.danmuMaxFrequency.value,
-                    step: 1,
-                    max: 10,
-                    min: 1,
+                    title: '弹幕随窗口大小放大比率',
+                    subtitle: '范围：0~15,越大越快',
+                    value: controller.danmakuFontClampUpSens.value.toInt(),
+                    min: 0,
+                    max: 15,
                     onChanged: (e) {
-                      AppSettingsController.instance.setDanmuMaxFrequency(e);
+                      controller.setDanmakuFontClampUpSens(e.toDouble());
+                    },
+                  ),
+                ),
+              ),
+              Obx(
+                () => Visibility(
+                  visible: controller.danmakuFontClamped.value,
+                  child: SettingsNumber(
+                    title: '弹幕随窗口大小缩放比率',
+                    subtitle: '范围：0~10,越大越快',
+                    value: controller.danmakuFontClampDownSens.value.toInt(),
+                    min: 0,
+                    max: 10,
+                    onChanged: (e) {
+                      controller.setDanmakuFontClampDownSens(e.toDouble());
                     },
                   ),
                 ),
               ),
             ],
+          ),
+        ),
+        // 参数区跟随总开关：关闭去重时折叠，避免展示无效配置
+        Obx(
+          () => Visibility(
+            visible: controller.danmakuMaskEnable.value,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
+                  child: Text(
+                    "弹幕去重参数设置",
+                    style: context.textTheme.titleSmall,
+                  ),
+                ),
+                SettingsCard(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Obx(
+                        () => SettingsNumber(
+                          title: "去重窗口大小(秒)",
+                          value: AppSettingsController.instance.danmuWindowMs.value,
+                          step: 1,
+                          max: 45,
+                          min: 10,
+                          onChanged: (e) {
+                            AppSettingsController.instance.setDanmuWindowMs(e);
+                          },
+                        ),
+                      ),
+                      Obx(
+                        () => SettingsSwitch(
+                          value: AppSettingsController.instance.danmuTextNormalization.value,
+                          title: "文本归一化",
+                          onChanged: (e) {
+                            AppSettingsController.instance.setDanmuTextNormalization(e);
+                          },
+                        ),
+                      ),
+                      Obx(
+                        () => SettingsSwitch(
+                          value: AppSettingsController.instance.danmakuMergeEnable.value,
+                          title: "重复弹幕合并计数",
+                          subtitle: "关掉则直接屏蔽重复弹幕（旧行为）",
+                          onChanged: (e) {
+                            AppSettingsController.instance.setDanmakuMergeEnable(e);
+                          },
+                        ),
+                      ),
+                      // 合并模式把所有重复都算进同一条、不看频控上限，频控参数与它互斥
+                      Obx(
+                        () => Visibility(
+                          visible: !AppSettingsController.instance.danmakuMergeEnable.value,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SettingsSwitch(
+                                value: AppSettingsController.instance.danmuFrequencyControl.value,
+                                title: "弹幕显示频率",
+                                onChanged: (e) {
+                                  AppSettingsController.instance.setDanmuFrequencyControl(e);
+                                },
+                              ),
+                              Visibility(
+                                visible: AppSettingsController.instance.danmuFrequencyControl.value,
+                                child: SettingsNumber(
+                                  title: "显示频率(次)",
+                                  value: AppSettingsController.instance.danmuMaxFrequency.value,
+                                  step: 1,
+                                  max: 10,
+                                  min: 1,
+                                  onChanged: (e) {
+                                    AppSettingsController.instance.setDanmuMaxFrequency(e);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

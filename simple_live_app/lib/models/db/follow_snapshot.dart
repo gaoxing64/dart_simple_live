@@ -56,6 +56,12 @@ class FollowSnapshotItem {
   @HiveField(4)
   int online;
 
+  // 这里原来还有 `@HiveField(5) String lastCover`（「上次直播画面」）。
+  // 2026-09-15 删除：关注页改成「开播走卡片、未开播走紧凑行」之后，
+  // 未开播那一段根本不渲染封面，这个字段没有消费方；而且拿**上一次**直播的
+  // 画面去配**这一次**直播，画面是对不上的，比不显示更糟。
+  // 老快照里残留的第 5 个字段会被 Hive 忽略，不需要做迁移。
+
   factory FollowSnapshotItem.fromJson(Map<String, dynamic> json) =>
       FollowSnapshotItem(
         id: json['id'],

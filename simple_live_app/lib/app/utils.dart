@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +9,7 @@ import 'package:simple_live_app/app/app_style.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils/permission_handler.dart';
@@ -30,9 +31,7 @@ class Utils {
     }
 
     var dtNow = DateTime.now();
-    if (dt.year == dtNow.year &&
-        dt.month == dtNow.month &&
-        dt.day == dtNow.day) {
+    if (dt.year == dtNow.year && dt.month == dtNow.month && dt.day == dtNow.day) {
       return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
     }
 
@@ -119,6 +118,18 @@ class Utils {
   }) {
     SmartDialog.show(
       alignment: Alignment.topRight,
+      // keepSingle：这块面板在语义上**只有一个**（`hideRightDialog` 收的就是
+      // allCustom 全部），但没设 keepSingle 之前每次调用都往队列里追加一份，
+      // 于是连点同一个入口（快捷键、或鼠标狂点条带上的清晰度/换台）会把面板
+      // 一层层叠起来。设了之后重复调用改成**原地换内容**：已经开着「清晰度」
+      // 时再按「换台」，是同一块面板换成换台列表，而不是盖第二块。
+      // continueKeepSingle 让这种原地替换不再重放滑入动画——否则狂点时面板
+      // 会反复抽动。
+      keepSingle: useSystem ? null : true,
+      nonAnimationTypes: const [
+        SmartNonAnimationType.routeClose_nonAnimation,
+        SmartNonAnimationType.continueKeepSingle,
+      ],
       animationBuilder: (controller, child, animationParam) {
         //从右到左
         return SlideTransition(
@@ -132,47 +143,56 @@ class Utils {
       useSystem: useSystem,
       maskColor: Colors.transparent,
       animationTime: const Duration(milliseconds: 200),
-      builder: (context) => Container(
-        width: width + MediaQuery.of(context).padding.right,
-        padding: EdgeInsets.only(right: MediaQuery.of(context).padding.right),
-        decoration: BoxDecoration(
-          color: Get.theme.cardColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            bottomLeft: Radius.circular(4),
-          ),
+      builder: (context) => Material(
+        // 用本地 context 取主题：Get.theme 不建立 InheritedWidget 依赖，
+        // 面板在主题切换后不会重建，会一直用旧底色。
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          bottomLeft: Radius.circular(4),
         ),
-        child: SafeArea(
-          left: false,
-          right: false,
-          child: MediaQuery(
-            data: const MediaQueryData(padding: EdgeInsets.zero),
-            child: Column(
-              children: [
-                ListTile(
-                  visualDensity: VisualDensity.compact,
-                  contentPadding: EdgeInsets.zero,
-                  leading: IconButton(
-                    onPressed: () {
-                      SmartDialog.dismiss(status: SmartStatus.allCustom).then(
-                        (value) => onDismiss?.call(),
-                      );
-                    },
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                  title: Text(
-                    title,
-                    style: Get.textTheme.titleMedium,
-                  ),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: width + MediaQuery.of(context).padding.right,
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: MediaQuery.of(context).padding.right,
+            ),
+            child: SafeArea(
+              left: false,
+              right: false,
+              child: MediaQuery(
+                data: const MediaQueryData(padding: EdgeInsets.zero),
+                child: Column(
+                  children: [
+                    ListTile(
+                      visualDensity: VisualDensity.compact,
+                      contentPadding: EdgeInsets.zero,
+                      leading: IconButton(
+                        tooltip: "返回",
+                        onPressed: () {
+                          SmartDialog.dismiss(status: SmartStatus.allCustom)
+                              .then(
+                            (value) => onDismiss?.call(),
+                          );
+                        },
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                      title: Text(
+                        title,
+                        style: context.textTheme.titleMedium,
+                      ),
+                    ),
+                    Divider(
+                      height: 1,
+                      color: Colors.grey.withAlpha(25),
+                    ),
+                    Expanded(
+                      child: child,
+                    ),
+                  ],
                 ),
-                Divider(
-                  height: 1,
-                  color: Colors.grey.withAlpha(25),
-                ),
-                Expanded(
-                  child: child,
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -208,6 +228,7 @@ class Utils {
             ),
             title: Text(title),
             trailing: IconButton(
+              tooltip: "关闭",
               onPressed: Get.back,
               icon: const Icon(Remix.close_line),
             ),
@@ -234,8 +255,7 @@ class Utils {
     String cancel = '',
     TextValidate? validate,
   }) async {
-    final TextEditingController textEditingController =
-        TextEditingController(text: content);
+    final TextEditingController textEditingController = TextEditingController(text: content);
     var result = await Get.dialog(
       AlertDialog(
         title: Text(title),
@@ -275,6 +295,77 @@ class Utils {
       // barrierColor:
       //     Get.isDarkMode ? Colors.grey.withOpacity(.3) : Colors.black38,
     );
+    return result;
+  }
+
+  /// 多行文本编辑的弹窗
+  /// - `items` 文本项配置
+  /// - `title` 弹窗标题
+  /// - `confirm` 确认按钮内容
+  /// - `cancel` 取消按钮内容
+  static Future<Map<String, String>?> showEditTextsDialog(
+    List<TextEditItem> items, {
+    String title = '',
+    String confirm = '',
+    String cancel = '',
+  }) async {
+    final controllers = items.map((item) => TextEditingController(text: item.value)).toList();
+    final result = await Get.dialog<Map<String, String>>(
+      AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
+                TextField(
+                  controller: controllers[i],
+                  autofocus: i == 0,
+                  obscureText: items[i].obscureText,
+                  keyboardType: items[i].keyboardType,
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    contentPadding: AppStyle.edgeInsetsA12,
+                    labelText: items[i].label,
+                    hintText: items[i].hintText,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: Get.back,
+            child: Text(
+              cancel.isEmpty ? '取消' : cancel,
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              for (int i = 0; i < items.length; i++) {
+                final validate = items[i].validate;
+                if (validate != null && !validate(controllers[i].text)) {
+                  return;
+                }
+              }
+              Get.back(
+                result: {
+                  for (int i = 0; i < items.length; i++) items[i].key: controllers[i].text,
+                },
+              );
+            },
+            child: Text(
+              confirm.isEmpty ? '确定' : confirm,
+            ),
+          ),
+        ],
+      ),
+    );
+    for (final controller in controllers) {
+      controller.dispose();
+    }
     return result;
   }
 
@@ -329,6 +420,26 @@ class Utils {
       ),
     );
     return result;
+  }
+
+  /// 桌面端「返回」：优先关闭 SmartDialog 弹窗，否则收起当前页。
+  ///
+  /// 原先这份逻辑长在 `main.dart` 的 `MyApp.appBack`，现在搬到这里、`MyApp` 改成
+  /// 委托一行。搬的原因是直播间快捷键挂件也要用它（「退出/关闭播放器」的最后一级），
+  /// 而它绝不能 import `main.dart`：`main → app_pages → live_room_page → 挂件`
+  /// 已经是一条 import 链，反向再指回去就是循环。
+  ///
+  /// SmartDialog 的 useSystem 弹窗由 Navigator 路由承载，若被 `Get.back()` 直接
+  /// 弹出，后续 dismiss 会再次 pop 导致 Navigator 状态异常——所以弹窗必须先自己关。
+  static void appBack() {
+    if (SmartDialog.checkExist()) {
+      SmartDialog.dismiss(status: SmartStatus.smart);
+      return;
+    }
+    // 用 maybePop 而不是 back：PopScope 只对 maybePop 生效，裸 pop 会绕过它。
+    // 直播间页多开时靠 PopScope 拦下第一下返回（只收起其余几路），用 back 会
+    // 直接把整页弹掉、四路一起销毁。
+    Get.key.currentState?.maybePop();
   }
 
   static Future showStatement() async {
@@ -565,9 +676,7 @@ class Utils {
   }
 
   static bool isRegexFormat(String keyword) {
-    return keyword.startsWith('/') &&
-        keyword.endsWith('/') &&
-        keyword.length > 2;
+    return keyword.startsWith('/') && keyword.endsWith('/') && keyword.length > 2;
   }
 
   static String removeRegexFormat(String keyword) {
@@ -586,4 +695,49 @@ class Utils {
     }
     return "${(size / 1024 / 1024 / 1024).toStringAsFixed(2)} GB";
   }
+
+  /// 随屏幕缩放比例调整
+  static double scaleValue({
+    required double value,
+    required double playerH,
+    required double designH,
+    double upSens = 0.8,
+    double downSens = 0.5,
+    required double minSize,
+    required double maxSize,
+  }) {
+    if (designH <= 0 || minSize >= maxSize) {
+      return value;
+    }
+    // 限制
+    double safeUpSens = upSens.clamp(0.0, 1.5);
+    double safeDownSens = downSens.clamp(0.0, 1.0);
+    var ratio = playerH / designH;
+    // 双向控制放缩比率
+    var adjustedRatio = ratio > 1 ? math.pow(ratio, safeUpSens).toDouble() : 1 - (1 - ratio) * safeDownSens;
+
+    var result = value * adjustedRatio;
+    var clamped = result.clamp(minSize, maxSize);
+    return clamped.roundToDouble();
+  }
+}
+
+class TextEditItem {
+  final String key;
+  final String value;
+  final String? label;
+  final String? hintText;
+  final TextValidate? validate;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+
+  const TextEditItem({
+    required this.key,
+    this.value = '',
+    this.label,
+    this.hintText,
+    this.validate,
+    this.obscureText = false,
+    this.keyboardType,
+  });
 }

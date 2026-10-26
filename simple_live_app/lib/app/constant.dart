@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:remixicon/remixicon.dart';
 
 class Constant {
   static const String kUpdateFollow = "UpdateFollow";
   static const String kUpdateHistory = "UpdateHistory";
+  static const String kUpdateDanmaku = "UpdateDanmaku";
+  static const String kUpdateAccount = "UpdateAccount";
 
   static final Map<String, HomePageItem> allHomePages = {
     "recommend": HomePageItem(
@@ -29,6 +31,7 @@ class Constant {
   };
 
   static const String kBiliBili = "bilibili";
+
   static const String kDouyu = "douyu";
   static const String kHuya = "huya";
   static const String kDouyin = "douyin";
@@ -57,8 +60,8 @@ enum SortMethod {
   watchDuration,
   siteId,
   recently,
-  userNameASC,
-  userNameDESC,
+  online,
+  tag,
 }
 
 extension SortMethodStore on SortMethod {
@@ -66,7 +69,7 @@ extension SortMethodStore on SortMethod {
   static SortMethod fromStore(String? v) {
     if (v == null) return SortMethod.watchDuration;
     return SortMethod.values.firstWhere(
-          (e) => e.name == v,
+      (e) => e.name == v,
       orElse: () => SortMethod.watchDuration,
     );
   }

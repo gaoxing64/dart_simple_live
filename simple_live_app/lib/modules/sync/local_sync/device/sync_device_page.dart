@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
+import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/modules/sync/local_sync/device/sync_device_controller.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
 
@@ -21,8 +22,7 @@ class SyncDevicePage extends GetView<SyncDeviceController> {
             child: ListTile(
               leading: buildIcon(),
               title: Text(controller.info.name),
-              subtitle: Text(
-                  "${controller.info.type.toUpperCase()}   ${controller.info.address}"),
+              subtitle: Text("${controller.info.type.toUpperCase()}   ${controller.info.address}"),
             ),
           ),
           AppStyle.vGap12,
@@ -61,7 +61,25 @@ class SyncDevicePage extends GetView<SyncDeviceController> {
                   title: const Text("同步哔哩哔哩账号"),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    controller.syncBiliAccount();
+                    controller.syncAccount(siteId: Constant.kBiliBili);
+                  },
+                ),
+                AppStyle.divider,
+                ListTile(
+                  leading: const Icon(Remix.account_circle_line),
+                  title: const Text("同步斗鱼账号"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    controller.syncAccount(siteId: Constant.kDouyu);
+                  },
+                ),
+                AppStyle.divider,
+                ListTile(
+                  leading: const Icon(Remix.tiktok_line),
+                  title: const Text("同步抖音账号"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    controller.syncAccount(siteId: Constant.kDouyin);
                   },
                 ),
               ],

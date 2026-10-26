@@ -3,16 +3,21 @@
 // Check in to version control
 
 import 'package:hive_ce/hive_ce.dart';
+import 'package:simple_live_app/models/db/account.dart';
 import 'package:simple_live_app/models/db/follow_snapshot.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
+import 'package:simple_live_app/models/db/follow_user_block.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/models/db/history.dart';
 
 extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
+    registerAdapter(AccountAdapter());
     registerAdapter(FollowSnapshotAdapter());
     registerAdapter(FollowSnapshotItemAdapter());
     registerAdapter(FollowUserAdapter());
+    registerAdapter(FollowUserBlockAccountAdapter());
+    registerAdapter(FollowUserBlockAdapter());
     registerAdapter(FollowUserTagAdapter());
     registerAdapter(HistoryAdapter());
   }
@@ -20,9 +25,12 @@ extension HiveRegistrar on HiveInterface {
 
 extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
+    registerAdapter(AccountAdapter());
     registerAdapter(FollowSnapshotAdapter());
     registerAdapter(FollowSnapshotItemAdapter());
     registerAdapter(FollowUserAdapter());
+    registerAdapter(FollowUserBlockAccountAdapter());
+    registerAdapter(FollowUserBlockAdapter());
     registerAdapter(FollowUserTagAdapter());
     registerAdapter(HistoryAdapter());
   }

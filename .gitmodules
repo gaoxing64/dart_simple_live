@@ -1,0 +1,6 @@
+[submodule "simple_live_core"]
+	path = simple_live_core
+	url = https://github.com/gaoxing64/dart_simple_live_core.git
+[submodule "simple_live_tv_app"]
+	path = simple_live_tv_app
+	url = https://github.com/gaoxing64/dart_simple_live_tv_app.git

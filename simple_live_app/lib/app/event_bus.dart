@@ -5,11 +5,22 @@ import 'package:simple_live_app/app/log.dart';
 /// 全局事件
 class EventBus {
   /// 点击了底部导航
-  static const String kBottomNavigationBarClicked =
-      "BottomNavigationBarClicked";
+  static const String kBottomNavigationBarClicked = "BottomNavigationBarClicked";
 
   /// 用户按了Esc
   static const String kEscapePressed = "EscapePressed";
+
+  /// 音量均衡设置变更，播放器需要实时增删 af 滤波链
+  static const String kVolumeNormalizeChanged = "VolumeNormalizeChanged";
+
+  /// 最大音量设置变更，播放器需要实时重设 mpv 的 volume-max
+  static const String kPlayerMaxVolumeChanged = "PlayerMaxVolumeChanged";
+
+  /// Stats 覆盖层后端变更，播放器需要在自绘浮层与 mpv 内置 OSD 之间收尾
+  static const String kOSDBackendChanged = "OSDBackendChanged";
+
+  /// 后台播放开关变更：直播间要立刻挂上/摘掉系统媒体通知，不能等下一次播放事件
+  static const String kBackgroundPlayChanged = "BackgroundPlayChanged";
   static EventBus? _instance;
 
   static EventBus get instance {

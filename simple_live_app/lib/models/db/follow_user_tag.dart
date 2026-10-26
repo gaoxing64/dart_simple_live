@@ -48,4 +48,16 @@ class FollowUserTag {
       userId: userId ?? this.userId,
     );
   }
+
+  /// 该分组是否含此关注。
+  bool contains(String followId) => userId.contains(followId);
+
+  /// 不含则追加，返回是否真的加了（调用方据此决定要不要落库）。
+  bool addMember(String followId) {
+    if (userId.contains(followId)) {
+      return false;
+    }
+    userId.add(followId);
+    return true;
+  }
 }

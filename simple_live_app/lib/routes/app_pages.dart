@@ -14,10 +14,10 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_page.dart';
 import 'package:simple_live_app/modules/mine/account/account_controller.dart';
 import 'package:simple_live_app/modules/mine/account/account_page.dart';
-import 'package:simple_live_app/modules/mine/account/bilibili/qr_login_controller.dart';
-import 'package:simple_live_app/modules/mine/account/bilibili/qr_login_page.dart';
 import 'package:simple_live_app/modules/mine/account/bilibili/web_login_controller.dart';
 import 'package:simple_live_app/modules/mine/account/bilibili/web_login_page.dart';
+import 'package:simple_live_app/modules/mine/account/qr_login/qr_login_controller.dart';
+import 'package:simple_live_app/modules/mine/account/qr_login/qr_login_page.dart';
 import 'package:simple_live_app/modules/mine/history/history_controller.dart';
 import 'package:simple_live_app/modules/mine/history/history_page.dart';
 import 'package:simple_live_app/modules/mine/parse/parse_controller.dart';
@@ -34,6 +34,7 @@ import 'package:simple_live_app/modules/settings/indexed_settings/indexed_settin
 import 'package:simple_live_app/modules/settings/other/other_settings_controller.dart';
 import 'package:simple_live_app/modules/settings/other/other_settings_page.dart';
 import 'package:simple_live_app/modules/settings/play_settings_page.dart';
+import 'package:simple_live_app/modules/settings/shortcut_settings_page.dart';
 import 'package:simple_live_app/modules/sync/local_sync/device/sync_device_controller.dart';
 import 'package:simple_live_app/modules/sync/local_sync/device/sync_device_page.dart';
 import 'package:simple_live_app/modules/sync/local_sync/local_sync_controller.dart';
@@ -48,6 +49,7 @@ import 'package:simple_live_app/modules/sync/remote_sync/webdav/remote_sync_webd
 import 'package:simple_live_app/modules/sync/sync_page.dart';
 
 import '../modules/indexed/indexed_page.dart';
+import 'live_room_route_args.dart';
 import 'route_path.dart';
 
 class AppPages {
@@ -83,7 +85,15 @@ class AppPages {
       name: RoutePath.kSearch,
       page: () => const SearchPage(),
       bindings: [
-        BindingsBuilder.put(() => AppSearchController()),
+        BindingsBuilder.put(() {
+          // 首页点搜索时会把当前平台 id 带过来（见 HomeController.toSearch），
+          // 搜索页据此默认选中同一个平台；直接访问 /search（无参数）时为 null，
+          // 由 AppSearchController 回落到第一个。
+          final arguments = Get.arguments;
+          return AppSearchController(
+            initialSiteId: arguments is String ? arguments : null,
+          );
+        }),
       ],
     ),
     //分类详情
@@ -101,12 +111,15 @@ class AppPages {
     GetPage(
       name: RoutePath.kLiveRoomDetail,
       page: () => const LiveRoomPage(),
-      binding: BindingsBuilder.put(
-        () => LiveRoomController(
-          pSite: Get.arguments,
-          pRoomId: Get.parameters["roomId"] ?? "",
-        ),
-      ),
+      binding: BindingsBuilder.put(() {
+        // 参数统一走 LiveRoomRouteArgs（见 AppNavigator.toLiveRoomDetail）
+        final args = Get.arguments as LiveRoomRouteArgs;
+        return LiveRoomController(
+          pSite: args.site,
+          pRoomId: args.roomId,
+          together: args.together,
+        );
+      }),
     ),
     //弹幕设置
     GetPage(
@@ -121,6 +134,11 @@ class AppPages {
     GetPage(
       name: RoutePath.kSettingsPlay,
       page: () => const PlaySettingsPage(),
+    ),
+    //键盘控制
+    GetPage(
+      name: RoutePath.kSettingsShortcuts,
+      page: () => const ShortcutSettingsPage(),
     ),
     //自动关闭
     GetPage(
@@ -167,12 +185,12 @@ class AppPages {
         BindingsBuilder.put(() => BiliBiliWebLoginController()),
       ],
     ),
-    //哔哩哔哩二维码登录
+    //二维码登录
     GetPage(
-      name: RoutePath.kBiliBiliQRLogin,
-      page: () => const BiliBiliQRLoginPage(),
+      name: RoutePath.kAccountQRLogin,
+      page: () => const QRLoginPage(),
       bindings: [
-        BindingsBuilder.put(() => BiliBiliQRLoginController()),
+        BindingsBuilder.put(() => QRLoginController()),
       ],
     ),
     // 数据同步

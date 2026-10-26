@@ -6,7 +6,45 @@ simple_live_tv_app/.vscode/settings.json
 .flatpak-builder/
 .crush/
 CRUSH.md
+.zvec-grep/
+.mimosa/
+.reasonix/
+.workbuddy/
+.workbuddy-ai/
+.ocr_review_report.txt
+.ocr-findings.txt
+.ocr-review-future.json
+ocr-review-future.md
+.dsh_flutter_version*
+.flutter_tool_state
 build/
 dev-tool.ps1
 *.py
+# 例外：发布说明生成脚本是工作流（publish_*_release）直接调用的，
+# 跟着 `*.py` 一起被忽略会导致 CI 里 `python tools/gen_changelog.py` 文件不存在。
+!tools/gen_changelog.py
 simple_live_app/iconfont.yaml
+# 本地跑 analyze / test 留下的临时产物（不由 git 管理）
+analyze.out
+analyze.rc
+test_run.out
+test_run.rc
+# 本地交付物/验证产物（性能录屏、截图、分析脚本等），不入库
+deliverables/
+
+# FVM Version Cache
+.fvm/
+
+# 本地 fork 的 libmpv 构建仓库（为音量均衡重建内核用），独立 git 管理，不入主仓库
+# 见 volume-normalize-notes.md；fork 自 Predidit，gh clone 时已配好 upstream remote
+# libmpv-worktrees/ 是这两个仓库的开发 worktree（feat/audio-filters 分支）
+# media-kit 同理：主克隆在 main，worktree 从 App 锁定的 78d4cce 拉出
+# feat/volume-normalize-libs 分支，等构建仓库出新 release 后改 libs 下载 URL+SHA256
+/libmpv-win32-video-cmake/
+/libmpv-android-video-build/
+/libmpv-darwin-build/
+/media-kit/
+/libmpv-worktrees/
+
+# 本地决策笔记（fork/构建供应链记录），不入库
+/volume-normalize-notes.md

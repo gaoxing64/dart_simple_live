@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
@@ -25,6 +25,7 @@ class CategoryDetailPage extends GetView<CategoryDetailController> {
           pageController: controller,
           padding: AppStyle.edgeInsetsA12,
           firstRefresh: true,
+          showEndBar: true,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
           crossAxisCount: c,

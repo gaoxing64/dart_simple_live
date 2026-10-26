@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
@@ -14,10 +14,16 @@ import 'package:simple_live_core/simple_live_core.dart';
 
 class FollowInfoController extends BasePageController<FollowUser> {
   final Rxn<FollowUser> followUser = Rxn<FollowUser>();
+  final Rxn<History> watchHistory = Rxn<History>();
+  final RxList<int> watchYears = <int>[].obs;
+  late final RxInt selectedWatchYear = DateTime.now().year.obs;
+  final RxBool isFollowed = false.obs;
 
-  // 下拉可选标签：只包含“全部”+用户自定义标签
+  // 所属分组候选：用户自定义分组（多选 chips）
   final RxList<FollowUserTag> tagOptions = <FollowUserTag>[].obs;
-  final Rx<FollowUserTag?> selectedTag = Rx<FollowUserTag?>(null);
+
+  // 当前关注勾选着的分组名（多归属：可以同时属于多个分组）
+  final RxSet<String> checkedTags = <String>{}.obs;
 
   // 平台迁移预留：列出除当前平台外的其余平台
   final RxList<Site> migrationSites = <Site>[].obs;
@@ -35,28 +41,51 @@ class FollowInfoController extends BasePageController<FollowUser> {
     } else if (args is Map && args['follow'] is FollowUser) {
       followUser.value = args['follow'] as FollowUser;
     }
+    final current = followUser.value;
+    isFollowed.value = current != null && FollowService.instance.getFollowExist(current.id);
 
     _initTagOptions();
     _initMigrationSites();
+    loadWatchHistory();
+  }
+
+  void loadWatchHistory() {
+    final current = followUser.value;
+    if (current == null) {
+      watchHistory.value = null;
+      watchYears.assignAll([DateTime.now().year]);
+      return;
+    }
+    final history = HistoryService.instance.getHistory(current.id);
+    watchHistory.value = history;
+    final years = <int>{DateTime.now().year};
+    for (final key in history?.dailyWatchSeconds.keys ?? const <String>[]) {
+      if (key.length < 4) continue;
+      final year = int.tryParse(key.substring(0, 4));
+      if (year != null) years.add(year);
+    }
+    final sorted = years.toList()..sort((a, b) => b.compareTo(a));
+    watchYears.assignAll(sorted);
+    if (!sorted.contains(selectedWatchYear.value)) {
+      selectedWatchYear.value = sorted.first;
+    }
+  }
+
+  @override
+  void onClose() {
+    migrationUrlController.dispose();
+    super.onClose();
   }
 
   void _initTagOptions() {
-    final List<FollowUserTag> options =
-        FollowService.instance.getTagOptionsWithAll();
-    tagOptions.assignAll(options);
+    tagOptions.assignAll(FollowService.instance.followTagList);
 
-    // 设置选中项
+    // 勾选态直接取归属真源（成员表 `FollowUserTag.userId`），不能拿任何
+    // 单一分组的「主归属」当勾选依据（多归属下一个人可以同时在多个分组）。
     final current = followUser.value;
-    if (current != null) {
-      FollowUserTag? matched;
-      for (final e in options) {
-        if (e.tag == current.tag) {
-          matched = e;
-          break;
-        }
-      }
-      selectedTag.value = matched ?? options.first;
-    }
+    checkedTags.assignAll(
+      current == null ? const <String>[] : FollowService.instance.userTagNamesOf(current.id),
+    );
   }
 
   void _initMigrationSites() {
@@ -71,11 +100,19 @@ class FollowInfoController extends BasePageController<FollowUser> {
     );
   }
 
-  void changeTag(FollowUserTag newTag) {
+  /// 勾选/取消一个分组：多归属下这是「加入/移出该分组」，不动其他分组。
+  /// 批量结束后只重排一次（`addUserToTag` 内部不排，见其注释）。
+  Future<void> toggleTag(String name) async {
     final current = followUser.value;
     if (current == null) return;
-    FollowService.instance.setFollowTag(current, newTag);
-    selectedTag.value = newTag;
+    if (checkedTags.contains(name)) {
+      checkedTags.remove(name);
+      await FollowService.instance.removeUserFromTag(current, name);
+    } else {
+      checkedTags.add(name);
+      await FollowService.instance.addUserToTag(current, name);
+    }
+    FollowService.instance.liveListSort();
     followUser.refresh();
   }
 
@@ -83,6 +120,15 @@ class FollowInfoController extends BasePageController<FollowUser> {
     final current = followUser.value;
     if (current == null) return;
     current.remark = newRemark;
+    await FollowService.instance.addFollow(current);
+    followUser.refresh();
+  }
+
+  /// 开启/关闭「显示为昵称」：开启时备注替换主播原名，关闭时恢复原名。
+  Future<void> setShowRemarkAsName(bool value) async {
+    final current = followUser.value;
+    if (current == null) return;
+    current.showRemarkAsName = value;
     await FollowService.instance.addFollow(current);
     followUser.refresh();
   }
@@ -112,8 +158,7 @@ class FollowInfoController extends BasePageController<FollowUser> {
     if (current == null) return;
 
     // 防呆
-    bool contain =
-        FollowService.instance.getFollowExist("${newSite.id}_$newRoomId");
+    bool contain = FollowService.instance.getFollowExist("${newSite.id}_$newRoomId");
     if (contain == true) {
       SmartDialog.showToast('目标主播已关注，无需迁移');
       return;
@@ -125,8 +170,7 @@ class FollowInfoController extends BasePageController<FollowUser> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-              '从：${Sites.allSites[current.siteId]?.name}  房间号：${current.roomId}'),
+          Text('从：${Sites.allSites[current.siteId]?.name}  房间号：${current.roomId}'),
           const SizedBox(height: 8),
           Text('到：${newSite.name}  房间号：$newRoomId'),
         ],
@@ -151,51 +195,50 @@ class FollowInfoController extends BasePageController<FollowUser> {
 
   @override
   Future<void> refreshData() async {
+    final current = followUser.value;
+    final site = Sites.allSites[current?.siteId];
+    if (current == null || site == null) return;
     pageLoadding.value = true;
-    var site = Sites.allSites[followUser.value?.siteId]!;
-    await _migrateTo(site, followUser.value!.roomId);
-    pageLoadding.value = false;
-    SmartDialog.showToast('已刷新用户信息');
+    try {
+      await _migrateTo(site, current.roomId);
+      SmartDialog.showToast('已刷新用户信息');
+    } finally {
+      pageLoadding.value = false;
+    }
   }
 
   Future<void> _migrateTo(Site targetSite, String targetRoomId) async {
     final current = followUser.value;
     if (current == null) return;
     // 获取目标直播间详细信息 用于更新主播名和头像
-    LiveRoomDetail detail =
-        await targetSite.liveSite.getRoomDetail(roomId: targetRoomId);
+    LiveRoomDetail detail = await targetSite.liveSite.getRoomDetail(roomId: targetRoomId);
     // 复制并更新关键信息
     final FollowUser newFollow = FollowUser(
-      id: '${targetSite.id}_$targetRoomId',
-      roomId: targetRoomId,
-      siteId: targetSite.id,
-      userName: detail.userName,
-      face: detail.userAvatar,
-      addTime: current.addTime,
-      watchDuration: current.watchDuration,
-      tag: current.tag,
-    );
-    newFollow.liveStatus.value = current.liveStatus.value;
-    // 更新标签归属
-    if (current.tag != '全部') {
-      FollowUserTag? tagObj;
-      for (final t in FollowService.instance.followTagList) {
-        if (t.tag == current.tag) {
-          tagObj = t;
-          break;
-        }
-      }
-      if (tagObj != null) {
-        // 自刷新和迁移逻辑一致：删旧增新
-        tagObj.userId.remove(current.id);
-        tagObj.userId.add(newFollow.id);
-        await FollowService.instance.updateFollowUserTag(tagObj);
-      }
-    }
+        id: '${targetSite.id}_$targetRoomId',
+        roomId: targetRoomId,
+        siteId: targetSite.id,
+        userName: detail.userName,
+        face: detail.userAvatar,
+        addTime: current.addTime,
+        watchDuration: current.watchDuration,
+        watchDurationSec: current.watchDurationSec,
+        syncDuration: current.syncDuration,
+        lastWatchTime: current.lastWatchTime,
+        remark: current.remark,
+        showRemarkAsName: current.showRemarkAsName,
+        romanName: current.romanName)
+      ..liveStatus.value = current.liveStatus.value;
 
     // 替换关注
+    // 归属随迁移带走：多归属真源在 `FollowUserTag.userId`，而 `removeFollowUser`
+    // 会把旧 id 从所有成员表里清掉 —— 所以旧归属必须在删之前记下来，
+    // 换绑后再把新关注加回去，否则主播会掉进「未分组」。
+    final tagNames = FollowService.instance.userTagNamesOf(current.id);
     await FollowService.instance.removeFollowUser(current.id);
     await FollowService.instance.addFollow(newFollow);
+    for (final name in tagNames) {
+      await FollowService.instance.addUserToTag(newFollow, name);
+    }
 
     // 更新关注同时 更新历史记录数据
     History? oldHistory = HistoryService.instance.getHistory(current.id);
@@ -210,7 +253,10 @@ class FollowInfoController extends BasePageController<FollowUser> {
       userName: detail.userName,
       face: detail.userAvatar,
       watchDuration: newFollow.watchDuration,
-      updateTime: DateTime.now(),
+      syncDuration: oldHistory?.syncDuration ?? 0,
+      dailyWatchSeconds: Map<String, int>.from(oldHistory?.dailyWatchSeconds ?? const {}),
+      dailySyncSeconds: Map<String, int>.from(oldHistory?.dailySyncSeconds ?? const {}),
+      updateTime: oldHistory?.updateTime ?? DateTime.now(),
     );
     await HistoryService.instance.addOrUpdateHistory(newHistory);
 
@@ -218,5 +264,6 @@ class FollowInfoController extends BasePageController<FollowUser> {
     await FollowService.instance.loadData(updateStatus: false);
     followUser.value = newFollow;
     _initMigrationSites();
+    loadWatchHistory();
   }
 }

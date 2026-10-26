@@ -5,10 +5,11 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
+import 'package:simple_live_app/models/db/account.dart';
 import 'package:simple_live_app/models/sync_client_info_model.dart';
 import 'package:simple_live_app/requests/sync_client_request.dart';
-import 'package:simple_live_app/services/bilibili_account_service.dart';
 import 'package:simple_live_app/services/db_service.dart';
+import 'package:simple_live_app/services/platform_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
 
 class SyncDeviceController extends BaseController {
@@ -38,7 +39,7 @@ class SyncDeviceController extends BaseController {
       await request.syncFollow(client, data, overlay: overlay);
       // 标签和关注必须同时同步
       await request.syncTag(client, dataT, overlay: overlay);
-      SmartDialog.showToast("已同步关注列表和标签");
+      SmartDialog.showToast("已同步关注列表和分组");
     } catch (e) {
       SmartDialog.showToast("同步失败:$e");
       Log.logPrint(e);
@@ -79,17 +80,18 @@ class SyncDeviceController extends BaseController {
     }
   }
 
-  void syncBiliAccount() async {
+  // 通用平台账号同步
+  void syncAccount({required String siteId}) async {
     try {
-      if (!BiliBiliAccountService.instance.logined.value) {
-        SmartDialog.showToast("未登录哔哩哔哩");
+      Account account = PlatformService.instance.accountList.firstWhere((ac) => ac.siteId == siteId);
+      if (account.credential.isEmpty) {
+        SmartDialog.showToast("未登录$siteId");
         return;
       }
       SmartDialog.showLoading(msg: "同步中...");
 
-      await request.syncBiliAccount(
-          client, BiliBiliAccountService.instance.cookie);
-      SmartDialog.showToast("已同步哔哩哔哩账号");
+      await request.syncAccount(client, account);
+      SmartDialog.showToast("已同步$siteId账号");
     } catch (e) {
       SmartDialog.showToast("同步失败:$e");
       Log.logPrint(e);

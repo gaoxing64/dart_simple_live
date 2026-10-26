@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
@@ -6,6 +6,7 @@ import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/modules/sync/remote_sync/webdav/remote_sync_webdav_controller.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
+import 'package:simple_live_app/widgets/ui/secondary_tap_region.dart';
 
 class RemoteSyncWebDAVPage extends GetView<RemoteSyncWebDAVController> {
   const RemoteSyncWebDAVPage({super.key});
@@ -49,8 +50,7 @@ class RemoteSyncWebDAVPage extends GetView<RemoteSyncWebDAVController> {
                           () => ListTile(
                             title: const Text("云端备份目录"),
                             leading: const Icon(Icons.drive_folder_upload),
-                            subtitle:
-                                Text(controller.webDavBackupDirectory.value),
+                            subtitle: Text(controller.webDavBackupDirectory.value),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: _showEditBackupDirectory,
                           ),
@@ -66,35 +66,42 @@ class RemoteSyncWebDAVPage extends GetView<RemoteSyncWebDAVController> {
                           },
                         ),
                         AppStyle.divider,
-                        ListTile(
-                          title: const Text("恢复到本地"),
-                          subtitle: Text("上次恢复：${controller.lastRecoverTime}"),
-                          leading: const Icon(Icons.cloud_download_outlined),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.settings),
-                                onPressed: showSetting,
-                              ),
-                              const Icon(Icons.chevron_right),
-                            ],
+                        SecondaryTapRegion(
+                          onSecondaryTap: showSetting,
+                          child: ListTile(
+                            title: const Text("恢复到本地"),
+                            subtitle: Text("上次恢复：${controller.lastRecoverTime}"),
+                            leading: const Icon(Icons.cloud_download_outlined),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: "WebDAV 设置",
+                                  icon: const Icon(Icons.settings),
+                                  onPressed: showSetting,
+                                ),
+                                const Icon(Icons.chevron_right),
+                              ],
+                            ),
+                            onTap: () {
+                              controller.doWebDAVRecovery();
+                            },
+                            onLongPress: showSetting,
                           ),
-                          onTap: () {
-                            controller.doWebDAVRecovery();
-                          },
-                          onLongPress: showSetting,
                         ),
                         AppStyle.divider,
-                        ListTile(
-                          title: const Text("双向同步数据"),
-                          subtitle: Text("上次同步：${controller.lastRecoverTime}"),
-                          leading: const Icon(Icons.cloud_sync_outlined),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            controller.doWebDAVBidirectional();
-                          },
-                          onLongPress: showSetting,
+                        SecondaryTapRegion(
+                          onSecondaryTap: showSetting,
+                          child: ListTile(
+                            title: const Text("双向同步数据"),
+                            subtitle: Text("上次同步：${controller.lastRecoverTime}"),
+                            leading: const Icon(Icons.cloud_sync_outlined),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              controller.doWebDAVBidirectional();
+                            },
+                            onLongPress: showSetting,
+                          ),
                         ),
                       ],
               ),

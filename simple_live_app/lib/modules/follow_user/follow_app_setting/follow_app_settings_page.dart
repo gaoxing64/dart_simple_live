@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
+import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/modules/follow_user/follow_app_setting/follow_app_settings_controller.dart';
 import 'package:simple_live_app/services/follow_service.dart';
@@ -30,8 +31,8 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
               Padding(
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
                 child: Text(
-                  "标签管理",
-                  style: Get.textTheme.titleSmall,
+                  "分组管理",
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -39,8 +40,55 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SettingsAction(
-                      title: "标签管理",
+                      title: "分组管理",
                       onTap: controller.showTagsManager,
+                    ),
+                    AppStyle.divider,
+                    // 按平台分类：主开关 + 展开的平台子开关。
+                    // 平台标签是**动态筛选**（不写 Hive 分组），所以开启时顺手
+                    // 清理旧「智能分组」留下的同名分组，避免第二栏两套入口。
+                    Obx(
+                      () => SettingsSwitch(
+                        value: controller.appC.followGroupBySite.value,
+                        title: "按平台分类",
+                        subtitle: "在关注页第二栏显示平台标签，动态筛选、不新建分组",
+                        onChanged: (e) {
+                          controller.appC.setFollowGroupBySite(e);
+                          if (e) {
+                            controller.cleanupPlatformNamedTags();
+                          } else {
+                            // 主开关关掉 → 平台标签整批消失，挂着的平台
+                            // 筛选要跟着清（分组筛选不受影响）
+                            controller.clearSiteFilters();
+                          }
+                        },
+                      ),
+                    ),
+                    Obx(() {
+                      if (!controller.appC.followGroupBySite.value) {
+                        return const SizedBox.shrink();
+                      }
+                      final siteIds = controller.orderedFollowSiteIds;
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppStyle.divider,
+                          for (final siteId in siteIds) ...[
+                            _buildSiteGroupSwitch(siteId),
+                            if (siteId != siteIds.last) AppStyle.divider,
+                          ],
+                        ],
+                      );
+                    }),
+                    AppStyle.divider,
+                    // 关注样式：紧凑行 / 卡片网格，全局生效（直播中、未开播、
+                    // 平台与分组平铺都读它）。与关注页 ⋮「模式切换」同一个弹窗。
+                    Obx(
+                      () => SettingsAction(
+                        title: "关注样式",
+                        value: controller.appC.followStyleNotGrid.value ? "紧凑模式" : "卡片模式",
+                        onTap: controller.showFollowStyleDialog,
+                      ),
                     ),
                   ],
                 ),
@@ -49,7 +97,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "关注清理功能",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -64,7 +112,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                       title: '选择要清理的用户',
                       subtitle: '默认条件为：观看时常低于30分钟，历史观看底部15',
                       confirmText: '清理',
-                      itemToString: (user) => user.userName, // 告诉组件如何显示用户名
+                      itemToString: (user) => user.displayName, // 告诉组件如何显示用户名
 
                       // 这里传入您自己的筛选函数
                       itemsProvider: () async {
@@ -82,7 +130,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "其他设置",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -117,6 +165,24 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                         },
                       ),
                     ),
+                    AppStyle.divider,
+                    Obx(
+                      () => SettingsNumber(
+                        value: controller.appC.dormancyThreshold.value,
+                        title: "休眠阈值",
+                        subtitle: "超过设定天数未观看的主播将被标记为休眠",
+                        min: 0,
+                        max: 42,
+                        step: 1,
+                        unit: "天",
+                        displayValue: controller.appC.dormancyThreshold.value == 0
+                            ? "关闭"
+                            : "${controller.appC.dormancyThreshold.value}天",
+                        onChanged: (e) {
+                          controller.appC.setDormancyThreshold(e);
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -124,7 +190,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "自动更新设置",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -179,7 +245,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "关注导入导出",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               fileImportAndExportBuild(),
@@ -187,7 +253,7 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                 padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
                 child: Text(
                   "数据校准",
-                  style: Get.textTheme.titleSmall,
+                  style: context.textTheme.titleSmall,
                 ),
               ),
               SettingsCard(
@@ -196,13 +262,42 @@ class FollowSettingsPage extends GetView<FollowAppSettingsController> {
                   children: [
                     SettingsAction(
                       title: "数据校准",
-                      subtitle: '关注以及标签数据错乱可以点击此功能进行校准，请勿重复点击',
+                      subtitle: '关注以及分组数据错乱可以点击此功能进行校准，请勿重复点击',
                       onTap: controller.followDataCheck,
                     ),
                   ],
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 单个平台的分类子开关（平台 logo + 名称 + 开关）。
+  ///
+  /// 平台 logo 用 Row 包在 `SettingsSwitch` 外：material_ui 的
+  /// `SwitchListTile` 没有 `leading` 位（只有 `secondary`，在开关另一侧），
+  /// 包一层既能摆 logo，又让子开关比主开关多缩进一级、读出层级。
+  /// 开关本体仍走 `SettingsSwitch`：滑块 / 轨道的 M3 配色与主开关一致。
+  Widget _buildSiteGroupSwitch(String siteId) {
+    final site = Sites.allSites[siteId];
+    if (site == null) {
+      return const SizedBox.shrink();
+    }
+    return Obx(
+      () => Row(
+        children: [
+          AppStyle.hGap16,
+          Image.asset(site.logo, width: 24, height: 24),
+          AppStyle.hGap12,
+          Expanded(
+            child: SettingsSwitch(
+              value: controller.appC.followSiteGroupSites.contains(siteId),
+              title: site.name,
+              onChanged: (e) => controller.setFollowSiteGroup(siteId, e),
+            ),
           ),
         ],
       ),
