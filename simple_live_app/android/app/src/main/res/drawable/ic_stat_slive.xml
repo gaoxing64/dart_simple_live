@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!--
+      后台播放的媒体通知小图标（状态栏 / 通知栏左侧那一枚）。
+
+      必须是纯白单色：Android 会把它整枚染成状态栏前景色，彩色位图（例如
+      mipmap/ic_launcher）只会糊成一坨白块。
+      圆环 + 播放三角是通知栏里辨识度最高的组合，24dp 下不会糊成一团。
+    -->
+    <path
+        android:pathData="M12,3.6 A8.4,8.4 0 1,1 12,20.4 A8.4,8.4 0 1,1 12,3.6 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8" />
+    <path
+        android:pathData="M10.2,8.4 L16,12 L10.2,15.6 Z"
+        android:fillColor="#FFFFFFFF" />
+</vector>

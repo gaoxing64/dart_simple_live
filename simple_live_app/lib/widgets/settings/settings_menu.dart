@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 
@@ -28,33 +28,32 @@ class SettingsMenu<T> extends StatelessWidget {
         title,
         style: Theme.of(context).textTheme.bodyLarge,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: AppStyle.radius8,
-      ),
+      // 圆角不在这里单独设了：已提到全局主题
+      // （`AppStyle.light/darkTheme` 的 `listTileTheme.shape`）。
+      // 同目录其它 ListTile 组件也不再各写一份；只有 `settings_card.dart`
+      // 例外——它那份 shape 带了边框线，全局主题没有。
       contentPadding: AppStyle.edgeInsetsL16.copyWith(right: 8),
       subtitle: subtitle == null
           ? null
           : Text(
               subtitle!,
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: context.textTheme.bodySmall!.copyWith(color: Colors.grey),
             ),
-      trailing: trailing ?? Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            valueMap[value]!.tr,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium!
-                .copyWith(color: Colors.grey),
+      trailing: trailing ??
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                valueMap[value]!.tr,
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.grey),
+              ),
+              AppStyle.hGap4,
+              const Icon(
+                Icons.chevron_right,
+                color: Colors.grey,
+              ),
+            ],
           ),
-          AppStyle.hGap4,
-          const Icon(
-            Icons.chevron_right,
-            color: Colors.grey,
-          ),
-        ],
-      ),
       onTap: () => openMenu(context),
     );
   }
@@ -81,7 +80,7 @@ class SettingsMenu<T> extends StatelessWidget {
                       value: e,
                       title: Text(
                         (valueMap[e]?.tr) ?? "???",
-                        style: Get.textTheme.bodyMedium,
+                        style: context.textTheme.bodyMedium,
                       ),
                     ),
                   )

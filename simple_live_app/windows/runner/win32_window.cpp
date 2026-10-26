@@ -178,6 +178,9 @@ Win32Window::MessageHandler(HWND hwnd,
                             UINT const message,
                             WPARAM const wparam,
                             LPARAM const lparam) noexcept {
+  // 不再处理 WM_DWMCOLORIZATIONCOLORCHANGED：标题栏深浅色由 Dart 侧接管
+  // （lib/services/window_service.dart），它同时考虑应用内主题设置与系统深浅色。
+  // 若在这里按系统设置重写，应用内固定了浅色/深色时会被改回系统主题。
   switch (message) {
     case WM_DESTROY:
       window_handle_ = nullptr;
@@ -211,10 +214,6 @@ Win32Window::MessageHandler(HWND hwnd,
       if (child_content_ != nullptr) {
         SetFocus(child_content_);
       }
-      return 0;
-
-    case WM_DWMCOLORIZATIONCOLORCHANGED:
-      UpdateTheme(hwnd);
       return 0;
   }
 

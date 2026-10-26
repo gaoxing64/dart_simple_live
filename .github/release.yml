@@ -1,0 +1,67 @@
+# GitHub 原生「自动生成发布说明」的分组配置。
+#
+# 生效范围：Release 页面上的 “Generate release notes” 按钮、`gh release create --generate-notes`，
+# 以及 REST API 的 generate_release_notes=true。
+# 本仓库的发版 workflow 走的是 tools/gen_changelog.py（基于 commit 生成），此文件用于 PR 路线。
+#
+# ⚠️ 关键前提 1：GitHub 生成的说明只会列举「合并进目标分支的 Pull Request」，
+#    直接 push 到分支的 commit 不会出现在这份说明里（这是 GitHub 的既定行为，不是配置问题）。
+#
+# ⚠️ 关键前提 2：下面 categories 依赖的标签（feat / fix / perf / chore / refactor /
+#    breaking-change / Semver-* / ignore-for-release / skip-changelog …）**必须先在仓库里存在**，
+#    否则所有 PR 都会落进兜底的 🧩 Other Changes，分组等于没生效。
+#    本仓库当前**没有**这些标签，也没有 labeler 自动打标 —— 用这条链路前请先
+#    `gh label create <name>` 补齐，或把 categories 精简成仓库里已有的标签。
+#    未打标签的 PR 不会丢：兜底分类 `"*"` 会接住。
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+      - skip-changelog
+      - duplicate
+      - invalid
+    authors:
+      - dependabot
+      - dependabot[bot]
+      - github-actions
+      - renovate
+      - renovate[bot]
+  categories:
+    - title: ⚠️ Breaking Changes
+      labels:
+        - breaking-change
+        - Semver-Major
+    - title: 🚀 Features
+      labels:
+        - feat
+        - feature
+        - enhancement
+        - Semver-Minor
+    - title: 🐛 Bug Fixes
+      labels:
+        - fix
+        - bug
+    - title: ⚡ Performance
+      labels:
+        - perf
+        - performance
+    - title: ♻️ Refactors
+      labels:
+        - refactor
+    - title: 📝 Documentation
+      labels:
+        - docs
+        - documentation
+    - title: 👷 Build & CI
+      labels:
+        - build
+        - ci
+    - title: 🔧 Chores & Dependencies
+      labels:
+        - chore
+        - dependencies
+        - Semver-Patch
+    # 兜底分类：上面都没命中的 PR 会落到这里，缺少这一条时未打标签的 PR 会被直接忽略
+    - title: 🧩 Other Changes
+      labels:
+        - "*"

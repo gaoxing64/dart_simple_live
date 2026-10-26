@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
@@ -111,7 +111,7 @@ class RemoteSyncRoomPage extends GetView<RemoteSyncRoomController> {
             padding: AppStyle.edgeInsetsA12,
             child: Text(
               "房间号",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -127,6 +127,7 @@ class RemoteSyncRoomPage extends GetView<RemoteSyncRoomController> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
+                      tooltip: "复制房间号",
                       icon: const Icon(
                         Icons.copy,
                         size: 20,
@@ -136,6 +137,7 @@ class RemoteSyncRoomPage extends GetView<RemoteSyncRoomController> {
                       },
                     ),
                     IconButton(
+                      tooltip: "显示二维码",
                       icon: const Icon(
                         Icons.qr_code,
                         size: 20,
@@ -154,7 +156,7 @@ class RemoteSyncRoomPage extends GetView<RemoteSyncRoomController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 12),
             child: Text(
               "同步数据至其他设备",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -203,7 +205,7 @@ class RemoteSyncRoomPage extends GetView<RemoteSyncRoomController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 12),
             child: Text(
               "已连接设备",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -254,8 +256,7 @@ class RemoteSyncRoomPage extends GetView<RemoteSyncRoomController> {
                     ),
                     subtitle: Text("${user.app} - v${user.version}"),
                     trailing: Visibility(
-                      visible: controller.signalR.hubConnection?.connectionId ==
-                          user.connectionId,
+                      visible: controller.signalR.hubConnection?.connectionId == user.connectionId,
                       child: const Text(
                         "本机",
                       ),

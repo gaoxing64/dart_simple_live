@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
@@ -41,7 +41,7 @@ class SyncPage extends StatelessWidget {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
               "远程同步",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -63,7 +63,7 @@ class SyncPage extends StatelessWidget {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
             child: Text(
               "局域网同步",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(

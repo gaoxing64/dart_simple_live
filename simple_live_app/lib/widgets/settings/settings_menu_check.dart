@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:remixicon/remixicon.dart';
@@ -7,8 +7,7 @@ import 'package:simple_live_app/app/app_style.dart';
 class _MenuCheckController<T> extends GetxController {
   final RxList<T> selectedItems;
 
-  _MenuCheckController(List<T> initial)
-      : selectedItems = RxList<T>.from(initial);
+  _MenuCheckController(List<T> initial) : selectedItems = RxList<T>.from(initial);
 
   void toggle(T item) {
     if (selectedItems.contains(item)) {
@@ -58,25 +57,19 @@ class SettingsMenuCheck<T> extends StatelessWidget {
         title,
         style: Theme.of(context).textTheme.bodyLarge,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: AppStyle.radius8,
-      ),
       contentPadding: AppStyle.edgeInsetsL16.copyWith(right: 8),
       subtitle: subtitle == null
           ? null
           : Text(
               subtitle!,
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: context.textTheme.bodySmall!.copyWith(color: Colors.grey),
             ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             '$displaySelectedCount/$displayItemsCount',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium!
-                .copyWith(color: Colors.grey),
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.grey),
           ),
           AppStyle.hGap4,
           const Icon(
@@ -116,8 +109,7 @@ class SettingsMenuCheck<T> extends StatelessWidget {
     _openMenu(Get.context!, menuItems, menuInitialSelection);
   }
 
-  void _openMenu(
-      BuildContext context, List<T> items, List<T> initialSelection) {
+  void _openMenu(BuildContext context, List<T> items, List<T> initialSelection) {
     final controller = _MenuCheckController<T>(initialSelection);
 
     showModalBottomSheet(
@@ -148,6 +140,9 @@ class SettingsMenuCheck<T> extends StatelessWidget {
                   modalTitle?.tr ?? title.tr,
                 ),
                 trailing: IconButton(
+                  // 这是「确认」按钮，不是删除：tooltip 跟着 confirmText 走，
+                  // 免得调用方换成「加入分组」之类时 tooltip 还在撒谎。
+                  tooltip: confirmText ?? "确定",
                   onPressed: () {
                     Get.back();
                     onConfirm?.call(controller.selectedItems.toList());
@@ -165,7 +160,7 @@ class SettingsMenuCheck<T> extends StatelessWidget {
                             controlAffinity: ListTileControlAffinity.leading,
                             title: Text(
                               itemToString(item),
-                              style: Get.textTheme.bodyMedium,
+                              style: context.textTheme.bodyMedium,
                             ),
                             onChanged: (bool? selected) {
                               controller.toggle(item);

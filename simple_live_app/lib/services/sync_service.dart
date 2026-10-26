@@ -5,20 +5,20 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:network_info_plus/network_info_plus.dart';
+import 'package:shelf/shelf.dart' as shelf;
+import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:shelf_router/shelf_router.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
+import 'package:simple_live_app/models/db/account.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
 import 'package:simple_live_app/models/db/history.dart';
-import 'package:simple_live_app/services/bilibili_account_service.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:udp/udp.dart';
-import 'package:shelf/shelf.dart' as shelf;
-import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:shelf_router/shelf_router.dart';
 import 'package:uuid/uuid.dart';
 
 class SyncService extends GetxService {
@@ -73,8 +73,7 @@ class SyncService extends GetxService {
       // 地址直接从datagram中获取，能收到回复说明地址是可以连通的
       var address = datagram.address.address;
       //检查是否已经存在
-      var index =
-          scanClients.indexWhere((element) => element.address == address);
+      var index = scanClients.indexWhere((element) => element.address == address);
       if (index == -1) {
         scanClients.add(
           SyncClinet(
@@ -169,10 +168,7 @@ class SyncService extends GetxService {
         var ipList = <String>[];
         for (var interface in interfaces) {
           for (var addr in interface.addresses) {
-            if (addr.type.name == 'IPv4' &&
-                !addr.address.startsWith('127') &&
-                !addr.isMulticast &&
-                !addr.isLoopback) {
+            if (addr.type.name == 'IPv4' && !addr.address.startsWith('127') && !addr.isMulticast && !addr.isLoopback) {
               ipList.add(addr.address);
               break;
             }
@@ -196,7 +192,7 @@ class SyncService extends GetxService {
       serverRouter.post('/sync/tag', _syncFollowUserTagRequest);
       serverRouter.post('/sync/history', _syncHistoryReuqest);
       serverRouter.post('/sync/blocked_word', _syncBlockedWordReuqest);
-      serverRouter.post('/sync/account/bilibili', _syncBiliAccountReuqest);
+      serverRouter.post('/sync/account/account', _syncAccountRequest);
 
       var server = await shelf_io.serve(
         serverRouter.call,
@@ -224,8 +220,7 @@ class SyncService extends GetxService {
     return toJsonResponse({
       'status': true,
       'message': 'http server is running...',
-      "version":
-          'SimpeLive ${Platform.operatingSystem} v${Utils.packageInfo.version}',
+      "version": 'SimpeLive ${Platform.operatingSystem} v${Utils.packageInfo.version}',
     });
   }
 
@@ -245,8 +240,7 @@ class SyncService extends GetxService {
   /// 同步关注用户列表
   Future<shelf.Response> _syncFollowUserReuqest(shelf.Request request) async {
     try {
-      var overlay =
-          int.parse(request.requestedUri.queryParameters['overlay'] ?? '0');
+      var overlay = int.parse(request.requestedUri.queryParameters['overlay'] ?? '0');
 
       var body = await request.readAsString();
       Log.d('_syncFollowUserReuqest: $body');
@@ -274,11 +268,9 @@ class SyncService extends GetxService {
   }
 
   /// 同步标签列表
-  Future<shelf.Response> _syncFollowUserTagRequest(
-      shelf.Request request) async {
+  Future<shelf.Response> _syncFollowUserTagRequest(shelf.Request request) async {
     try {
-      var overlay =
-          int.parse(request.requestedUri.queryParameters['overlay'] ?? '0');
+      var overlay = int.parse(request.requestedUri.queryParameters['overlay'] ?? '0');
 
       var body = await request.readAsString();
       Log.d('_syncFollowUserTagRequest: $body');
@@ -291,7 +283,7 @@ class SyncService extends GetxService {
         await DBService.instance.tagBox.put(tag.id, tag);
       }
 
-      SmartDialog.showToast('已同步标签列表');
+      SmartDialog.showToast('已同步分组列表');
       EventBus.instance.emit(Constant.kUpdateFollow, 0);
       return toJsonResponse({
         'status': true,
@@ -308,8 +300,7 @@ class SyncService extends GetxService {
   /// 同步观看记录
   Future<shelf.Response> _syncHistoryReuqest(shelf.Request request) async {
     try {
-      var overlay =
-          int.parse(request.requestedUri.queryParameters['overlay'] ?? '0');
+      var overlay = int.parse(request.requestedUri.queryParameters['overlay'] ?? '0');
       var body = await request.readAsString();
       Log.d('_syncFollowUserReuqest: $body');
       var jsonBody = json.decode(body);
@@ -345,8 +336,7 @@ class SyncService extends GetxService {
   /// 同步弹幕屏蔽词
   Future<shelf.Response> _syncBlockedWordReuqest(shelf.Request request) async {
     try {
-      var overlay =
-          int.parse(request.requestedUri.queryParameters['overlay'] ?? '0');
+      var overlay = int.parse(request.requestedUri.queryParameters['overlay'] ?? '0');
       var body = await request.readAsString();
       Log.d('_syncBlockedWordReuqest: $body');
       var jsonBody = json.decode(body);
@@ -369,16 +359,16 @@ class SyncService extends GetxService {
     }
   }
 
-  /// 同步哔哩哔哩账号
-  Future<shelf.Response> _syncBiliAccountReuqest(shelf.Request request) async {
+  /// 同步平台账号
+  Future<shelf.Response> _syncAccountRequest(shelf.Request request) async {
     try {
       var body = await request.readAsString();
-      Log.d('_syncBiliAccountReuqest: $body');
+      Log.d('_syncAccountRequest: $body');
       var jsonBody = json.decode(body);
-      var cookie = jsonBody['cookie'];
-      BiliBiliAccountService.instance.setCookie(cookie);
-      BiliBiliAccountService.instance.loadUserInfo();
-      SmartDialog.showToast('已同步哔哩哔哩账号');
+      // 收发迁移至 account
+      Account account = Account.fromJson(jsonBody);
+      SmartDialog.showToast('已同步${account.siteId}账号');
+      EventBus.instance.emit<Account>(Constant.kUpdateAccount, account);
       return toJsonResponse({
         'status': true,
         'message': 'success',

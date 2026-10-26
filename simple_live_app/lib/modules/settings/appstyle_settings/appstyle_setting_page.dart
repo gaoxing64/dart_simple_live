@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
+import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
 import 'package:simple_live_app/widgets/settings/settings_menu.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
@@ -24,14 +27,13 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
         AppStyle.hGap4,
         Visibility(
           visible: controller.fontState.value == DownloadState.downloaded,
-          child:
-        Tooltip(
-          message: "删除字体",
-          child: IconButton(
-            onPressed: controller.fontDelete,
-            icon: Icon(Icons.delete_outline_outlined),
+          child: Tooltip(
+            message: "删除字体",
+            child: IconButton(
+              onPressed: controller.fontDelete,
+              icon: Icon(Icons.delete_outline_outlined),
+            ),
           ),
-        ),
         ),
         Visibility(
           visible: controller.fontState.value == DownloadState.downloaded,
@@ -55,13 +57,13 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
             padding: AppStyle.edgeInsetsA12.copyWith(top: 0),
             child: Text(
               "显示主题",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
             child: Obx(
               () => RadioGroup<int>(
-                groupValue: controller.themeMode.value,
+                groupValue: AppSettingsController.instance.themeModeIndex,
                 onChanged: (e) {
                   controller.setTheme(e ?? 0);
                 },
@@ -101,8 +103,27 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
           Padding(
             padding: AppStyle.edgeInsetsA12,
             child: Text(
+              "底部导航",
+              style: context.textTheme.titleSmall,
+            ),
+          ),
+          SettingsCard(
+            child: Obx(() {
+              final settings = AppSettingsController.instance;
+              return SettingsSwitch(
+                title: "悬浮 dock 导航栏",
+                subtitle: "开启后导航栏浮在内容之上，选中标记可拖动（仅竖屏生效）",
+                value: settings.navBarStyle.value == 1,
+                onChanged: (e) => settings.setNavBarStyle(e ? 1 : 0),
+              );
+            }),
+          ),
+          AppStyle.vGap12,
+          Padding(
+            padding: AppStyle.edgeInsetsA12,
+            child: Text(
               "主题颜色",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -136,30 +157,33 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                           const Color(0xffFF9800),
                         ]
                             .map(
-                              (e) => GestureDetector(
-                                onTap: () {
-                                  controller.setStyleColor(e.v);
-                                  Get.forceAppUpdate();
-                                },
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: e,
-                                    borderRadius: AppStyle.radius4,
-                                    border: Border.all(
-                                      color: Colors.grey.withAlpha(50),
-                                      width: 1,
+                              (e) => Tooltip(
+                                message: "使用此主题色",
+                                child: GestureDetector(
+                                  onTap: () {
+                                    controller.setStyleColor(e.v);
+                                    Get.forceAppUpdate();
+                                  },
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: e,
+                                      borderRadius: AppStyle.radius4,
+                                      border: Border.all(
+                                        color: Colors.grey.withAlpha(50),
+                                        width: 1,
+                                      ),
                                     ),
-                                  ),
-                                  child: Obx(
-                                    () => Center(
-                                      child: Icon(
-                                        Icons.check,
-                                        color:
-                                            controller.styleColor.value == e.v
-                                                ? Colors.white
-                                                : Colors.transparent,
+                                    child: Obx(
+                                      () => Center(
+                                        child: Icon(
+                                          Icons.check,
+                                          color: controller.styleColor.value ==
+                                                  e.v
+                                              ? Colors.white
+                                              : Colors.transparent,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -178,7 +202,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
             padding: AppStyle.edgeInsetsA12,
             child: Text(
               "字体设置",
-              style: Get.textTheme.titleSmall,
+              style: context.textTheme.titleSmall,
             ),
           ),
           SettingsCard(
@@ -216,7 +240,8 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                         widget: Tooltip(
                           message: "应用字体",
                           child: IconButton(
-                            icon: const Icon(Icons.check_circle_outline_outlined),
+                            icon:
+                                const Icon(Icons.check_circle_outline_outlined),
                             onPressed: () => controller.changeFontFamily(),
                           ),
                         ),

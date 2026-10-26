@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -11,12 +11,10 @@ class RemoteSyncWebDAVConfigPage extends StatefulWidget {
   const RemoteSyncWebDAVConfigPage({super.key});
 
   @override
-  State<RemoteSyncWebDAVConfigPage> createState() =>
-      _RemoteSyncWebDAVConfigPageState();
+  State<RemoteSyncWebDAVConfigPage> createState() => _RemoteSyncWebDAVConfigPageState();
 }
 
-class _RemoteSyncWebDAVConfigPageState
-    extends State<RemoteSyncWebDAVConfigPage> {
+class _RemoteSyncWebDAVConfigPageState extends State<RemoteSyncWebDAVConfigPage> {
   late TextEditingController _urlController;
   late TextEditingController _userNameController;
   late TextEditingController _passwordController;
@@ -45,19 +43,19 @@ class _RemoteSyncWebDAVConfigPageState
         centerTitle: true,
         actions: [
           IconButton(
+            tooltip: "帮助",
             icon: const Icon(Icons.help_outline),
             onPressed: () {
               Utils.showInformationHelpDialog(
                 content: [
                   const Text("此功能可以将您的数据备份到 WebDAV 服务器中或者进行数据恢复.\n"),
-                  const Text(
-                      "WebDAV 服务器地址请以 http:// 或 https:// 开头，如坚果云(点击复制)："),
+                  const Text("WebDAV 服务器地址请以 http:// 或 https:// 开头，如坚果云(点击复制)："),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: InkWell(
+                      borderRadius: AppStyle.radius8,
                       onTap: () {
-                        Clipboard.setData(const ClipboardData(
-                            text: "https://dav.jianguoyun.com/dav/"));
+                        Clipboard.setData(const ClipboardData(text: "https://dav.jianguoyun.com/dav/"));
                         SmartDialog.showToast("复制成功");
                       },
                       child: const Text("https://dav.jianguoyun.com/dav/"),
@@ -82,24 +80,33 @@ class _RemoteSyncWebDAVConfigPageState
                     labelText: "WebDAV服务器地址",
                     hintText: "请以http:// 或 http:// 开头",
                     prefixIcon: const Icon(Icons.public),
-                    trailing: InkWell(
-                      child: const Icon(
-                        Icons.cancel,
-                        size: 20,
+                    trailing: Tooltip(
+                      message: "清空",
+                      child: InkWell(
+                        borderRadius: AppStyle.radius8,
+                        child: const Icon(
+                          Icons.cancel,
+                          size: 20,
+                        ),
+                        onTap: () => _urlController.clear(),
                       ),
-                      onTap: () => _urlController.clear(),
                     ),
                   ),
                   NoneBorderCircularTextField(
                     editingController: _userNameController,
                     labelText: "账号",
                     prefixIcon: const Icon(Icons.account_circle),
-                    trailing: InkWell(
+                    trailing: Tooltip(
+                      message: "清空",
+                      child: InkWell(
+                        borderRadius: AppStyle.radius8,
                         child: const Icon(
                           Icons.cancel,
                           size: 20,
                         ),
-                        onTap: () => _userNameController.clear()),
+                        onTap: () => _userNameController.clear(),
+                      ),
+                    ),
                   ),
                   NoneBorderCircularTextField(
                     editingController: _passwordController,
@@ -109,21 +116,31 @@ class _RemoteSyncWebDAVConfigPageState
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        InkWell(
-                          child: const Icon(
-                            Icons.cancel,
-                            size: 20,
+                        Tooltip(
+                          message: "清空",
+                          child: InkWell(
+                            borderRadius: AppStyle.radius8,
+                            child: const Icon(
+                              Icons.cancel,
+                              size: 20,
+                            ),
+                            onTap: () => _passwordController.clear(),
                           ),
-                          onTap: () => _passwordController.clear(),
                         ),
                         AppStyle.hGap12,
-                        InkWell(
-                          child: controller.passwordVisible.value
-                              ? const Icon(Icons.visibility_off)
-                              : const Icon(Icons.visibility),
-                          onTap: () {
-                            controller.changePasswordVisible();
-                          },
+                        Tooltip(
+                          message: controller.passwordVisible.value
+                              ? "显示密码"
+                              : "隐藏密码",
+                          child: InkWell(
+                            borderRadius: AppStyle.radius8,
+                            child: controller.passwordVisible.value
+                                ? const Icon(Icons.visibility_off)
+                                : const Icon(Icons.visibility),
+                            onTap: () {
+                              controller.changePasswordVisible();
+                            },
+                          ),
                         ),
                       ],
                     ),

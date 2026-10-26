@@ -1,26 +1,23 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
-import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:get/get_rx/src/rx_types/rx_types.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/constant.dart';
+import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/models/font_model.dart';
 import 'package:simple_live_app/requests/http_client.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 
 class AppStyleSettingController extends GetxController {
-  static AppStyleSettingController get instance =>
-      Get.find<AppStyleSettingController>();
+  static AppStyleSettingController get instance => Get.find<AppStyleSettingController>();
 
-  var themeMode = 0.obs;
   var isDynamic = false.obs;
   var styleColor = 0xff3498db.obs;
   Rx<String?> curFontName = Rx<String?>(null);
@@ -29,49 +26,46 @@ class AppStyleSettingController extends GetxController {
   final RxMap<FontModel, String> fontMap = <FontModel, String>{}.obs;
   Rx<DownloadState> fontState = DownloadState.notDownloaded.obs;
 
-
   Future<void> init() async {
-    styleColor.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kStyleColor, 0xff3498db);
+    styleColor.value = LocalStorageService.instance.getValue(LocalStorageService.kStyleColor, 0xff3498db);
 
-    isDynamic.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kIsDynamic, false);
+    isDynamic.value = LocalStorageService.instance.getValue(LocalStorageService.kIsDynamic, false);
     await fetchFonts();
     await userFontInit();
   }
 
-  Future<void> fontDelete() async{
-    var dir = await getApplicationSupportDirectory();
-    final fontDir = Directory("${dir.path}/fonts/${curFontModel.value!.id}");
+  Future<void> fontDelete() async {
+    final dbPath = AppSettingsController.instance.dbPath;
+    final fontDir = Directory("$dbPath/fonts/${curFontModel.value!.id}");
     try {
       // 删除整个目录（包括目录本身和所有内容）
       await fontDir.delete(recursive: true);
       await fontDir.create(recursive: true);
-      var download =  await fontDownloadCheck(curFontModel.value!.id);
-      if(download == false){
+      var download = await fontDownloadCheck(curFontModel.value!.id);
+      if (download == false) {
         fontState.value = DownloadState.notDownloaded;
       }
       SmartDialog.showToast("已删除${curFontModel.value!.name}字体");
       Log.d('目录${fontDir.path}已清空并重新创建');
-    } catch (e,s) {
+    } catch (e, s) {
       Log.e('操作失败: $e', s);
     }
   }
 
-  void fontReset(){
-    if(Platform.isWindows){
+  void fontReset() {
+    if (Platform.isWindows) {
       curFontName.value = "Microsoft YaHei";
       LocalStorageService.instance.setValue(LocalStorageService.kCustomFont, curFontName.value);
-    }else{
+    } else {
       curFontName.value = null;
       LocalStorageService.instance.removeValue(LocalStorageService.kCustomFont);
     }
+    SmartDialog.showToast("已重置为默认字体！");
   }
 
   void changeFontFamily() {
     curFontName.value = curFontModel.value?.id;
-    LocalStorageService.instance
-        .setValue(LocalStorageService.kCustomFont, curFontName.value);
+    LocalStorageService.instance.setValue(LocalStorageService.kCustomFont, curFontName.value);
     SmartDialog.showToast("已设置全局字体为${curFontModel.value?.name}");
   }
 
@@ -88,9 +82,9 @@ class AppStyleSettingController extends GetxController {
   }
 
   Future<void> downloadFont() async {
-    var dir = await getApplicationSupportDirectory();
+    final dbPath = AppSettingsController.instance.dbPath;
     var fontName = curFontModel.value!.id;
-    final fontDir = Directory("${dir.path}/fonts/$fontName");
+    final fontDir = Directory("$dbPath/fonts/$fontName");
     if (!await fontDir.exists()) {
       await fontDir.create(recursive: true);
     }
@@ -118,7 +112,6 @@ class AppStyleSettingController extends GetxController {
               Log.e("Failed to download font file after $maxRetries attempts: $filePath\n$e", s);
               fontState.value = DownloadState.notDownloaded;
               SmartDialog.showToast("下载失败，请检查网络后重试");
-              throw Exception("Failed to download $fileName: $e");
             }
             Log.w("Download failed, retrying ($retryCount/$maxRetries): $fileName");
             await Future.delayed(const Duration(seconds: 1));
@@ -131,8 +124,7 @@ class AppStyleSettingController extends GetxController {
   }
 
   Future<void> userFontInit() async {
-    var fontName = LocalStorageService.instance
-        .getNullValue<String?>(LocalStorageService.kCustomFont, null);
+    var fontName = LocalStorageService.instance.getNullValue<String?>(LocalStorageService.kCustomFont, null);
     Log.d('获取当前字体$fontName');
     if (fontName != null && fontName != "Microsoft YaHei") {
       // 确认本地是否存在此字体
@@ -146,23 +138,21 @@ class AppStyleSettingController extends GetxController {
     }
     curFontName.value = fontName;
     if (curFontName.value != null) {
-      curFontModel.value = fontMap.keys.firstWhere(
-          (element) => element.id == curFontName.value,
-          orElse: () => fontMap.keys.first);
+      curFontModel.value =
+          fontMap.keys.firstWhere((element) => element.id == curFontName.value, orElse: () => fontMap.keys.first);
     } else {
       curFontModel.value = fontMap.keys.first;
     }
     // maybe curFontName = null
-    fontState.value = await fontDownloadCheck(curFontModel.value!.id)
-        ? DownloadState.downloaded
-        : DownloadState.notDownloaded;
+    fontState.value =
+        await fontDownloadCheck(curFontModel.value!.id) ? DownloadState.downloaded : DownloadState.notDownloaded;
 
     Log.d("当前字体模型：${curFontModel.value!.id}");
   }
 
   Future<void> loadFont(String fontName) async {
-    var dir = await getApplicationSupportDirectory();
-    final fontDir = Directory("${dir.path}/fonts/$fontName");
+    final dbPath = AppSettingsController.instance.dbPath;
+    final fontDir = Directory("$dbPath/fonts/$fontName");
     final loader = FontLoader(fontName);
 
     await for (final entity in fontDir.list()) {
@@ -175,23 +165,20 @@ class AppStyleSettingController extends GetxController {
   }
 
   Future<bool> fontDownloadCheck(String fontName) async {
-    final dir = await getApplicationSupportDirectory();
-    final fontDir = Directory("${dir.path}/fonts/$fontName");
-    bool fontDownload =
-        await fontDir.exists() && await fontDir.list().length >= 1;
+    final dbPath = AppSettingsController.instance.dbPath;
+    final fontDir = Directory("$dbPath/fonts/$fontName");
+    bool fontDownload = await fontDir.exists() && await fontDir.list().length >= 1;
     return fontDownload;
   }
 
   Future<void> fetchFonts() async {
     try {
-      final jsonStr =
-          await rootBundle.loadString('assets/fonts/fonts-manifest.json');
+      final jsonStr = await rootBundle.loadString('assets/fonts/fonts-manifest.json');
       final List<dynamic> list = json.decode(jsonStr);
       // 集合推导构造fontMap
       fontMap.assignAll(
         {
-          for (final e in list)
-            FontModel.fromJson(e): (e['name'] as String? ?? ''),
+          for (final e in list) FontModel.fromJson(e): (e['name'] as String? ?? ''),
         },
       );
     } catch (e, s) {
@@ -204,45 +191,10 @@ class AppStyleSettingController extends GetxController {
     LocalStorageService.instance.setValue(LocalStorageService.kIsDynamic, e);
   }
 
-  void changeTheme() {
-    Get.dialog(
-      SimpleDialog(
-        title: const Text("设置主题"),
-        children: [
-          RadioGroup<int>(
-            groupValue: themeMode.value,
-            onChanged: (e) {
-              Get.back();
-              setTheme(e ?? 0);
-            },
-            child: Column(
-              children: [
-                RadioListTile<int>(
-                  title: const Text("跟随系统"),
-                  value: 0,
-                ),
-                RadioListTile<int>(
-                  title: const Text("浅色模式"),
-                  value: 1,
-                ),
-                RadioListTile<int>(
-                  title: const Text("深色模式"),
-                  value: 2,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void setTheme(int i) {
-    themeMode.value = i;
-    var mode = ThemeMode.values[i];
-
-    LocalStorageService.instance.setValue(LocalStorageService.kThemeMode, i);
-    Get.changeThemeMode(mode);
+    // 主题模式只有 AppSettingsController 一份状态：
+    // main.dart 的 GetMaterialApp 与 Windows 标题栏都监听它
+    AppSettingsController.instance.setThemeMode(i);
   }
 
   void setStyleColor(int e) {

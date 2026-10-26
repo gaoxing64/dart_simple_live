@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 
@@ -30,16 +30,13 @@ class SettingsNumber extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       title: Text(
         title,
-        style: Get.textTheme.bodyLarge,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: AppStyle.radius8,
+        style: context.textTheme.bodyLarge,
       ),
       subtitle: subtitle == null
           ? null
           : Text(
               subtitle!,
-              style: Get.textTheme.bodySmall!.copyWith(color: Colors.grey),
+              style: context.textTheme.bodySmall!.copyWith(color: Colors.grey),
             ),
       contentPadding: AppStyle.edgeInsetsL16.copyWith(right: 12),
       trailing: Container(
@@ -52,6 +49,7 @@ class SettingsNumber extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
+              tooltip: "减少",
               padding: AppStyle.edgeInsetsA4,
               constraints: const BoxConstraints(
                 minHeight: 32,
@@ -65,18 +63,16 @@ class SettingsNumber extends StatelessWidget {
               },
               icon: Icon(
                 Icons.remove,
-                color: Get.textTheme.bodyMedium!.color!.withAlpha(150),
+                color: context.textTheme.bodyMedium!.color!.withAlpha(150),
               ),
             ),
             Text(
               displayValue ?? "$value$unit",
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium!
-                  .copyWith(color: Colors.grey),
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.grey),
             ),
             IconButton(
+              tooltip: "增加",
               padding: AppStyle.edgeInsetsA4,
               constraints: const BoxConstraints(
                 minHeight: 32,
@@ -90,7 +86,7 @@ class SettingsNumber extends StatelessWidget {
               },
               icon: Icon(
                 Icons.add,
-                color: Get.textTheme.bodyMedium!.color!.withAlpha(150),
+                color: context.textTheme.bodyMedium!.color!.withAlpha(150),
               ),
             ),
           ],
@@ -119,12 +115,12 @@ class SettingsNumber extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: Get.textTheme.titleMedium,
+                    style: context.textTheme.titleMedium,
                   ),
                   Obx(
                     () => Text(
                       "${newValue.value}$unit",
-                      style: Get.textTheme.titleMedium,
+                      style: context.textTheme.titleMedium,
                     ),
                   ),
                 ],

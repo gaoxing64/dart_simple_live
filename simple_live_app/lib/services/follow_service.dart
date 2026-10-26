@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:fractional_indexing_dart/fractional_indexing_dart.dart';
 import 'package:get/get.dart';
@@ -17,9 +17,9 @@ import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
-import 'package:simple_live_app/app/utils/duration_2_str_utils.dart';
+import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
 import 'package:simple_live_app/app/utils/dynamic_sort.dart';
-import 'package:simple_live_app/app/utils/string_normalizer.dart';
+import 'package:simple_live_app/app/utils/extensions/string_normalizer.dart';
 import 'package:simple_live_app/models/db/follow_snapshot.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
@@ -40,6 +40,9 @@ class FollowService extends GetxService {
   /// 关注用户列表
   RxList<FollowUser> followList = RxList<FollowUser>();
 
+  /// 休眠用户列表
+  RxList<FollowUser> dormantFollowList = RxList<FollowUser>();
+
   /// 直播中的用户列表
   RxList<FollowUser> liveList = RxList<FollowUser>();
 
@@ -48,9 +51,6 @@ class FollowService extends GetxService {
 
   /// 用户自定义的tag
   RxList<FollowUserTag> followTagList = RxList<FollowUserTag>();
-
-  /// 当前tag的用户列表
-  RxList<FollowUser> curTagFollowList = RxList<FollowUser>();
 
   /// 线程安全
   final _lock = Lock();
@@ -84,18 +84,9 @@ class FollowService extends GetxService {
     super.onInit();
   }
 
-  Future<void> updateTagName(
-      FollowUserTag followUserTag, String newTagName) async {
-    final FollowUserTag newTag = followUserTag.copyWith(tag: newTagName);
-    updateFollowUserTag(newTag);
-    // update item's tag when update tagName
-    for (var i in newTag.userId) {
-      var follow = DBService.instance.followBox.get(i);
-      if (follow != null) {
-        follow.tag = newTagName;
-        await addFollow(follow);
-      }
-    }
+  Future<void> updateTagName(FollowUserTag followUserTag, String newTagName) async {
+    // 成员靠 id 关联，改名只是换个显示名，不需要碰任何关注记录。
+    await updateFollowUserTag(followUserTag.copyWith(tag: newTagName));
   }
 
   Future<void> updateFollowUserTag(FollowUserTag tag) async {
@@ -111,7 +102,7 @@ class FollowService extends GetxService {
   Future<void> addFollowUserTag(String tag) async {
     // 判断待添加tag是否已存在，存在则return
     if (followTagList.any((item) => item.tag == tag)) {
-      SmartDialog.showToast("标签名重复，修改失败");
+      SmartDialog.showToast("分组名重复，修改失败");
       return;
     }
     FollowUserTag item = await DBService.instance.addFollowTag(tag);
@@ -119,14 +110,6 @@ class FollowService extends GetxService {
   }
 
   Future removeFollowUserTag(FollowUserTag tag) async {
-    // 将tag下的所有follow设置为全部
-    for (var i in tag.userId) {
-      var follow = DBService.instance.followBox.get(i);
-      if (follow != null) {
-        follow.tag = "全部";
-        await FollowService.instance.addFollow(follow);
-      }
-    }
     followTagList.remove(tag);
     await DBService.instance.deleteFollowTag(tag.id);
   }
@@ -137,76 +120,62 @@ class FollowService extends GetxService {
     followTagList.assignAll(list);
   }
 
-  /// 获取包含“全部”的标签选项列表
-  List<FollowUserTag> getTagOptionsWithAll() {
-    return [
-      FollowUserTag(id: '0', tag: '全部', userId: []),
-      ...followTagList,
-    ];
+  /// 某关注所属的分组名（按 `followTagList` 顺序）。
+  ///
+  /// 归属唯一真源是 `FollowUserTag.userId`（多分组归属），本方法是它的读取口。
+  List<String> userTagNamesOf(String followId) => [
+        for (final t in followTagList)
+          if (t.contains(followId)) t.tag,
+      ];
+
+  /// 某关注所属的全部分组对象（按显示顺序）。
+  List<FollowUserTag> userTagsOf(String followId) => [
+        for (final t in followTagList)
+          if (t.contains(followId)) t,
+      ];
+
+  /// 把关注加入分组（多归属：不影响它已在的其他分组）。
+  ///
+  /// [tagName] 传哨兵 `'全部'` 等价于「移出所有分组」，由调用方保证语义；
+  /// 这里只处理普通分组名。分组名不存在时静默返回 —— 分组是用户数据，
+  /// 名字对不上说明调用方拿了个已经删掉的组，不该再往里写人。
+  ///
+  /// ⚠️ 不在这里 `liveListSort()`：按「自定义分组」排序时归属变化会影响顺序，
+  /// 但一次批量归组（勾选移入分组）要动 N 个人，每条都重排就是
+  /// O(N² log N)。排序交给调用方在一批操作结束后做一次（见控制器）。
+  Future<void> addUserToTag(FollowUser user, String tagName) async {
+    if (tagName == '全部') {
+      return removeAllTagsFromUser(user);
+    }
+    final tag = followTagList.firstWhereOrNull((t) => t.tag == tagName);
+    if (tag == null) {
+      return;
+    }
+    if (!tag.addMember(user.id)) {
+      return;
+    }
+    await updateFollowUserTag(tag);
   }
 
-  /// 为关注项设置标签（统一逻辑）
-  Future<void> setFollowTag(FollowUser item, FollowUserTag targetTag) async {
-    // 当前标签对象（可能为“全部”且不在 followTagList 中）
-    FollowUserTag? currentTag;
-    if (item.tag != '全部') {
-      for (final t in followTagList) {
-        if (t.tag == item.tag) {
-          currentTag = t;
-          break;
-        }
-      }
+  /// 把关注移出某个分组。同样不在此重排，理由见 [addUserToTag]。
+  Future<void> removeUserFromTag(FollowUser user, String tagName) async {
+    if (tagName == '全部') {
+      return removeAllTagsFromUser(user);
     }
-
-    // 从旧标签移除
-    if (currentTag != null) {
-      currentTag.userId.remove(item.id);
-      DBService.instance.updateFollowTag(currentTag);
+    final tag = followTagList.firstWhereOrNull((t) => t.tag == tagName);
+    if (tag == null || !tag.userId.remove(user.id)) {
+      return;
     }
-
-    // 添加到新标签（跳过“全部”）
-    if (targetTag.tag != '全部') {
-      // targetTag来源于UI选项，需定位真实对象
-      FollowUserTag? tar;
-      for (final t in followTagList) {
-        if (t.tag == targetTag.tag) {
-          tar = t;
-          break;
-        }
-      }
-      if (tar != null) {
-        tar.userId.addIf(!tar.userId.contains(item.id), item.id);
-        DBService.instance.updateFollowTag(tar);
-      }
-    }
-
-    // 更新FollowUser本身
-    item.tag = targetTag.tag;
-    await addFollow(item);
+    await updateFollowUserTag(tag);
   }
 
-  void filterDataByTag(FollowUserTag tag) {
-    // 清空curTagFollowList
-    curTagFollowList.clear();
-    // 用一个新的列表来存储需要删除的 userId
-    List<String> toRemove = [];
-    for (var id in tag.userId) {
-      if (followList.any((x) => x.id == id)) {
-        // 找到对应的 followUser 添加到 curTagFollowList
-        curTagFollowList.add(followList.firstWhere((x) => x.id == id));
-      } else {
-        // 标记要删除的 id
-        toRemove.add(id);
+  /// 清空某关注的全部归属（回到「未分组」）。只写真的变了的分组。
+  Future<void> removeAllTagsFromUser(FollowUser user) async {
+    for (final tag in followTagList) {
+      if (tag.userId.remove(user.id)) {
+        await updateFollowUserTag(tag);
       }
     }
-    // 在遍历结束后统一移除不在 followList 中的 id
-    tag.userId.removeWhere((id) => toRemove.contains(id));
-    // 更新数据库
-    if (toRemove.isNotEmpty) {
-      DBService.instance.updateFollowTag(tag);
-    }
-    listSortByMethod(curTagFollowList,
-        AppSettingsController.instance.followSortMethod.value);
   }
 
   void updateFollowTagOrder(FollowUserTag oldTag, FollowUserTag newTag) {
@@ -219,6 +188,29 @@ class FollowService extends GetxService {
 
     DBService.instance.deleteFollowTag(oldTag.id);
     DBService.instance.updateFollowTag(newTag);
+  }
+
+  /// 按显示顺序移动一个标签（关注页拖拽调序与分组管理 sheet 共用）。
+  ///
+  /// 顺序由 fractional id 承载，重排 = 换 id 重新落库，**移动过的标签 id 会变**
+  /// （按 id 存的折叠态等会随之重置）。索引以 [followTagList]（仅自定义标签）为准。
+  ///
+  /// ⚠️ `onReorderItem` 回调给出的 `newIndex` **已经是删除旧位置后的插入索引**
+  /// （框架内部做过校正），这里不能再减一次。
+  ///
+  /// ⚠️ 相邻 key 必须在「item 已移出列表」的状态下取：先插回再取
+  /// `[insertAt]` 会取到 item 自己 —— 向下拖会抛 `a >= b` 异常，
+  /// 向上拖会算出撞车 id 并在落库时覆盖掉另一个分组
+  /// （2026-09-22 实测丢组，回归见 test/follow_tag_reorder_test.dart）。
+  void reorderFollowTag(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) {
+      return;
+    }
+    final item = followTagList.removeAt(oldIndex);
+    final insertAt = newIndex.clamp(0, followTagList.length);
+    final newKey = FractionalIndexing.generateKeyBetween(insertAt > 0 ? followTagList[insertAt - 1].id : null,
+        insertAt < followTagList.length ? followTagList[insertAt].id : null);
+    updateFollowTagOrder(item, item.copyWith(id: newKey));
   }
 
   // 添加关注
@@ -234,6 +226,10 @@ class FollowService extends GetxService {
     // 重新关注时清除墓碑标记
     follow.deleted = false;
     follow.updateTime = 0;
+
+    // 归属由 FollowUserTag.userId 单向持有，这里不反向同步（历史双写正是错乱之源）。
+
+    // live_room_controller.add 已同步history
     // db.add 其实是update会直接更新数据，所以外表也应该实现此功能：有则更，无则添加
     int index = followList.indexWhere((f) => f.id == follow.id);
     if (index != -1) {
@@ -252,13 +248,10 @@ class FollowService extends GetxService {
     // 从而规避业务逻辑直读数据库导致的数据混乱
     FollowUser follow = followList.firstWhere((x) => x.id == id);
     followList.removeWhere((x) => x.id == id);
-    // 取消关注同时删除用户自定义tag中的关注id
-    if (follow.tag != "全部") {
-      // 对象引用会直接修改数据无需额外操作
-      var tag = followTagList.firstWhereOrNull((tag) => tag.tag == follow.tag);
-      if (tag != null) {
-        tag.userId.remove(follow.id);
-        await FollowService.instance.updateFollowUserTag(tag);
+    // 取消关注 = 从所有分组的成员表里消失（只写真的少了人的那个组）
+    for (final tag in followTagList) {
+      if (tag.userId.remove(id)) {
+        await updateFollowUserTag(tag);
       }
     }
     liveListSort();
@@ -275,8 +268,7 @@ class FollowService extends GetxService {
 
   // 更新关注的历史记录
   Future<void> updateFollowHistory(History history) async {
-    var follow =
-        followList.where((follow) => follow.id == history.id).firstOrNull;
+    var follow = followList.where((follow) => follow.id == history.id).firstOrNull;
     if (follow == null) {
       return;
     } else {
@@ -286,7 +278,7 @@ class FollowService extends GetxService {
       follow.watchDurationSec = history.watchDuration!.toDuration().inSeconds;
       await addFollow(follow);
     }
-    Log.i("已更新当前播放的观看时长：${follow.watchDuration}");
+    Log.i("已更新当前播放的观看时长：${follow.watchDurationSec}");
   }
 
   void initTimer() {
@@ -294,9 +286,7 @@ class FollowService extends GetxService {
       updateTimer?.cancel();
       _refreshCycle = 0;
       updateTimer = Timer.periodic(
-        Duration(
-            minutes:
-                AppSettingsController.instance.autoUpdateFollowDuration.value),
+        Duration(minutes: AppSettingsController.instance.autoUpdateFollowDuration.value),
         (timer) {
           CoreLog.i("Update Follow Timer - Cycle: $_refreshCycle");
           loadData(updateStatus: true, cycle: _refreshCycle);
@@ -326,9 +316,7 @@ class FollowService extends GetxService {
     if (followSnapshot != null &&
         followSnapshot.expireAt > DateTime.now().microsecondsSinceEpoch &&
         followSnapshotEnable) {
-      final snapshotMap = {
-        for (var item in followSnapshot.followSnapshotItems) item.id: item
-      };
+      final snapshotMap = {for (var item in followSnapshot.followSnapshotItems) item.id: item};
       for (var item in list) {
         final resItem = snapshotMap[item.id];
         if (resItem != null) {
@@ -339,15 +327,41 @@ class FollowService extends GetxService {
       Log.i("FollowService: follow-snapshot has recovered, expireAt: ${followSnapshot.expireAt}");
     }
     followList.assignAll(list);
-    if(_snap){
+    if (_snap) {
       liveListSort();
     }
+    _buildDormantList();
     getAllTagList();
+  }
+
+  /// 构建休眠用户列表
+  void _buildDormantList() {
+    final threshold = AppSettingsController.instance.dormancyThreshold.value;
+    if (threshold <= 0) {
+      dormantFollowList.clear();
+      return;
+    }
+    final cutoff = DateTime.now().subtract(Duration(days: threshold)).millisecondsSinceEpoch ~/ 1000;
+    dormantFollowList.assignAll(
+      followList.where((u) => u.lastWatchTime! > 0 && u.lastWatchTime! < cutoff),
+    );
+  }
+
+  /// 解冻：用户进入直播间时调用
+  void resumeUser(String userId) {
+    // 更新 lastWatchTime 如果已关注
+    var follow = followList.firstWhereOrNull((u) => u.id == userId);
+    if (follow != null) {
+      follow.lastWatchTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      DBService.instance.addFollow(follow);
+      // 从休眠列表移除
+      dormantFollowList.removeWhere((u) => u.id == userId);
+    }
   }
 
   Future<void> loadData({bool updateStatus = true, int? cycle}) async {
     // snapshot 恢复跳过第一次状态更新
-    if(_snap){
+    if (_snap) {
       _snap = false;
       return;
     }
@@ -360,9 +374,7 @@ class FollowService extends GetxService {
 
   void multiRoundPriority() {
     final historyList = DBService.instance.getHistories();
-    final Map<String, int> historyRankMap = {
-      for (var i = 0; i < historyList.length; i++) historyList[i].id: i
-    };
+    final Map<String, int> historyRankMap = {for (var i = 0; i < historyList.length; i++) historyList[i].id: i};
     final int maxRank = historyList.isNotEmpty ? historyList.length : 1;
 
     Duration maxDuration = const Duration();
@@ -372,8 +384,11 @@ class FollowService extends GetxService {
         maxDuration = duration;
       }
     }
-    final double maxDurationInSeconds =
-        maxDuration.inSeconds > 0 ? maxDuration.inSeconds.toDouble() : 1.0;
+    final double maxDurationInSeconds = maxDuration.inSeconds > 0 ? maxDuration.inSeconds.toDouble() : 1.0;
+
+    // 休眠用户 ID 集合
+    final dormantIds = dormantFollowList.map((u) => u.id).toSet();
+
     // 简单线性加权组合算法，目前认定观看时长和最近观看时间权重一致
     // 如果用户历史行为序列非常长：可替换为时间衰减 + 观看时长加权
     followList.sort((a, b) {
@@ -385,23 +400,21 @@ class FollowService extends GetxService {
       const double wOffline = 1 - wOnline;
 
       // 动态权重
-      double normDurationA =
-          a.watchDuration!.toDuration().inSeconds.toDouble() /
-              maxDurationInSeconds;
+      double normDurationA = a.watchDurationSec.toDouble() / maxDurationInSeconds;
       int rankA = historyRankMap[a.id] ?? maxRank;
       double normRecencyA = (maxRank - rankA).toDouble() / maxRank;
-      double scoreA =
-          ((wDuration * normDurationA) + (wRecency * normRecencyA)) *
-              (a.liveStatus.value == 2 ? wOnline : wOffline);
+      double wDormantA = dormantIds.contains(a.id) ? 0.0 : 1.0;
+      double scoreA = ((wDuration * normDurationA) + (wRecency * normRecencyA)) *
+          (a.liveStatus.value == 2 ? wOnline : wOffline) *
+          wDormantA;
 
-      double normDurationB =
-          b.watchDuration!.toDuration().inSeconds.toDouble() /
-              maxDurationInSeconds;
+      double normDurationB = b.watchDurationSec.toDouble() / maxDurationInSeconds;
       int rankB = historyRankMap[b.id] ?? maxRank;
       double normRecencyB = (maxRank - rankB).toDouble() / maxRank;
-      double scoreB =
-          ((wDuration * normDurationB) + (wRecency * normRecencyB)) *
-              (b.liveStatus.value == 2 ? wOnline : wOffline);
+      double wDormantB = dormantIds.contains(b.id) ? 0.0 : 1.0;
+      double scoreB = ((wDuration * normDurationB) + (wRecency * normRecencyB)) *
+          (b.liveStatus.value == 2 ? wOnline : wOffline) *
+          wDormantB;
 
       return scoreB.compareTo(scoreA);
     });
@@ -423,18 +436,15 @@ class FollowService extends GetxService {
       final middleUsers = followList.sublist(topNCount, middlePartEndIndex);
       if (cycle == 0) {
         usersToUpdate = topNUsers;
-        CoreLog.i(
-            "Update Follow: Cycle 0, updating top ${usersToUpdate.length}/$totalUsers users.");
+        CoreLog.i("Update Follow: Cycle 0, updating top ${usersToUpdate.length}/$totalUsers users.");
       } else {
         usersToUpdate = [...topNUsers, ...middleUsers];
-        CoreLog.i(
-            "Update Follow: Cycle 1, updating top+middle ${usersToUpdate.length}/$totalUsers users.");
+        CoreLog.i("Update Follow: Cycle 1, updating top+middle ${usersToUpdate.length}/$totalUsers users.");
       }
     } else {
       usersToUpdate = List.from(followList);
       if (cycle != null) {
-        CoreLog.i(
-            "Update Follow: List <= 100, updating all ${usersToUpdate.length} users.");
+        CoreLog.i("Update Follow: List <= 100, updating all ${usersToUpdate.length} users.");
       }
     }
     _totalToUpdate = usersToUpdate.length;
@@ -447,8 +457,7 @@ class FollowService extends GetxService {
       return;
     }
 
-    var threadCount =
-        AppSettingsController.instance.updateFollowThreadCount.value;
+    var threadCount = AppSettingsController.instance.updateFollowThreadCount.value;
 
     var pool = Pool(threadCount);
     var tasks = <Future>[];
@@ -458,6 +467,13 @@ class FollowService extends GetxService {
     }
     await Future.wait(tasks);
     await pool.close();
+
+    // 增量检查：自动解冻 lastWatchTime >= cutoff 的用户
+    final threshold = AppSettingsController.instance.dormancyThreshold.value;
+    if (threshold > 0 && dormantFollowList.isNotEmpty) {
+      final cutoff = DateTime.now().subtract(Duration(days: threshold)).millisecondsSinceEpoch ~/ 1000;
+      dormantFollowList.removeWhere((u) => u.lastWatchTime != null && u.lastWatchTime! >= cutoff);
+    }
 
     // frequency of snapshot-saving and expireAt calculation depend on user-setting: auto-update
     final minutes = AppSettingsController.instance.autoUpdateFollowDuration.value;
@@ -471,15 +487,33 @@ class FollowService extends GetxService {
     Log.i("FollowService: follow-snapshot has saved, time: ${DateTime.now()}");
   }
 
+  /// 增量重排通知的节流间隔。
+  ///
+  /// 刷新期间每检测完一条都会重排（见 [reflowFollowItem]），但 UI 不必跟着
+  /// 重建同样多次；把这一小段时间内完成的条目合并成一批、只发一次
+  /// 「列表已更新」事件。**这里不排序**，整表排序仍只在 [filterData] 里做一次。
+  static const Duration _kIncrementalNotifyInterval = Duration(milliseconds: 150);
+
+  Timer? _incrementalNotifyTimer;
+  bool _incrementalNotifyPending = false;
+
   Future updateLiveInformation(FollowUser item) async {
+    final oldStatus = item.liveStatus.value;
     try {
       var site = Sites.allSites[item.siteId]!;
-      LiveRoomDetail detail =
-          await site.liveSite.getRoomDetail(roomId: item.roomId);
+      LiveRoomDetail detail = await site.liveSite.getRoomDetail(roomId: item.roomId);
       item.liveStatus.value = detail.status ? 2 : 1;
       item.cover.value = detail.status ? detail.cover : "";
       item.title.value = detail.title;
-      item.online.value = detail.online;
+      // 未开播时接口仍会回上一次直播的人气值，直接展示就是「未开播卡片顶着 160.9万」
+      // 那种假数据，这里和 cover 一样按状态清掉。
+      item.online.value = detail.status ? detail.online : 0;
+      if (oldStatus != item.liveStatus.value) {
+        // 状态变了就**立刻**把它挪到该在的位置：直播的一检出就往上浮，
+        // 而不是等整轮刷新结束再统一跳一次。
+        reflowFollowItem(item);
+        _scheduleIncrementalNotify();
+      }
     } catch (e) {
       Log.logPrint(e);
     } finally {
@@ -493,14 +527,79 @@ class FollowService extends GetxService {
     }
   }
 
+  /// 增量重排：把 [item] 挪到当前排序下它该在的位置（**不是排序**）。
+  ///
+  /// 刷新期间只在 [FollowUser.liveStatus] 翻转时调用：在线人数也会变，但逐条
+  /// 重排会让列表持续抖动，统一留到收尾的 [filterData] 整表排序（因此仅按
+  /// 在线人数排序时，刷新中途可能短暂不完全有序）。翻转时 online 已先写入，
+  /// 这里用一次线性扫描定位插入点、一次移动即可。整表排序仍然只在
+  /// [filterData] 结束时执行一次，性能口径不变。
+  void reflowFollowItem(FollowUser item) {
+    final index = followList.indexOf(item);
+    if (index < 0) {
+      return;
+    }
+    final conditions = _followSortConditions(
+      AppSettingsController.instance.followSortMethod.value,
+    );
+    followList.removeAt(index);
+    var insertAt = followList.length;
+    for (var i = 0; i < followList.length; i++) {
+      if (_compareFollow(item, followList[i], conditions) < 0) {
+        insertAt = i;
+        break;
+      }
+    }
+    followList.insert(insertAt, item);
+  }
+
+  /// 与 [listSortByMethod] 同一套比较规则：直播优先，再按用户选的排序方式。
+  /// 增量重排据此定位插入点，两条路必须同口径，否则结束时还会再跳一次。
+  ///
+  /// [conditions] 由调用方在循环外算好传入：逐次比较都重建条件对象太浪费。
+  int _compareFollow(
+    FollowUser a,
+    FollowUser b,
+    List<SortCondition<FollowUser>> conditions,
+  ) {
+    final liveCmp = a.liveStatus.value.compareTo(b.liveStatus.value);
+    if (liveCmp != 0) {
+      return -liveCmp;
+    }
+    for (final cond in conditions) {
+      final cmp = cond.valueGetter(a).compareTo(cond.valueGetter(b));
+      if (cmp != 0) {
+        return cond.ascending ? cmp : -cmp;
+      }
+    }
+    return 0;
+  }
+
+  /// 增量重排的 UI 通知节流：一批最多发一次。
+  void _scheduleIncrementalNotify() {
+    _incrementalNotifyPending = true;
+    if (_incrementalNotifyTimer?.isActive ?? false) {
+      return;
+    }
+    _incrementalNotifyTimer = Timer(_kIncrementalNotifyInterval, () {
+      if (!_incrementalNotifyPending) {
+        return;
+      }
+      _incrementalNotifyPending = false;
+      _updatedListController.add(0);
+    });
+  }
+
   void filterData() {
+    // 收尾的那次完整刷新会覆盖增量结果，挂着的节流通知没有意义
+    _incrementalNotifyTimer?.cancel();
+    _incrementalNotifyPending = false;
     liveListSort();
     _updatedListController.add(0);
   }
 
   void liveListSort() {
-    listSortByMethod(
-        followList, AppSettingsController.instance.followSortMethod.value);
+    listSortByMethod(followList, AppSettingsController.instance.followSortMethod.value);
     liveList.assignAll(followList.where((x) => x.liveStatus.value == 2));
     notLiveList.assignAll(followList.where((x) => x.liveStatus.value == 1));
   }
@@ -510,8 +609,13 @@ class FollowService extends GetxService {
       valueGetter: (item) => item.liveStatus.value, // Rx<int>
       ascending: false,
     );
+    list.dynamicSort([liveCondition, ..._followSortConditions(sortMethod)]);
+  }
+
+  /// 用户所选排序方式对应的字段条件（不含「直播优先」那一档）。
+  List<SortCondition<FollowUser>> _followSortConditions(SortMethod sortMethod) {
     var watchDurationCondition = SortCondition<FollowUser>(
-      valueGetter: (item) => item.watchDuration?.toDuration() ?? Duration.zero,
+      valueGetter: (item) => item.watchDurationSec,
       ascending: false,
     );
     var siteIdCondition = SortCondition<FollowUser>(
@@ -525,25 +629,30 @@ class FollowService extends GetxService {
       valueGetter: (item) => item.addTime,
       ascending: false,
     );
-    var userNameASCCondition = SortCondition<FollowUser>(
-      valueGetter: (item) => item.romanName ?? "",
-      ascending: true,
-    );
-    var userNameDESCCondition = SortCondition<FollowUser>(
-      valueGetter: (item) => item.romanName ?? "",
+    var onlineCondition = SortCondition<FollowUser>(
+      valueGetter: (item) => item.online.value,
       ascending: false,
+    );
+    var tagCondition = SortCondition<FollowUser>(
+      valueGetter: (item) {
+        final names = userTagNamesOf(item.id);
+        if (names.isEmpty) {
+          return followTagList.length; // 未分组排最后
+        }
+        return followTagList.indexWhere((t) => t.tag == names.first);
+      },
     );
     switch (sortMethod) {
       case SortMethod.watchDuration:
-        list.dynamicSort([liveCondition, watchDurationCondition]);
+        return [watchDurationCondition];
       case SortMethod.siteId:
-        list.dynamicSort([liveCondition, siteIdCondition]);
+        return [siteIdCondition, watchDurationCondition];
       case SortMethod.recently:
-        list.dynamicSort([liveCondition, recentlyCondition]);
-      case SortMethod.userNameASC:
-        list.dynamicSort([liveCondition, userNameASCCondition]);
-      case SortMethod.userNameDESC:
-        list.dynamicSort([liveCondition, userNameDESCCondition]);
+        return [recentlyCondition];
+      case SortMethod.online:
+        return [onlineCondition];
+      case SortMethod.tag:
+        return [tagCondition, watchDurationCondition];
     }
   }
 
@@ -564,14 +673,13 @@ class FollowService extends GetxService {
       if (Platform.isIOS) {
         dir = (await getApplicationDocumentsDirectory()).path;
       } else {
-        dir = await FilePicker.platform.getDirectoryPath() ?? "";
+        dir = await FilePicker.getDirectoryPath() ?? "";
       }
 
       if (dir.isEmpty) {
         return;
       }
-      var jsonFile = File(
-          '$dir/SimpleLive_${DateTime.now().millisecondsSinceEpoch ~/ 1000}.json');
+      var jsonFile = File('$dir/SimpleLive_${DateTime.now().millisecondsSinceEpoch ~/ 1000}.json');
       var jsonText = generateJson();
       await jsonFile.writeAsString(jsonText);
       SmartDialog.showToast("已导出关注列表");
@@ -588,7 +696,7 @@ class FollowService extends GetxService {
         SmartDialog.showToast("无权限");
         return;
       }
-      var file = await FilePicker.platform.pickFiles(
+      var file = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
@@ -704,10 +812,15 @@ class FollowService extends GetxService {
             "userName": item.userName,
             "face": item.face,
             "watchDuration": item.watchDuration,
+            "watchDurationSec": item.watchDurationSec,
             "addTime": item.addTime.toString(),
             "remark": item.remark,
+            "showRemarkAsName": item.showRemarkAsName,
             "romanName": item.romanName,
-            "tag": item.tag
+            // tag 是「主分组」展示缓存，保留给旧版本读取（旧版本只认这个字段）；
+            // tags 是归属真源（多分组），新版本读取以它为准。
+            "tag": userTagNamesOf(item.id).firstOrNull ?? '全部',
+            "tags": userTagNamesOf(item.id),
           },
         )
         .toList();
@@ -720,6 +833,22 @@ class FollowService extends GetxService {
     for (var item in data) {
       var follow = FollowUser.fromJson(item);
       await DBService.instance.addFollow(follow);
+      // 新版带 tags 数组；旧备份只有单个 tag 字段，两者都认。
+      final names = <String>[];
+      if (item['tags'] is List) {
+        names.addAll((item['tags'] as List).whereType<String>());
+      } else if (item['tag'] is String) {
+        names.add(item['tag'] as String);
+      }
+      for (final name in names) {
+        if (name.isEmpty || name == '全部') {
+          continue;
+        }
+        if (!followTagList.any((t) => t.tag == name)) {
+          await addFollowUserTag(name);
+        }
+        await addUserToTag(follow, name);
+      }
     }
 
     await followUserAllDataCheck();
@@ -727,36 +856,37 @@ class FollowService extends GetxService {
 
   // 数据校对
   // 核心关注数据有几种错乱情况，需要进行校对，需要一定时间复核代码
-  // 1：未关注，但标签包含关注
-  // 2: 已关注，且设置标签，但标签不包含
-  // 3: 已关注，且设置标签，但标签不存在
-  // 4: 标签重复
-  // 5: webdav同步导致的数据错乱
-  // 校对思路，followList是基础数据源，tagList为索引数据，重建数据即可
+  // 1：分组里含已取关的幽灵 id
+  // 2: 分组名重复
+  // 3: webdav 同步导致的数据错乱
+  // 校对思路：followList 是存在性基础，tagList 是归属唯一真源，按前者过滤后者的成员表
   // 根据此思路，可以重写文件导入导出以及webdav恢复逻辑
   Future<void> followUserAllDataCheck() async {
     var followUserListTemp = DBService.instance.getFollowList();
+    var historyListTemp = DBService.instance.getHistories();
     var oldTagList = DBService.instance.getFollowTagList();
+    final aliveIds = followUserListTemp.map((f) => f.id).toSet();
     final Map<String, List<String>> tagMap = {
-      for (var tag in oldTagList) tag.tag: <String>[],
+      for (var tag in oldTagList) tag.tag: tag.userId.where(aliveIds.contains).toList(),
     };
-    // 手动添加罗马音
+
     for (FollowUser follow in followUserListTemp) {
+      // 手动添加罗马音
       if (follow.remark != null && follow.remark!.isNotEmpty) {
         var roman = PinyinHelper.getShortPinyin(follow.remark!).normalize();
         follow.romanName = roman;
       } else {
-        follow.romanName =
-            PinyinHelper.getShortPinyin(follow.userName).normalize();
+        follow.romanName = PinyinHelper.getShortPinyin(follow.userName).normalize();
+      }
+      // 手动同步 watchDurationSec
+      var historyItem = historyListTemp.where((history) => follow.id == history.id).firstOrNull;
+      // 用户可能存在删除历史记录可能
+      if (historyItem != null) {
+        follow.watchDurationSec = historyItem.watchDuration!.toDuration().inSeconds;
       }
       await DBService.instance.addFollow(follow);
     }
     Log.i("transfer follow.name to roman is down!");
-    for (var follow in followUserListTemp) {
-      if (follow.tag != "全部") {
-        tagMap.putIfAbsent(follow.tag, () => <String>[]).add(follow.id);
-      }
-    }
     // 落库
     final Map<String, FollowUserTag> res = {};
     String? lastKey;
@@ -769,18 +899,18 @@ class FollowService extends GetxService {
       );
       res[followUserTag.id] = followUserTag;
     }
-    await DBService.instance.tagBox.clear();
-    await DBService.instance.tagBox.putAll(res);
-    Log.i(
-        "Follow-Service: data check down，follows:${followUserListTemp.length}，tags:${tagMap.length}");
+    await DBService.instance.replaceAllFollowTags(res);
+    // 重建的是 tagBox；内存里的 followTagList 必须同步重载，
+    // 否则分组管理 sheet 不重启就一直显示校准前的旧列表
+    getAllTagList();
+    Log.i("Follow-Service: data check down，follows:${followUserListTemp.length}，tags:${tagMap.length}");
   }
 
   /// 清理墓碑记录：删除 updateTime 超过15天的墓碑
   Future<void> cleanupTombstones() async {
     // 墓碑保留15天 = 15 * 24 * 60 * 60 秒
     const int tombstoneTTL = 15 * 24 * 60 * 60;
-    final beforeTimestamp =
-        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - tombstoneTTL;
+    final beforeTimestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000) - tombstoneTTL;
     final count = await DBService.instance.cleanupTombstones(beforeTimestamp);
     if (count > 0) {
       Log.i("Follow-Service: cleaned $count tombstone records");
@@ -790,6 +920,7 @@ class FollowService extends GetxService {
   @override
   void onClose() {
     updateTimer?.cancel();
+    _incrementalNotifyTimer?.cancel();
     subscription?.cancel();
     super.onClose();
   }

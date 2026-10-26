@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:simple_live_app/modules/sync/local_sync/scan_qr/sync_scan_qr_controller.dart';
@@ -13,6 +13,7 @@ class SyncScanQRPage extends GetView<SyncScanQRControlelr> {
         title: const Text('扫描二维码'),
         actions: [
           IconButton(
+            tooltip: "闪光灯",
             onPressed: () {
               controller.qrController?.toggleFlash();
             },
@@ -20,6 +21,7 @@ class SyncScanQRPage extends GetView<SyncScanQRControlelr> {
           ),
           // 反转摄像头
           IconButton(
+            tooltip: "切换摄像头",
             onPressed: () {
               controller.qrController?.flipCamera();
             },
@@ -47,15 +49,13 @@ class ScanRectangle extends StatefulWidget {
   State<ScanRectangle> createState() => _ScanRectangleState();
 }
 
-class _ScanRectangleState extends State<ScanRectangle>
-    with SingleTickerProviderStateMixin {
+class _ScanRectangleState extends State<ScanRectangle> with SingleTickerProviderStateMixin {
   late AnimationController animeController;
   late Animation<Offset> animation;
 
   @override
   void initState() {
-    animeController =
-        AnimationController(duration: const Duration(seconds: 2), vsync: this);
+    animeController = AnimationController(duration: const Duration(seconds: 2), vsync: this);
     animeController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         animeController.reverse();

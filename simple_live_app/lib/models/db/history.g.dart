@@ -25,13 +25,17 @@ class HistoryAdapter extends TypeAdapter<History> {
       updateTime: fields[5] as DateTime,
       watchDuration: fields[6] == null ? "00:00:00" : fields[6] as String?,
       syncDuration: fields[7] == null ? 0 : (fields[7] as num).toInt(),
+      dailyWatchSeconds:
+          fields[8] == null ? {} : (fields[8] as Map?)?.cast<String, int>(),
+      dailySyncSeconds:
+          fields[9] == null ? {} : (fields[9] as Map?)?.cast<String, int>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, History obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +51,11 @@ class HistoryAdapter extends TypeAdapter<History> {
       ..writeByte(6)
       ..write(obj.watchDuration)
       ..writeByte(7)
-      ..write(obj.syncDuration);
+      ..write(obj.syncDuration)
+      ..writeByte(8)
+      ..write(obj.dailyWatchSeconds)
+      ..writeByte(9)
+      ..write(obj.dailySyncSeconds);
   }
 
   @override

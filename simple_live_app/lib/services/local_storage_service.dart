@@ -11,11 +11,42 @@ class LocalStorageService extends GetxService {
   /// 缩放模式
   static const String kPlayerScaleMode = "ScaleMode";
 
+  /// 用户自定义宽高比
+  static const String kPlayerAspectByUser = "PlayerAspectByUser";
+
+  /// 用户自定义画面宽度
+  static const String kPlayerAspectWidth = "PlayerAspectWidth";
+
+  /// 用户自定义画面高度
+  static const String kPlayerAspectHeight = "PlayerAspectHeight";
+
   /// 网站排序
   static const String kSiteSort = "SiteSort";
 
   /// 首页排序
   static const String kHomeSort = "HomeSort";
+
+  /// 底部导航栏样式
+  /// * [0] 标准
+  /// * [1] 悬浮 dock
+  /// * [2] 旧版「悬浮玻璃」样式；Liquid Glass 已整体移除，存量值迁移为 [1]
+  static const String kNavBarStyle = "NavBarStyle";
+
+  /// 悬浮玻璃导航栏（更早版本的开关，已由 [kNavBarStyle] 取代）
+  ///
+  /// 仅用于读取旧值迁移，不再写入。
+  static const String kFloatingGlassNavBar = "FloatingGlassNavBar";
+
+  /// 首页顶栏收起
+  static const String kHideTopBar = "HideTopBar";
+
+  /// 首页底栏收起
+  static const String kHideBottomBar = "HideBottomBar";
+
+  /// 顶/底栏收起类型
+  /// * [0] 即时
+  /// * [1] 同步
+  static const String kBarHideType = "BarHideType";
 
   /// 显示模式
   /// * [0] 跟随系统
@@ -62,8 +93,22 @@ class LocalStorageService extends GetxService {
   /// 弹幕去重
   static const String kDanmakuMaskEnable = "DanmakuMaskEnable";
 
+  /// 弹幕去重模式：true=重复合并计数显示，false=直接屏蔽重复
+  static const String kDanmakuMergeEnable = "DanmakuMergeEnable";
+
+  /// 弹幕表情包（目前仅 B 站）
+  static const String kDanmuEmoticonEnable = "DanmuEmoticonEnable";
+
   /// 弹幕字重
   static const String kDanmuFontWeight = "DanmuFontWeight";
+
+  /// 弹幕随屏幕缩放
+  static const String kDanmakuFontClamped = "DanmakuFontClamped";
+
+  /// 弹幕随屏蔽缩放速度比率：upSens_放大/downSens_缩小
+  static const String kDanmakuFontClampUpSens = "DanmakuFontClampUpSens";
+
+  static const String kDanmakuFontClampDownSens = "DanmakuFontClampDownSens";
 
   /// 弹幕去重参数--文本归一化
   static const String kDanmuTextNormalization = "DanmuTextNormalization";
@@ -89,6 +134,15 @@ class LocalStorageService extends GetxService {
   /// 聊天区-气泡样式
   static const String kChatBubbleStyle = "ChatBubbleStyle";
 
+  /// 聊天区-消息入场与平滑滚底动画
+  static const String kChatAnimationEnable = "ChatAnimationEnable";
+
+  /// 直播间横屏聊天侧栏宽度（逻辑像素）
+  static const String kLiveRoomSidebarWidth = "LiveRoomSidebarWidth";
+
+  /// 直播间横屏聊天侧栏是否收起
+  static const String kLiveRoomSidebarCollapsed = "LiveRoomSidebarCollapsed";
+
   /// 播放清晰度，0=低，1=中，2=高
   static const String kQualityLevel = "QualityLevel";
 
@@ -111,6 +165,12 @@ class LocalStorageService extends GetxService {
   /// 播放器后台自动暂停
   static const String kPlayerAutoPause = "PlayerAutoPause";
 
+  /// 后台播放：切后台/锁屏继续出声，并在通知栏与锁屏提供播放控制。
+  ///
+  /// 与 [kPlayerAutoPause] 互斥（两个同时开等于「后台播放」被自动暂停顶掉），
+  /// 互斥由 `AppSettingsController` 的两个 setter 强制。
+  static const String kBackgroundPlay = "BackgroundPlay";
+
   /// 播放器缓冲区大小
   static const String kPlayerBufferSize = "PlayerBufferSize";
 
@@ -126,14 +186,67 @@ class LocalStorageService extends GetxService {
   /// 播放器音量
   static const String kPlayerVolume = "PlayerVolume";
 
+  /// 播放器最大音量（mpv volume-max，百分比）
+  static const String kPlayerMaxVolume = "PlayerMaxVolume";
+
+  /// 多开播放：记住上次的布局模式（单画面 / 多画面）
+  static const String kMultiPlayEnable = "MultiPlayEnable";
+
+  /// 多开播放：批量入口一次预载几路（2~4）。
+  ///
+  /// 落盘而不是每次按平台重算：用户在桌面上试过「三路」之后到手机上开，
+  /// 拿到的默认值理应还是他上次自己选的那个，而不是被平台偏好覆盖掉。
+  /// 首次读到null 时由 [AppSettingsController] 按平台预填。
+  static const String kMultiPlayDefaultTiles = "MultiPlayDefaultTiles";
+
+  /// 多开播放：非聚焦格的音量比例（0~1，乘在总音量上）
+  static const String kMultiPlayDuckVolume = "MultiPlayDuckVolume";
+
+  /// 多开播放：是否自动压低非聚焦格（关掉时 [kMultiPlayDuckVolume] 不参与计算）
+  static const String kMultiPlayDuckEnable = "MultiPlayDuckEnable";
+
+  /// 多开播放：副格的 mpv 缓存上限（MiB）
+  static const String kMultiPlayTileBufferSize = "MultiPlayTileBufferSize";
+
+  /// 多开播放：是否显示各格的弹幕
+  static const String kMultiPlayTileDanmaku = "MultiPlayTileDanmaku";
+
+  /// 播放器音量
+  static const String kVerticalDragLock = "VerticalDragLock";
+
+  /// 直播间键盘快捷键（默认开启）
+  static const String kKeyboardControl = "KeyboardControl";
+
+  /// 播放器快捷键的**用户覆盖表**（JSON 字符串，见 `shortcut_binding.dart`）。
+  ///
+  /// 只存用户动过的项，空串＝全部用默认值。存字符串而不是 Map 是因为 Hive 里
+  /// 嵌套 Map 的读回类型不稳（`dynamic` 取值时容易拿到 `Map<dynamic,dynamic>`），
+  /// 而这份数据本来就要按动作名做增删。
+  static const String kPlayerShortcuts = "PlayerShortcuts";
+
+  /// 是否启用自定义键位（关＝全部走默认值，覆盖表保留但不生效）
+  static const String kPlayerShortcutsCustom = "PlayerShortcutsCustom";
+
   /// 小窗隐藏弹幕
   static const String kPIPHideDanmu = "PIPHideDanmu";
+
+  /// 小窗锁定画面纵横比（默认开启）
+  static const String kPipLockAspect = "PipLockAspect";
 
   /// 哔哩哔哩cookie
   static const String kBilibiliCookie = "BilibiliCookie";
 
   /// 抖音cookie
   static const String kDouyinCookie = "DouyinCookie";
+
+  /// 斗鱼cookie
+  static const String kDouyuCookie = "DouyuCookie";
+
+  /// 斗鱼dy_did
+  static const String kDouyuDyDid = "DouyuDyDid";
+
+  /// 斗鱼ltp0
+  static const String kDouyuLTP0 = "DouyuLTP0";
 
   ///主题色
   static const String kStyleColor = "kStyleColor";
@@ -168,6 +281,18 @@ class LocalStorageService extends GetxService {
   /// 视频硬件解码器
   static const String kVideoDoubleBuffering = "VideoDoubleBuffering";
 
+  /// NVIDIA RTX Video Super Resolution
+  static const String kEnableRtxVsr = "EnableRtxVsr";
+
+  /// 音量均衡（loudnorm，EBU R128 响度标准化）
+  static const String kVolumeNormalize = "VolumeNormalize";
+
+  /// 音量均衡目标响度（LUFS）
+  static const String kVolumeNormalizeTargetLufs = "VolumeNormalizeTargetLufs";
+
+  /// Stats 覆盖层后端（app = 应用自绘浮层 / mpv = mpv 内置 OSD）
+  static const String kOSDBackend = "OSDBackend";
+
   /// 开启自动更新关注
   static const String kAutoUpdateFollowEnable = "AutoUpdateFollowEnable";
 
@@ -195,7 +320,11 @@ class LocalStorageService extends GetxService {
   /// WebDAV_最后一次备份时间
   static const String kWebDAVLastRecoverTime = "kWebDAVLastRecoverTime";
 
-  /// windows窗口size
+  /// windows 开屏最大化
+  static const String kWindowMaxAuto = "WindowMaxAuto";
+  static const String kWindowMaxState = "WindowMaxState";
+
+  /// window窗口size
   static const String kWindowX = "WindowX";
 
   static const String kWindowY = "WindowY";
@@ -204,11 +333,26 @@ class LocalStorageService extends GetxService {
 
   static const String kWindowHeight = "WindowHeight";
 
+  /// window小窗size
+  static const String kWindowPipX = "WindowPipX";
+
+  static const String kWindowPipY = "WindowPipY";
+
+  static const String kWindowPipWidth = "WindowPipWidth";
+
+  static const String kWindowPipHeight = "WindowPipHeight";
+
   /// 关注列表排序方法
   static const String kFollowSortMethod = "FollowSortMethod";
 
   /// 关注列表样式
   static const String kFollowStyleNotGrid = "FollowStyleNotGrid";
+
+  /// 关注页第二栏是否按平台分类（开启后显示平台标签，取代「智能分组」）
+  static const String kFollowGroupBySite = "FollowGroupBySite";
+
+  /// 按平台分类时单独显示的平台 id（逗号拼接）；缺失 = 全部平台
+  static const String kFollowSiteGroupSites = "FollowSiteGroupSites";
 
   /// 数据库版本
   static const String kHiveDbVer = "kHiveDbVer";
@@ -227,6 +371,12 @@ class LocalStorageService extends GetxService {
 
   /// 开启关注列表快照
   static const String kFollowSnapshotEnable = "FollowSnapshotEnable";
+
+  /// 休眠阈值（天）
+  static const String kDormancyThreshold = "DormancyThreshold";
+
+  /// 聚合搜索：一次搜索所有支持平台，结果不按平台 Tab 分隔
+  static const String kAggregateSearchEnabled = "AggregateSearchEnabled";
 
   late Box settingsBox;
   late Box<String> shieldBox;

@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "kind": "ws-frame",
+    "synthetic": true,
+    "frame_format_source": "simple_live_core/lib/src/platforms/bilibili/bilibili_danmaku.dart:119-145,147-184,241-261",
+    "note": "帧头 16 字节：len(u32 BE)/hdrlen(u16=16)/protover(u16)/op(u32)/seq(u32)。内容为合成，待真实抓包替换。",
+    "target_ac": [
+      "AC-28"
+    ],
+    "op": 5,
+    "protover_header": 0,
+    "body_decoded": "truncated"
+  },
+  "bytes_hex": "00 00 03 e7 00 10 00 00 00 00 00 05 00 00 00 01 7b 7d",
+  "expected": {
+    "messages": [],
+    "note": "只记日志、不断连、不抛回调"
+  }
+}

@@ -1,0 +1,124 @@
+Review partially complete: 8 finding(s); 67 of 73 selected item(s) failed.
+
+─── simple_live_console/pubspec.yaml:7-8 ───
+[bug · high] SDK 约束与实际依赖/工具链不一致：`lints: ^6.0.0` 要求 Dart 3.x（^3.6/3.7 级别），而 `.fvmrc` 中 pin 的 Flutter
+3.35.7 自带 Dart 3.9，都落在 `<3.0.0` 之外。`dart pub get` 会直接报版本求解失败（或 FVM 下无法加载），CI/本地都无法构建该命令行工具。建议把下限提到
+3.x 并与 `.fvmrc`、`simple_live_core` 保持一致。
+
+  environment:
+-   sdk: '>=2.19.1 <3.0.0'
++   sdk: '>=3.5.0 <4.0.0'
+
+
+─── simple_live_console/bin/simple_live_console.dart:62-63 ───
+[bug · medium] 边界检查不完整：只判断 `index > 0`，若用户输入 99（大于清晰度数量）或负数以外的非法字号值，`quality[index - 1]` 会抛
+RangeError 导致进程崩溃；`int.tryParse` 失败时还会静默什么都不做。建议限制在 1..quality.length 范围内并对非法输入给出提示。
+
+      var index = int.tryParse(input) ?? 0;
+-     if (index > 0) {
++     if (index > 0 && index <= quality.length) {
+
+
+─── simple_live_console/bin/simple_live_console.dart:26-27 ───
+[bug · medium] 这里没有 `await`，`printDanmaku` 的异步异常（如 `parseUrl` 抛出的
+`Exception("链接解析失败")`、`getRoomDetail` 网络失败）会成为未捕获的异步错误，只打印堆栈而不给用户可读提示。同时 `main` 对 `printInfo` 也没有
+try/catch。建议 `await printDanmaku(url);` 并在 `main` 中统一 try/catch 输出友好错误。
+
+    } else if (action == "d") {
+-     printDanmaku(url);
++     await printDanmaku(url);
+
+
+─── simple_live_console/bin/simple_live_console.dart:97-97 ───
+[bug · medium] `await Future(() {})` 是一个立即完成的空 Future，既不能保活进程也拿不到弹幕连接结束事件；若 `danmaku.start`
+之后底层连接建立失败/被关闭，程序会直接退出且没有反馈。建议用 `Completer<void>`，在 `onClose` 中 complete 后再 await。
+
+-   await Future(() {});
++   final completer = Completer<void>();
++   danmaku.onClose = (String e) {
++     print(e);
++     if (!completer.isCompleted) completer.complete();
++   };
++   await completer.future;
+
+
+─── simple_live_console/test/all_live_console_test.dart:4-4 ───
+[test · medium] 模板生成的空测试，没有任何断言，永远通过，属于虚假的测试覆盖。该工具最值得测试的纯逻辑是
+`parseUrl`（平台识别与房间号提取，含无匹配/前缀相似域名等边界），建议补充对应用例，否则该测试文件只会增加噪音。
+
+-   test('calculate', () {});
++   test('parseUrl 应识别各平台并提取房间号', () {
++     expect(parseUrl('https://live.bilibili.com/123').last, '123');
++     expect(parseUrl('https://www.huya.com/abc123').last, 'abc123');
++     expect(parseUrl('https://www.douyu.com/9999').last, '9999');
++     expect(parseUrl('https://live.douyin.com/888').last, '888');
++   });
++ 
++   test('parseUrl 对未知链接应抛出异常', () {
++     expect(() => parseUrl('https://example.com/1'), throwsException);
++   });
+
+
+─── simple_live_console/bin/simple_live_console.dart:13-17 ───
+[bug · medium] 参数长度校验在 action 分发之前，导致帮助命令不可用：执行 `simple_live_console
+-h`（只带一个参数）会先进入这里输出「错误的参数」并返回（传入空字符串还会命中 `[URL]不能为空`），用户必须写成 `-h xxx` 才能看到帮助。建议把帮助分支前置到长度校验之前。
+
++   if (action == "h") {
++     printHelp();
++     return;
++   }
+    if (arguments.length < 2) {
+      print("错误的参数");
+      printHelp();
+      return;
+    }
+
+
+─── simple_live_console/bin/simple_live_console.dart:101-105 ───
+[bug · medium] URL 解析存在两处问题：
+1) `url.contains("bilibili.com")`
+未做主机名锚定，`https://notbilibili.com/123`、`https://foo.com/?u=bilibili.com/123` 或
+`bilibili.com/video/BVxxx` 都会被识别为直播间并取到 `notbilibili`/`video` 这类错误 id；建议用
+`Uri.parse(url).host.endsWith(...)` 判断域名并校验路径首段为数字。
+2) 匹配失败时 `?? ""` 会把空 id 继续传给 `getRoomDetail`，得到的是网络/业务异常而不是函数末尾的「链接解析失败」，排查困难；建议 id 为空时直接抛出解析失败异常。
+另外 4 个平台的分支是完全复制粘贴的正则（`[\d|\w]` 中的 `|` 还是多余的字符类成员），建议抽成「域名 -> Site 工厂 + 路径正则」的映射表统一处理，避免某天只改一处。
+
+    if (url.contains("bilibili.com")) {
+      var id =
+-         RegExp(r"bilibili\.com/([\d|\w]+)").firstMatch(url)?.group(1) ?? "";
++         RegExp(r"bilibili\.com/(\w+)").firstMatch(url)?.group(1) ?? "";
++     if (id.isEmpty) {
++       throw Exception("链接解析失败");
++     }
+      return [BiliBiliSite(), id];
+    }
+
+
+─── simple_live_console/.gitignore:8-9 ───
+[maintainability · low] `.dart_tool/` 在文件开头已有一份，此处重复；同时本目录新增了 `.fvmrc` 固定 Flutter 版本，但 `.fvm/`（FVM
+生成的 SDK 软链与配置目录）未被忽略，容易误提交。建议删除重复项并补充 `.fvm/`。
+
+- .dart_tool/
++ .fvm/
+  .flutter-plugins
+
+
+LLM retry report summary: 26 of 44 requests affected -- 23 requests failed, 3 requests recovered after retry
+
+Review planning (10 requests):
+- .github/workflows/fork-sync.yaml,.github/workflows/publish_app_arb8.yaml: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- assets/update-linux-metainfo.dart,simple_live_app/assets/io.github.SlotSun.dart_simple_live.metainfo.xml: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- simple_live_app/flutter_rust_bridge.yaml,simple_live_app/lib/src/rust/api/simple.dart,simple_live_app/lib/src/rust/frb_generated.dart,simple_live_app/lib/src/rust/frb_generated.io.dart,simple_live_app/lib/src/rust/frb_generated.web.dart: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- simple_live_app/lib/app/utils/archive.dart,simple_live_app/lib/app/utils/document.dart,simple_live_app/lib/app/utils/duration_2_str_utils.dart,simple_live_app/lib/app/utils/string_normalizer.dart: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- simple_live_app/lib/modules/mine/account/bilibili/qr_login_controller.dart,simple_live_app/lib/modules/mine/account/bilibili/qr_login_page.dart,simple_live_app/lib/services/bilibili_account_service.dart,simple_live_app/lib/services/douyin_account_service.dart: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- ... and 5 more
+
+Core review (16 requests):
+- .github/workflows/fork-sync.yaml,.github/workflows/publish_app_arb8.yaml: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- assets/update-linux-metainfo.dart,simple_live_app/assets/io.github.SlotSun.dart_simple_live.metainfo.xml: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- simple_live_app/android/.gitignore,simple_live_app/rust_builder/.gitignore,simple_live_app/rust_builder/android/.gitignore,simple_live_app/rust_builder/android/build.gradle,simple_live_app/rust_builder/android/settings.gradle,simple_live_app/rust_builder/android/src/main/AndroidManifest.xml,simple_live_app/rust_builder/pubspec.yaml: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- simple_live_app/flutter_rust_bridge.yaml,simple_live_app/lib/src/rust/api/simple.dart,simple_live_app/lib/src/rust/frb_generated.dart,simple_live_app/lib/src/rust/frb_generated.io.dart,simple_live_app/lib/src/rust/frb_generated.web.dart: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- simple_live_app/lib/app/utils/archive.dart,simple_live_app/lib/app/utils/document.dart,simple_live_app/lib/app/utils/duration_2_str_utils.dart,simple_live_app/lib/app/utils/string_normalizer.dart: rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> rate limited (HTTP 429) -> failed
+- ... and 11 more
+
+Per-attempt detail: --format json (retry_report).

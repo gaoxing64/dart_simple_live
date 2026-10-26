@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:get/get.dart';
@@ -16,11 +16,8 @@ class DouyinSearchView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var roomRowCount = MediaQuery.of(context).size.width ~/ 200;
-    if (roomRowCount < 2) roomRowCount = 2;
-
-    var userRowCount = MediaQuery.of(context).size.width ~/ 500;
-    if (userRowCount < 1) userRowCount = 1;
+    // 原本这里拷了两份「width ~/ 200 / width ~/ 500」列数公式，但抖音搜索页
+    // 用的是单列列表，两个变量从未被用到——去重时直接删除，不再留第三份拷贝。
     return KeepAliveWrapper(
       child: Stack(
         children: [
@@ -60,8 +57,7 @@ class DouyinSearchView extends StatelessWidget {
                 useShouldOverrideUrlLoading: true,
               ),
               onCreateWindow: controller.onCreateWindow,
-              shouldOverrideUrlLoading:
-                  (webController, navigationAction) async {
+              shouldOverrideUrlLoading: (webController, navigationAction) async {
                 var uri = navigationAction.request.url;
                 if (uri == null) {
                   return NavigationActionPolicy.ALLOW;
@@ -70,8 +66,7 @@ class DouyinSearchView extends StatelessWidget {
                   var regExp = RegExp(r"live\.douyin\.com/([\d|\w]+)");
                   var id = regExp.firstMatch(uri.toString())?.group(1) ?? "";
 
-                  AppNavigator.toLiveRoomDetail(
-                      site: controller.site, roomId: id);
+                  AppNavigator.toLiveRoomDetail(site: controller.site, roomId: id);
                   return NavigationActionPolicy.CANCEL;
                 }
                 return NavigationActionPolicy.ALLOW;
