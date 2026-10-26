@@ -1,6 +1,6 @@
 # simple_live_app 架构与选型对照
 
-> 锚点：future `52466f96`（2026-10-21）｜App v1.8.15+10815｜Flutter 3.47.6
+> 锚点：future `c1dd7769`（2026-10-26）｜App v1.8.15+10815｜Flutter 3.47.8
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/architecture.md)｜播放：[media-kit](../../media-kit/doc/architecture.md)
 
@@ -15,7 +15,7 @@ lib/
 ├── services/                 # 存储/DB/账号/关注/同步/窗口/后台播放/续流
 ├── widgets/ routes/ models/ requests/
 ├── spike/                    # 多开性能探针（一次性）
-└── test/                     # 57 个 *_test.dart
+└── test/                     # 70 个 *_test.dart
 ```
 
 ## 2. 分层
@@ -42,6 +42,7 @@ lib/
 | 协议 | `simple_live_core` Rust + FRB | 五平台统一；见 core KB |
 | 持久化 | `hive_ce` 五箱 | 关注/历史/分组/屏蔽/账号 |
 | 关注分组 | 真源 = `FollowUserTag.userId` 成员表 | 一个关注可属多组；`FollowUser.tag` 已删 |
+| 搜索 | 按平台 Tab（默认）＋「聚合搜索」开关（默认关、持久化） | 聚合模式一个控制器并发打全平台：逐站分页、跨站去重、单站失败隔离、旧查询提前作废；「房间/主播」模式**只存 `AggregateSearchController` 一份**，页面 Rx 仅服务按平台路径 |
 
 ## 4. 服务层（要点）
 
@@ -68,6 +69,10 @@ media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建�
 - 8 处引用钉到 `github.com/gaoxing64/media-kit@23ec6b9c`（含 libs override）。
 - 官方 libmpv 不含 loudnorm；挂 `af` 会导致音频轨被禁（静音），故必须用 fork 二进制。
 - 斗鱼直链经本地 `127.0.0.1` 中转，播放器无感。
+- 直播缓存属性由顶层纯函数 `buildLiveCacheProperties({isAndroid, doubleBuffering, cacheSecs})` **一次性组表**，
+  `initializePlayer` 只按表逐条 `setProperty`；绕过它的写入不会被测试覆盖。平台门闩是刻意的：
+  **Android 且关双重缓冲时整表为空**（`cache-secs` 留在 mpv 默认值上，补写会静默改变手机端实际延迟）。
+  预读秒数由 `PlayerMixin.resolvePlayerCacheSecs` 按站点解析，直播间覆写 Twitch＝`kTwitchPlayerCacheSecs`(10)。
 
 ## 6. Rust 桥
 
@@ -113,3 +118,5 @@ media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建�
 | 屏幕常亮按路引用计数 | `900f8d50` |
 | 关注页三栏 + 分组胶囊 | `1c0d02f5`、`55928d21` |
 | 播放二进制指向自建 libmpv | `c3c6afc4` … `23ec6b9c`（media-kit 8 条） |
+| 聚合搜索（默认关的开关 + 单一真值 + 失败隔离） | `446d613f`、`3624927b`、`8947bcdc` |
+| Twitch 预读与缓存键值表可测化 | `0e99306a`、`c1dd7769` |

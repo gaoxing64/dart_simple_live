@@ -1,6 +1,6 @@
 # simple_live_app 待办与优化清单
 
-> 锚点：future `52466f96`（2026-10-21）
+> 锚点：future `c1dd7769`（2026-10-26）
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/backlog.md)｜播放：[media-kit](../../media-kit/doc/backlog.md)
 
@@ -20,11 +20,13 @@
 | --- | --- | --- | --- |
 | P1-1 | iOS 后台/音频会话未在本机验证 | `services/playback/live_audio_session.dart` | 上 Mac 补手测：锁屏、耳机键、中断、拔耳机 |
 | P1-2 | 多开时通知只代表主格，四路各自出声 | `live_playback_target.dart`、`live_room_controller.dart` | 二期在聚焦切换处 attach/detach |
-| P1-3 | Android 跳过 mpv 前向缓存配置 | `player_controller.dart`（`!Platform.isAndroid`） | 跟踪上游修复后放开 |
+| P1-3 | Android 关双重缓冲时**完全不写** mpv 前向缓存配置，`cache-secs` 留在内核默认值上 | `player_controller.dart`（`buildLiveCacheProperties`：Android+关＝空表） | 已由 TC-A-207 钉住现状；跟踪 mdk 上游修复后再统一放开，**别顺手补写 1**（会静默改掉手机端延迟） |
 | P1-4 | 播放器释放时序依赖 media-kit #1443 | `player_controller.dart` dispose TODO | 升级时连同 libs 滤镜钉版一起核对 |
 | P1-5 | Wayland 下置顶/几何提示 no-op | `services/window_service.dart` | 记录平台边界 |
 | P1-6 | 4 路上限 + 每路缓冲内存；四路性能 spike 未跑 | `multi_play_layout.dart`、`lib/spike/multi_player_spike.dart` | 跑 spike；评估移动端默认路数 |
-| P1-7 | 本机测试有存量失败（最近记录 15 条/6 文件） | 见 test-suite §7 | 桌面/真机复跑，分流「缺插件」与「真断言坏」 |
+| P1-7 | 本机测试有存量失败（2026-10-26 实测 **13 条/4 文件**；同机 HEAD worktree 对照同为 13 条） | 见 test-suite §4 | 桌面/真机复跑，分流「缺插件」与「真断言坏」 |
+| P1-8 | 聚合搜索「新查询提前作废」不闪空态只有**注释论证**（微任务内被 `_beginQuery` 复位、取不到中间帧）+ 让路分支兜底重启，**没有用例真的跑到被取消的那一轮** | `aggregate_search_controller.dart`（`_invalidateInflightLoad`） | 手测专盯「改词/切模式瞬间是否闪一下暂无数据」；要钉死得构造可控在途 fake，代价不小 |
+| P1-9 | 聚合搜索「单站连续失败 3 次退役」这条新分支**零执行**：三个会抛错的 fake provider 全是「失败 1 次」形态，把上限整段删掉测试照绿 | `aggregate_search_controller.dart`（`_maxConsecutiveSourceFailures`）、`aggregate_search_controller_test.dart` | 补一个用例：A 源恒抛、B 源正常，跑三轮断言 A 的 `roomPages` 不再增长且 `canLoadMore` 只由 B 决定 |
 
 ## P2 — 结构/技术债
 
@@ -40,7 +42,8 @@
 | P2-8 | 迁移逻辑临时物 | `migration_service.dart` | 表驱动迁移 |
 | P2-9 | OSD 明确不做项（容器统一、4 路上限、拖拽换位/换台等） | 设计稿结论 | 保持记录，勿重开 |
 | P2-10 | `_appendDistinct` 每页重建 seen，跨页 O(n²) | `base_controller.dart` | 规模变大再提升为控制器状态 |
-| P2-11 | 搜索页未接通 hasMore | `search_list_controller.dart` | 单独实测四平台语义 |
+| P2-11 | **已了结、且本条原先是错的**：按平台搜索早自 `7b31c568`（2026-10-18）就回写 `serverHasMore = result.hasMore`，10-21 重写知识库时把它误列为待办（workflow-diagram §2 同错，本轮已改） | `search_list_controller.dart:33`、`:40` | 无需再做；列在这里只为留痕，下次核对后可整行删除 |
+| P2-14 | 「聚合搜索」开关挂在 AppBar/入口都写「主页设置」的页面里，新增分区却叫「搜索」，页面名不再覆盖自身内容 | `settings/indexed_settings/indexed_settings_page.dart:28`、`mine_page.dart:152` | 本轮按你的要求**跳过未改**；改法是入口与 AppBar 一起改成「首页与搜索设置」，开关名保持「聚合搜索」 |
 | P2-12 | `analysis_options.yaml` 未排除 `rust_builder/` | `analysis_options.yaml` | 加 exclude 降噪 |
 | P2-13 | `followStyleNotGrid` 无读取方 | `app_settings_controller.dart` | 保留存储键，注释说明 |
 
@@ -53,6 +56,10 @@
 - OSD 容器按宿主分：全屏/小窗/格子右侧面板，窗口化底部抽屉。
 - 关注拖拽/勾选只「加入」不「移动」；批量写后由调用方统一排序。
 - 降级旧版 App 看不到分组归属，但成员表仍在；降级期间不要清理/重建分组。
+- 聚合搜索**默认关闭**，靠主页设置页的持久化开关开启；开启后不再有平台 Tab，两种形态共用同一枚「房间/主播」胶囊。
+- 聚合模式下「房间/主播」标签**不再在点下瞬间变化**，而是与列表内容同时翻转（单一真值的代价）；换来的是永不错标。
+- Twitch 预读 10 秒＝画面比弹幕慢约 10 秒，按站点刻意「流畅优先」；降到 4~6 或做成设置项属**产品决定**（见 `kTwitchPlayerCacheSecs` 注释）。
+- 列表底部重试条在「首页部分来源失败」时也允许置真，是 `loadMoreFailed` 契约的一条例外，已在基类注释里记名（与 `loadMoreFailedText` 同一机制的两面）。
 
 ## 历史锚点
 
@@ -63,3 +70,4 @@
 | P1-6 多开性能 | `fcb43a82`（移动端多开）、`afd18194`（动作化） |
 | P1-4 播放器释放时序 | media-kit fork `23ec6b9c` |
 | P2-13 `followStyleNotGrid` 无读取方 | `1c0d02f5`（三栏后二选一消失） |
+| P1-3/P1-8/P1-9 + P2-14 聚合搜索与缓存键值表 | `446d613f`、`0e99306a`、`8947bcdc`、`3624927b`、`c1dd7769` |

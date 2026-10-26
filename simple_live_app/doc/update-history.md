@@ -1,6 +1,6 @@
 # simple_live_app 修改历史（Git 完整复现）
 
-> 锚点：future `52466f96`（2026-10-21）｜`git log future -- simple_live_app` 全量 **241** 条
+> 锚点：future `c1dd7769`（2026-10-26）｜`git log future -- simple_live_app` 全量 **276** 条
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/update-history.md)｜播放：[media-kit](../../media-kit/doc/update-history.md)
 
@@ -23,6 +23,7 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 
 | 阶段 | 日期范围 | 条数 | 主题 |
 | --- | --- | --- | --- |
+| 知识库重写 + 关注详情/弹幕合并/聚合搜索 | 2026-10-23 ~ 10-26 | 35 | 五件套按 Git 重写、主播详情页与观看热力图、重复弹幕合并、AGP 9、聚合搜索与播放器缓存键值表 |
 | 关注页定稿 | 2026-10-20 ~ 10-21 | 10 | 三栏布局、标签过滤、分组胶囊、搜索展开收刷新、增量重排 |
 | Rust 迁移 + 播放/多开修复 | 2026-10-16 ~ 10-19 | 19 | FRB 资产下沉、Dart 协议删除、斗鱼续流、小窗/手势/常亮 |
 | 关注多归属/后台播放 | 2026-10-09 ~ 10-15 | 55 | 后台播放、多开动作、成员表、快捷键、上游同步 |
@@ -42,11 +43,46 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 | 2026-09-18 | `a38cbc75` | 合并 dev（v1.8.11） |
 | 2026-09-18 | `899212ba` | 合并 dev |
 
-## 4. 全量时间线（241 条，新→旧）
+## 4. 全量时间线（276 条，新→旧）
 
 | 日期 | 提交 | 作者 | 内容 |
 | --- | --- | --- | --- |
-| 2026-10-21 | `52466f96` | G | fix(follow): 搜索展开时收起刷新按钮 |
+| 2026-10-26 | `c1dd7769` | G | refactor(player): 直播缓存属性改为可测的键值表 |
+| 2026-10-26 | `36249272` | G | fix(search): 聚合搜索模式改单一真值并收紧失败与首屏反馈 |
+| 2026-10-26 | `8947bcdc` | G | refactor(base): 列表底部重试条文案改为可覆写 |
+| 2026-10-26 | `0e99306a` | G | fix(twitch): 提高预读避免直播反复缓冲 |
+| 2026-10-26 | `446d613f` | G | feat(search): 新增多平台聚合搜索 |
+| 2026-10-25 | `ddb0cc3e` | G | chore: 升级 Flutter 至 3.47.8 |
+| 2026-10-25 | `49e4f621` | G | feat(follow): 热力图移动端首帧对齐当前日期 |
+| 2026-10-25 | `dc4baac7` | G | fix(follow): 消除年份菜单当前项的满宽矩形高亮 |
+| 2026-10-25 | `65ac73bb` | G | fix(follow): 观看热力图适配移动端布局 |
+| 2026-10-25 | `2342c276` | G | feat(follow): 补齐直播中与中间页快速取关 |
+| 2026-10-25 | `4609ceca` | G | feat(follow): 备注支持显示为昵称开关 |
+| 2026-10-25 | `af6ce7f5` | G | fix(follow): 年份选择 hover 圆角与胶囊一致 |
+| 2026-10-25 | `6b711db7` | G | style(follow): 统一标签展示并压紧中间页布局 |
+| 2026-10-25 | `12ebf7d6` | G | style(follow): 移除中间页标签的文件夹图标 |
+| 2026-10-25 | `3e2e8f77` | G | feat(follow): 分组标签迁至右键预览弹卡 |
+| 2026-10-25 | `deeb019f` | G | fix(follow): 选择态展示全部主播分组标签 |
+| 2026-10-25 | `1ce8c5da` | G | feat(live-room): 点击主播头像进入详情 |
+| 2026-10-25 | `c2a4f588` | G | fix(follow): 搜索态侧键返回先收起搜索 |
+| 2026-10-25 | `e376d7ab` | G | feat(follow): 关注卡片右键改为预览弹卡 |
+| 2026-10-25 | `beaf6392` | G | feat(follow): 仅选中项展示分组标签 |
+| 2026-10-25 | `848ab96b` | G | feat(follow): 新增主播详情页与观看统计 |
+| 2026-10-25 | `f603d252` | G | feat(history): 按日记录直播间观看数据 |
+| 2026-10-25 | `9ee01fb7` | G | feat(danmaku): 新增重复弹幕合并计数，去重支持合并/屏蔽双模式 |
+| 2026-10-25 | `4538ec58` | G | feat(danmaku): 弹幕去重正式上线，摘除实验性标签并移除热身门槛 |
+| 2026-10-25 | `0245b9dc` | G | feat(player): 键盘控制新增自定义键位开关 |
+| 2026-10-25 | `384084f6` | G | fix(chat): 保留聊天页签状态避免切换卡顿 |
+| 2026-10-24 | `d49ac49c` | G | build(android): 手机端升级到 AGP 9.0.1 + Gradle 9.1.0 |
+| 2026-10-24 | `b2b93bfd` | G | feat(follow): 排序方式新增在线人数，移除用户名排序 |
+| 2026-10-24 | `ee74d24f` | G | feat(live_room): 横屏聊天侧栏可拖拽调宽与收起 |
+| 2026-10-24 | `e0b4299d` | G | fix(player): 窄屏非全屏时 OSD 不再遮挡画面 |
+| 2026-10-24 | `db3dcae6` | G | refactor(settings): 直播间设置页签新增播放分组 |
+| 2026-10-24 | `83e1d622` | G | refactor(settings): 精简直播间设置副标题 |
+| 2026-10-23 | `7639b004` | G | fix(chat): 退出全屏后聊天区恢复滚动位置 |
+| 2026-10-23 | `91e79575` | G | feat(chat): 聊天动画增加可关闭开关 |
+| 2026-10-23 | `8d9f7fa1` | G | feat(chat): 聊天区增加入场动画与平滑滚底 |
+| 2026-10-23 | `b47c9ed3` | G | docs(app): 按 Git 历史重写知识库五件套 || 2026-10-21 | `52466f96` | G | fix(follow): 搜索展开时收起刷新按钮 |
 | 2026-10-21 | `b5718dd8` | G | fix(follow): 修复设置分组对话框空白 |
 | 2026-10-21 | `55928d21` | G | feat(follow): 关注页标签栏自适应，内容项显示分组胶囊 |
 | 2026-10-21 | `08fb5a74` | G | fix(multiplay): 外部设置面板的画面尺寸改为作用于聚焦格 |

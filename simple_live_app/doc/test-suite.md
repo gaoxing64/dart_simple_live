@@ -1,6 +1,6 @@
 # simple_live_app 测试案例库（面向 AI）
 
-> 锚点：future `52466f96`（2026-10-21）｜57 个 `*_test.dart`，全部离线
+> 锚点：future `c1dd7769`（2026-10-26）｜70 个 `*_test.dart`，全部离线
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/test-suite.md)
 
@@ -14,7 +14,7 @@ fvm flutter test --plain-name "排布选择"
 fvm flutter test integration_test/simple_test.dart -d windows
 ```
 
-- FVM 锁 Flutter `3.47.6`；`test/` 不联网、不拉真实播放器。
+- FVM 锁 Flutter `3.47.8`；`test/` 不联网、不拉真实播放器。
 - widget test 无 Hive/path_provider：用 `test/follow_test_harness.dart` 的内存假件；假设置的 `onInit` 必须是 `Future<void>`。
 - 不要跑 `dart format`。
 
@@ -29,6 +29,9 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | 分页列表 | `base_page_controller_paging_test.dart`、`page_view_auto_load_test.dart` | hasMore/去重/门闩/补页 |
 | 弹幕表情 | `danmaku_emoticon_test.dart`、`chat_emoticon_span_test.dart` | 分段/图源/聊天 span |
 | 弹幕去重/合并 | `danmaku_merge_plan_test.dart`、`danmaku_settings_surface_test.dart` | 合并决策（新建/更新/跳过）、设置面板入口 |
+| 聚合搜索 | `aggregate_search_{controller,page,settings}_test.dart` | 并发发起、交错与跨站去重、单站失败隔离与文案、模式单一真值、条目渲染 |
+| 播放器缓存 | `player_cache_policy_test.dart` | 真正下发给 mpv 的缓存键值表（含 Android 关双重缓冲＝空表） |
+| 关注详情/观看统计 | `follow_profile_header_test.dart`、`follow_card_preview_dialog_test.dart`、`watch_heatmap_test.dart`、`watch_year_selector_test.dart`、`history_daily_stats_test.dart` | 主播详情页与预览弹卡、观看热力图/年份选择、按日统计 |
 | 关注 | `follow_*_test.dart` | 搜索/分段/分组/多归属/智能分组/顶栏 |
 | 导航/设置/工具 | `navigation_dock_test.dart`、`settings_switch_locked_test.dart`、`tool_test.dart` | 导航/控件/纯函数 |
 
@@ -62,6 +65,7 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | TC-A-306 | 改键 | 新键生效、旧键失效 |
 | TC-A-401 | 点音量图标 | 本路静音，不落盘 |
 | TC-A-403 | 滚轮 ±5% | 浮层出现并 1.2s 消失 |
+| TC-A-207 | 缓存键值表（新增） | 桌面 1s / 双重缓冲 3s；Twitch 两档都 10；Android 开双重缓冲＝3；**Android 关双重缓冲＝整表为空**（不写 cache-secs）；来源 `c1dd7769` |
 
 ### 3.3 窗口/PiP
 
@@ -86,6 +90,12 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | TC-A-608 | 别名回归 | 页面列表不与外部 List 共享引用 |
 | TC-A-611 | 短列表补页失败 | 点击重试后重新请求 |
 | TC-A-613 | 到底条 | 判据 `showEndBar` |
+| TC-A-614 | 聚合并发发起（新增） | 两站响应都未回时**已同时在途**——这是该套件里唯一证明并发的断言，改成顺序请求只有它会红，别按「与终态顺序重复」删掉 |
+| TC-A-615 | 聚合交错与去重（新增） | 按平台顺序交错；同站重复项移除；跨站同 roomId 各自保留 |
+| TC-A-616 | 聚合单站失败（新增） | 保留其他站结果；重试条文案点名失败来源；重试全成功后回默认文案 |
+| TC-A-617 | 聚合全失败（新增） | 整页错误态；刷新成功后清除错误 |
+| TC-A-618 | 聚合模式单一真值（新增） | 在途加载期间切模式不留下旧模式结果；连点两次以最后一次为准；页面 Rx 不被写 |
+| TC-A-619 | 聚合条目渲染（新增） | 360 逻辑宽下房间卡×2、主播行×1，无溢出无异常 |
 
 ### 3.5 弹幕/关注/其他
 
@@ -106,9 +116,14 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | TC-A-901 | 胶囊导航 | 点击/拖动透镜/几何 |
 | TC-A-1001 | 时长文案 | 0 值空串；分/时档正确 |
 
-## 4. 已知红灯（2026-10-14 记录，之后未重测）
+## 4. 已知红灯
 
-`fvm flutter test --no-pub`：**507 通过 / 15 失败**，6 个文件：`search_initial_site_test`(9)、`theme_mode_test`(2)、`follow_grouped_view_test`(1)、`page_view_auto_load_test`(1)、`viewpager_drag_test`(1)、`widget_test`(1)。主因是真实 `AppSettingsController.onInit` 撞 `MissingPluginException` 与脚手架残留；属存量，不作为新回归。
+**2026-10-26 同机重测**：`fvm flutter test --no-pub` ＝ **657 通过 / 13 失败**，4 个文件：
+`search_initial_site_test`(9)、`theme_mode_test`(2)、`page_view_auto_load_test`(1)、`widget_test`(1)。
+主因不变：真实 `AppSettingsController.onInit` → `initDataPath()` 撞 `MissingPluginException`（纯单测环境无 path_provider）
+与脚手架残留；属存量，不作为新回归。同机 **HEAD detached worktree** 对照 ＝ 654 通过 / **同样的 13 条**，成员逐字相同
+（`follow_grouped_view_test`、`viewpager_drag_test` 这两条 10-14 记录里的红灯本轮不再复现）。
+判定口径：编译类失败**不得新增成员** ＋ 总数**不得增长** ＋ 以**同机改前改后两次原始输出**为准。
 
 ## 5. 约定
 
@@ -130,3 +145,5 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | TC-A-810~816 归属/备份/合并 | `3267a04e`、`a225e3b4`、`0442f4ac` |
 | TC-A-818 三栏/标签/胶囊 | `1c0d02f5`、`55928d21`、`52466f96` |
 | TC-A-819 常亮引用计数 | `900f8d50` |
+| TC-A-614~619 聚合搜索 | `446d613f`、`3624927b`、`8947bcdc` |
+| TC-A-207 缓存键值表 | `0e99306a`、`c1dd7769` |

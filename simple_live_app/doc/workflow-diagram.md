@@ -1,6 +1,6 @@
 # simple_live_app 工作流程图
 
-> 锚点：future `52466f96`（2026-10-21）｜App v1.8.15+10815
+> 锚点：future `c1dd7769`（2026-10-26）｜App v1.8.15+10815
 > 五件套：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/workflow-diagram.md)｜播放：[media-kit](../../media-kit/doc/workflow-diagram.md)
 
@@ -29,7 +29,7 @@ main(args)
 IndexedPage(PageView 4 Tab)
   → HomeController（每平台一个带 tag 的 HomeListController）
   → CategoryListController → CategoryDetailController
-  → AppSearchController → SearchListController
+  → AppSearchController → SearchListController（按平台）｜AggregateSearchController（聚合）
   → core: getRecommendRooms / getCategoryRooms / searchRooms|searchAnchors
 ```
 
@@ -44,7 +44,27 @@ serverHasMore == false → false
 
 - 唯一切页触发：`AutoLoadOnScroll.autoLoadIfNeeded`（无 footer）。
 - 短列表用 `fillViewportIfNeeded` 主动补页。
-- 跨页按 `itemKey` 去重；搜索页不写 `serverHasMore`（已知取舍）。
+- 跨页按 `itemKey` 去重。
+- 搜索**两条路径都回写** `serverHasMore = result.hasMore`（按平台自 `7b31c568`；聚合按站各自记水位）。
+  旧文档写「搜索页不写 serverHasMore」是错的，本轮已更正。
+
+### 2b. 聚合搜索（设置开关，默认关）
+
+```
+AppSearchController.onInit → Get.put(AggregateSearchController, tag: aggregate-search)
+胶囊「房间/主播」→ 模式只存 AggregateSearchController.searchMode 一份
+  → doSearch / onSearchModeChanged
+  → startSearch|updateSearchMode：先 _invalidateInflightLoad（旧查询当前轮结束即止损）
+    → _awaitPendingLoad 串行 → _beginQuery（清 list/_seen/失败计数）
+  → getData：对仍 hasMore 的站点并发 searchRooms|searchAnchors
+    → 逐站 nextPage 游标 · _takeFreshItems 跨站去重(itemKey) · _interleave 按站交错
+    → 单站异常隔离：failedPages 连续 3 次该源退役；本轮失败源名写进底部重试条文案
+    → serverHasMore = 还有任意源未退役
+```
+
+- 抖音在「主播」模式被 `_supports` 排除（不支持搜主播），不算失败。
+- 部分源失败但有结果时不整页报错，只置 `loadMoreFailed` ＋ `loadMoreFailedText` 点名来源。
+- 空输入框切模式：用控制器自己记的 `_keyword`（上次真正搜过的词）在新模式下重搜，不是读输入框文本。
 
 ## 3. 进房/播放
 
@@ -65,6 +85,7 @@ AppNavigator.toLiveRoomDetail(site, roomId, together?)
 | 线路 | `changePlayLine` → `player.jump` |
 | 断流 | 原地重试 2 次 → 逐条换线 → 全断判定下播 |
 | 头部 | `Media(url, httpHeaders: playHeaders)` |
+| 缓存 | `buildLiveCacheProperties` 一次组表再逐条 `setProperty`；Android 关双重缓冲＝**空表**（留在内核默认值）；Twitch 预读 `kTwitchPlayerCacheSecs`(10) |
 | 斗鱼 | 直链经本地 `StreamRelayService` 转发，到期按 FLV tag 接续 |
 | 窗口 | 全屏/小窗/最大化；「谁先离开窗口态谁捕获还原点」 |
 
@@ -158,3 +179,6 @@ B站是否登录现查 DB，不缓存 UI 布尔。
 | 屏幕常亮 | `900f8d50` |
 | 账号 | `63197f69`（校验失败不抹凭证） |
 | 弹幕表情 | `4287a2d8`、`953f78b7`（core 侧） |
+| 聚合搜索（并发/交错/失败隔离/单一真值） | `446d613f`、`3624927b`、`8947bcdc` |
+| 播放缓存组表与 Twitch 预读 | `0e99306a`、`c1dd7769` |
+| 按平台搜索回写 serverHasMore（更正旧文档误记） | `7b31c568` |
