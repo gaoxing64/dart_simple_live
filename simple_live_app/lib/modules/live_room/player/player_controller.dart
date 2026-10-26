@@ -111,6 +111,8 @@ mixin PlayerMixin {
   /// 所以副格走设置项压低（`LiveRoomController` 覆写），主格保持默认不动。
   int get playerBufferSize => 32 * 1024 * 1024;
 
+  int resolvePlayerCacheSecs(bool doubleBuffering) => doubleBuffering ? 3 : 1;
+
   /// 播放器标题：多开时每格带槽位，便于在 mpv 日志里区分是哪一路。
   ///
   /// 注意它们同在一个进程里，Windows 音量合成器按进程分会话，所以标题**不会**
@@ -190,10 +192,14 @@ mixin PlayerMixin {
     // 写入 demuxer-max-bytes 来封顶。
     // hls流/令牌流/.. 根据mdk-sdk作者回复, rtsp 在 ffmpeg存在内存泄露, 这意味着我们只能等待修复
     // temporary fix of android platform
+    final doubleBuffering = AppSettingsController.instance.videoDoubleBuffering.value;
     if (!Platform.isAndroid) {
       await pp.setProperty('cache', 'yes');
-      // 低延迟优先：只留 1s 前向预读来吸收抖动，尽量不放大与弹幕的错位。
-      await pp.setProperty('cache-secs', '1');
+      // Twitch 的 2 秒 HLS 分片需要更大预读，由直播间按站点覆盖。
+      await pp.setProperty(
+        'cache-secs',
+        resolvePlayerCacheSecs(doubleBuffering).toString(),
+      );
       // media_kit 默认 cache-on-disk=yes，会把流缓存写到磁盘，直播没必要。
       await pp.setProperty('cache-on-disk', 'no');
       // 直播不往回看 → 不要回退缓存
@@ -204,9 +210,12 @@ mixin PlayerMixin {
     //
     // 注意 `demuxer-max-back-bytes` 缓存的是**已播放**的数据，作用只是允许往回 seek，
     // 本身不会让画面更流畅；抗抖动靠的是上面的 `cache-secs`。
-    if (AppSettingsController.instance.videoDoubleBuffering.value) {
+    if (doubleBuffering) {
       await pp.setProperty('cache', 'yes');
-      await pp.setProperty('cache-secs', '3');
+      await pp.setProperty(
+        'cache-secs',
+        resolvePlayerCacheSecs(doubleBuffering).toString(),
+      );
       // 上一段已把回退缓存压到 0，这里必须复位，否则「双重缓冲」名不副实。
       await pp.setProperty('demuxer-max-back-bytes', '16777216');
       await pp.setProperty('demuxer-seekable-cache', 'yes');

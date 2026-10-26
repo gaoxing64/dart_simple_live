@@ -191,6 +191,14 @@ class LiveRoomController extends PlayerController
       ? AppSettingsController.instance.multiPlayTileBufferSize.value * 1024 * 1024
       : super.playerBufferSize;
 
+  @override
+  int resolvePlayerCacheSecs(bool doubleBuffering) {
+    if (site.id == Constant.kTwitch) {
+      return 10;
+    }
+    return super.resolvePlayerCacheSecs(doubleBuffering);
+  }
+
   /// 页面各区块要跟随的那一路：多开时是聚焦格，单画面时就是自己。
   ///
   /// 页面里读「当前房间」的地方都走这个 getter。因为里面读了 focusedSlot，
