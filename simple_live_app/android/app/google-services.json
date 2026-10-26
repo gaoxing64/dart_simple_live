@@ -1,15 +1,15 @@
 {
   "project_info": {
     "project_number": "000000000000",
-    "project_id": "com-slotsun-slive",
-    "storage_bucket": "com-slotsun-slive.firebasestorage.app"
+    "project_id": "com-gaoxing-slive",
+    "storage_bucket": "com-gaoxing-slive.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
         "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
         "android_client_info": {
-          "package_name": "com.slotsun.slive"
+          "package_name": "com.gaoxing.slive"
         }
       },
       "oauth_client": [],
