@@ -84,11 +84,22 @@ class AppNavigator {
   }
 
   /// 跳转至哔哩哔哩登录
+  ///
+  /// 登录页的 controller 都从 `Get.arguments` 取 `Account`，这里必须把账号传过去，
+  /// 否则 controller 拿到 null 直接崩。B 站账号由迁移种子保证恒存在。
   static Future toBiliBiliLogin() async {
+    var accounts = DBService.instance
+        .getAllAccounts()
+        .where((account) => account.siteId == Constant.kBiliBili);
+    if (accounts.isEmpty) {
+      SmartDialog.showToast("未找到哔哩哔哩账号");
+      return;
+    }
+    var account = accounts.first;
     if (Platform.isAndroid || Platform.isIOS) {
-      await Get.toNamed(RoutePath.kBiliBiliWebLogin);
+      await Get.toNamed(RoutePath.kBiliBiliWebLogin, arguments: account);
     } else {
-      await Get.toNamed(RoutePath.kBiliBiliQRLogin);
+      await Get.toNamed(RoutePath.kAccountQRLogin, arguments: account);
     }
   }
 
