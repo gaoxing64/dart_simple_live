@@ -1,7 +1,7 @@
 name: BUG报告
 title: "[BUG] 请填写简短易读的标题"
 description: "使用过程中遇到了BUG"
-assignees: SlotSun
+assignees: gaoxing64
 labels:
   - "bug"
 body:
@@ -61,7 +61,7 @@ body:
       options:
         - 正式版(Releases)
         - 开发版(Actions)
-        - 上游仓库(xiaoyaocz)
+        - 上游或原项目版本(SlotSun/xiaoyaocz)
       default: 0
 
   - type: dropdown

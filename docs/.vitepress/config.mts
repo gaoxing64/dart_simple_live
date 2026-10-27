@@ -26,7 +26,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/SlotSun/dart_simple_live' }
+      { icon: 'github', link: 'https://github.com/gaoxing64/dart_simple_live' }
     ]
   }
 })

@@ -12,7 +12,7 @@
 
 ### 🐛 修复 Bug
 - 在 Issues 中查找标记为 `bug` 的问题
-- 如果发现新的 bug，请先[创建 Issue](https://github.com/SlotSun/dart_simple_live/issues/new/choose) 描述问题
+- 如果发现新的 bug，请先[创建 Issue](https://github.com/gaoxing64/dart_simple_live/issues/new/choose) 描述问题
 
 ### ✨ 添加新功能
 - 查找标记为 `enhancement`的 Issue
@@ -67,7 +67,7 @@ fvm install 3.38.6
 ### 克隆仓库
 
 ```bash
-git clone https://github.com/SlotSun/dart_simple_live.git
+git clone https://github.com/gaoxing64/dart_simple_live.git
 cd dart_simple_live/simple_live_app
 ```
 
@@ -75,7 +75,7 @@ cd dart_simple_live/simple_live_app
 
 ### 查找任务
 
-1. 浏览 [Issues 页面](https://github.com/SlotSun/dart_simple_live/issues)
+1. 浏览 [Issues 页面](https://github.com/gaoxing64/dart_simple_live/issues)
 2. 查找带有以下标签的 Issue：
     - `help wanted` - 需要社区帮助的任务
     - `bug` - Bug 修复
@@ -198,7 +198,7 @@ feat(api): add layered agent support
 ## 🔍 Pull Request 要求
 ### PR 流程
 ```bash
-git clone https://github.com/SlotSun/dart_simple_live.git
+git clone https://github.com/gaoxing64/dart_simple_live.git
 # 基于dev分支创建 Type-Scope的分支
 git checkout -b fix-xx origin/dev
 ```
@@ -292,7 +292,9 @@ PR 标题应该简洁明了，建议格式：
 
 感谢你花时间为 Slive 做出贡献！你的努力让这个项目变得更好。
 
+> 本仓库（[gaoxing64/dart_simple_live](https://github.com/gaoxing64/dart_simple_live)）是 [SlotSun/dart_simple_live](https://github.com/SlotSun/dart_simple_live)（上游）的 fork，上游项目基于 [xiaoyaocz/dart_simple_live](https://github.com/xiaoyaocz/dart_simple_live)（原项目）。
+
 有任何问题？欢迎：
-- 在 [Issues](https://github.com/SlotSun/dart_simple_live/issues) 提问
+- 在 [Issues](https://github.com/gaoxing64/dart_simple_live/issues) 提问
 
 ---

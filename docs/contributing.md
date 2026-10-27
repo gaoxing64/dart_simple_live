@@ -12,7 +12,7 @@
 
 ### 🐛 修复 Bug
 - 在 Issues 中查找标记为 `bug` 的问题
-- 如果发现新的 bug，请先[创建 Issue](https://github.com/SlotSun/dart_simple_live/issues/new/choose) 描述问题
+- 如果发现新的 bug，请先[创建 Issue](https://github.com/gaoxing64/dart_simple_live/issues/new/choose) 描述问题
 
 ### ✨ 添加新功能
 - 查找标记为 `enhancement`的 Issue
@@ -69,7 +69,7 @@ fvm install 3.38.6
 仓库中 `simple_live_core` 与 `simple_live_tv_app` 是 git submodule，克隆时需要一并拉取：
 
 ```bash
-git clone --recurse-submodules https://github.com/SlotSun/dart_simple_live.git
+git clone --recurse-submodules https://github.com/gaoxing64/dart_simple_live.git
 cd dart_simple_live/simple_live_app
 ```
 
@@ -81,13 +81,13 @@ git submodule update --init --recursive
 
 > **重要**：`simple_live_app`、`simple_live_tv_app` 的 `pubspec.yaml` 通过 `path: ../simple_live_core`（以及 `../simple_live_core/rust_builder`）引用核心库。没有拉取 submodule 时 `flutter pub get` 会因找不到路径依赖而失败，且跳过 `git submodule update` 直接构建也会缺文件。子模块更新后记得在对应子项目目录里重新执行 `flutter pub get`。
 >
-> 子仓库地址：[dart_simple_live_core](https://github.com/SlotSun/dart_simple_live_core) / [dart_simple_live_tv_app](https://github.com/SlotSun/dart_simple_live_tv_app)（fork 者请使用各自账号下的同名仓库）。
+> 子仓库地址：[dart_simple_live_core](https://github.com/gaoxing64/dart_simple_live_core) / [dart_simple_live_tv_app](https://github.com/gaoxing64/dart_simple_live_tv_app)（fork 者请使用各自账号下的同名仓库）。
 
 ## 🏷️ 认领任务
 
 ### 查找任务
 
-1. 浏览 [Issues 页面](https://github.com/SlotSun/dart_simple_live/issues)
+1. 浏览 [Issues 页面](https://github.com/gaoxing64/dart_simple_live/issues)
 2. 查找带有以下标签的 Issue：
     - `help wanted` - 需要社区帮助的任务
     - `bug` - Bug 修复
@@ -210,7 +210,7 @@ feat(api): add layered agent support
 ## 🔍 Pull Request 要求
 ### PR 流程
 ```bash
-git clone https://github.com/SlotSun/dart_simple_live.git
+git clone https://github.com/gaoxing64/dart_simple_live.git
 # 基于dev分支创建 Type-Scope的分支
 git checkout -b fix-xx origin/dev
 ```
@@ -305,6 +305,6 @@ PR 标题应该简洁明了，建议格式：
 感谢你花时间为 Slive 做出贡献！你的努力让这个项目变得更好。
 
 有任何问题？欢迎：
-- 在 [Issues](https://github.com/SlotSun/dart_simple_live/issues) 提问
+- 在 [Issues](https://github.com/gaoxing64/dart_simple_live/issues) 提问
 
 ---

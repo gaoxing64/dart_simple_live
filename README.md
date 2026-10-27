@@ -30,7 +30,7 @@
 - [x] Linux
 - [x] iOS `自测`
 - [x] MacOS `自测`
-- [ ] Android TV `请自行打包` [说明](https://github.com/SlotSun/dart_simple_live/issues/89)
+- [ ] Android TV `请自行打包` [说明](https://github.com/SlotSun/dart_simple_live/issues/89)`（上游 Issue）`
 
 #### Arch Linux: 
 ```bash 
@@ -53,15 +53,15 @@
 
 只保证Android, Linux和Windows可用性
 
-请到[Releases](https://github.com/slotsun/dart_simple_live/releases)下载最新版本，iOS请到上游或者action下载体验
+请到[Releases](https://github.com/gaoxing64/dart_simple_live/releases)下载最新版本，iOS请到action下载体验，也可以到上游仓库 [SlotSun/dart_simple_live](https://github.com/SlotSun/dart_simple_live) 或原项目 [xiaoyaocz/dart_simple_live](https://github.com/xiaoyaocz/dart_simple_live) 下载
 
-如果想体验最新功能，可前往[Actions](https://github.com/slotsun/dart_simple_live/actions)下载自动打包的开发版本
+如果想体验最新功能，可前往[Actions](https://github.com/gaoxing64/dart_simple_live/actions)下载自动打包的开发版本
 
 Windows建议下载UWP版[聚合直播](https://www.microsoft.com/store/apps/9N1TWG2G84VD)，体验会更好
 
 ## 文档
 
-- [文档](https://slotsun.github.io/dart_simple_live/)  待完善
+- [文档](https://gaoxing64.github.io/dart_simple_live/)  待完善
 
 ## 项目结构
 
@@ -137,6 +137,8 @@ flutter latest
 <!-- CONTRIBUTORS:END -->
 
 ## 声明
+
+> 本仓库（[gaoxing64/dart_simple_live](https://github.com/gaoxing64/dart_simple_live)）是 [SlotSun/dart_simple_live](https://github.com/SlotSun/dart_simple_live)（上游）的 fork，上游项目则基于 [xiaoyaocz/dart_simple_live](https://github.com/xiaoyaocz/dart_simple_live)（原项目）。
 
 本项目的所有功能都是基于互联网上公开的资料开发，无任何破解、逆向工程等行为。
 

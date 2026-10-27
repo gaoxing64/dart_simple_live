@@ -31,11 +31,11 @@
   <screenshots>
     <screenshot type="default">
       <caption>Light Mode</caption>
-      <image type="source">https://raw.githubusercontent.com/SlotSun/dart_simple_live/v1.7.18/assets/screenshot_light.jpg</image>
+      <image type="source">https://raw.githubusercontent.com/gaoxing64/dart_simple_live/v1.9.0/assets/screenshot_light.jpg</image>
     </screenshot>
     <screenshot type="default">
       <caption>Dark Mode</caption>
-      <image type="source">https://raw.githubusercontent.com/SlotSun/dart_simple_live/v1.7.18/assets/screenshot_dark.jpg</image>
+      <image type="source">https://raw.githubusercontent.com/gaoxing64/dart_simple_live/v1.9.0/assets/screenshot_dark.jpg</image>
     </screenshot>
   </screenshots>
   <releases>
