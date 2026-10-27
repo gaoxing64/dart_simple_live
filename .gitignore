@@ -11,6 +11,9 @@ CRUSH.md
 .reasonix/
 .workbuddy/
 .workbuddy-ai/
+.agents/
+.claude/
+agent/
 .ocr_review_report.txt
 .ocr-findings.txt
 .ocr-review-future.json
