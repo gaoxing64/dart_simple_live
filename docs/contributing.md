@@ -154,8 +154,8 @@ flutter build apk --release --split-per-abi
 ## 📁 代码结构
 
 ### 项目目录速览
-- `simple_live_core` 项目核心库（独立仓库 [dart_simple_live_core](https://github.com/gaoxing64/dart_simple_live_core)，以 submodule 引入），实现获取各个网站的信息及弹幕。
-- `simple_live_console` 基于simple_live_core的控制台程序。
+- `simple_live_core` 项目核心库（独立仓库 [dart_simple_live_core](https://github.com/gaoxing64/dart_simple_live_core)，以 submodule 引入）：协议实现全部为 Rust（`crates/slive-core`），Dart 侧只保留跨平台模型与 FRB 绑定层。
+- `simple_live_core/crates/slive-cli` 命令行工具 `slive`：直连 Rust 核心，输出房间详情/播放直链、实时弹幕。
 - `simple_live_app` 基于核心库实现的Flutter APP客户端。
 - `simple_live_tv_app` 基于核心库实现的Flutter Android TV客户端（独立仓库 [dart_simple_live_tv_app](https://github.com/gaoxing64/dart_simple_live_tv_app)，以 submodule 引入）。
 
