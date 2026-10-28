@@ -24,9 +24,8 @@ import 'package:simple_live_app/services/playback/live_playback_target.dart';
 /// audio_service 的 handler 跑在**主 isolate**（已核 0.18.19 源码），所以这里能直接
 /// 持有并操作那个播放器；换成隔离子实现的版本就做不到这一点。
 ///
-/// 桌面端与移动端只有一处语义差别：移动端的媒体控制属于「后台播放」的一部分
-/// （前台服务、通知栏），随设置开关；桌面端没有后台服务这一层，媒体控制常开
-/// （判定在直播间的 `syncBackgroundPlayback`）。
+/// 桌面端与移动端只有一处实现差异：移动端多一层前台服务与音频会话（通知权限、
+/// 音频焦点、中断/拔耳机），桌面端没有。开关是同一个「系统媒体控制」（默认开）。
 class LivePlaybackAudioHandler extends BaseAudioHandler {
   static LivePlaybackAudioHandler? _instance;
 
@@ -86,7 +85,7 @@ class LivePlaybackAudioHandler extends BaseAudioHandler {
       // 否则新路的元数据若与旧路的键相同就会被当成「没变化」而不发出去。
       _lastItemKey = null;
       _lastStateKey = null;
-      Log.d('后台播放：挂载 ${target.playbackMediaId}');
+      Log.d('系统媒体控制：挂载 ${target.playbackMediaId}');
     }
     refresh();
   }
@@ -100,7 +99,7 @@ class LivePlaybackAudioHandler extends BaseAudioHandler {
     _enteredPlayingState = false;
     _publishIdle();
     await LiveAudioSession.instance.deactivate();
-    Log.d('后台播放：摘除');
+    Log.d('系统媒体控制：摘除');
   }
 
   /// 落回 idle：通知撤下、前台服务停。
@@ -324,6 +323,6 @@ Future<void> initLivePlaybackAudioHandler() async {
     );
     LivePlaybackAudioHandler._instance = handler;
   } catch (e) {
-    Log.e('后台播放：audio_service 初始化失败 ($e)', StackTrace.current);
+    Log.e('系统媒体控制：audio_service 初始化失败 ($e)', StackTrace.current);
   }
 }

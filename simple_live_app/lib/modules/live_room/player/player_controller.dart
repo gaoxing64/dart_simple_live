@@ -208,14 +208,15 @@ mixin PlayerMixin {
   /// 切到后台时**这一路**该不该被暂停——两个设置的生效值，不是设置项本身。
   ///
   /// 交给 `Video` 的 `pauseUponEnteringBackgroundMode` / `resumeUponEnteringForegroundMode`
-  /// 之前必须过这一道：media_kit_video 那两个开关是绑在 widget 生命周期上的，开着自动
-  /// 暂停时，切后台那一刻就把播放停掉了，「后台播放」整个名存实亡。
+  /// 之前必须过这一道：media_kit_video 那两个开关是绑在 widget 生命周期上的。
+  ///
+  /// 只由「进入后台自动暂停」决定：媒体控制（通知栏/锁屏/前台服务）与它不再互斥，
+  /// 开着媒体控制时暂停后仍能从锁屏按播放回来。
   ///
   /// 读的是 Rx 的 `.value`，所以调用点必须在 `Obx` 里面——设置页是压在直播间之上的路由，
   /// 回来的时候若不重建 `Video`，这两个初始参数就还带着旧值。
   bool get pauseOnBackground {
-    final settings = AppSettingsController.instance;
-    return settings.playerAutoPause.value && !settings.backgroundPlay.value;
+    return AppSettingsController.instance.playerAutoPause.value;
   }
 
   /// 初始化播放器并设置 ao 参数

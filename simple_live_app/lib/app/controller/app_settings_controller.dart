@@ -154,21 +154,9 @@ class AppSettingsController extends GetxController {
 
     playerAutoPause.value = LocalStorageService.instance.getValue(LocalStorageService.kPlayerAutoPause, false);
 
-    backgroundPlay.value = LocalStorageService.instance.getValue(LocalStorageService.kBackgroundPlay, false);
-    // 桌面端恒按「关」处理：这一行在桌面的设置页上根本不显示，而设置是会经 WebDAV
-    // 从手机同步过来的——真值落到桌面就会悄悄关掉「进入后台自动暂停」，且界面上没有
-    // 任何地方能改回来。只压内存值、不动磁盘：同一份存储回到手机上时那个选择还算数。
-    if (isDesktop && backgroundPlay.value) {
-      backgroundPlay.value = false;
-    }
-    // 正常路径下两者不会同时为真（两个 setter 互斥）。存储被外部改过就以后台播放为准：
-    // 留着自动暂停的话切后台那一刻就被暂停，「后台播放」等于没开。
-    if (backgroundPlay.value && playerAutoPause.value) {
-      playerAutoPause.value = false;
-      LocalStorageService.instance.setValue(LocalStorageService.kPlayerAutoPause, false);
-    }
-
-    // 默认开：四个系统都有媒体面，它在桌面端就是最小化后唯一的播放入口。
+    // 默认开：四个系统都有媒体面，它在桌面端就是最小化后唯一的播放入口；
+    // 移动端它还承载前台服务那条通知，所以它一处开关就同时决定了
+    // 「通知栏/锁屏有没有控制」与「切后台还能不能继续出声」。
     mediaControls.value = LocalStorageService.instance.getValue(LocalStorageService.kMediaControls, true);
 
     playerForceHttps.value = LocalStorageService.instance.getValue(LocalStorageService.kPlayerForceHttps, false);
@@ -686,53 +674,22 @@ class AppSettingsController extends GetxController {
   void setPlayerAutoPause(bool e) {
     playerAutoPause.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kPlayerAutoPause, e);
-    // 互斥：自动暂停一开，后台播放就名存实亡（切后台那一刻播放已被暂停），必须顶掉它。
-    if (e && backgroundPlay.value) {
-      _writeBackgroundPlay(false);
-    }
-    EventBus.instance.emit(EventBus.kMediaControlsChanged, backgroundPlay.value);
   }
 
   /// 系统媒体控制：是否把当前直播间投影到系统媒体面——Android 的媒体通知与
   /// 锁屏、Apple 的 Now Playing、Windows 的 SMTC、Linux 的 MPRIS。
   ///
-  /// 默认**开**：桌面端没有这个开关以外的播放入口，关掉等于最小化后无从控制；
-  /// 移动端它还承载前台服务那条通知，所以「后台播放」在它关闭时不生效
-  /// （有效条件见直播间的 `syncBackgroundPlayback`）。
+  /// 默认**开**：桌面端没有这个开关以外的播放入口，关掉等于最小化后无从控制。
+  ///
+  /// 移动端没有第二个开关：媒体会话本身就是前台服务那条通知的载体，所以这一项
+  /// 同时决定「通知栏/锁屏有没有控制」与「切后台还能不能继续出声」——两件事在
+  /// 系统层面是同一个东西，拆成两个开关必然出现「开着却没反应」的状态。
   var mediaControls = true.obs;
 
   void setMediaControls(bool e) {
     mediaControls.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kMediaControls, e);
     EventBus.instance.emit(EventBus.kMediaControlsChanged, e);
-  }
-
-  /// 后台播放：切后台/锁屏继续出声，并在通知栏与锁屏提供播放控制。
-  ///
-  /// 只在 Android/iOS 有意义——桌面没有前台服务这一层，设置页也不显示这一行。
-  /// 与 [playerAutoPause] 互斥，两个 setter 各自负责把对方关掉（UI 只负责把被顶掉
-  /// 的那一项锁上并给出原因）。
-  ///
-  /// 默认关：打开它会在 Android 上要求通知权限、并留下一条常驻媒体通知，
-  /// 不该由一次升级替用户决定。
-  ///
-  /// 它**不能脱离** [mediaControls] 生效：那条媒体通知本身就是 Android 前台
-  /// 服务的载体，关掉「系统媒体控制」后它也不会挂载（设置页据此锁住这一项）。
-  var backgroundPlay = false.obs;
-
-  void setBackgroundPlay(bool e) {
-    _writeBackgroundPlay(e);
-    if (e && playerAutoPause.value) {
-      playerAutoPause.value = false;
-      LocalStorageService.instance.setValue(LocalStorageService.kPlayerAutoPause, false);
-    }
-    EventBus.instance.emit(EventBus.kMediaControlsChanged, e);
-  }
-
-  /// [backgroundPlay] 唯一的落盘写入点，保证「内存值 == 磁盘值」这条不变式不被绕开。
-  void _writeBackgroundPlay(bool e) {
-    backgroundPlay.value = e;
-    LocalStorageService.instance.setValue(LocalStorageService.kBackgroundPlay, e);
   }
 
   var autoFullScreen = false.obs;

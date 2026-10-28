@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:audio_session/audio_session.dart';
 import 'package:simple_live_app/app/log.dart';
 
-/// 「后台播放」要用的系统音频会话。
+/// 系统媒体控制在移动端要用的音频会话。
 ///
 /// **为什么必须自己接这一层**（2026-10-08 直接核过 audio_service 0.18.19 的包源码）：
 /// * 它从不调用 `AudioSession.configure()`，只在**已废弃**的 `onStop()` 里
@@ -21,7 +21,7 @@ import 'package:simple_live_app/app/log.dart';
 /// * **Android**：`setActive(true)` 内部走 `requestAudioFocus`。没拿到焦点时，进程
 ///   虽然被前台服务保住，但别的 app 一出声就会跟我们混音。
 ///
-/// 只在开启「后台播放」并真的进入播放态时激活；摘除/停止时释放。
+/// 只在开启「系统媒体控制」并真的进入播放态时激活；摘除/停止时释放。
 class LiveAudioSession {
   LiveAudioSession._();
 
@@ -74,14 +74,14 @@ class LiveAudioSession {
         // 只订阅一次：中断与拔耳机是进程级的事，跟具体哪一路直播间无关。
         _interruptionSubscription ??=
             session.interruptionEventStream.listen((event) {
-          Log.d('后台播放：系统中断 begin=${event.begin} type=${event.type}');
+          Log.d('系统媒体控制：系统中断 begin=${event.begin} type=${event.type}');
           if (event.begin) {
             _interruptionController.add(event);
           }
         });
         _becomingNoisySubscription ??=
             session.becomingNoisyEventStream.listen((_) {
-          Log.d('后台播放：音频输出设备已断开');
+          Log.d('系统媒体控制：音频输出设备已断开');
           _becomingNoisyController.add(null);
         });
         _configured = true;
@@ -89,10 +89,10 @@ class LiveAudioSession {
       final granted = await session.setActive(true);
       if (!granted) {
         // 焦点没批下来也照常播：前台服务还在，声音不会断，只是可能被别的 app 压掉。
-        Log.d('后台播放：音频焦点未获批准，继续播放但不保证不被压低');
+        Log.d('系统媒体控制：音频焦点未获批准，继续播放但不保证不被压低');
       }
     } catch (e) {
-      Log.e('后台播放：音频会话激活失败 ($e)', StackTrace.current);
+      Log.e('系统媒体控制：音频会话激活失败 ($e)', StackTrace.current);
     } finally {
       _activating = false;
     }
@@ -114,7 +114,7 @@ class LiveAudioSession {
             AVAudioSessionSetActiveOptions.notifyOthersOnDeactivation,
       );
     } catch (e) {
-      Log.e('后台播放：音频会话释放失败 ($e)', StackTrace.current);
+      Log.e('系统媒体控制：音频会话释放失败 ($e)', StackTrace.current);
     }
   }
 }

@@ -111,7 +111,7 @@ dependencies:
       ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./libs/universal/media_kit_libs_video
 
-  # 后台播放：切后台/锁屏继续出声，并把播放控制送到通知栏、锁屏与耳机媒体键。
+  # 系统媒体控制：把播放送到通知栏/锁屏/耳机媒体键，并在切后台后继续出声。
   #
   # 钉死精确版本、不用 ^：本功能有几处前提是逐条读 0.18.19 的包源码定下来的——
   #   1. AudioHandler 跑在**主 isolate**（才敢在这里直接持有 media_kit 的播放器）；
