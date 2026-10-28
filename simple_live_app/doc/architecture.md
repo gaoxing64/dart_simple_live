@@ -1,6 +1,6 @@
 # simple_live_app 架构与选型对照
 
-> 锚点：future `8f744394`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
+> 锚点：future `7953d6cd`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/architecture.md)｜播放：[media-kit](../../media-kit/doc/architecture.md)
 
@@ -118,6 +118,7 @@ media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建�
 | 系统媒体控制扩到 Windows SMTC / Linux MPRIS / Apple Now Playing | `74bc4247` |
 | 「系统媒体控制」开关（默认开，移动端联动后台播放） | `3a7edf0e` |
 | 移动端媒体控制与后台播放合并为单一开关 | `8f744394` |
+| 桌面端可隐藏原生标题栏 | `7953d6cd` |
 | 关注多分组归属 | `3267a04e`、`a225e3b4`、`0442f4ac` |
 | 屏幕常亮按路引用计数 | `900f8d50` |
 | 关注页三栏 + 分组胶囊 | `1c0d02f5`、`55928d21` |
