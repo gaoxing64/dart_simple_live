@@ -80,10 +80,13 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                 Obx(
                   () => SettingsSwitch(
                     title: "系统媒体控制",
-                    subtitle: "在通知栏、锁屏与系统媒体控件中显示播放控制与封面",
+                    // 移动端这一项同时是「后台播放」：媒体通知就是前台服务的载体。
+                    subtitle: Platform.isAndroid || Platform.isIOS
+                        ? "在通知栏与锁屏显示播放控制，切到后台后继续播放"
+                        : "在系统媒体控件中显示播放控制与封面",
                     value: controller.mediaControls.value,
                     onChanged: (e) {
-                      controller.setMediaControls(e);
+                      onMediaControlsChanged(e);
                     },
                   ),
                 ),
@@ -91,38 +94,15 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                 Obx(
                   () => SettingsSwitch(
                     title: "进入后台自动暂停",
+                    subtitle: Platform.isAndroid || Platform.isIOS
+                        ? "切到后台即暂停；开着媒体控制时仍可从通知栏继续播放"
+                        : null,
                     value: controller.playerAutoPause.value,
-                    // 与「后台播放」互斥：开着后台播放时这一项按不动，
-                    // 因为它的效果（切后台即暂停）会把后台播放整个抵消掉。
-                    locked: controller.backgroundPlay.value,
-                    lockedHint: "已开启「后台播放」，后台播放需要保持出声",
                     onChanged: (e) {
                       controller.setPlayerAutoPause(e);
                     },
                   ),
                 ),
-                // 后台播放只有移动端有意义：桌面没有前台服务这一层，
-                // 而且整块用平台门包住，桌面那一列的分隔线数量与改前完全一致。
-                if (Platform.isAndroid || Platform.isIOS) ...[
-                  AppStyle.divider,
-                  Obx(
-                    () => SettingsSwitch(
-                      title: "后台播放",
-                      subtitle: "切到后台或锁屏后继续播放",
-                      value: controller.backgroundPlay.value,
-                      // 两个前置条件：自动暂停会把它抵消；媒体通知是 Android 前台
-                      // 服务的载体，没有它这一项即使开着也不会挂载。
-                      locked: controller.playerAutoPause.value ||
-                          !controller.mediaControls.value,
-                      lockedHint: controller.playerAutoPause.value
-                          ? "已开启「进入后台自动暂停」，请先关闭该项"
-                          : "已关闭「系统媒体控制」，请先开启该项",
-                      onChanged: (e) {
-                        onBackgroundPlayChanged(e);
-                      },
-                    ),
-                  ),
-                ],
                 AppStyle.divider,
                 Obx(
                   () => SettingsMenu<int>(
@@ -340,12 +320,12 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
     );
   }
 
-  /// 打开「后台播放」时补一次通知权限（Android 13+ 缺它就看不见那条媒体通知）。
+  /// 打开「系统媒体控制」时补一次通知权限（Android 13+ 缺它就看不见那条媒体通知）。
   ///
-  /// 被拒不把开关打回去：切后台继续出声并不依赖通知权限（前台服务与音频焦点是
+  /// 被拒不把开关打回去：播放与后台出声并不依赖通知权限（前台服务与音频焦点是
   /// 另一回事），缺的只是通知栏里那个控制入口。为此回滚开关反而让人以为没生效。
-  Future<void> onBackgroundPlayChanged(bool e) async {
-    controller.setBackgroundPlay(e);
+  Future<void> onMediaControlsChanged(bool e) async {
+    controller.setMediaControls(e);
     if (!e || !Platform.isAndroid) {
       return;
     }
@@ -354,7 +334,7 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
       if (result.isPermanentlyDenied) {
         SmartDialog.showToast("通知权限已被拒绝，请在系统设置里为 Slive 打开通知");
       } else if (!result.isGranted) {
-        SmartDialog.showToast("未授予通知权限：后台播放继续，但通知栏里没有控制入口");
+        SmartDialog.showToast("未授予通知权限：播放继续，但通知栏里没有控制入口");
       }
     } catch (error) {
       Log.logPrint(error);
