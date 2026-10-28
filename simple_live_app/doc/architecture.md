@@ -1,6 +1,6 @@
 # simple_live_app 架构与选型对照
 
-> 锚点：future `3a7edf0e`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
+> 锚点：future `8f744394`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/architecture.md)｜播放：[media-kit](../../media-kit/doc/architecture.md)
 
@@ -39,7 +39,7 @@ lib/
 | 跨模块信号 | 自研 `EventBus`（字符串事件） | 简单；无编译期校验，必须 cancel |
 | 平台能力 | 纯函数 + 薄平台层 | `PipAspectCalculator`、`resolveMultiPlayLayout`、`resolveTileVolume`、`RoomWatchClock` 可单测 |
 | 播放 | media-kit fork（`gaoxing64`，锁 `917d80ca`） | 需要自建 libmpv 的 loudnorm 等滤镜 |
-| 系统媒体控制 | 全平台都走 `audio_service`，平台实现按系统替换；设置项「系统媒体控制」默认开 | 一个 handler 投影四类系统面：Android MediaSession、Apple Now Playing、Windows SMTC、Linux MPRIS；关掉后移动端「后台播放」随之锁住（媒体通知是 Android 前台服务载体） |
+| 系统媒体控制 | 全平台都走 `audio_service`，平台实现按系统替换；设置项「系统媒体控制」默认开 | 一个 handler 投影四类系统面：Android MediaSession、Apple Now Playing、Windows SMTC、Linux MPRIS；移动端这一项同时是「后台播放」（媒体通知即前台服务载体），不再拆第二个开关 |
 | 协议 | `simple_live_core` Rust + FRB | 五平台统一；见 core KB |
 | 持久化 | `hive_ce` 五箱 | 关注/历史/分组/屏蔽/账号 |
 | 关注分组 | 真源 = `FollowUserTag.userId` 成员表 | 一个关注可属多组；`FollowUser.tag` 已删 |
@@ -117,6 +117,7 @@ media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建�
 | 后台播放/系统媒体控制 | `e374b4df`、`5692db16`、`cd89ecdc`、`cbb474ee` |
 | 系统媒体控制扩到 Windows SMTC / Linux MPRIS / Apple Now Playing | `74bc4247` |
 | 「系统媒体控制」开关（默认开，移动端联动后台播放） | `3a7edf0e` |
+| 移动端媒体控制与后台播放合并为单一开关 | `8f744394` |
 | 关注多分组归属 | `3267a04e`、`a225e3b4`、`0442f4ac` |
 | 屏幕常亮按路引用计数 | `900f8d50` |
 | 关注页三栏 + 分组胶囊 | `1c0d02f5`、`55928d21` |

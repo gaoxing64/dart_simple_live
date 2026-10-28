@@ -1,6 +1,6 @@
 # simple_live_app 修改历史（Git 完整复现）
 
-> 锚点：future `3a7edf0e`（2026-10-29）｜`git log future -- simple_live_app` 全量 **286** 条
+> 锚点：future `8f744394`（2026-10-29）｜`git log future -- simple_live_app` 全量 **287** 条
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/update-history.md)｜播放：[media-kit](../../media-kit/doc/update-history.md)
 
@@ -23,7 +23,7 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 
 | 阶段 | 日期范围 | 条数 | 主题 |
 | --- | --- | --- | --- |
-| 系统媒体控制扩桌面 + Apple | 2026-10-26 ~ 10-29 | 8 | 四类系统面收敛到 audio_service（Windows SMTC / Linux MPRIS / macOS Now Playing）、「系统媒体控制」开关默认开、media-kit 升 917d80ca、Android stats OSD、B 站登录路由 |
+| 系统媒体控制扩桌面 + Apple | 2026-10-26 ~ 10-29 | 9 | 四类系统面收敛到 audio_service（Windows SMTC / Linux MPRIS / macOS Now Playing）、「系统媒体控制」开关默认开并合并移动端「后台播放」、media-kit 升 917d80ca、Android stats OSD、B 站登录路由 |
 | 知识库重写 + 关注详情/弹幕合并/聚合搜索 | 2026-10-23 ~ 10-26 | 37 | 五件套按 Git 重写、主播详情页与观看热力图、重复弹幕合并、AGP 9、聚合搜索与播放器缓存键值表、聊天滑回底部自动跟随 |
 | 关注页定稿 | 2026-10-20 ~ 10-21 | 10 | 三栏布局、标签过滤、分组胶囊、搜索展开收刷新、增量重排 |
 | Rust 迁移 + 播放/多开修复 | 2026-10-16 ~ 10-19 | 19 | FRB 资产下沉、Dart 协议删除、斗鱼续流、小窗/手势/常亮 |
@@ -44,10 +44,11 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 | 2026-09-18 | `a38cbc75` | 合并 dev（v1.8.11） |
 | 2026-09-18 | `899212ba` | 合并 dev |
 
-## 4. 全量时间线（286 条，新→旧）
+## 4. 全量时间线（287 条，新→旧）
 
 | 日期 | 提交 | 作者 | 内容 |
 | --- | --- | --- | --- |
+| 2026-10-29 | `8f744394` | G | refactor(settings): 移动端媒体控制与后台播放合并为单一开关 |
 | 2026-10-29 | `3a7edf0e` | G | feat(settings): 新增「系统媒体控制」开关（默认开） |
 | 2026-10-29 | `2b76b4de` | G | docs(app): 知识库五件套跟到 74bc4247 |
 | 2026-10-29 | `74bc4247` | G | feat(playback): 系统媒体控制扩到 Windows SMTC / Linux MPRIS / Apple Now Playing |
