@@ -1,6 +1,6 @@
 # simple_live_app 工作流程图
 
-> 锚点：future `74bc4247`（2026-10-29）｜App v1.8.15+10815
+> 锚点：future `3a7edf0e`（2026-10-29）｜App v1.8.15+10815
 > 五件套：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/workflow-diagram.md)｜播放：[media-kit](../../media-kit/doc/workflow-diagram.md)
 
@@ -108,6 +108,8 @@ AppNavigator.toLiveRoomDetail(site, roomId, together?)
 ```
 player.stream.playing/buffering/completed
   → syncBackgroundPlayback（唯一入口，副格永不挂载）
+  → 门控：[系统媒体控制]（五端，默认开）
+          且 移动端还需 [后台播放]（它管前台服务那条通知）
   → LivePlaybackAudioHandler（audio_service）
   → 平台实现：
       Android  MediaSession + 媒体通知 + 前台服务
@@ -117,10 +119,11 @@ player.stream.playing/buffering/completed
   → LiveAudioSession（焦点/中断/耳机，仅 Android/iOS）
 远程指令 → playbackPlay/Pause/Stop → LivePlaybackTarget
 退出/换台 → detach（撤媒体会话）
+开关变化 → EventBus(kMediaControlsChanged) → 立刻挂上/摘掉，不等播放事件
 ```
 
-- 门控不同：移动端随「后台播放」开关（它还管前台服务）；桌面端常开，没有该开关，
-  窗口最小化后系统媒体控制才是唯一入口。
+- 「系统媒体控制」全平台可见、默认开；关掉后桌面端最小化就没有控制入口。
+- 移动端「后台播放」在「系统媒体控制」关闭时被锁住（媒体通知是 Android 前台服务的载体）。
 - 与「进入后台自动暂停」互斥（仅移动端）。
 - handler 跑在主 isolate；初始化失败只降级成「没有媒体控制」，不挡启动。
 
@@ -181,6 +184,7 @@ B站是否登录现查 DB，不缓存 UI 布尔。
 | 进房/播放/多开 | `fcb43a82`、`afd18194`、`08fb5a74`、`49bfb83e`、`9a3f1313` |
 | 后台播放 | `e374b4df`、`5692db16`、`cd89ecdc`、`cbb474ee` |
 | 系统媒体控制扩到四系统（SMTC/MPRIS/Now Playing） | `74bc4247` |
+| 「系统媒体控制」开关与门控 | `3a7edf0e` |
 | 关注页三栏/胶囊/搜索 | `1c0d02f5`、`0d2f57e6`、`55928d21`、`b5718dd8`、`52466f96` |
 | 屏幕常亮 | `900f8d50` |
 | 账号 | `63197f69`（校验失败不抹凭证） |
