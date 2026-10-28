@@ -1,6 +1,6 @@
 # simple_live_app 修改历史（Git 完整复现）
 
-> 锚点：future `7953d6cd`（2026-10-29）｜`git log future -- simple_live_app` 全量 **288** 条
+> 锚点：future `6220bc1f`（2026-10-29）｜`git log future -- simple_live_app` 全量 **289** 条
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/update-history.md)｜播放：[media-kit](../../media-kit/doc/update-history.md)
 
@@ -45,10 +45,11 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 | 2026-09-18 | `a38cbc75` | 合并 dev（v1.8.11） |
 | 2026-09-18 | `899212ba` | 合并 dev |
 
-## 4. 全量时间线（288 条，新→旧）
+## 4. 全量时间线（289 条，新→旧）
 
 | 日期 | 提交 | 作者 | 内容 |
 | --- | --- | --- | --- |
+| 2026-10-29 | `6220bc1f` | G | fix(settings): 按 review 收口媒体控制与标题栏的边界问题 |
 | 2026-10-29 | `7953d6cd` | G | feat(window): 新增「显示窗口标题栏」开关（桌面端，默认显示） |
 | 2026-10-29 | `8f744394` | G | refactor(settings): 移动端媒体控制与后台播放合并为单一开关 |
 | 2026-10-29 | `3a7edf0e` | G | feat(settings): 新增「系统媒体控制」开关（默认开） |

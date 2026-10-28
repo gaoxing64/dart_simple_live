@@ -1,6 +1,6 @@
 # simple_live_app 工作流程图
 
-> 锚点：future `7953d6cd`（2026-10-29）｜App v1.8.15+10815
+> 锚点：future `6220bc1f`（2026-10-29）｜App v1.8.15+10815
 > 五件套：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/workflow-diagram.md)｜播放：[media-kit](../../media-kit/doc/workflow-diagram.md)
 
