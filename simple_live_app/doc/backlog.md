@@ -1,6 +1,6 @@
 # simple_live_app 待办与优化清单
 
-> 锚点：future `6220bc1f`（2026-10-29）
+> 锚点：future `02a9d64e`（2026-10-29）
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/backlog.md)｜播放：[media-kit](../../media-kit/doc/backlog.md)
 
@@ -31,7 +31,6 @@
 | P1-11 | macOS Now Playing / Linux MPRIS 只过了编译与逻辑审查，**未在真机手测**（本机只有 Windows）；Linux 侧 MPRIS 还是 beta 包 | `live_playback_audio_handler.dart`（`isSupported`/`AudioServiceMpris.init`）；`pubspec.yaml` 两处钉版 | 补手测：macOS 控制中心与 F8/F9、Linux GNOME/KDE 媒体控件与播放/暂停/停止、切房间后标题与封面更新 |
 | P1-12 | Linux MPRIS 的 `mpris:artUrl` 仍是远程 URL（`audio_service_mpris` 不读 `artCacheFile`），防盗链封面可能不显示；且 `artUri` 为空时会传字面量 `"null"` | `audio_service_mpris` 的 `setMediaItem` | 与 P0-4 一起做本地封面文件；必要时 fork 该包按 `artCacheFile` 发 `file://` |
 | P1-13 | Windows 按键回传跨线程：`audio_service_win` 在 SMTC 的 `ButtonPressed` 回调线程里直接 `channel->InvokeMethod`，引擎每次都报 `non-platform thread`，官方口径是「可能丢消息或崩溃」（本机已复现告警，功能当时仍生效） | `audio_service_win` fork `windows/audio_service_win_plugin.cpp` 的 `ButtonPressed` 回调 | 用 `PostMessage` + `RegisterTopLevelWindowProcDelegate` 把按钮投到 platform thread 再发通道（需改 fork）；改完连按十次暂停/播放核对零告警 |
-| P1-14 | 从系统侧退出全屏（macOS 绿灯等）只走 `onWindowLeaveFullScreen`：那里只翻 `_fullScreen`，不还原标题栏，也不复位播放器的全屏状态——设置是「显示」时窗口会停在无标题栏，「幽灵全屏」问题同源 | `window_service.dart` 的 `onWindowLeaveFullScreen`、`player_controller.dart` 的 `exitFull` | 与幽灵全屏一起修：事件里补 `applyTitleBarStyle()`（注意「全屏→小窗」路径会瞬闪一次常规标题栏），并把 fullScreenState 的收口也接到该事件 |
 | P1-15 | Linux 上 `audio_service_mpris` 在 `configure` 里就 `requestName`，而我们在 `runApp` 前无条件初始化：App 一启动，桌面媒体控件里可能出现一个没有元数据的「Slive」 | `live_playback_audio_handler.dart` 的 `initLivePlaybackAudioHandler`、`audio_service_mpris` 的 `configure` | Linux 真机 `playerctl -l` 核对；若成立，初始化后先发一次 idle（`stopService` 会 `releaseName`），**别在 Windows 上做**（其 stopService 会在 updater 为空时崩） |
 | P1-16 | AUR 模板装的是 `slive.desktop`，而 MPRIS 的 `DesktopEntry` 写的是 `io.github.SlotSun.Slive`（与 flatpak/deb 一致）：AUR 用户可能关联不到图标/desktop entry | `linux/packaging/aur/slive.desktop`、`live_playback_audio_handler.dart` | 统一 AUR 的 desktop 文件名，或按打包渠道分别取 |
 

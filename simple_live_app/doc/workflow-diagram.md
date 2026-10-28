@@ -1,6 +1,6 @@
 # simple_live_app 工作流程图
 
-> 锚点：future `6220bc1f`（2026-10-29）｜App v1.8.15+10815
+> 锚点：future `02a9d64e`（2026-10-29）｜App v1.8.15+10815
 > 五件套：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/workflow-diagram.md)｜播放：[media-kit](../../media-kit/doc/workflow-diagram.md)
 
@@ -186,7 +186,6 @@ B站是否登录现查 DB，不缓存 UI 布尔。
 | 系统媒体控制扩到四系统（SMTC/MPRIS/Now Playing） | `74bc4247` |
 | 「系统媒体控制」开关与门控 | `3a7edf0e` |
 | 移动端合并为单一开关（通知权限随首次挂载请求） | `8f744394` |
-| 桌面端标题栏开关（隐藏后不补替代控件） | `7953d6cd` |
 | 关注页三栏/胶囊/搜索 | `1c0d02f5`、`0d2f57e6`、`55928d21`、`b5718dd8`、`52466f96` |
 | 屏幕常亮 | `900f8d50` |
 | 账号 | `63197f69`（校验失败不抹凭证） |
