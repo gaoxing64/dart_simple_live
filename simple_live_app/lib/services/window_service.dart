@@ -149,8 +149,10 @@ class WindowService extends GetxService implements WindowListener {
       minimumSize: _normalMinimumSize, // 防止无脑小窗导致界面报错
       center: false,
       title: "Slive",
-      // 创建时就带上，避免先闪一下原生标题栏再被隐藏。
-      titleBarStyle: showTitleBar ? TitleBarStyle.normal : TitleBarStyle.hidden,
+      // 只在需要隐藏时下发：显式传 normal 会让 macOS 走一遍 setTitleBarStyle
+      // （那边无论 normal/hidden 都会把窗口设成非不透明），等于给所有用户多一次
+      // 启动期窗口属性变更；不传就是平台的默认外观。
+      titleBarStyle: showTitleBar ? null : TitleBarStyle.hidden,
     );
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       if (Platform.isWindows) {
