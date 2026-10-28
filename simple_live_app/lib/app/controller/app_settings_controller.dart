@@ -168,6 +168,9 @@ class AppSettingsController extends GetxController {
       LocalStorageService.instance.setValue(LocalStorageService.kPlayerAutoPause, false);
     }
 
+    // 默认开：四个系统都有媒体面，它在桌面端就是最小化后唯一的播放入口。
+    mediaControls.value = LocalStorageService.instance.getValue(LocalStorageService.kMediaControls, true);
+
     playerForceHttps.value = LocalStorageService.instance.getValue(LocalStorageService.kPlayerForceHttps, false);
 
     douyinHlsFirst.value = LocalStorageService.instance.getValue(LocalStorageService.kDouyinHlsFirst, false);
@@ -687,7 +690,21 @@ class AppSettingsController extends GetxController {
     if (e && backgroundPlay.value) {
       _writeBackgroundPlay(false);
     }
-    EventBus.instance.emit(EventBus.kBackgroundPlayChanged, backgroundPlay.value);
+    EventBus.instance.emit(EventBus.kMediaControlsChanged, backgroundPlay.value);
+  }
+
+  /// 系统媒体控制：是否把当前直播间投影到系统媒体面——Android 的媒体通知与
+  /// 锁屏、Apple 的 Now Playing、Windows 的 SMTC、Linux 的 MPRIS。
+  ///
+  /// 默认**开**：桌面端没有这个开关以外的播放入口，关掉等于最小化后无从控制；
+  /// 移动端它还承载前台服务那条通知，所以「后台播放」在它关闭时不生效
+  /// （有效条件见直播间的 `syncBackgroundPlayback`）。
+  var mediaControls = true.obs;
+
+  void setMediaControls(bool e) {
+    mediaControls.value = e;
+    LocalStorageService.instance.setValue(LocalStorageService.kMediaControls, e);
+    EventBus.instance.emit(EventBus.kMediaControlsChanged, e);
   }
 
   /// 后台播放：切后台/锁屏继续出声，并在通知栏与锁屏提供播放控制。
@@ -698,6 +715,9 @@ class AppSettingsController extends GetxController {
   ///
   /// 默认关：打开它会在 Android 上要求通知权限、并留下一条常驻媒体通知，
   /// 不该由一次升级替用户决定。
+  ///
+  /// 它**不能脱离** [mediaControls] 生效：那条媒体通知本身就是 Android 前台
+  /// 服务的载体，关掉「系统媒体控制」后它也不会挂载（设置页据此锁住这一项）。
   var backgroundPlay = false.obs;
 
   void setBackgroundPlay(bool e) {
@@ -706,7 +726,7 @@ class AppSettingsController extends GetxController {
       playerAutoPause.value = false;
       LocalStorageService.instance.setValue(LocalStorageService.kPlayerAutoPause, false);
     }
-    EventBus.instance.emit(EventBus.kBackgroundPlayChanged, e);
+    EventBus.instance.emit(EventBus.kMediaControlsChanged, e);
   }
 
   /// [backgroundPlay] 唯一的落盘写入点，保证「内存值 == 磁盘值」这条不变式不被绕开。

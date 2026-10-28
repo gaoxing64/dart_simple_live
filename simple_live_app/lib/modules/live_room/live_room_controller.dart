@@ -2071,7 +2071,7 @@ ${error?.stackTrace}''');
     _bgCompletedSubscription =
         player.stream.completed.listen((_) => syncBackgroundPlayback());
     _bgSettingSubscription =
-        EventBus.instance.listen(EventBus.kBackgroundPlayChanged, (event) {
+        EventBus.instance.listen(EventBus.kMediaControlsChanged, (event) {
       // 开与关都要立刻处理：流稳定时 playing/buffering 可以很久不跳，等下一次事件的
       // 话，用户在设置页关了开关、通知还挂在屏幕上。
       syncBackgroundPlayback();
@@ -2100,6 +2100,10 @@ ${error?.stackTrace}''');
     }
     final handler = _bgHandler;
     if (handler == null) {
+      return;
+    }
+    if (!AppSettingsController.instance.mediaControls.value) {
+      unawaited(handler.detach(this));
       return;
     }
     if (_mediaControlsFollowSwitch &&

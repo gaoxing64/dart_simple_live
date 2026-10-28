@@ -79,6 +79,17 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                 AppStyle.divider,
                 Obx(
                   () => SettingsSwitch(
+                    title: "系统媒体控制",
+                    subtitle: "在通知栏、锁屏与系统媒体控件中显示播放控制与封面",
+                    value: controller.mediaControls.value,
+                    onChanged: (e) {
+                      controller.setMediaControls(e);
+                    },
+                  ),
+                ),
+                AppStyle.divider,
+                Obx(
+                  () => SettingsSwitch(
                     title: "进入后台自动暂停",
                     value: controller.playerAutoPause.value,
                     // 与「后台播放」互斥：开着后台播放时这一项按不动，
@@ -97,11 +108,15 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                   Obx(
                     () => SettingsSwitch(
                       title: "后台播放",
-                      subtitle:
-                          "切到后台或锁屏后继续播放，并在通知栏与锁屏提供播放控制",
+                      subtitle: "切到后台或锁屏后继续播放",
                       value: controller.backgroundPlay.value,
-                      locked: controller.playerAutoPause.value,
-                      lockedHint: "已开启「进入后台自动暂停」，请先关闭该项",
+                      // 两个前置条件：自动暂停会把它抵消；媒体通知是 Android 前台
+                      // 服务的载体，没有它这一项即使开着也不会挂载。
+                      locked: controller.playerAutoPause.value ||
+                          !controller.mediaControls.value,
+                      lockedHint: controller.playerAutoPause.value
+                          ? "已开启「进入后台自动暂停」，请先关闭该项"
+                          : "已关闭「系统媒体控制」，请先开启该项",
                       onChanged: (e) {
                         onBackgroundPlayChanged(e);
                       },
