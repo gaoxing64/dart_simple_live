@@ -79,6 +79,10 @@ const List<String> _kPlayerConfigProps = [
   'af',
   'hwdec',
   'force-seekable',
+  'osd-fonts-dir',
+  'osd-font',
+  'sub-fonts-dir',
+  'sub-font',
   'cache',
   'cache-secs',
   'cache-on-disk',
@@ -235,6 +239,35 @@ mixin PlayerMixin {
     if (Platform.isAndroid) {
       // 通过错误参数强制media_kit不seek, 解决了加载-pause-seek 在直播流上的开屏问题
       await pp.setProperty('force-seekable', 'yes');
+      // media_kit 在安卓上把 sub-font-provider 设为 none，而安卓版 libass 又用
+      // --disable-require-system-font-provider 编译、不带 fontconfig，默认字体族
+      // "sans-serif" 无从解析。结果是 stats.lua 的 OSD 其实渲染了却一个字形都画不出
+      // （日志：osd/libass: can't find selected font provider + failed to find any
+      // fallback）。libass 只按族名精确匹配，族名不存在时同样静默空白，所以这里挑
+      // 一个目录里确实有字体文件的族，而不是无条件写死 Roboto。
+      const fontCandidates = [
+        ('/system/fonts', 'Roboto-Regular.ttf', 'Roboto'),
+        ('/product/fonts', 'Roboto-Regular.ttf', 'Roboto'),
+        ('/system/fonts', 'DroidSans.ttf', 'Droid Sans'),
+        ('/system/fonts', 'NotoSans-Regular.ttf', 'Noto Sans'),
+      ];
+      var fontsDir = fontCandidates.first.$1;
+      String? fontFamily;
+      for (final (dir, file, family) in fontCandidates) {
+        if (File('$dir/$file').existsSync()) {
+          fontsDir = dir;
+          fontFamily = family;
+          break;
+        }
+      }
+      await pp.setProperty('osd-fonts-dir', fontsDir);
+      await pp.setProperty('sub-fonts-dir', fontsDir);
+      if (fontFamily != null) {
+        await pp.setProperty('osd-font', fontFamily);
+        await pp.setProperty('sub-font', fontFamily);
+      } else {
+        Log.d('OSD 字体：$fontsDir 下未找到可用字体，mpv 内置 OSD 可能无法显示文字');
+      }
     }
     // 直播缓存策略：属性表由 [buildLiveCacheProperties] 生成（键值被
     // test/player_cache_policy_test.dart 钉住），这里只按序下发。
@@ -1418,8 +1451,17 @@ class PlayerController extends BaseController
   /// 探测播放内核能否跑 mpv 内置 OSD（stats.lua 需要内核编入 Lua）。
   ///
   /// media_kit 的 `command()`/`setProperty()` 都丢弃 mpv 返回值，没法靠报错判断
-  /// binding 是否存在；改用只读属性 `mpv-configuration`（mpv 的编译配置串）探测：
-  /// 出现 `lua=disabled`（或读不到）即视为不可用。Lua 有无是编译期属性，缓存结果。
+  /// binding 是否存在。`mpv-configuration` 也不行：它是编译期 `CONFIGURATION`
+  /// 宏，而 libmpv-android-video-build 为了不泄漏构建路径，用
+  /// `sed "s/meson.build_options()/''/"` 把它清成了空串，于是安卓上恒为空、
+  /// 被误判为「未编入 Lua」。
+  ///
+  /// 改用 `options/load-stats-overlay`：该选项在 mpv 的 options.c 里被
+  /// `#if HAVE_LUA` 门控，没有 Lua 时属性不存在（读回空串）。它同时证明了
+  /// stats.lua 的存在与 Lua 运行时可用，正是内置 OSD 的两个前提。
+  /// 只认 `yes`：选项存在但值为 `no` 时 stats.lua 不会加载，script-binding
+  /// 会静默失败，不能算可用。
+  /// Lua 有无是编译期属性，缓存结果。
   Future<bool> mpvOSDAvailable() async {
     if (_mpvLuaSupported != null) {
       return _mpvLuaSupported!;
@@ -1427,8 +1469,9 @@ class PlayerController extends BaseController
     if (player.platform is! NativePlayer) {
       return false;
     }
-    final config = await (player.platform as NativePlayer).getProperty('mpv-configuration');
-    _mpvLuaSupported = config.isNotEmpty && !config.contains('lua=disabled');
+    final luaOption = await (player.platform as NativePlayer)
+        .getProperty('options/load-stats-overlay');
+    _mpvLuaSupported = luaOption == 'yes';
     return _mpvLuaSupported!;
   }
 
