@@ -171,6 +171,10 @@ class LocalStorageService extends GetxService {
   /// 互斥由 `AppSettingsController` 的两个 setter 强制。
   static const String kBackgroundPlay = "BackgroundPlay";
 
+  /// 系统媒体控制：是否把当前直播间投影到系统的媒体面（通知栏/锁屏、
+  /// Now Playing、SMTC、MPRIS）。默认开。
+  static const String kMediaControls = "MediaControls";
+
   /// 播放器缓冲区大小
   static const String kPlayerBufferSize = "PlayerBufferSize";
 

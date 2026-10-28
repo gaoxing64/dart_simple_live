@@ -19,8 +19,9 @@ class EventBus {
   /// Stats 覆盖层后端变更，播放器需要在自绘浮层与 mpv 内置 OSD 之间收尾
   static const String kOSDBackendChanged = "OSDBackendChanged";
 
-  /// 后台播放开关变更：直播间要立刻挂上/摘掉系统媒体通知，不能等下一次播放事件
-  static const String kBackgroundPlayChanged = "BackgroundPlayChanged";
+  /// 媒体控制相关开关（「系统媒体控制」/「后台播放」）变更：直播间要立刻
+  /// 挂上/摘掉系统媒体会话，不能等下一次播放事件
+  static const String kMediaControlsChanged = "MediaControlsChanged";
   static EventBus? _instance;
 
   static EventBus get instance {
