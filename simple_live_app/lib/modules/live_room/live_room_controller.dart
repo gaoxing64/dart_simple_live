@@ -2114,6 +2114,7 @@ ${error?.stackTrace}''');
     // attach 内部幂等：同一个实例重复挂载只等价于一次重推。
     handler.attach(this);
   }
+
   /// Android 13+ 不授权就看不见那条媒体通知（前台服务仍会跑，但没有控制入口）。
   /// 失败只记日志：拿不到权限不该挡住播放。
   void _ensureNotificationPermission() {
@@ -2121,15 +2122,19 @@ ${error?.stackTrace}''');
       return;
     }
     _askedNotificationPermission = true;
-    Permission.notification.request().then((status) {
+    unawaited(_requestNotificationPermission());
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    try {
+      final status = await Permission.notification.request();
       if (!status.isGranted) {
         Log.d('系统媒体控制：通知权限未授予，通知栏里不会有控制入口');
       }
-    }).catchError((Object e) {
+    } catch (e) {
       Log.e('系统媒体控制：请求通知权限失败 ($e)', StackTrace.current);
-    });
+    }
   }
-
 
   /// 必须在 `player.dispose()` 之前调用（见 [onClose]）。
   Future<void> releaseMediaControls() async {

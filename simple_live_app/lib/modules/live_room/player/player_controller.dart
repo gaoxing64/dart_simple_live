@@ -205,7 +205,7 @@ mixin PlayerMixin {
   /// 是否处于多开播放中（含聚集态与折叠态）。小窗等在多开下整体禁用。
   bool get multiPlayActive => false;
 
-  /// 切到后台时**这一路**该不该被暂停——两个设置的生效值，不是设置项本身。
+  /// 切到后台时**这一路**该不该被暂停——由「进入后台自动暂停」单独决定。
   ///
   /// 交给 `Video` 的 `pauseUponEnteringBackgroundMode` / `resumeUponEnteringForegroundMode`
   /// 之前必须过这一道：media_kit_video 那两个开关是绑在 widget 生命周期上的。
