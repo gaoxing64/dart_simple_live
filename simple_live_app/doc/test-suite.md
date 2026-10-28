@@ -1,6 +1,6 @@
 # simple_live_app 测试案例库（面向 AI）
 
-> 锚点：future `3359b76e`（2026-10-26）｜70 个 `*_test.dart`，全部离线
+> 锚点：future `74bc4247`（2026-10-29）｜70 个 `*_test.dart`，全部离线
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/test-suite.md)
 
@@ -31,6 +31,7 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | 弹幕去重/合并 | `danmaku_merge_plan_test.dart`、`danmaku_settings_surface_test.dart` | 合并决策（新建/更新/跳过）、设置面板入口 |
 | 聚合搜索 | `aggregate_search_{controller,page,settings}_test.dart` | 并发发起、交错与跨站去重、单站失败隔离与文案、模式单一真值、条目渲染 |
 | 播放器缓存 | `player_cache_policy_test.dart` | 真正下发给 mpv 的缓存键值表（含 Android 关双重缓冲＝空表） |
+| 系统媒体控制 | 无自动化（跨平台通道 + 宿主 UI） | 手测：四系统的播放/暂停/停止、切台后标题与封面、窗口最小化后的控制入口 |
 | 关注详情/观看统计 | `follow_profile_header_test.dart`、`follow_card_preview_dialog_test.dart`、`watch_heatmap_test.dart`、`watch_year_selector_test.dart`、`history_daily_stats_test.dart` | 主播详情页与预览弹卡、观看热力图/年份选择、按日统计 |
 | 关注 | `follow_*_test.dart` | 搜索/分段/分组/多归属/智能分组/顶栏 |
 | 导航/设置/工具 | `navigation_dock_test.dart`、`settings_switch_locked_test.dart`、`tool_test.dart` | 导航/控件/纯函数 |

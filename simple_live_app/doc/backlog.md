@@ -1,6 +1,6 @@
 # simple_live_app 待办与优化清单
 
-> 锚点：future `3359b76e`（2026-10-26）
+> 锚点：future `74bc4247`（2026-10-29）
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/backlog.md)｜播放：[media-kit](../../media-kit/doc/backlog.md)
 
@@ -11,7 +11,7 @@
 | P0-1 | 音量均衡依赖定制 libmpv；内核缺 `loudnorm` 时整条音轨被禁（静音） | `modules/live_room/player/player_controller.dart`（`volumeNormalizeAF`/自愈） | 发版前四平台 ABI 符号扫描；保持运行时自愈 |
 | P0-2 | Android 12+ 暂停后从通知按播放＝后台重启前台服务，可能抛异常 | `services/playback/live_playback_audio_handler.dart`、`live_audio_session.dart` | 真机单变量 A/B：`androidStopForegroundOnPause=false` + `androidNotificationOngoing=false` |
 | P0-3 | 长后台后通知「停止」可能连带回收 Flutter 引擎 | audio_service `disposeFlutterEngine` 守卫 | 真机专项：后台久置→通知停止→重开不黑屏 |
-| P0-4 | 后台通知封面不带 referer/UA，防盗链平台退化成文字 | `live_playback_audio_handler` 的 `artUri` | 先落本地文件再交给 `MediaItem.artUri` |
+| P0-4 | 媒体控制封面不带 referer/UA，防盗链平台退化成文字（Android 通知、Windows SMTC、Apple Now Playing 共用这条链路） | `live_playback_audio_handler` 的 `artUri`（audio_service 下载后以 `artCacheFile` 交给平台） | 先落本地文件（带站点头）再交给 `MediaItem.artUri` |
 | P0-5 | 弹幕表情始终渲染，无开关；旧键 `kDanmuEmoticonEnable` 无读取方 | `live_room_page.dart`、`local_storage_service.dart` | 采纳上游开关或正式登记为取舍 |
 
 ## P1 — 平台/设备脆弱点
@@ -27,6 +27,10 @@
 | P1-7 | 本机测试有存量失败（2026-10-26 实测 **13 条/4 文件**；同机 HEAD worktree 对照同为 13 条） | 见 test-suite §4 | 桌面/真机复跑，分流「缺插件」与「真断言坏」 |
 | P1-8 | 聚合搜索「新查询提前作废」不闪空态只有**注释论证**（微任务内被 `_beginQuery` 复位、取不到中间帧）+ 让路分支兜底重启，**没有用例真的跑到被取消的那一轮** | `aggregate_search_controller.dart`（`_invalidateInflightLoad`） | 手测专盯「改词/切模式瞬间是否闪一下暂无数据」；要钉死得构造可控在途 fake，代价不小 |
 | P1-9 | 聚合搜索「单站连续失败 3 次退役」这条新分支**零执行**：三个会抛错的 fake provider 全是「失败 1 次」形态，把上限整段删掉测试照绿 | `aggregate_search_controller.dart`（`_maxConsecutiveSourceFailures`）、`aggregate_search_controller_test.dart` | 补一个用例：A 源恒抛、B 源正常，跑三轮断言 A 的 `roomPages` 不再增长且 `canLoadMore` 只由 B 决定 |
+| P1-10 | Windows SMTC 浮层会画出「上一首/下一首」，但直播没有下一集：`audio_service_win` 在 `SetupSMTC` 里把 `IsNextEnabled/IsPreviousEnabled` 写死 true，Dart 侧无从关闭 → 两个按得动却没反应的键 | `audio_service_win` fork `windows/audio_service_win_plugin.cpp`（`SetupSMTC`） | 给 fork 加能力位（`configure` 收 play/pause/next/prev 开关，`smtc.IsNextEnabled(x)`），本仓再传 `next:false`；需要先 push 到 `Starfallan/audio_service_win` |
+| P1-11 | macOS Now Playing / Linux MPRIS 只过了编译与逻辑审查，**未在真机手测**（本机只有 Windows）；Linux 侧 MPRIS 还是 beta 包 | `live_playback_audio_handler.dart`（`isSupported`/`AudioServiceMpris.init`）；`pubspec.yaml` 两处钉版 | 补手测：macOS 控制中心与 F8/F9、Linux GNOME/KDE 媒体控件与播放/暂停/停止、切房间后标题与封面更新 |
+| P1-12 | Linux MPRIS 的 `mpris:artUrl` 仍是远程 URL（`audio_service_mpris` 不读 `artCacheFile`），防盗链封面可能不显示；且 `artUri` 为空时会传字面量 `"null"` | `audio_service_mpris` 的 `setMediaItem` | 与 P0-4 一起做本地封面文件；必要时 fork 该包按 `artCacheFile` 发 `file://` |
+| P1-13 | Windows 按键回传跨线程：`audio_service_win` 在 SMTC 的 `ButtonPressed` 回调线程里直接 `channel->InvokeMethod`，引擎每次都报 `non-platform thread`，官方口径是「可能丢消息或崩溃」（本机已复现告警，功能当时仍生效） | `audio_service_win` fork `windows/audio_service_win_plugin.cpp` 的 `ButtonPressed` 回调 | 用 `PostMessage` + `RegisterTopLevelWindowProcDelegate` 把按钮投到 platform thread 再发通道（需改 fork）；改完连按十次暂停/播放核对零告警 |
 
 ## P2 — 结构/技术债
 

@@ -1,6 +1,6 @@
 # simple_live_app 工作流程图
 
-> 锚点：future `3359b76e`（2026-10-26）｜App v1.8.15+10815
+> 锚点：future `74bc4247`（2026-10-29）｜App v1.8.15+10815
 > 五件套：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/workflow-diagram.md)｜播放：[media-kit](../../media-kit/doc/workflow-diagram.md)
 
@@ -103,21 +103,26 @@ AppNavigator.toLiveRoomDetail(site, roomId, together?)
 - 副格不碰窗口/后台通知/自动关闭。
 - 移出一律在网格点 ✕；关注行只负责「加入」。
 
-## 5. 后台播放（仅主格，移动端）
+## 5. 系统媒体控制（仅主格）
 
 ```
 player.stream.playing/buffering/completed
-  → syncBackgroundPlayback（唯一入口）
-  → LivePlaybackAudioHandler
-  → LiveAudioSession（焦点/中断/耳机）
-  → Android 通知+前台服务 / iOS 锁屏
+  → syncBackgroundPlayback（唯一入口，副格永不挂载）
+  → LivePlaybackAudioHandler（audio_service）
+  → 平台实现：
+      Android  MediaSession + 媒体通知 + 前台服务
+      iOS/macOS Now Playing（锁屏/控制中心）+ MPRemoteCommandCenter
+      Windows  SMTC（媒体浮层/键盘媒体键，audio_service_win）
+      Linux    MPRIS（D-Bus，audio_service_mpris）
+  → LiveAudioSession（焦点/中断/耳机，仅 Android/iOS）
 远程指令 → playbackPlay/Pause/Stop → LivePlaybackTarget
-退出/换台 → detach（摘通知）
+退出/换台 → detach（撤媒体会话）
 ```
 
-- 与「进入后台自动暂停」互斥。
-- handler 跑在主 isolate；桌面直接返回。
-- 副格永不挂载。
+- 门控不同：移动端随「后台播放」开关（它还管前台服务）；桌面端常开，没有该开关，
+  窗口最小化后系统媒体控制才是唯一入口。
+- 与「进入后台自动暂停」互斥（仅移动端）。
+- handler 跑在主 isolate；初始化失败只降级成「没有媒体控制」，不挡启动。
 
 ## 6. 同步
 
@@ -175,6 +180,7 @@ B站是否登录现查 DB，不缓存 UI 布尔。
 | 列表分页/自动加载 | `e1f7a75c`、`4e3c35a1` |
 | 进房/播放/多开 | `fcb43a82`、`afd18194`、`08fb5a74`、`49bfb83e`、`9a3f1313` |
 | 后台播放 | `e374b4df`、`5692db16`、`cd89ecdc`、`cbb474ee` |
+| 系统媒体控制扩到四系统（SMTC/MPRIS/Now Playing） | `74bc4247` |
 | 关注页三栏/胶囊/搜索 | `1c0d02f5`、`0d2f57e6`、`55928d21`、`b5718dd8`、`52466f96` |
 | 屏幕常亮 | `900f8d50` |
 | 账号 | `63197f69`（校验失败不抹凭证） |

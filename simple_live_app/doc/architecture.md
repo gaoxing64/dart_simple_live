@@ -1,6 +1,6 @@
 # simple_live_app 架构与选型对照
 
-> 锚点：future `3359b76e`（2026-10-26）｜App v1.8.15+10815｜Flutter 3.47.8
+> 锚点：future `74bc4247`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/architecture.md)｜播放：[media-kit](../../media-kit/doc/architecture.md)
 
@@ -38,7 +38,8 @@ lib/
 | 依赖注入 | 启动期 `Get.put` + `Get.find` | 路径短；测试需 `Get.reset` |
 | 跨模块信号 | 自研 `EventBus`（字符串事件） | 简单；无编译期校验，必须 cancel |
 | 平台能力 | 纯函数 + 薄平台层 | `PipAspectCalculator`、`resolveMultiPlayLayout`、`resolveTileVolume`、`RoomWatchClock` 可单测 |
-| 播放 | media-kit fork（`gaoxing64`，锁 `23ec6b9c`） | 需要自建 libmpv 的 loudnorm 等滤镜 |
+| 播放 | media-kit fork（`gaoxing64`，锁 `917d80ca`） | 需要自建 libmpv 的 loudnorm 等滤镜 |
+| 系统媒体控制 | 全平台都走 `audio_service`，平台实现按系统替换 | 一个 handler 投影四类系统面：Android MediaSession、Apple Now Playing、Windows SMTC、Linux MPRIS；桌面不引入第二套播放控制层 |
 | 协议 | `simple_live_core` Rust + FRB | 五平台统一；见 core KB |
 | 持久化 | `hive_ce` 五箱 | 关注/历史/分组/屏蔽/账号 |
 | 关注分组 | 真源 = `FollowUserTag.userId` 成员表 | 一个关注可属多组；`FollowUser.tag` 已删 |
@@ -56,7 +57,7 @@ lib/
 | `history_service` | 按房间计时，2 分钟落盘 |
 | `sync_service` | UDP 发现 + HTTP 接收 |
 | `window_service` | 窗口几何/置顶/标题栏（桌面） |
-| `playback/*` | audio_service handler + 音频会话 + target 抽象 |
+| `playback/*` | audio_service handler + 音频会话 + target 抽象（Android/iOS/macOS/Linux/Windows 四类系统媒体控制） |
 | `screen_awake_service` | 常亮按路引用计数，最后一个释放才熄屏 |
 | `stream_relay/*` | 斗鱼直链续流（FLV tag 接续） |
 
@@ -66,7 +67,7 @@ lib/
 media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建）
 ```
 
-- 8 处引用钉到 `github.com/gaoxing64/media-kit@23ec6b9c`（含 libs override）。
+- 8 处引用钉到 `github.com/gaoxing64/media-kit@917d80ca`（含 libs override）。
 - 官方 libmpv 不含 loudnorm；挂 `af` 会导致音频轨被禁（静音），故必须用 fork 二进制。
 - 斗鱼直链经本地 `127.0.0.1` 中转，播放器无感。
 - 直播缓存属性由顶层纯函数 `buildLiveCacheProperties({isAndroid, doubleBuffering, cacheSecs})` **一次性组表**，
@@ -88,9 +89,9 @@ media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建�
 | 平台 | 接线 |
 | --- | --- |
 | Android | `AudioService` 前台服务 + `MediaButtonReceiver`；`AudioServiceActivity`；PiP；Impeller 关 |
-| Windows | `window_manager` + `win32`（几何/标题栏深浅） |
-| Linux | 窗口关闭即退出；Wayland 下部分提示 no-op |
-| macOS | 小窗用 Dart 拉回比例 |
+| Windows | `window_manager` + `win32`（几何/标题栏深浅）；SMTC 走 `audio_service_win`（Starfallan fork，钉 `ef8d0db3`） |
+| Linux | 窗口关闭即退出；Wayland 下部分提示 no-op；MPRIS 走 `audio_service_mpris`（钉 `1.0.0-beta.2`） |
+| macOS | 小窗用 Dart 拉回比例；Now Playing 走 audio_service 自带 darwin 实现 |
 | iOS | `UIBackgroundModes: audio` + `audio_session` playback；PiP 用 floating |
 
 ## 8. 已删除/迁出
@@ -114,6 +115,7 @@ media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建�
 | Rust 全面接管、去掉运行时开关 | `73e80b1e`、`f72bb417` |
 | 多开从「模式」改「动作」 | `afd18194` |
 | 后台播放/系统媒体控制 | `e374b4df`、`5692db16`、`cd89ecdc`、`cbb474ee` |
+| 系统媒体控制扩到 Windows SMTC / Linux MPRIS / Apple Now Playing | `74bc4247` |
 | 关注多分组归属 | `3267a04e`、`a225e3b4`、`0442f4ac` |
 | 屏幕常亮按路引用计数 | `900f8d50` |
 | 关注页三栏 + 分组胶囊 | `1c0d02f5`、`55928d21` |
