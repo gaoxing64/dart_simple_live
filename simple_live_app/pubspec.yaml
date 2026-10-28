@@ -98,17 +98,17 @@ dependencies:
   media_kit:
     git:
       url: https://github.com/gaoxing64/media-kit.git
-      ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
+      ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./media_kit
   media_kit_video:
     git:
       url: https://github.com/gaoxing64/media-kit.git
-      ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
+      ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./media_kit_video
   media_kit_libs_video:
     git:
       url: https://github.com/gaoxing64/media-kit.git
-      ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
+      ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./libs/universal/media_kit_libs_video
 
   # 后台播放：切后台/锁屏继续出声，并把播放控制送到通知栏、锁屏与耳机媒体键。
@@ -135,27 +135,27 @@ dependency_overrides:
   media_kit_libs_linux:
     git:
       url: https://github.com/gaoxing64/media-kit.git
-      ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
+      ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./libs/linux/media_kit_libs_linux
   media_kit_libs_ios_video:
     git:
       url: https://github.com/gaoxing64/media-kit.git
-      ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
+      ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./libs/ios/media_kit_libs_ios_video
   media_kit_libs_android_video:
     git:
       url: https://github.com/gaoxing64/media-kit.git
-      ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
+      ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./libs/android/media_kit_libs_android_video
   media_kit_libs_windows_video:
     git:
       url: https://github.com/gaoxing64/media-kit.git
-      ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
+      ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./libs/windows/media_kit_libs_windows_video
   media_kit_libs_macos_video:
     git:
       url: https://github.com/gaoxing64/media-kit.git
-      ref: 23ec6b9c3ad9eface599d400cc367317d9b8d098
+      ref: 917d80ca84460b08f900cf69e32586a6e04173d7
       path: ./libs/macos/media_kit_libs_macos_video
 
 dev_dependencies:
