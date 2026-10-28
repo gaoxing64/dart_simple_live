@@ -760,7 +760,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         // 落在这段时 OS 已退出全屏，setSize/setPosition 是本臂最后一笔摆窗，不
         // 会被谁顶掉。口径也对得上：`getSize`/`setPosition` 走 GetWindowRect、
         // `setSize` 走 SetWindowPos，两边都是**外框**，所以还原点原样落回；
-        // 随后 setTitleBarStyle(normal) 只带 SWP_NOSIZE|SWP_FRAMECHANGED，外框
+        // 随后恢复常规标题栏（设置关时是 hidden）只带 SWP_NOSIZE|SWP_FRAMECHANGED，外框
         // 不变、让出去的是客户区，与「没进过小窗的正常窗口态」完全一致。
         // （反过来把退全屏放后面就是原来的 bug：那笔不 await 的回弹排在还原之后
         // 落地，外框被改回小窗矩形。）
@@ -773,7 +773,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       }
       Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
       Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
-      windowManager.setTitleBarStyle(TitleBarStyle.normal);
+      WindowService.instance.restoreTitleBarStyle();
       _consumeNormalGeometry();
       await WindowService.instance.danmakuFontClamped();
     }
@@ -960,7 +960,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       }
       await WindowService.instance.restoreNormalMinimumSize();
       _unbindPipAspectListener();
-      windowManager.setTitleBarStyle(TitleBarStyle.normal);
+      WindowService.instance.restoreTitleBarStyle();
       if (_lastWindowSize != null) {
         windowManager.setSize(_lastWindowSize!);
       }

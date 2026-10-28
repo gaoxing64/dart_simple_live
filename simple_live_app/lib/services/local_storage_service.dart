@@ -172,6 +172,9 @@ class LocalStorageService extends GetxService {
   /// 旧键 `BackgroundPlay` 已停用（升级后一律以本键为准）。
   static const String kMediaControls = "MediaControls";
 
+  /// 桌面端：是否显示系统原生窗口标题栏。默认显示（与升级前一致）。
+  static const String kShowWindowTitleBar = "ShowWindowTitleBar";
+
   /// 播放器缓冲区大小
   static const String kPlayerBufferSize = "PlayerBufferSize";
 
