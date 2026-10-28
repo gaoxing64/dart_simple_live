@@ -71,13 +71,6 @@ class WindowService extends GetxService implements WindowListener {
   /// 主题变化订阅（[onClose] 时释放）
   Worker? _themeModeWorker;
 
-  /// 「显示窗口标题栏」订阅（[onClose] 时释放）
-  Worker? _titleBarWorker;
-
-  /// 全屏态：由窗口事件维护。设置里切换标题栏时据此跳过——全屏/小窗的
-  /// 标题栏由播放器自己管，不能被这次切换顶回来。
-  bool _fullScreen = false;
-
   WindowService() {
     windowManager.addListener(this);
   }
@@ -85,11 +78,6 @@ class WindowService extends GetxService implements WindowListener {
   @override
   void onInit() {
     super.onInit();
-    // 设置里改完立刻生效：不必等下次进全屏/小窗才把样式写回平台。
-    _titleBarWorker = ever(
-      AppSettingsController.instance.showWindowTitleBar,
-      (_) => applyTitleBarStyle(),
-    );
     if (Platform.isWindows) {
       // 应用内切换主题时立即刷新标题栏，不必等 Flutter 主题动画走完
       _themeModeWorker = ever(AppSettingsController.instance.themeMode, (_) {
@@ -106,8 +94,6 @@ class WindowService extends GetxService implements WindowListener {
   void onClose() {
     _themeModeWorker?.dispose();
     _themeModeWorker = null;
-    _titleBarWorker?.dispose();
-    _titleBarWorker = null;
     final observer = _brightnessObserver;
     if (observer != null) {
       WidgetsBinding.instance.removeObserver(observer);
@@ -134,8 +120,6 @@ class WindowService extends GetxService implements WindowListener {
 
     AppSettingsController.instance.danmakuFontResize = await danmakuFontClamped();
     await windowManager.setPosition(Offset(x, y));
-    final showTitleBar =
-        AppSettingsController.instance.showWindowTitleBar.value;
     WindowOptions windowOptions = WindowOptions(
       size: Size(width, height),
       // 最小尺寸单位 = Flutter 逻辑像素（window_manager 在 Windows 上
@@ -149,10 +133,6 @@ class WindowService extends GetxService implements WindowListener {
       minimumSize: _normalMinimumSize, // 防止无脑小窗导致界面报错
       center: false,
       title: "Slive",
-      // 只在需要隐藏时下发：显式传 normal 会让 macOS 走一遍 setTitleBarStyle
-      // （那边无论 normal/hidden 都会把窗口设成非不透明），等于给所有用户多一次
-      // 启动期窗口属性变更；不传就是平台的默认外观。
-      titleBarStyle: showTitleBar ? null : TitleBarStyle.hidden,
     );
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       if (Platform.isWindows) {
@@ -166,28 +146,6 @@ class WindowService extends GetxService implements WindowListener {
       }
       await windowManager.focus();
     });
-  }
-
-  /// 常规窗口态该用的标题栏：设置开＝原生标题栏，设置关＝无边框。
-  ///
-  /// 全屏与小窗自己把标题栏设成 hidden，并且退出时各自还原，所以这里遇到
-  /// 这两种状态直接跳过——否则在设置页改这一项会把全屏顶回带标题栏的样式。
-  Future<void> applyTitleBarStyle() async {
-    if (isPIP || _fullScreen) {
-      return;
-    }
-    await restoreTitleBarStyle();
-  }
-
-  /// 按设置把标题栏写回平台（不看当前是否全屏/小窗）。
-  ///
-  /// 给「退出全屏 / 退出小窗」那一瞬用：那时标志位还没落回常态，但样式就该
-  /// 按常规窗口给了。
-  Future<void> restoreTitleBarStyle() {
-    final visible = AppSettingsController.instance.showWindowTitleBar.value;
-    return windowManager.setTitleBarStyle(
-      visible ? TitleBarStyle.normal : TitleBarStyle.hidden,
-    );
   }
 
   ///
@@ -313,7 +271,6 @@ class WindowService extends GetxService implements WindowListener {
 
   @override
   Future<void> onWindowEnterFullScreen() async {
-    _fullScreen = true;
     // https://github.com/leanflutter/window_manager/issues/560
     // https://github.com/leanflutter/window_manager/pull/531
     await danmakuFontClamped();
@@ -333,7 +290,6 @@ class WindowService extends GetxService implements WindowListener {
 
   @override
   Future<void> onWindowLeaveFullScreen() async {
-    _fullScreen = false;
     // issues 同上
     await danmakuFontClamped();
   }

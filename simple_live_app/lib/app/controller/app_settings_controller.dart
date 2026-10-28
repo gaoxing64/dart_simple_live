@@ -224,9 +224,6 @@ class AppSettingsController extends GetxController {
 
     windowMaxAuto.value = LocalStorageService.instance.getValue(LocalStorageService.kWindowMaxAuto, false);
     windowMaxState.value = LocalStorageService.instance.getValue(LocalStorageService.kWindowMaxState, false);
-    // 默认显示：升级前后外观一致，想要无边框的用户自己去关。
-    showWindowTitleBar.value =
-        LocalStorageService.instance.getValue(LocalStorageService.kShowWindowTitleBar, true);
 
     windowPipX.value = LocalStorageService.instance.getValue(LocalStorageService.kWindowPipX, 0.0);
     windowPipY.value = LocalStorageService.instance.getValue(LocalStorageService.kWindowPipY, 0.0);
@@ -1038,17 +1035,6 @@ class AppSettingsController extends GetxController {
   void setWindowMaxState(bool e) {
     windowMaxState.value = e;
     LocalStorageService.instance.setValue(LocalStorageService.kWindowMaxState, e);
-  }
-
-  /// 桌面端是否显示系统原生标题栏（默认显示）。
-  ///
-  /// 关闭后窗口是无边框的：拖动/关闭交给系统（任务栏、Alt+F4 等），应用不补
-  /// 任何替代控件——这是产品取舍，不是没实现。全屏与小窗有自己的标题栏语义，
-  /// 不受这一项影响（见 [WindowService.applyTitleBarStyle]）。
-  var showWindowTitleBar = true.obs;
-  void setShowWindowTitleBar(bool e) {
-    showWindowTitleBar.value = e;
-    LocalStorageService.instance.setValue(LocalStorageService.kShowWindowTitleBar, e);
   }
 
   /// window小窗size

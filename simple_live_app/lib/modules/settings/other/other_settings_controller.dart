@@ -266,11 +266,6 @@ class OtherSettingsController extends BaseController {
       AppSettingsController.instance.setWindowMaxState(maxState);
     }
   }
-
-  /// 标题栏样式由 [WindowService] 监听设置项后落地，这里只负责存值。
-  void setShowWindowTitleBar(bool e) {
-    AppSettingsController.instance.setShowWindowTitleBar(e);
-  }
 }
 
 class LogFileModel {
