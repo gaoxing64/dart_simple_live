@@ -126,6 +126,21 @@ dependencies:
   # （audio_service 不管这些）。
   audio_session: 0.2.4
 
+  # 桌面端的系统媒体控制，走 audio_service 的平台实现，保持四个系统只有一个
+  # handler（LivePlaybackAudioHandler）：
+  #   Windows → SMTC；Linux → MPRIS（D-Bus）；macOS/iOS → audio_service 自带的
+  #   darwin 实现（Now Playing + MPRemoteCommandCenter）。
+  #
+  # audio_service_win 用 Starfallan 的 fork 而不是 pub 上的 0.0.3：上游那份在
+  # MSVC 下编不过（缺 c++_std_20），且不认 audio_service 下载好的本地封面文件
+  # （extras['artCacheFile']），防盗链平台会退化成无图。
+  audio_service_win:
+    git:
+      url: https://github.com/Starfallan/audio_service_win.git
+      ref: ef8d0db373f5cf193f7679ef2f2bb12bc6e921ba
+  # MPRIS 仍是 beta；钉死精确版本，升级前重跑 Linux 手测。
+  audio_service_mpris: 1.0.0-beta.2
+
 dependency_overrides:
   get:
     git:
