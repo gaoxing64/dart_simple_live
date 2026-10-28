@@ -81,9 +81,15 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                   () => SettingsSwitch(
                     title: "系统媒体控制",
                     // 移动端这一项同时是「后台播放」：媒体通知就是前台服务的载体。
-                    subtitle: Platform.isAndroid || Platform.isIOS
-                        ? "在通知栏与锁屏显示播放控制，切到后台后继续播放"
-                        : "在系统媒体控件中显示播放控制与封面",
+                    // 副标题按「自动暂停」分支——两者已不再互斥，开着自动暂停时
+                    // 切后台就是会暂停，不能再承诺「继续播放」。
+                    subtitle: Platform.isWindows ||
+                            Platform.isLinux ||
+                            Platform.isMacOS
+                        ? "在系统媒体控件中显示播放控制与封面"
+                        : controller.playerAutoPause.value
+                            ? "在${Platform.isIOS ? "锁定屏幕与控制中心" : "通知栏与锁屏"}显示播放控制"
+                            : "在${Platform.isIOS ? "锁定屏幕与控制中心" : "通知栏与锁屏"}显示播放控制，切到后台后继续播放",
                     value: controller.mediaControls.value,
                     onChanged: (e) {
                       onMediaControlsChanged(e);

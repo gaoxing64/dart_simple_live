@@ -201,7 +201,9 @@ class OtherSettingsPage extends GetView<OtherSettingsController> {
                           .showWindowTitleBar.value,
                       title: "显示窗口标题栏",
                       // 关闭后不补替代控件是产品取舍：拖动/关闭走系统方式。
-                      subtitle: "关闭后窗口无边框；移动与关闭请用系统方式（Alt+Space→移动、Alt+F4、任务栏）",
+                      subtitle: Platform.isMacOS
+                          ? "关闭后隐藏标题文字与标题栏背景（红绿灯保留）；移动与关闭仍按系统方式"
+                          : "关闭后窗口无边框；移动与关闭请用系统方式（Alt+Space→移动、Alt+F4、任务栏）",
                       onChanged: controller.setShowWindowTitleBar,
                     ),
                   ),
