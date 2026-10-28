@@ -75,8 +75,9 @@ void main(List<String> arguments) async {
   );
   //初始化服务
   await initServices();
-  // 后台播放：AudioService.init 必须在 runApp 之前，且要等 Get.put 那批服务就位。
-  // 函数内部自己判平台，桌面端是纯 no-op；失败也只降级成「没有通知栏控制」，不挡启动。
+  // 系统媒体控制：AudioService.init 必须在 runApp 之前，且要等 Get.put 那批服务就位。
+  // 五端各自走 audio_service 的平台实现（Android MediaSession / Apple Now Playing /
+  // Windows SMTC / Linux MPRIS）；失败只降级成「没有系统媒体控制」，不挡启动。
   await initLivePlaybackAudioHandler();
   await initWindow();
 

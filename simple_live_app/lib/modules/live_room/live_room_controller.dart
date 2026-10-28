@@ -2049,9 +2049,13 @@ ${error?.stackTrace}''');
   /// 换台抑制位：见 [resetRoom]。
   bool _bgSuppressed = false;
 
-  /// 桌面端与「audio_service 初始化失败」两种情况下都是 null，下面整套逻辑随之空转。
+  /// 「audio_service 初始化失败 / 当前平台没有实现」时是 null，下面整套逻辑随之空转。
   LivePlaybackAudioHandler? get _bgHandler =>
       LivePlaybackAudioHandler.maybeInstance;
+
+  /// 移动端的媒体控制属于「后台播放」的一部分（前台服务 + 通知栏），随开关走；
+  /// 桌面端没有后台服务这一层，窗口最小化后系统媒体控制才是唯一入口，常开。
+  bool get _mediaControlsFollowSwitch => Platform.isAndroid || Platform.isIOS;
 
   void initBackgroundPlayback() {
     // 副格不挂通知：多开时四路争同一条通知只会互相顶掉。
@@ -2089,7 +2093,7 @@ ${error?.stackTrace}''');
     });
   }
 
-  /// 「此刻通知栏该不该显示这一路、显示成什么样」的唯一入口。幂等。
+  /// 「此刻系统媒体控制该不该显示这一路、显示成什么样」的唯一入口。幂等。
   void syncBackgroundPlayback() {
     if (_bgReleased || _bgSuppressed || isSecondaryTile) {
       return;
@@ -2098,7 +2102,8 @@ ${error?.stackTrace}''');
     if (handler == null) {
       return;
     }
-    if (!AppSettingsController.instance.backgroundPlay.value) {
+    if (_mediaControlsFollowSwitch &&
+        !AppSettingsController.instance.backgroundPlay.value) {
       unawaited(handler.detach(this));
       return;
     }

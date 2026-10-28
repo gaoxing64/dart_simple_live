@@ -2,13 +2,20 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_service_mpris/audio_service_mpris.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/services/playback/live_audio_session.dart';
 import 'package:simple_live_app/services/playback/live_playback_target.dart';
 
-/// 把「当前直播间这一路」投影到系统媒体控制面上：Android 的通知栏与媒体会话、
-/// iOS 的锁屏与控制中心，以及耳机/蓝牙的媒体键。
+/// 把「当前直播间这一路」投影到系统媒体控制面上：
+///
+/// | 平台 | 系统面 | 由谁实现 |
+/// | --- | --- | --- |
+/// | Android | MediaSession + 媒体通知 + 耳机/蓝牙媒体键 | audio_service 自带 |
+/// | iOS / macOS | Now Playing（锁屏 / 控制中心 / 媒体键） | audio_service 自带 darwin |
+/// | Windows | SMTC（媒体浮层 / 键盘媒体键） | audio_service_win（SMTC） |
+/// | Linux | MPRIS（D-Bus，桌面媒体控件） | audio_service_mpris |
 ///
 /// 背后出声的仍然是 media_kit 的 libmpv 播放器，这里**不拥有**播放：
 /// * 状态与元数据由挂载进来的 [LivePlaybackTarget]（直播间控制器）供给，单向发布；
@@ -17,17 +24,22 @@ import 'package:simple_live_app/services/playback/live_playback_target.dart';
 /// audio_service 的 handler 跑在**主 isolate**（已核 0.18.19 源码），所以这里能直接
 /// 持有并操作那个播放器；换成隔离子实现的版本就做不到这一点。
 ///
-/// 桌面端整个类不存在：[initLivePlaybackAudioHandler] 直接返回，[maybeInstance] 恒为
-/// null，直播间那边的同步入口随之整体空转。
+/// 桌面端与移动端只有一处语义差别：移动端的媒体控制属于「后台播放」的一部分
+/// （前台服务、通知栏），随设置开关；桌面端没有后台服务这一层，媒体控制常开
+/// （判定在直播间的 `syncBackgroundPlayback`）。
 class LivePlaybackAudioHandler extends BaseAudioHandler {
   static LivePlaybackAudioHandler? _instance;
 
-  /// 未初始化（桌面端、或初始化失败）时为 null——调用方据此整体空转，不抛。
+  /// 未初始化（初始化失败、或平台不支持）时为 null——调用方据此整体空转，不抛。
   static LivePlaybackAudioHandler? get maybeInstance => _instance;
 
-  /// 只有这两个平台有「后台播放」这一层（macOS 虽然被 audio_service 支持，但本项目
-  /// 桌面端关窗即退出，语义不同，不接入）。
-  static bool get isSupported => Platform.isAndroid || Platform.isIOS;
+  /// 五个系统都有系统媒体控制；TV 是另一个 app（simple_live_tv_app），不在这里。
+  static bool get isSupported =>
+      Platform.isAndroid ||
+      Platform.isIOS ||
+      Platform.isMacOS ||
+      Platform.isLinux ||
+      Platform.isWindows;
 
   LivePlaybackAudioHandler() {
     // 焦点与设备插拔只能由我们自己接（原因见 LiveAudioSession 的类注释）。
@@ -125,9 +137,10 @@ class LivePlaybackAudioHandler extends BaseAudioHandler {
       return;
     }
     // 从没进过播放态、又正处在后台：先按未播发布，回前台后的下一次再补（原因见
-    // appInForeground）。放在这里而不是 _buildPlaybackState 里：建状态不该有副作用。
-    final safePlaying =
-        t.playbackPlaying && (_enteredPlayingState || appInForeground);
+    // appInForeground）。这道网只为 Android 12+ 的前台服务异常而设，别的平台
+    // 没有它，不能被它压住（桌面窗口失焦时 lifecycle 也会离开 resumed）。
+    final safePlaying = t.playbackPlaying &&
+        (!Platform.isAndroid || _enteredPlayingState || appInForeground);
     if (safePlaying) {
       _enteredPlayingState = true;
     }
@@ -267,15 +280,30 @@ class LivePlaybackAudioHandler extends BaseAudioHandler {
   }
 }
 
-/// 必须在 `runApp` 之前调用；桌面端直接返回，什么都不做。
+/// 必须在 `runApp` 之前调用。
 ///
-/// 失败不往上抛：初始化挂了只等于「没有通知栏控制」，后台出声本身不依赖它，
+/// 失败不往上抛：初始化挂了只等于「没有系统媒体控制」，播放本身不依赖它，
 /// 不该因此挡住 app 启动。
 Future<void> initLivePlaybackAudioHandler() async {
   if (!LivePlaybackAudioHandler.isSupported) {
     return;
   }
   try {
+    if (Platform.isLinux) {
+      // MPRIS 的 Identity / DesktopEntry / 能力位只能在 configure 之前给：
+      // audio_service 的 config 里没有这些字段，必须由平台实现自己接（见包文档）。
+      // CanGoNext/CanGoPrevious 恒为 false——直播没有「下一集」，一个按得动却
+      // 没反应的键比没有更糟（与 PlaybackState 里只发 play/pause/stop 同一取舍）。
+      AudioServiceMpris.init(
+        dBusName: 'slive',
+        identity: 'Slive',
+        desktopEntry: 'io.github.SlotSun.Slive',
+        canControl: true,
+        canPlay: true,
+        canPause: true,
+        supportedUriSchemes: const ['http', 'https'],
+      );
+    }
     final handler = await AudioService.init(
       builder: () => LivePlaybackAudioHandler(),
       config: const AudioServiceConfig(
