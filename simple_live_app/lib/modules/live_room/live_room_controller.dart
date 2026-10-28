@@ -16,6 +16,7 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
+import 'package:simple_live_app/app/utils/permission_handler.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/app/utils/sandbox.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
@@ -361,7 +362,7 @@ class LiveRoomController extends PlayerController
   void onInit() {
     WidgetsBinding.instance.addObserver(this);
     // 播放事件 → 系统媒体控制（通知栏/锁屏/耳机键）的那条订阅。
-    initBackgroundPlayback();
+    initMediaControls();
     // 起播即持有屏幕常亮，暂停/停止/关房/直播结束才释放（见 [ScreenAwakeService]）。
     initScreenAwake();
     if (FollowService.instance.followList.isEmpty) {
@@ -1010,7 +1011,7 @@ class LiveRoomController extends PlayerController
       followUserBlock.value = FollowBlockService.instance.getBlock(siteId: site.id, roomId: roomId);
       // 标题/封面/主播名刚就位，马上刷一次通知：直播流稳定时 playing/buffering
       // 可以很久不跳，等事件的话用户看到的会一直是上一路的元数据。
-      syncBackgroundPlayback();
+      syncMediaControls();
       if (liveStatus.value) {
         getSuperChatMessage();
         getPlayQualities();
@@ -1167,8 +1168,8 @@ class LiveRoomController extends PlayerController
     await player.open(Playlist(mediaList));
     // 换台抑制位在这里解开（流的起点 = 新房间元数据的起点），并把通知重新挂上。
     // 此刻 playing 还是 false，所以只会发布元数据，不会去拉前台服务。
-    _bgSuppressed = false;
-    syncBackgroundPlayback();
+    _mediaSuppressed = false;
+    syncMediaControls();
   }
 
   /// 刷新 [playerUrls]：可续流的线路替换为本地中转地址，其余保持直链。
@@ -2006,10 +2007,10 @@ class LiveRoomController extends PlayerController
     // 换台后窗口计数归零，旧的合并展示项再也等不到 bump，直接丢弃
     _mergeEntries.clear();
 
-    // 换台：先摘掉通知并抑制重挂。`player.stop()` 会推一次 playing=false 的事件，
+    // 换台：先摘掉媒体会话并抑制重挂。`player.stop()` 会推一次 playing=false 的事件，
     // 不压住的话那一瞬间会用**旧房间**的标题与封面重新挂上去，而新房间的详情还在路上。
-    _bgSuppressed = true;
-    await _bgHandler?.detach(this);
+    _mediaSuppressed = true;
+    await _mediaHandler?.detach(this);
 
     // 停止播放
     await player.stop();
@@ -2032,49 +2033,49 @@ ${error?.stackTrace}''');
     SmartDialog.showToast("已复制错误信息");
   }
 
-  // ------------------------------------------------------------------ 后台播放
+  // -------------------------------------------------------------- 系统媒体控制
 
-  StreamSubscription<bool>? _bgPlayingSubscription;
-  StreamSubscription<bool>? _bgBufferingSubscription;
-  StreamSubscription<bool>? _bgCompletedSubscription;
-  StreamSubscription<dynamic>? _bgSettingSubscription;
+  StreamSubscription<bool>? _playingSyncSubscription;
+  StreamSubscription<bool>? _bufferingSyncSubscription;
+  StreamSubscription<bool>? _completedSyncSubscription;
+  StreamSubscription<dynamic>? _settingSyncSubscription;
   StreamSubscription<bool>? _awakeSubscription;
 
-  /// 播放器已释放/正在收尾：此期间任何事件都不许再往通知上写。
+  /// 播放器已释放/正在收尾：此期间任何事件都不许再往媒体会话上写。
   ///
-  /// `onClose` 里先置它再 `player.dispose()`——通知的寿命和播放器的寿命并不同步，
+  /// `onClose` 里先置它再 `player.dispose()`——媒体会话的寿命和播放器的寿命并不同步，
   /// 少了这个位就会读到已释放的 platform。
-  bool _bgReleased = false;
+  bool _mediaReleased = false;
 
   /// 换台抑制位：见 [resetRoom]。
-  bool _bgSuppressed = false;
+  bool _mediaSuppressed = false;
 
   /// 「audio_service 初始化失败 / 当前平台没有实现」时是 null，下面整套逻辑随之空转。
-  LivePlaybackAudioHandler? get _bgHandler =>
+  LivePlaybackAudioHandler? get _mediaHandler =>
       LivePlaybackAudioHandler.maybeInstance;
 
-  /// 移动端的媒体控制属于「后台播放」的一部分（前台服务 + 通知栏），随开关走；
-  /// 桌面端没有后台服务这一层，窗口最小化后系统媒体控制才是唯一入口，常开。
-  bool get _mediaControlsFollowSwitch => Platform.isAndroid || Platform.isIOS;
+  /// 通知权限只在本次运行里问一次（Android 13+）。默认开关是开的，没有这个入口
+  /// 的话，默认值的用户永远走不到设置页里那次请求，通知栏就一直是空的。
+  static bool _askedNotificationPermission = false;
 
-  void initBackgroundPlayback() {
-    // 副格不挂通知：多开时四路争同一条通知只会互相顶掉。
+  void initMediaControls() {
+    // 副格不挂媒体会话：多开时四路争同一条通知只会互相顶掉。
     if (isSecondaryTile) {
       return;
     }
-    _bgPlayingSubscription =
-        player.stream.playing.listen((_) => syncBackgroundPlayback());
-    _bgBufferingSubscription =
-        player.stream.buffering.listen((_) => syncBackgroundPlayback());
+    _playingSyncSubscription =
+        player.stream.playing.listen((_) => syncMediaControls());
+    _bufferingSyncSubscription =
+        player.stream.buffering.listen((_) => syncMediaControls());
     // 直播结束（EOS）时 mpv 只报 completed，`playing` 仍是 true：不接这一路的话
     // 通知会停在「正在播放」上，而声音早就没了。
-    _bgCompletedSubscription =
-        player.stream.completed.listen((_) => syncBackgroundPlayback());
-    _bgSettingSubscription =
+    _completedSyncSubscription =
+        player.stream.completed.listen((_) => syncMediaControls());
+    _settingSyncSubscription =
         EventBus.instance.listen(EventBus.kMediaControlsChanged, (event) {
       // 开与关都要立刻处理：流稳定时 playing/buffering 可以很久不跳，等下一次事件的
       // 话，用户在设置页关了开关、通知还挂在屏幕上。
-      syncBackgroundPlayback();
+      syncMediaControls();
     });
   }
 
@@ -2094,11 +2095,14 @@ ${error?.stackTrace}''');
   }
 
   /// 「此刻系统媒体控制该不该显示这一路、显示成什么样」的唯一入口。幂等。
-  void syncBackgroundPlayback() {
-    if (_bgReleased || _bgSuppressed || isSecondaryTile) {
+  ///
+  /// 一个开关管到底：移动端的媒体通知本身就是前台服务那条通知，所以
+  /// 「有没有通知栏/锁屏控制」与「切后台还能不能继续出声」是同一件事。
+  void syncMediaControls() {
+    if (_mediaReleased || _mediaSuppressed || isSecondaryTile) {
       return;
     }
-    final handler = _bgHandler;
+    final handler = _mediaHandler;
     if (handler == null) {
       return;
     }
@@ -2106,23 +2110,35 @@ ${error?.stackTrace}''');
       unawaited(handler.detach(this));
       return;
     }
-    if (_mediaControlsFollowSwitch &&
-        !AppSettingsController.instance.backgroundPlay.value) {
-      unawaited(handler.detach(this));
-      return;
-    }
+    _ensureNotificationPermission();
     // attach 内部幂等：同一个实例重复挂载只等价于一次重推。
     handler.attach(this);
   }
+  /// Android 13+ 不授权就看不见那条媒体通知（前台服务仍会跑，但没有控制入口）。
+  /// 失败只记日志：拿不到权限不该挡住播放。
+  void _ensureNotificationPermission() {
+    if (!Platform.isAndroid || _askedNotificationPermission) {
+      return;
+    }
+    _askedNotificationPermission = true;
+    Permission.notification.request().then((status) {
+      if (!status.isGranted) {
+        Log.d('系统媒体控制：通知权限未授予，通知栏里不会有控制入口');
+      }
+    }).catchError((Object e) {
+      Log.e('系统媒体控制：请求通知权限失败 ($e)', StackTrace.current);
+    });
+  }
+
 
   /// 必须在 `player.dispose()` 之前调用（见 [onClose]）。
-  Future<void> releaseBackgroundPlayback() async {
-    _bgReleased = true;
-    await _bgPlayingSubscription?.cancel();
-    await _bgBufferingSubscription?.cancel();
-    await _bgCompletedSubscription?.cancel();
-    await _bgSettingSubscription?.cancel();
-    await _bgHandler?.detach(this);
+  Future<void> releaseMediaControls() async {
+    _mediaReleased = true;
+    await _playingSyncSubscription?.cancel();
+    await _bufferingSyncSubscription?.cancel();
+    await _completedSyncSubscription?.cancel();
+    await _settingSyncSubscription?.cancel();
+    await _mediaHandler?.detach(this);
   }
 
   // ------------------------------------------------------ LivePlaybackTarget
@@ -2156,14 +2172,14 @@ ${error?.stackTrace}''');
 
   @override
   bool get playbackPlaying =>
-      !_bgReleased && player.state.playing && !player.state.completed;
+      !_mediaReleased && player.state.playing && !player.state.completed;
 
   @override
-  bool get playbackBuffering => !_bgReleased && player.state.buffering;
+  bool get playbackBuffering => !_mediaReleased && player.state.buffering;
 
   @override
   Future<void> playbackPlay() async {
-    if (_bgReleased) {
+    if (_mediaReleased) {
       return;
     }
     await player.play();
@@ -2174,7 +2190,7 @@ ${error?.stackTrace}''');
 
   @override
   Future<void> playbackPause() async {
-    if (_bgReleased) {
+    if (_mediaReleased) {
       return;
     }
     await player.pause();
@@ -2188,7 +2204,7 @@ ${error?.stackTrace}''');
   /// /换线路」的自愈逻辑会把「停止」当成一次意外断流，立刻又把流拉起来。
   @override
   Future<void> playbackStop() async {
-    if (_bgReleased) {
+    if (_mediaReleased) {
       return;
     }
     await player.pause();
@@ -2202,7 +2218,7 @@ ${error?.stackTrace}''');
     // Android 12+ 在后台起前台服务会抛异常，而 audio_service 那边没兜（原因见
     // LivePlaybackAudioHandler.appInForeground）。把这个状态递给 handler，
     // 由它决定这一刻敢不敢把 playing 报成 true。
-    _bgHandler?.appInForeground = state == AppLifecycleState.resumed;
+    _mediaHandler?.appInForeground = state == AppLifecycleState.resumed;
 
     if (state == AppLifecycleState.paused) {
       var height = MediaQuery.of(Get.context!).padding.top;
@@ -2221,7 +2237,7 @@ ${error?.stackTrace}''');
       danmakuController?.resume();
       isBackground = false;
       // 回前台补一次：在后台被那道闸压住的 playing=true 现在可以正常发出去了。
-      syncBackgroundPlayback();
+      syncMediaControls();
     }
   }
 
@@ -2233,7 +2249,7 @@ ${error?.stackTrace}''');
     _awakeSubscription?.cancel();
     // 离开直播间必须让通知与前台服务一起消失。必须排在 super.onClose() 之前——
     // 那边会 `player.dispose()`，晚一步 handler 就会读到已释放的播放器。
-    unawaited(releaseBackgroundPlayback());
+    unawaited(releaseMediaControls());
     scrollController.removeListener(scrollListener);
     autoExitTimer?.cancel();
     danmakuTimer?.cancel();

@@ -165,14 +165,11 @@ class LocalStorageService extends GetxService {
   /// 播放器后台自动暂停
   static const String kPlayerAutoPause = "PlayerAutoPause";
 
-  /// 后台播放：切后台/锁屏继续出声，并在通知栏与锁屏提供播放控制。
-  ///
-  /// 与 [kPlayerAutoPause] 互斥（两个同时开等于「后台播放」被自动暂停顶掉），
-  /// 互斥由 `AppSettingsController` 的两个 setter 强制。
-  static const String kBackgroundPlay = "BackgroundPlay";
-
   /// 系统媒体控制：是否把当前直播间投影到系统的媒体面（通知栏/锁屏、
   /// Now Playing、SMTC、MPRIS）。默认开。
+  ///
+  /// 移动端不再单独存「后台播放」：媒体会话与前台服务那条通知是同一个东西，
+  /// 旧键 `BackgroundPlay` 已停用（升级后一律以本键为准）。
   static const String kMediaControls = "MediaControls";
 
   /// 播放器缓冲区大小
