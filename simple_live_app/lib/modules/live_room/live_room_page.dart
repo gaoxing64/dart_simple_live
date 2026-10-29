@@ -579,17 +579,23 @@ class LiveRoomPage extends GetView<LiveRoomController> {
           // 自己实现
           wakelock: false,
         ),
-        Obx(
-          () => Visibility(
-            visible: !controller.liveStatus.value,
-            child: const Center(
+        // 三态与多开格同序（见 `multi_play_tile.dart` 的 `_buildStates`）：
+        // 详情未到 → 加载浮层；在播 → 什么都不画；有详情但未开播 → 文案。
+        // 加载浮层与起播缓冲是同一个 [PlayerLoadingOverlay]，交接时看不出换了个东西。
+        Obx(() {
+          if (controller.detail.value == null) {
+            return const PlayerLoadingOverlay();
+          }
+          if (!controller.liveStatus.value) {
+            return const Center(
               child: Text(
                 "未开播",
                 style: TextStyle(fontSize: 16, color: Colors.white),
               ),
-            ),
-          ),
-        ),
+            );
+          }
+          return const SizedBox.shrink();
+        }),
       ],
     );
   }

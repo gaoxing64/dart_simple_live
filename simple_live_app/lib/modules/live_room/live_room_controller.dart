@@ -962,13 +962,12 @@ class LiveRoomController extends PlayerController
   }
 
   /// 加载直播间信息
+  ///
+  /// 加载态由播放器区自己表达（`buildMediaPlayer`：详情为空 → 转圈），不再用
+  /// 整窗 `SmartDialog`：它等的只是房间详情，却会把刷新时仍在播放的画面压暗、
+  /// 并锁住窗口级动作。多开各格同理，见 `multi_play_tile.dart` 的 `_buildStates`。
   void loadData() async {
-    // 多开时主格也只是其中一格：整窗加载浮层会盖住棋盘，交给格子自身的进度指示。
-    final ownsLoading = !isSecondaryTile && !multiPlay.isActive;
     try {
-      if (ownsLoading) {
-        SmartDialog.showLoading(msg: "");
-      }
       loadError.value = false;
       addSysMsg("正在读取直播间信息");
       // 本次加载针对哪一路；换台时上一次的请求可能更晚落地
@@ -1032,10 +1031,6 @@ class LiveRoomController extends PlayerController
       loadError.value = true;
       if (e is Error) {
         error = e;
-      }
-    } finally {
-      if (ownsLoading) {
-        SmartDialog.dismiss(status: SmartStatus.loading);
       }
     }
   }
@@ -1988,6 +1983,12 @@ class LiveRoomController extends PlayerController
 
     rxSite.value = site;
     rxRoomId.value = roomId;
+
+    // 从「详情还没到」重新开始：旧房间的标题/头像/开播状态不能挂在新房间上。
+    // 播放器区据此切回转圈态（见 `live_room_page.dart` 的 `buildMediaPlayer`），
+    // 不必再靠整窗遮罩去遮住旧内容。
+    detail.value = null;
+    liveStatus.value = false;
 
     // 与构造里的默认保持一致：抖音默认竖屏
     if (site.id == Constant.kDouyin) {
