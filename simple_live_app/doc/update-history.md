@@ -1,6 +1,6 @@
 # simple_live_app 修改历史（Git 完整复现）
 
-> 锚点：future `02a9d64e`（2026-10-29）｜`git log future -- simple_live_app` 全量 **290** 条
+> 锚点：future `776a0d6c`（2026-10-29）｜`git log future -- simple_live_app` 全量 **297** 条（写本文件的那次 docs 提交尚未入表）
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/update-history.md)｜播放：[media-kit](../../media-kit/doc/update-history.md)
 
@@ -45,14 +45,20 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 | 2026-09-18 | `a38cbc75` | 合并 dev（v1.8.11） |
 | 2026-09-18 | `899212ba` | 合并 dev |
 
-## 4. 全量时间线（290 条，新→旧）
+## 4. 全量时间线（297 条，新→旧）
 
 | 日期 | 提交 | 作者 | 内容 |
 | --- | --- | --- | --- |
+| 2026-10-29 | `776a0d6c` | G | fix(settings): 统一「媒体控制管界面、自动暂停管出声」的口径 |
+| 2026-10-29 | `3d500865` | G | docs(app): 知识库五件套跟到 02a9d64e |
 | 2026-10-29 | `02a9d64e` | G | revert(window): 移除「显示窗口标题栏」开关 |
+| 2026-10-29 | `ed114bd4` | G | docs(app): 知识库五件套跟到 6220bc1f |
 | 2026-10-29 | `6220bc1f` | G | fix(settings): 按 review 收口媒体控制与标题栏的边界问题 |
+| 2026-10-29 | `2099f70e` | G | docs(app): 知识库五件套跟到 7953d6cd |
 | 2026-10-29 | `7953d6cd` | G | feat(window): 新增「显示窗口标题栏」开关（桌面端，默认显示） |
+| 2026-10-29 | `9f76c386` | G | docs(app): 知识库五件套跟到 8f744394 |
 | 2026-10-29 | `8f744394` | G | refactor(settings): 移动端媒体控制与后台播放合并为单一开关 |
+| 2026-10-29 | `390068e6` | G | docs(app): 知识库五件套跟到 3a7edf0e |
 | 2026-10-29 | `3a7edf0e` | G | feat(settings): 新增「系统媒体控制」开关（默认开） |
 | 2026-10-29 | `2b76b4de` | G | docs(app): 知识库五件套跟到 74bc4247 |
 | 2026-10-29 | `74bc4247` | G | feat(playback): 系统媒体控制扩到 Windows SMTC / Linux MPRIS / Apple Now Playing |
@@ -98,7 +104,8 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 | 2026-10-23 | `7639b004` | G | fix(chat): 退出全屏后聊天区恢复滚动位置 |
 | 2026-10-23 | `91e79575` | G | feat(chat): 聊天动画增加可关闭开关 |
 | 2026-10-23 | `8d9f7fa1` | G | feat(chat): 聊天区增加入场动画与平滑滚底 |
-| 2026-10-23 | `b47c9ed3` | G | docs(app): 按 Git 历史重写知识库五件套 || 2026-10-21 | `52466f96` | G | fix(follow): 搜索展开时收起刷新按钮 |
+| 2026-10-23 | `b47c9ed3` | G | docs(app): 按 Git 历史重写知识库五件套 |
+| 2026-10-21 | `52466f96` | G | fix(follow): 搜索展开时收起刷新按钮 |
 | 2026-10-21 | `b5718dd8` | G | fix(follow): 修复设置分组对话框空白 |
 | 2026-10-21 | `55928d21` | G | feat(follow): 关注页标签栏自适应，内容项显示分组胶囊 |
 | 2026-10-21 | `08fb5a74` | G | fix(multiplay): 外部设置面板的画面尺寸改为作用于聚焦格 |
@@ -342,7 +349,7 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 
 ## 5. 当前状态
 
-- future HEAD `52466f96`；App 版本 `1.8.15+10815`，Flutter `3.47.6`。
-- 路径提交 241 条：fork（G）162 条、上游（S）79 条；其中合并提交 8 条。
-- 近期主线：关注页三栏/标签/胶囊、多开与窗口几何、屏幕常亮引用计数、Rust 迁移收尾。
-- 测试：57 个 `*_test.dart`；最近完整记录 2026-10-14（522 执行 / 507 通过 / 15 失败），之后未重测。
+- future HEAD `776a0d6c`；App 版本 `1.8.15+10815`，Flutter `3.47.8`。
+- 路径提交 297 条：fork（G）218 条、上游（S）79 条；其中合并提交 8 条。
+- 近期主线：系统媒体控制接入（Windows SMTC / Linux MPRIS / Apple Now Playing）并合并为移动端单开关、Rust 迁移收尾、多开与窗口几何。
+- 测试：72 个 `*_test.dart`；最近完整记录 2026-10-29（653 通过 / 14 失败，其中 1 条来自工作区未提交改动）。

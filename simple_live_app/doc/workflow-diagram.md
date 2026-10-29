@@ -1,6 +1,6 @@
 # simple_live_app 工作流程图
 
-> 锚点：future `02a9d64e`（2026-10-29）｜App v1.8.15+10815
+> 锚点：future `776a0d6c`（2026-10-29）｜App v1.8.15+10815
 > 五件套：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/workflow-diagram.md)｜播放：[media-kit](../../media-kit/doc/workflow-diagram.md)
 
@@ -123,8 +123,8 @@ player.stream.playing/buffering/completed
 
 - 「系统媒体控制」全平台可见、默认开；关掉后桌面端最小化就没有控制入口。
 - 移动端只有这一个开关：媒体通知就是前台服务那条通知，所以「通知栏/锁屏有没有控制」
-  与「切后台还能不能继续出声」是同一件事，不再拆出「后台播放」。
-- 与「进入后台自动暂停」不再互斥：暂停后仍可从通知栏/锁屏继续播放。
+  由它决定；「切后台是否继续出声」另由「进入后台自动暂停」决定。
+- 两者不再互斥：暂停后仍可从通知栏/锁屏按播放回来。
 - handler 跑在主 isolate；初始化失败只降级成「没有媒体控制」，不挡启动。
 
 ## 6. 同步

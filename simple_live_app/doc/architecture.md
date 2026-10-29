@@ -1,6 +1,6 @@
 # simple_live_app 架构与选型对照
 
-> 锚点：future `02a9d64e`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
+> 锚点：future `776a0d6c`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/architecture.md)｜播放：[media-kit](../../media-kit/doc/architecture.md)
 
@@ -15,7 +15,7 @@ lib/
 ├── services/                 # 存储/DB/账号/关注/同步/窗口/后台播放/续流
 ├── widgets/ routes/ models/ requests/
 ├── spike/                    # 多开性能探针（一次性）
-└── test/                     # 70 个 *_test.dart
+└── test/                     # 72 个 *_test.dart
 ```
 
 ## 2. 分层

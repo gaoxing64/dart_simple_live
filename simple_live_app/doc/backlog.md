@@ -1,6 +1,6 @@
 # simple_live_app 待办与优化清单
 
-> 锚点：future `02a9d64e`（2026-10-29）
+> 锚点：future `776a0d6c`（2026-10-29）
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/backlog.md)｜播放：[media-kit](../../media-kit/doc/backlog.md)
 
