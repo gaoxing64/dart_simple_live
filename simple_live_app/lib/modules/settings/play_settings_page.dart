@@ -80,9 +80,8 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                 Obx(
                   () => SettingsSwitch(
                     title: "系统媒体控制",
-                    // 移动端这一项同时是「后台播放」：媒体通知就是前台服务的载体。
-                    // 副标题按「自动暂停」分支——两者已不再互斥，开着自动暂停时
-                    // 切后台就是会暂停，不能再承诺「继续播放」。
+                    // 移动端这一项就是媒体通知本身：既是控制入口，也是 Android
+                    // 前台服务的载体；切后台是否继续出声由下一项决定。
                     subtitle: Platform.isWindows ||
                             Platform.isLinux ||
                             Platform.isMacOS
@@ -100,9 +99,9 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                 Obx(
                   () => SettingsSwitch(
                     title: "进入后台自动暂停",
-                    subtitle: Platform.isAndroid || Platform.isIOS
-                        ? "切到后台即暂停；开着媒体控制时仍可从通知栏继续播放"
-                        : null,
+                    subtitle: Platform.isWindows || Platform.isLinux || Platform.isMacOS
+                        ? null
+                        : "切到后台即暂停；开着媒体控制时仍可从${Platform.isIOS ? "锁定屏幕与控制中心" : "通知栏"}继续播放",
                     value: controller.playerAutoPause.value,
                     onChanged: (e) {
                       controller.setPlayerAutoPause(e);

@@ -155,8 +155,8 @@ class AppSettingsController extends GetxController {
     playerAutoPause.value = LocalStorageService.instance.getValue(LocalStorageService.kPlayerAutoPause, false);
 
     // 默认开：五个系统（TV 除外）都有媒体面，它在桌面端就是最小化后唯一的播放入口；
-    // 移动端它还承载前台服务那条通知，所以它一处开关就同时决定了
-    // 「通知栏/锁屏有没有控制」与「切后台还能不能继续出声」。
+    // 移动端它还承载前台服务那条通知——它决定「通知栏/锁屏有没有控制」，
+    // 而「切后台是否继续出声」另由「进入后台自动暂停」决定。
     final storedMediaControls =
         LocalStorageService.instance.getValue(LocalStorageService.kMediaControls, true);
     // WebDAV 恢复也走这个入口（值改了但不经过 setter）：补发一次事件，让直播间
@@ -688,9 +688,9 @@ class AppSettingsController extends GetxController {
   ///
   /// 默认**开**：桌面端没有这个开关以外的播放入口，关掉等于最小化后无从控制。
   ///
-  /// 移动端没有第二个开关：媒体会话本身就是前台服务那条通知的载体，所以这一项
-  /// 同时决定「通知栏/锁屏有没有控制」与「切后台还能不能继续出声」——两件事在
-  /// 系统层面是同一个东西，拆成两个开关必然出现「开着却没反应」的状态。
+  /// 移动端没有第二个开关：媒体会话本身就是前台服务那条通知的载体，所以
+  /// 「有没有通知栏/锁屏控制」由这一项决定；「切后台是否继续出声」另由
+  /// [playerAutoPause] 决定。
   var mediaControls = true.obs;
 
   void setMediaControls(bool e) {
