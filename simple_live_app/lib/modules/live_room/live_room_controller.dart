@@ -2096,8 +2096,8 @@ ${error?.stackTrace}''');
 
   /// 「此刻系统媒体控制该不该显示这一路、显示成什么样」的唯一入口。幂等。
   ///
-  /// 一个开关管到底：移动端的媒体通知本身就是前台服务那条通知，所以
-  /// 「有没有通知栏/锁屏控制」与「切后台还能不能继续出声」是同一件事。
+  /// 移动端的媒体通知就是前台服务那条通知：这一项决定有没有通知栏/锁屏控制；
+  /// 切后台是否继续出声另由「进入后台自动暂停」决定。
   void syncMediaControls() {
     if (_mediaReleased || _mediaSuppressed || isSecondaryTile) {
       return;
@@ -2121,6 +2121,7 @@ ${error?.stackTrace}''');
     if (!Platform.isAndroid || _askedNotificationPermission) {
       return;
     }
+    // 只问一次：被拒或异常都不再重试，避免每次进直播间都弹。
     _askedNotificationPermission = true;
     unawaited(_requestNotificationPermission());
   }
@@ -2131,8 +2132,8 @@ ${error?.stackTrace}''');
       if (!status.isGranted) {
         Log.d('系统媒体控制：通知权限未授予，通知栏里不会有控制入口');
       }
-    } catch (e) {
-      Log.e('系统媒体控制：请求通知权限失败 ($e)', StackTrace.current);
+    } catch (e, st) {
+      Log.e('系统媒体控制：请求通知权限失败 ($e)', st);
     }
   }
 
