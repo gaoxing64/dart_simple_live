@@ -303,28 +303,30 @@ class MultiPlayTile extends StatelessWidget {
     );
   }
 
-  /// 加载 / 未开播 / 加载失败三态。
+  /// 加载 / 未开播 / 加载失败三态，外加起播与卡顿时的缓冲。
   ///
-  /// 副格不走 `SmartDialog.showLoading`（那是全局单例浮层，四路会互相顶掉），
-  /// 所以加载态只能在格子里自己表达。
+  /// 与单画面同一套表达（`live_room_page.dart` 的 `buildMediaPlayer` +
+  /// `player_controls.dart` 的 `PlayerLoadingOverlay`）：详情未到与流在缓冲都画
+  /// 「压暗 + M3E 变形图形」，谁的流在等就只压暗谁那一格。不走
+  /// `SmartDialog.showLoading`（全局单例浮层，四路会互相顶掉、还会盖住棋盘）。
   Widget _buildStates() {
     return Obx(() {
       if (tile.loadError.value) {
         return _buildCenterLabel("加载失败", tile.error?.toString());
       }
       if (tile.detail.value == null) {
-        return const Center(
-          child: SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
-          ),
-        );
+        return const PlayerLoadingOverlay(size: 32);
       }
       if (!tile.liveStatus.value) {
         return _buildCenterLabel("未开播", null);
       }
-      return const SizedBox.shrink();
+      return StreamBuilder<bool>(
+        stream: tile.player.stream.buffering,
+        initialData: tile.player.state.buffering,
+        builder: (_, s) => (s.data ?? false)
+            ? const PlayerLoadingOverlay(size: 32)
+            : const SizedBox.shrink(),
+      );
     });
   }
 
