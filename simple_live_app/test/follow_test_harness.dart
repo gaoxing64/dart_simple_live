@@ -96,7 +96,7 @@ class FakeFollowService extends FollowService {
   Future<void> onInit() async {}
 
   @override
-  Future<void> loadData({bool updateStatus = true, int? cycle}) async {}
+  Future<void> loadData({bool updateStatus = true, int? cycle, bool force = false}) async {}
 
   @override
   Future<void> addUserToTag(FollowUser user, String tagName) async {
