@@ -1,6 +1,6 @@
 # simple_live_app 修改历史（Git 完整复现）
 
-> 锚点：future `776a0d6c`（2026-10-29）｜`git log future -- simple_live_app` 全量 **297** 条（写本文件的那次 docs 提交尚未入表）
+> 锚点：future `2c1b4280`（2026-10-29）｜`git log future -- simple_live_app` 全量 **301** 条（写本文件的那次 docs 提交尚未入表）
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/update-history.md)｜播放：[media-kit](../../media-kit/doc/update-history.md)
 
@@ -23,8 +23,9 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 
 | 阶段 | 日期范围 | 条数 | 主题 |
 | --- | --- | --- | --- |
+| 关注状态单线刷新 + 播放器加载浮层 | 2026-10-29 | 4 | 启动即拉、显式刷新不被快照挡、刷新中增量维护；单画面与多开格三态加载浮层 |
 | 窗口标题栏开关（已撤销） | 2026-10-29 | 2 | 加上又按作者要求撤回：不进入发布，窗口恢复原生标题栏 |
-| 系统媒体控制扩桌面 + Apple | 2026-10-26 ~ 10-29 | 9 | 四类系统面收敛到 audio_service（Windows SMTC / Linux MPRIS / macOS Now Playing）、「系统媒体控制」开关默认开并合并移动端「后台播放」、media-kit 升 917d80ca、Android stats OSD、B 站登录路由 |
+| 系统媒体控制扩桌面 + Apple | 2026-10-26 ~ 10-29 | 9 | 四类系统面收敛到 audio_service（Windows SMTC / Linux MPRIS / macOS Now Playing）、「系统媒体控制」开关默认开并合并移动端「后台播放」（`776a0d6c` 收口为只管界面）、media-kit 升 917d80ca、Android stats OSD、B 站登录路由 |
 | 知识库重写 + 关注详情/弹幕合并/聚合搜索 | 2026-10-23 ~ 10-26 | 37 | 五件套按 Git 重写、主播详情页与观看热力图、重复弹幕合并、AGP 9、聚合搜索与播放器缓存键值表、聊天滑回底部自动跟随 |
 | 关注页定稿 | 2026-10-20 ~ 10-21 | 10 | 三栏布局、标签过滤、分组胶囊、搜索展开收刷新、增量重排 |
 | Rust 迁移 + 播放/多开修复 | 2026-10-16 ~ 10-19 | 19 | FRB 资产下沉、Dart 协议删除、斗鱼续流、小窗/手势/常亮 |
@@ -45,10 +46,14 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 | 2026-09-18 | `a38cbc75` | 合并 dev（v1.8.11） |
 | 2026-09-18 | `899212ba` | 合并 dev |
 
-## 4. 全量时间线（297 条，新→旧）
+## 4. 全量时间线（301 条，新→旧）
 
 | 日期 | 提交 | 作者 | 内容 |
 | --- | --- | --- | --- |
+| 2026-10-29 | `2c1b4280` | G | feat(multiplay): 格子加载态沿用播放器加载浮层 |
+| 2026-10-29 | `f8c2dc90` | G | fix(live_room): 加载动画收进播放器区 |
+| 2026-10-29 | `ff5912a7` | G | feat(follow): 开播状态刷新收成一条线，直播间继承进行中的增量 |
+| 2026-10-29 | `a85b1602` | G | docs(app): 知识库五件套跟到 776a0d6c |
 | 2026-10-29 | `776a0d6c` | G | fix(settings): 统一「媒体控制管界面、自动暂停管出声」的口径 |
 | 2026-10-29 | `3d500865` | G | docs(app): 知识库五件套跟到 02a9d64e |
 | 2026-10-29 | `02a9d64e` | G | revert(window): 移除「显示窗口标题栏」开关 |
@@ -349,7 +354,7 @@ git log --all --date=short --pretty=format:'%h %ad %s' -- simple_live_app   # �
 
 ## 5. 当前状态
 
-- future HEAD `776a0d6c`；App 版本 `1.8.15+10815`，Flutter `3.47.8`。
-- 路径提交 297 条：fork（G）218 条、上游（S）79 条；其中合并提交 8 条。
-- 近期主线：系统媒体控制接入（Windows SMTC / Linux MPRIS / Apple Now Playing）并合并为移动端单开关、Rust 迁移收尾、多开与窗口几何。
+- future HEAD `2c1b4280`；App 版本 `1.8.15+10815`，Flutter `3.47.8`。
+- 路径提交 301 条：fork（G）222 条、上游（S）79 条；其中合并提交 8 条。
+- 近期主线：系统媒体控制接入（Windows SMTC / Linux MPRIS / Apple Now Playing）并统一「管界面、不管出声」口径、关注开播状态单线刷新、播放器/多开格加载浮层、Rust 迁移收尾、多开与窗口几何。
 - 测试：72 个 `*_test.dart`；最近完整记录 2026-10-29（653 通过 / 14 失败，其中 1 条来自工作区未提交改动）。

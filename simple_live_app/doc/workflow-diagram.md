@@ -1,6 +1,6 @@
 # simple_live_app 工作流程图
 
-> 锚点：future `776a0d6c`（2026-10-29）｜App v1.8.15+10815
+> 锚点：future `2c1b4280`（2026-10-29）｜App v1.8.15+10815
 > 五件套：[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/workflow-diagram.md)｜播放：[media-kit](../../media-kit/doc/workflow-diagram.md)
 
@@ -89,6 +89,20 @@ AppNavigator.toLiveRoomDetail(site, roomId, together?)
 | 斗鱼 | 直链经本地 `StreamRelayService` 转发，到期按 FLV tag 接续 |
 | 窗口 | 全屏/小窗/最大化；「谁先离开窗口态谁捕获还原点」 |
 
+加载态（`f8c2dc90`）：
+
+```
+loadData：不再 showLoading 整窗浮层（刷新时画面仍在播）
+  → 单画面 buildMediaPlayer 三态：
+      detail == null        → PlayerLoadingOverlay（M3E 图形 + 46% 压暗）
+      有详情且 !liveStatus  → 「未开播」文案
+      在播                  → 不画
+  → 起播/卡顿：playerControls 的 StreamBuilder(buffering) → 同一 PlayerLoadingOverlay
+  → 换台 resetRoom：先 detail=null / liveStatus=false，旧房标题与开播态不挂新房
+```
+
+遮罩只覆盖这一路播放器；进房等详情时底色本来就是黑的，与起播缓冲共用同一形态。
+
 ## 4. 多开
 
 ```
@@ -102,6 +116,9 @@ AppNavigator.toLiveRoomDetail(site, roomId, together?)
 - 音量为纯函数：总音量 × 压低系数 × 本格系数。
 - 副格不碰窗口/后台通知/自动关闭。
 - 移出一律在网格点 ✕；关注行只负责「加入」。
+- 格子加载态与单画面同源（`2c1b4280`）：详情未到 `PlayerLoadingOverlay(size: 32)`；
+  有详情未开播仍是「未开播」文案；在播时只听本格 `player.stream.buffering`，
+  只有等流的那一格压暗，其余格照常播。失败态文案不变。
 
 ## 5. 系统媒体控制（仅主格）
 
@@ -158,7 +175,9 @@ B站是否登录现查 DB，不缓存 UI 布尔。
 标签 = 过滤器（全部/直播中/未开播/自定义分组）
 内容项：封面左上分组胶囊（首个 +N，未分组不显示）
 搜索：顶栏原位展开；展开时收起刷新按钮
-刷新：期间增量重排，整轮结束只排序一次
+刷新：启动即拉一轮；隐式入口在快照新鲜期只跳过一次；下拉/刷新按钮走 refresh() 永不跳过
+      刷新中再触发直接返回；liveList/notLiveList 随状态翻转增量维护
+      冷启动进直播间：!statusLoaded → 补一次 loadData；liveList 为空且 updating → 加载图形
 平台分类：改为设置开关（不再占据主页）
 ```
 
@@ -186,6 +205,9 @@ B站是否登录现查 DB，不缓存 UI 布尔。
 | 系统媒体控制扩到四系统（SMTC/MPRIS/Now Playing） | `74bc4247` |
 | 「系统媒体控制」开关与门控 | `3a7edf0e` |
 | 移动端合并为单一开关（通知权限随首次挂载请求） | `8f744394` |
+| 媒体控制口径：管界面，不管出声 | `776a0d6c` |
+| 单画面/多开格加载浮层三态同源 | `f8c2dc90`、`2c1b4280` |
+| 关注开播状态单线刷新与增量维护 | `ff5912a7` |
 | 关注页三栏/胶囊/搜索 | `1c0d02f5`、`0d2f57e6`、`55928d21`、`b5718dd8`、`52466f96` |
 | 屏幕常亮 | `900f8d50` |
 | 账号 | `63197f69`（校验失败不抹凭证） |

@@ -1,6 +1,6 @@
 # simple_live_app 待办与优化清单
 
-> 锚点：future `776a0d6c`（2026-10-29）
+> 锚点：future `2c1b4280`（2026-10-29）
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/backlog.md)｜播放：[media-kit](../../media-kit/doc/backlog.md)
 
@@ -33,6 +33,7 @@
 | P1-13 | Windows 按键回传跨线程：`audio_service_win` 在 SMTC 的 `ButtonPressed` 回调线程里直接 `channel->InvokeMethod`，引擎每次都报 `non-platform thread`，官方口径是「可能丢消息或崩溃」（本机已复现告警，功能当时仍生效） | `audio_service_win` fork `windows/audio_service_win_plugin.cpp` 的 `ButtonPressed` 回调 | 用 `PostMessage` + `RegisterTopLevelWindowProcDelegate` 把按钮投到 platform thread 再发通道（需改 fork）；改完连按十次暂停/播放核对零告警 |
 | P1-15 | Linux 上 `audio_service_mpris` 在 `configure` 里就 `requestName`，而我们在 `runApp` 前无条件初始化：App 一启动，桌面媒体控件里可能出现一个没有元数据的「Slive」 | `live_playback_audio_handler.dart` 的 `initLivePlaybackAudioHandler`、`audio_service_mpris` 的 `configure` | Linux 真机 `playerctl -l` 核对；若成立，初始化后先发一次 idle（`stopService` 会 `releaseName`），**别在 Windows 上做**（其 stopService 会在 updater 为空时崩） |
 | P1-16 | AUR 模板装的是 `slive.desktop`，而 MPRIS 的 `DesktopEntry` 写的是 `io.github.SlotSun.Slive`（与 flatpak/deb 一致）：AUR 用户可能关联不到图标/desktop entry | `linux/packaging/aur/slive.desktop`、`live_playback_audio_handler.dart` | 统一 AUR 的 desktop 文件名，或按打包渠道分别取 |
+| P1-17 | 本轮新增的加载三态（单画面/多开格）与关注刷新管线（`statusLoaded`/`force`/增量维护）没有自动化用例；`m3e_loading_indicator_test` 只测图形本体 | `live_room_page.dart:585`、`multi_play_tile.dart:312`、`follow_service.dart:390` | 补 widget/纯逻辑用例，见 test-suite TC-A-214/215、TC-A-820/821 |
 
 ## P2 — 结构/技术债
 
@@ -51,7 +52,7 @@
 | P2-11 | **已了结、且本条原先是错的**：按平台搜索早自 `7b31c568`（2026-10-18）就回写 `serverHasMore = result.hasMore`，10-21 重写知识库时把它误列为待办（workflow-diagram §2 同错，本轮已改） | `search_list_controller.dart:33`、`:40` | 无需再做；列在这里只为留痕，下次核对后可整行删除 |
 | P2-14 | 「聚合搜索」开关挂在 AppBar/入口都写「主页设置」的页面里，新增分区却叫「搜索」，页面名不再覆盖自身内容 | `settings/indexed_settings/indexed_settings_page.dart:28`、`mine_page.dart:152` | 本轮按你的要求**跳过未改**；改法是入口与 AppBar 一起改成「首页与搜索设置」，开关名保持「聚合搜索」 |
 | P2-12 | `analysis_options.yaml` 未排除 `rust_builder/` | `analysis_options.yaml` | 加 exclude 降噪 |
-| P2-13 | `followStyleNotGrid` 无读取方 | `app_settings_controller.dart` | 保留存储键，注释说明 |
+| P2-13 | **已了结、本条原先是错的**：`followStyleNotGrid` 有读取方（关注页「紧凑模式/卡片模式」），2026-10-15 `bfddf81e` 恢复「模式切换」时复用该键，10-20 三栏改版后仍在用 | `follow_user_page.dart:562`、`follow_user_controller.dart:637`、`follow_app_settings_page.dart:89` | 无需再做；留痕，下次核对后可整行删除 |
 
 ## 已决策取舍
 
@@ -59,6 +60,7 @@
 - 通知不画进度条/不推 duration。
 - 通知「停止」= 暂停 + 撤通知，不是 `player.stop()`。
 - 副格永不挂后台通知。
+- 关注刷新进行中的重复触发直接丢弃（显式刷新也不例外），优先保证 `updatedCount/_totalToUpdate` 不被两轮搅乱；桌面刷新按钮可见在途态，移动端下拉无额外提示。
 - OSD 容器按宿主分：全屏/小窗/格子右侧面板，窗口化底部抽屉。
 - 关注拖拽/勾选只「加入」不「移动」；批量写后由调用方统一排序。
 - 降级旧版 App 看不到分组归属，但成员表仍在；降级期间不要清理/重建分组。
@@ -75,5 +77,6 @@
 | P0-5 表情开关 | 上游 `6da36e04` 引入开关，本 fork 未采用 |
 | P1-6 多开性能 | `fcb43a82`（移动端多开）、`afd18194`（动作化） |
 | P1-4 播放器释放时序 | media-kit fork `23ec6b9c` |
-| P2-13 `followStyleNotGrid` 无读取方 | `1c0d02f5`（三栏后二选一消失） |
+| P2-13 `followStyleNotGrid` 有读取方（原「无读取方」误记） | `bfddf81e`（恢复模式切换）、`1c0d02f5`（三栏后仍在用） |
+| P1-17 加载三态/关注刷新管线缺用例 | `f8c2dc90`、`2c1b4280`、`ff5912a7` |
 | P1-3/P1-8/P1-9 + P2-14 聚合搜索与缓存键值表 | `446d613f`、`0e99306a`、`8947bcdc`、`3624927b`、`c1dd7769` |

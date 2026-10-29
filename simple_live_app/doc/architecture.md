@@ -1,6 +1,6 @@
 # simple_live_app 架构与选型对照
 
-> 锚点：future `776a0d6c`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
+> 锚点：future `2c1b4280`（2026-10-29）｜App v1.8.15+10815｜Flutter 3.47.8
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)｜[test-suite.md](./test-suite.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/architecture.md)｜播放：[media-kit](../../media-kit/doc/architecture.md)
 
@@ -39,7 +39,7 @@ lib/
 | 跨模块信号 | 自研 `EventBus`（字符串事件） | 简单；无编译期校验，必须 cancel |
 | 平台能力 | 纯函数 + 薄平台层 | `PipAspectCalculator`、`resolveMultiPlayLayout`、`resolveTileVolume`、`RoomWatchClock` 可单测 |
 | 播放 | media-kit fork（`gaoxing64`，锁 `917d80ca`） | 需要自建 libmpv 的 loudnorm 等滤镜 |
-| 系统媒体控制 | 全平台都走 `audio_service`，平台实现按系统替换；设置项「系统媒体控制」默认开 | 一个 handler 投影四类系统面：Android MediaSession、Apple Now Playing、Windows SMTC、Linux MPRIS；移动端这一项同时是「后台播放」（媒体通知即前台服务载体），不再拆第二个开关 |
+| 系统媒体控制 | 全平台都走 `audio_service`，平台实现按系统替换；设置项「系统媒体控制」默认开 | 一个 handler 投影四类系统面：Android MediaSession、Apple Now Playing、Windows SMTC、Linux MPRIS；移动端这一项决定「通知栏/锁屏有没有控制」，切后台是否出声另由「进入后台自动暂停」决定（`776a0d6c` 统一口径） |
 | 协议 | `simple_live_core` Rust + FRB | 五平台统一；见 core KB |
 | 持久化 | `hive_ce` 五箱 | 关注/历史/分组/屏蔽/账号 |
 | 关注分组 | 真源 = `FollowUserTag.userId` 成员表 | 一个关注可属多组；`FollowUser.tag` 已删 |
@@ -52,7 +52,7 @@ lib/
 | `local_storage_service` | Hive 设置/弹幕屏蔽键 |
 | `db_service` | History/FollowUser/FollowUserTag/FollowUserBlock/account，墓碑清理 |
 | `platform_service` | 账号校验、`setSiteAttrs`、UA/hlsFirst 下发 |
-| `follow_service` | 关注轮询、快照、成员表读写、导入导出 |
+| `follow_service` | 开播状态单线刷新：启动即拉；快照新鲜期只挡一次隐式刷新，显式 `refresh()` 永不挡；刷新中增量维护 `liveList/notLiveList`，成员表读写与导入导出 |
 | `smart_group_service` | 按平台一键分组（preview/execute，幂等） |
 | `history_service` | 按房间计时，2 分钟落盘 |
 | `sync_service` | UDP 发现 + HTTP 接收 |
@@ -116,8 +116,10 @@ media_kit_video（Video widget）→ media_kit（FFI）→ libmpv（fork 构建�
 | 多开从「模式」改「动作」 | `afd18194` |
 | 后台播放/系统媒体控制 | `e374b4df`、`5692db16`、`cd89ecdc`、`cbb474ee` |
 | 系统媒体控制扩到 Windows SMTC / Linux MPRIS / Apple Now Playing | `74bc4247` |
-| 「系统媒体控制」开关（默认开，移动端联动后台播放） | `3a7edf0e` |
-| 移动端媒体控制与后台播放合并为单一开关 | `8f744394` |
+| 「系统媒体控制」开关（默认开） | `3a7edf0e` |
+| 移动端媒体控制与后台播放合并为单一开关（`776a0d6c` 收口：开关只管界面） | `8f744394`、`776a0d6c` |
+| 关注开播状态刷新收成一条线 | `ff5912a7` |
+| 播放器/多开格加载浮层（M3E + 遮罩） | `f8c2dc90`、`2c1b4280` |
 | 关注多分组归属 | `3267a04e`、`a225e3b4`、`0442f4ac` |
 | 屏幕常亮按路引用计数 | `900f8d50` |
 | 关注页三栏 + 分组胶囊 | `1c0d02f5`、`55928d21` |

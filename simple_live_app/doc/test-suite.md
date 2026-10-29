@@ -1,6 +1,6 @@
 # simple_live_app 测试案例库（面向 AI）
 
-> 锚点：future `776a0d6c`（2026-10-29）｜72 个 `*_test.dart`，全部离线
+> 锚点：future `2c1b4280`（2026-10-29）｜72 个 `*_test.dart`，全部离线
 > 五件套：[workflow-diagram.md](./workflow-diagram.md)｜[architecture.md](./architecture.md)｜[update-history.md](./update-history.md)｜[backlog.md](./backlog.md)
 > 上游：[simple_live_core](../../simple_live_core/doc/test-suite.md)
 
@@ -15,15 +15,16 @@ fvm flutter test integration_test/simple_test.dart -d windows
 ```
 
 - FVM 锁 Flutter `3.47.8`；`test/` 不联网、不拉真实播放器。
-- widget test 无 Hive/path_provider：用 `test/follow_test_harness.dart` 的内存假件；假设置的 `onInit` 必须是 `Future<void>`。
+- widget test 无 Hive/path_provider：用 `test/follow_test_harness.dart` 的内存假件；假设置的 `onInit` 必须是 `Future<void>`，`FakeFollowService.loadData` 需保留 `force` 参数。
 - 不要跑 `dart format`。
 
 ## 2. 资产概览
 
 | 主题 | 代表文件 | 覆盖 |
 | --- | --- | --- |
-| 多开 | `multi_play_{layout,selection,volume,identity}_test.dart` | 排布/焦点/音量/身份 |
+| 多开 | `multi_play_{layout,selection,volume,identity}_test.dart` | 排布/焦点/音量/身份（加载三态无自动化） |
 | 播放器动作/OSD | `player_action_set_test.dart`、`player_osd_metrics_test.dart` | 动作集合、容器判据、断点 |
+| 播放器加载态 | 无自动化（`m3e_loading_indicator_test.dart` 只测图形本体） | 单画面/多开格三态、起播缓冲压暗 |
 | 快捷键 | `player_shortcuts_test.dart`、`shortcut_binding_test.dart` | 默认键位/改键/冲突/编解码 |
 | 窗口/PiP | `pip_aspect_test.dart`、`pip_aspect_qa_test.dart`、`player_window_geometry_test.dart` | 纵横比/还原点 |
 | 分页列表 | `base_page_controller_paging_test.dart`、`page_view_auto_load_test.dart` | hasMore/去重/门闩/补页 |
@@ -33,7 +34,7 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | 播放器缓存 | `player_cache_policy_test.dart` | 真正下发给 mpv 的缓存键值表（含 Android 关双重缓冲＝空表） |
 | 系统媒体控制 | 无自动化（跨平台通道 + 宿主 UI） | 手测：四系统的播放/暂停/停止、切台后标题与封面、窗口最小化后的控制入口 |
 | 关注详情/观看统计 | `follow_profile_header_test.dart`、`follow_card_preview_dialog_test.dart`、`watch_heatmap_test.dart`、`watch_year_selector_test.dart`、`history_daily_stats_test.dart` | 主播详情页与预览弹卡、观看热力图/年份选择、按日统计 |
-| 关注 | `follow_*_test.dart` | 搜索/分段/分组/多归属/智能分组/顶栏 |
+| 关注 | `follow_*_test.dart` | 搜索/分段/分组/多归属/智能分组/顶栏（刷新管线无自动化） |
 | 导航/设置/工具 | `navigation_dock_test.dart`、`settings_switch_locked_test.dart`、`tool_test.dart` | 导航/控件/纯函数 |
 
 ## 3. AI 用例库
@@ -67,6 +68,8 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | TC-A-401 | 点音量图标 | 本路静音，不落盘 |
 | TC-A-403 | 滚轮 ±5% | 浮层出现并 1.2s 消失 |
 | TC-A-207 | 缓存键值表（新增） | 桌面 1s / 双重缓冲 3s；Twitch 两档都 10；Android 开双重缓冲＝3；**Android 关双重缓冲＝整表为空**（不写 cache-secs）；来源 `c1dd7769` |
+| TC-A-214 | 单画面加载三态（新增）：`detail=null` → 有详情未开播 → 在播；再触发 `buffering` | 第一态见 `PlayerLoadingOverlay`；第二态只显示「未开播」；在播不画浮层；缓冲时同一浮层出现，恢复后消失。不出现整窗遮罩，窗口级动作不被锁；来源 `f8c2dc90` |
+| TC-A-215 | 多开 2–4 格（新增）：一格详情未到、一格缓冲、其余在播；核对压暗范围 | 只有等流/未到详情的那格出现 `PlayerLoadingOverlay(size: 32)`，其余格照常播放；「未开播」「加载失败」仍是原文案；来源 `2c1b4280` |
 
 ### 3.3 窗口/PiP
 
@@ -114,6 +117,8 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | TC-A-815 | 智能分组 | preview 只算；execute 幂等；未知平台跳过 |
 | TC-A-818 | 三栏/标签/胶囊（新增） | 标签过滤内容；胶囊显示首个+N；未分组不显示；搜索展开收起刷新；来源 `1c0d02f5`/`55928d21`/`52466f96` |
 | TC-A-819 | 屏幕常亮引用计数（新增） | 多开/断线重连：每路各持一份，最后一个释放才熄屏；暂停/关房/直播终态释放；来源 `900f8d50` |
+| TC-A-820 | 关注刷新单线（新增）：清快照冷启动，直接进直播间；另一次在快照新鲜期内进直播间/下拉 | 冷启动 `onInit` 即起一轮 `loadData`；`liveList` 为空且 `updating` 时页签/抽屉/右侧面板显示 M3E 加载图形；快照新鲜时只跳过第一次隐式刷新，`refresh()` 永不被挡；覆盖 `follow_service.dart`、`live_room_controller.dart:372`；来源 `ff5912a7` |
+| TC-A-821 | 刷新中增量（新增）：刷新途中打开直播间「关注」，观察状态翻转；再触发一次刷新 | 每条 `liveStatus` 翻转即时同步 `liveList/notLiveList`，不等 `filterData`；第二次触发直接返回，`updatedCount/_totalToUpdate` 不被两轮搅乱；收尾仍只整表排序一次；覆盖 `_syncDerivedLists`、`loadData`；来源 `ff5912a7` |
 | TC-A-901 | 胶囊导航 | 点击/拖动透镜/几何 |
 | TC-A-1001 | 时长文案 | 0 值空串；分/时档正确 |
 
@@ -148,3 +153,5 @@ fvm flutter test integration_test/simple_test.dart -d windows
 | TC-A-819 常亮引用计数 | `900f8d50` |
 | TC-A-614~619 聚合搜索 | `446d613f`、`3624927b`、`8947bcdc` |
 | TC-A-207 缓存键值表 | `0e99306a`、`c1dd7769` |
+| TC-A-214/215 加载三态与格子缓冲 | `f8c2dc90`、`2c1b4280` |
+| TC-A-820/821 关注刷新管线 | `ff5912a7` |
