@@ -16,7 +16,34 @@ import 'package:simple_live_app/modules/live_room/player/player_osd_overlay.dart
 import 'package:simple_live_app/modules/live_room/player/player_tooltip.dart';
 import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
+import 'package:simple_live_app/widgets/m3e_loading_indicator.dart';
 import 'package:window_manager/window_manager.dart';
+
+/// 播放器内的加载浮层：M3E 变形图形 + 压暗遮罩。
+///
+/// 起播后画面已有内容，只浮一个图形会像贴片一样压在冻结画面上，看不出
+/// 「正在等流」的意图；遮罩把画面压暗，图形才成为唯一的主角。进房等详情时
+/// 底下本来就是黑的，这层不可见——所以不必再按「有没有画面」分两档。
+/// 遮罩取 46%，与全局 SmartDialog 的整窗遮罩同档。
+///
+/// 只画在**这一路播放器**的范围内：单画面是整个视频区，多开时是各自那一格，
+/// 谁的流在等就压暗谁，从不覆盖整窗。
+class PlayerLoadingOverlay extends StatelessWidget {
+  const PlayerLoadingOverlay({super.key, this.size = 48});
+
+  /// 图形边长。多开格子最矮只有 ~135px，48 会占掉近半高，所以按格子缩小。
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: const Color(0x75000000),
+      child: Center(
+        child: M3ELoadingIndicator(size: size),
+      ),
+    );
+  }
+}
 
 Widget playerControls(
   VideoState videoState,
@@ -101,9 +128,7 @@ Widget _buildDesktopControls(VideoState videoState, LiveRoomController controlle
                 initialData: videoState.widget.controller.player.state.buffering,
                 builder: (_, s) => Visibility(
                   visible: s.data ?? false,
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  child: const PlayerLoadingOverlay(),
                 ),
               ),
             ),
@@ -268,9 +293,7 @@ Widget _buildDesktopFullControls(
                       videoState.widget.controller.player.state.buffering,
                   builder: (_, s) => Visibility(
                     visible: s.data ?? false,
-                    child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    child: const PlayerLoadingOverlay(),
                   ),
                 ),
               ),
@@ -487,9 +510,7 @@ Widget buildFullControls(
             initialData: videoState.widget.controller.player.state.buffering,
             builder: (_, s) => Visibility(
               visible: s.data ?? false,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: const PlayerLoadingOverlay(),
             ),
           ),
         ),
@@ -905,9 +926,7 @@ Widget buildControls(
           initialData: videoState.widget.controller.player.state.buffering,
           builder: (_, s) => Visibility(
             visible: s.data ?? false,
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
+            child: const PlayerLoadingOverlay(),
           ),
         ),
       ),
