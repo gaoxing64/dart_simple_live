@@ -28,6 +28,7 @@ import 'package:simple_live_app/widgets/context_menu.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
 import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
+import 'package:simple_live_app/widgets/m3e_loading_indicator.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/settings/settings_action.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
@@ -1385,7 +1386,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       () => Stack(
         children: [
           RefreshIndicator(
-            onRefresh: FollowService.instance.loadData,
+            onRefresh: FollowService.instance.refresh,
             child: ListView.builder(
               itemCount: FollowService.instance.liveList.length,
               itemBuilder: (_, i) {
@@ -1396,6 +1397,14 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               },
             ),
           ),
+          // 开播状态还没到（冷启动直接进直播间时 onInit 触发的那一轮）：
+          // 空列表不等于「没人播」，先给加载反馈，别让人以为关注丢了。
+          if (FollowService.instance.updating.value && FollowService.instance.liveList.isEmpty)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: Center(child: M3ELoadingIndicator()),
+              ),
+            ),
           if (Platform.isLinux || Platform.isWindows || Platform.isMacOS)
             Positioned(
               right: 12,
@@ -1403,7 +1412,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               child: Obx(
                 () => DesktopRefreshButton(
                   refreshing: FollowService.instance.updating.value,
-                  onPressed: FollowService.instance.loadData,
+                  onPressed: FollowService.instance.refresh,
                 ),
               ),
             ),
