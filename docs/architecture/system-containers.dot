@@ -1,0 +1,183 @@
+// Slive 容器 / 组件视图（L2-L3，当前状态，2026-10-28）
+// 证据：simple_live_app/pubspec.yaml、simple_live_core/pubspec.yaml、simple_live_core/Cargo.toml、
+//       simple_live_core/doc/architecture.md、docs/decisions/ADR-016、lib/app/sites.dart、lib/main.dart
+// 渲染：dot -Tsvg system-containers.dot -o system-containers.svg
+digraph slive_containers {
+  graph [
+    rankdir=TB,
+    fontname="Microsoft YaHei",
+    fontsize=12,
+    labelloc=t,
+    label="Slive 容器与组件视图（当前状态）\nDart 表现层 → 绑定层 → FRB → Rust 核心 → 外部平台",
+    nodesep=0.45,
+    ranksep=0.55,
+    pad=0.3,
+    compound=true
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Microsoft YaHei",
+    fontsize=9,
+    color="#5F6368",
+    penwidth=1.1
+  ];
+  edge [
+    fontname="Microsoft YaHei",
+    fontsize=8,
+    color="#5F6368",
+    arrowsize=0.6
+  ];
+
+  subgraph cluster_flutter {
+    label="Flutter 表现层（Dart / GetX）";
+    fontsize=11;
+    style="rounded,dashed";
+    color="#1A73E8";
+    fillcolor="#F5F8FF";
+
+    app [
+      label="simple_live_app\nAndroid / iOS / Windows / Linux / macOS\nGetX + Hive CE + Dio",
+      fillcolor="#D2E3FC"
+    ];
+
+    tv [
+      label="simple_live_tv_app\nAndroid TV\nGetX + Hive 2",
+      fillcolor="#D2E3FC"
+    ];
+
+    modules [
+      label="App 功能模块\nhome / category / search / follow_user\nlive_room / settings / mine / sync",
+      fillcolor="#E8F0FE"
+    ];
+
+    tvmods [
+      label="TV 功能模块\nhome / hot_live / category / search / follow_user\nlive_room / history / account / settings / sync",
+      fillcolor="#E8F0FE"
+    ];
+
+    playback [
+      label="播放与后台音频\nmedia_kit（fork）+ audio_service\n画中画 / 弹幕 / OSD",
+      fillcolor="#E8F0FE"
+    ];
+
+    relay [
+      label="StreamRelayService\n本地 HTTP 中转 + FLV 续签\n（斗鱼 300s 直链续流）",
+      fillcolor="#E8F0FE"
+    ];
+
+    media [
+      label="media-kit 子模块 + libmpv 预编译\nAndroid / Darwin / Win32",
+      fillcolor="#F1F3F4"
+    ];
+  }
+
+  subgraph cluster_core_dart {
+    label="simple_live_core（纯 Dart 包，App/TV 共用）";
+    fontsize=11;
+    style="rounded,dashed";
+    color="#188038";
+    fillcolor="#F1F8F3";
+
+    iface [
+      label="LiveSite / LiveDanmaku 契约",
+      fillcolor="#CEEAD6"
+    ];
+
+    models [
+      label="跨平台模型 Live*（Dart）",
+      fillcolor="#E6F4EA"
+    ];
+
+    bridge [
+      label="绑定层 rust_*_site.dart\nFRB 模型 ↔ Dart 模型 1:1\n零协议逻辑",
+      fillcolor="#E6F4EA"
+    ];
+
+    frbdart [
+      label="FRB Dart 生成物\nlib/src/rust（入库）",
+      fillcolor="#E6F4EA"
+    ];
+  }
+
+  subgraph cluster_rust {
+    label="Rust workspace（simple_live_core/，cargo）";
+    fontsize=11;
+    style="rounded,dashed";
+    color="#B06000";
+    fillcolor="#FFF8F0";
+
+    root [
+      label="根 crate rust_lib_simple_live_app\nFRB 门面 src/api + frb_generated.rs\ncdylib / staticlib / rlib",
+      fillcolor="#FDE7C8"
+    ];
+
+    core [
+      label="crates/slive-core\n五平台协议 / 模型 / DanmakuMask\n签名·分页·解码·心跳与重连策略\n纯逻辑：无连接、无 FRB",
+      fillcolor="#FDE7C8"
+    ];
+
+    host [
+      label="crates/slive-host\nWSS / 明文 TCP 帧源\n五平台弹幕会话装配 + runtime",
+      fillcolor="#FDE7C8"
+    ];
+
+    ffi [
+      label="crates/slive-ffi\nC ABI（slive.h / slive.hpp / Slive.cs）",
+      fillcolor="#FDE7C8"
+    ];
+
+    cli [
+      label="crates/slive-cli\nbin slive（info / danmaku）",
+      fillcolor="#FDE7C8"
+    ];
+  }
+
+  cargokit [
+    label="rust_builder（cargokit）\n五平台构建插件",
+    fillcolor="#F1F3F4"
+  ];
+
+  storage [
+    label="本地持久化\nHive CE（App）/ Hive 2（TV）/ 文件",
+    shape=cylinder,
+    fillcolor="#E8EAED"
+  ];
+
+  ext [
+    label="外部系统\n直播平台 API/WSS · Firebase\nWebDAV · 局域网设备",
+    fillcolor="#FFF1E0"
+  ];
+
+  app -> modules [label="路由 / 状态"];
+  tv -> tvmods [label="路由 / 状态"];
+  app -> playback [label="播放控制"];
+  app -> relay [label="登记续流线路"];
+  app -> storage [label="读写", style=dashed];
+  tv -> storage [label="读写", style=dashed];
+  playback -> media [label="解码 / 渲染"];
+  playback -> relay [label="本地流 URL"];
+
+  modules -> iface [label="调用 16 个接口点"];
+  tvmods -> iface [label="调用 16 个接口点"];
+  iface -> bridge [label="由 Rust*Site 实现"];
+  bridge -> models [label="翻译", style=dashed];
+  bridge -> frbdart [label="调用生成 API"];
+  frbdart -> root [label="FFI（动态库 / 静态库）"];
+
+  root -> core [label="转发（零协议逻辑）"];
+  root -> host [label="装配弹幕会话"];
+  host -> core [label="帧源 / 会话回调"];
+  core -> ext [label="HTTPS（rustls）"];
+  host -> ext [label="WSS / 明文 TCP", dir=both];
+  relay -> ext [label="重新取直链 / 拉 FLV", style=dashed];
+  app -> ext [label="Firebase 埋点（仅 Android）", style=dashed];
+
+  cli -> core [label="直连"];
+  cli -> host [label="弹幕"];
+  ffi -> core [label="调用"];
+  ffi -> host [label="组装"];
+
+  cargokit -> root [label="编译", style=dotted];
+  cargokit -> app [label="注入原生库", style=dotted];
+}
