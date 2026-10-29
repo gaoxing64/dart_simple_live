@@ -24,6 +24,7 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
+import 'package:simple_live_app/widgets/m3e_loading_indicator.dart';
 
 /// [rightPanel]＝这份清单开成右侧面板还是底部抽屉（判据在调用方，见文件头约定）。
 /// 默认 true：移动横屏全屏与桌面全屏／小窗／格子都吃默认，只有桌面窗口化显式传 false。
@@ -235,7 +236,7 @@ void showFollowUser(LiveRoomController controller) {
       () => Stack(
         children: [
           RefreshIndicator(
-            onRefresh: FollowService.instance.loadData,
+            onRefresh: FollowService.instance.refresh,
             child: ListView.builder(
               itemCount: FollowService.instance.liveList.length,
               itemBuilder: (_, i) {
@@ -256,6 +257,14 @@ void showFollowUser(LiveRoomController controller) {
               },
             ),
           ),
+          // 开播状态还没到（冷启动直接进直播间时 onInit 触发的那一轮）：
+          // 空列表不等于「没人播」，先给加载反馈，别让人以为关注丢了。
+          if (FollowService.instance.updating.value && FollowService.instance.liveList.isEmpty)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: Center(child: M3ELoadingIndicator()),
+              ),
+            ),
           if (Platform.isLinux || Platform.isWindows || Platform.isMacOS)
             Positioned(
               right: 12,
@@ -263,7 +272,7 @@ void showFollowUser(LiveRoomController controller) {
               child: Obx(
                 () => DesktopRefreshButton(
                   refreshing: FollowService.instance.updating.value,
-                  onPressed: FollowService.instance.loadData,
+                  onPressed: FollowService.instance.refresh,
                 ),
               ),
             ),

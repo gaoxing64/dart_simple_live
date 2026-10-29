@@ -40,6 +40,7 @@ import 'package:simple_live_app/services/screen_awake_service.dart';
 import 'package:simple_live_app/services/stream_relay/stream_relay_service.dart';
 import 'package:simple_live_app/widgets/desktop_refresh_button.dart';
 import 'package:simple_live_app/widgets/follow_user_item.dart';
+import 'package:simple_live_app/widgets/m3e_loading_indicator.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -365,7 +366,10 @@ class LiveRoomController extends PlayerController
     initMediaControls();
     // 起播即持有屏幕常亮，暂停/停止/关房/直播结束才释放（见 [ScreenAwakeService]）。
     initScreenAwake();
-    if (FollowService.instance.followList.isEmpty) {
+    // 开播状态不落库：冷启动（没恢复快照）时 liveList 是空的，直接进直播间
+    // 的话「关注」页签/面板会一直空白到下一轮定时刷新。按「状态还没加载过」
+    // 判断而不是「关注列表为空」—— 后者只有一条关注都没有时才成立。
+    if (!FollowService.instance.statusLoaded) {
       FollowService.instance.loadData();
     }
     // 自动关闭会 exit(0) 并弹确认框，只能由页面主格管；副格跑了就是四份倒计时
@@ -1812,7 +1816,7 @@ class LiveRoomController extends PlayerController
         () => Stack(
           children: [
             RefreshIndicator(
-              onRefresh: FollowService.instance.loadData,
+              onRefresh: FollowService.instance.refresh,
               child: ListView.builder(
                 itemCount: FollowService.instance.liveList.length,
                 itemBuilder: (_, i) {
@@ -1834,6 +1838,14 @@ class LiveRoomController extends PlayerController
                 },
               ),
             ),
+            // 开播状态还没到（冷启动直接进直播间时 onInit 触发的那一轮）：
+            // 空列表不等于「没人播」，先给加载反馈，别让人以为关注丢了。
+            if (FollowService.instance.updating.value && FollowService.instance.liveList.isEmpty)
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: Center(child: M3ELoadingIndicator()),
+                ),
+              ),
             if (Platform.isLinux || Platform.isWindows || Platform.isMacOS)
               Positioned(
                 right: 12,
@@ -1841,7 +1853,7 @@ class LiveRoomController extends PlayerController
                 child: Obx(
                   () => DesktopRefreshButton(
                     refreshing: FollowService.instance.updating.value,
-                    onPressed: FollowService.instance.loadData,
+                    onPressed: FollowService.instance.refresh,
                   ),
                 ),
               ),

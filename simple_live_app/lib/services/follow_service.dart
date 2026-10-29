@@ -67,7 +67,17 @@ class FollowService extends GetxService {
 
   int _refreshCycle = 0;
 
-  bool _snap = false;
+  /// 快照新鲜期截止时刻（µs）。恢复快照后、且在这一刻之前，[loadData] 会跳过
+  /// **一次**隐式刷新（见那里的注释）；用户显式刷新走 [refresh]，永不经过这里。
+  int _snapshotFreshUntil = 0;
+
+  /// 本会话是否已经有可信的开播状态（快照恢复过，或跑完过一轮刷新）。
+  ///
+  /// 开播状态不落库（见 `FollowUser.liveStatus`），所以「有关注」不等于
+  /// 「知道谁在播」；直播间等入口据此判断要不要补一次刷新。
+  bool _statusLoaded = false;
+
+  bool get statusLoaded => _statusLoaded;
 
   @override
   Future<void> onInit() async {
@@ -80,6 +90,10 @@ class FollowService extends GetxService {
     });
     await initFollowList();
     initTimer();
+    // 启动即开一条刷新线：不必先经过关注页，之后任何入口（首页、直播间、
+    // 关注页）看到的都是同一份正在推进的状态。快照新鲜时[loadData]自己会
+    // 跳过一次（见那里的注释），所以这一步不会绕开「降低风控」的开关。
+    loadData();
     cleanupTombstones();
     super.onInit();
   }
@@ -307,15 +321,18 @@ class FollowService extends GetxService {
       followList.assignAll(list);
       liveList.clear();
       notLiveList.clear();
+      // 没有关注就没有状态可拉，后续入口不必再触发刷新
+      _statusLoaded = true;
       _updatedListController.add(0);
       return;
     }
     var followSnapshot = AppSettingsController.instance.followSnapshot;
     bool followSnapshotEnable = AppSettingsController.instance.followSnapshotEnable.value;
     // whether to recover snapshot depends on expireAt
-    if (followSnapshot != null &&
+    final recovered = followSnapshot != null &&
         followSnapshot.expireAt > DateTime.now().microsecondsSinceEpoch &&
-        followSnapshotEnable) {
+        followSnapshotEnable;
+    if (followSnapshot != null && recovered) {
       final snapshotMap = {for (var item in followSnapshot.followSnapshotItems) item.id: item};
       for (var item in list) {
         final resItem = snapshotMap[item.id];
@@ -323,11 +340,13 @@ class FollowService extends GetxService {
           item.applySnapshot(resItem);
         }
       }
-      _snap = true;
+      // 快照本身就是「最近一轮刷新的结果」：它的到期时刻即下次愿意再拉的时刻
+      _snapshotFreshUntil = followSnapshot.expireAt;
+      _statusLoaded = true;
       Log.i("FollowService: follow-snapshot has recovered, expireAt: ${followSnapshot.expireAt}");
     }
     followList.assignAll(list);
-    if (_snap) {
+    if (recovered) {
       liveListSort();
     }
     _buildDormantList();
@@ -359,18 +378,35 @@ class FollowService extends GetxService {
     }
   }
 
-  Future<void> loadData({bool updateStatus = true, int? cycle}) async {
-    // snapshot 恢复跳过第一次状态更新
-    if (_snap) {
-      _snap = false;
+  /// 拉取开播状态（或只对外广播一次「列表已变」）。
+  ///
+  /// [force] 只由用户显式动作传（下拉、刷新按钮、导入后回读），永不被挡。
+  ///
+  /// 定时器、页面首次加载这类隐式入口不传 force：冷启动恢复过快照时，快照
+  /// 新鲜期内的**第一次**隐式刷新会被跳过（打开即请求是最招风控的一幕），
+  /// 之后照常拉取。旧实现不分调用方地吞掉「第一次调用」，谁先调用谁被吞——
+  /// 直播间里用户的下拉也可能是第一次，于是石沉大海；现在只拦隐式入口，
+  /// 且挡一次就关窗。
+  Future<void> loadData({bool updateStatus = true, int? cycle, bool force = false}) async {
+    if (!updateStatus) {
+      _updatedListController.add(0);
       return;
     }
-    if (updateStatus) {
-      startUpdateStatus(cycle: cycle);
-    } else {
-      _updatedListController.add(0);
+    // 刷新中再起一轮会搅乱 updatedCount / _totalToUpdate 这两个共享计数
+    if (updating.value) {
+      return;
     }
+    if (!force && _snapshotFreshUntil > DateTime.now().microsecondsSinceEpoch) {
+      _snapshotFreshUntil = 0;
+      CoreLog.i("Update Follow: skipped one implicit refresh, snapshot still fresh");
+      return;
+    }
+    _snapshotFreshUntil = 0;
+    startUpdateStatus(cycle: cycle);
   }
+
+  /// 用户显式刷新：不受快照新鲜期限制。
+  Future<void> refresh() => loadData(force: true);
 
   void multiRoundPriority() {
     final historyList = DBService.instance.getHistories();
@@ -551,6 +587,43 @@ class FollowService extends GetxService {
       }
     }
     followList.insert(insertAt, item);
+    _syncDerivedLists(item);
+  }
+
+  /// 把一条刚翻转状态的对象同步进 [liveList] / [notLiveList]（与 [followList] 同序）。
+  ///
+  /// 刷新期间这两个表也得跟着走：直播间「关注」页签/面板直接读 [liveList]，
+  /// 只等 [filterData] 收尾才重建的话，中途打开看到的是上一轮的旧内容 ——
+  /// 明明刷新正在跑，却像是没在刷新。状态为 0（未知）的条目两张表都不进。
+  void _syncDerivedLists(FollowUser item) {
+    // 用 removeWhere 而不是 remove：RxList 只给前者挂了 refresh（见 get 的
+    // rx_list.dart），remove 走 ListMixin 的搬移，直播间那边可能收不到通知。
+    liveList.removeWhere((e) => identical(e, item));
+    notLiveList.removeWhere((e) => identical(e, item));
+    final status = item.liveStatus.value;
+    final target = switch (status) {
+      2 => liveList,
+      1 => notLiveList,
+      _ => null,
+    };
+    if (target == null) {
+      return;
+    }
+    // 插入点 = followList 里排在它前面、且同属这张表的条目数（线性扫一遍）
+    final position = followList.indexOf(item);
+    if (position < 0) {
+      return;
+    }
+    var insertAt = 0;
+    for (var i = 0; i < position; i++) {
+      if (followList[i].liveStatus.value == status) {
+        insertAt++;
+      }
+    }
+    // 两张表正常情况下是 followList 的镜像，insertAt 必然落界内；
+    // clamp 兜住直接调用 reflowFollowItem、表还没建过的场景（单测即如此）。
+    // 走 insertAll 而不是 insert：前者是 RxList 覆写过、确定会 refresh 的入口。
+    target.insertAll(insertAt.clamp(0, target.length), [item]);
   }
 
   /// 与 [listSortByMethod] 同一套比较规则：直播优先，再按用户选的排序方式。
@@ -594,6 +667,7 @@ class FollowService extends GetxService {
     // 收尾的那次完整刷新会覆盖增量结果，挂着的节流通知没有意义
     _incrementalNotifyTimer?.cancel();
     _incrementalNotifyPending = false;
+    _statusLoaded = true;
     liveListSort();
     _updatedListController.add(0);
   }
@@ -710,7 +784,7 @@ class FollowService extends GetxService {
       Log.logPrint(e);
       SmartDialog.showToast("导入失败:$e");
     } finally {
-      loadData();
+      refresh();
     }
   }
 
@@ -790,7 +864,7 @@ class FollowService extends GetxService {
                 await inputJson(textController.text);
                 SmartDialog.showToast("导入成功");
                 Get.back();
-                loadData();
+                refresh();
               } catch (e) {
                 SmartDialog.showToast("导入失败，请检查内容是否正确");
               }
