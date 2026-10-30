@@ -73,7 +73,7 @@ AppNavigator.toLiveRoomDetail(site, roomId, together?)
   → LiveRoomController.onInit → loadData()
   → getRoomDetail → addHistory → getSuperChat / getPlayQualities
   → 选档（蜂窝另读 qualityLevelCellular）
-  → getPlayUrls → playUrls/playHeaders
+  → getPlayUrls → PlayLineRanker.probe（CDN 优选；失败自动退回静态序）→ playUrls/playHeaders
   → initializePlayer → player.open(Playlist)
   → getDanmaku().start(danmakuData)
   → 每 500ms(+tile*125ms) DanmakuMask.allowListBatch/mergeListBatch → canvas_danmaku
@@ -83,6 +83,7 @@ AppNavigator.toLiveRoomDetail(site, roomId, together?)
 | --- | --- |
 | 清晰度 | 2/1/0 = 最高/中/最低 |
 | 线路 | `changePlayLine` → `player.jump` |
+| 线路优选 | 起播前并发探测首字节时延（单线 `kPlayLineProbeBudgetMs`=500ms，设 0 关闭）→ core `rank_scored`；续流按主机序重排，保证「第 N 条」仍是同一条 CDN |
 | 断流 | 原地重试 2 次 → 逐条换线 → 全断判定下播 |
 | 头部 | `Media(url, httpHeaders: playHeaders)` |
 | 缓存 | `buildLiveCacheProperties` 一次组表再逐条 `setProperty`；Android 关双重缓冲＝**空表**（留在内核默认值）；Twitch 预读 `kTwitchPlayerCacheSecs`(10) |
