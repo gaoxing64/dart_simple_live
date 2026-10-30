@@ -30,10 +30,12 @@ import 'package:simple_live_app/modules/live_room/multi_play/multi_play_volume.d
 import 'package:simple_live_app/modules/settings/danmu_settings_page.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
+import 'package:simple_live_app/services/cdn_order_cache.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_block_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/history_service.dart';
+import 'package:simple_live_app/services/live_room_prefetch.dart';
 import 'package:simple_live_app/services/playback/live_playback_audio_handler.dart';
 import 'package:simple_live_app/services/playback/live_playback_target.dart';
 import 'package:simple_live_app/services/screen_awake_service.dart';
@@ -45,6 +47,21 @@ import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+
+/// 起播**之后**多久开始后台探测 CDN 时延。
+///
+/// 起播瞬间探测会和播放器抢带宽、把首帧推后，所以必须等画面出来再测；
+/// 结果只用于**下一次**切台，不阻塞本次。
+const Duration kCdnWarmupDelay = Duration(seconds: 3);
+
+/// 后台探测的单线预算（毫秒）。此时不在起播关键路径上，可以给得宽一些。
+const int kCdnWarmupBudgetMs = 1200;
+
+/// 首帧之后多久开始预取相邻房间。
+///
+/// 取 1s：首帧已稳定、不会和播放器抢首包；再晚（2s）的话，抖音这类详情要
+/// 1.8~2s 的平台，预取还没取完用户就已经切走了（实测 3 轮里第 1 轮全未命中）。
+const Duration kPrefetchDelay = Duration(seconds: 1);
 
 class LiveRoomController extends PlayerController
     with WidgetsBindingObserver
@@ -264,6 +281,17 @@ class LiveRoomController extends PlayerController
   /// 线路数据
   RxList<String> playUrls = RxList<String>();
 
+  /// 结构化线路（与 [playUrls] 一一对应）：容器类型 / CDN 主机 / 平台标记。
+  ///
+  /// 由 core 的 `play::rank*` 产出，只重排不丢弃；`originIndex` 记录平台原始顺序。
+  List<LivePlayLine> playLines = const [];
+
+  /// 起播时确定的主机顺序：续流按它重排，保证「第 N 条线路」仍指向同一条 CDN。
+  List<String> _lineHostOrder = const [];
+
+  /// 本次加载的缓存键房间号（进入时的值，不随抖音重写变化）。
+  String _cacheRoomId = "";
+
   /// 下发给播放器的地址（与 [playUrls] 一一对应）。
   ///
   /// 斗鱼的直链带 300 秒硬寿命，由 [buildPlayerUrls] 替换为本地续流中转地址，
@@ -293,6 +321,26 @@ class LiveRoomController extends PlayerController
   bool get hasMultipleQualities => qualities.length > 1;
 
   bool get hasMultipleLines => playUrls.length > 1;
+
+  /// 线路列表用：容器类型标签（优先取 core 的结构化线路，回退按扩展名判断）。
+  String lineKindLabel(int index) {
+    if (index >= 0 && index < playLines.length) {
+      return playLines[index].kindLabel;
+    }
+    if (index >= 0 && index < playUrls.length) {
+      return playUrls[index].contains(".flv") ? "FLV" : "HLS";
+    }
+    return "";
+  }
+
+  /// 线路列表用：CDN 主机（未优选过时为空串）。
+  String lineHost(int index) =>
+      index >= 0 && index < playLines.length ? playLines[index].host : "";
+
+  /// 线路优选是否让 HLS 优先（当前只有抖音提供该用户偏好）。
+  bool get _preferHlsForRank =>
+      site.id == Constant.kDouyin &&
+      AppSettingsController.instance.douyinHlsFirst.value;
 
   Map<String, String>? playHeaders;
 
@@ -972,7 +1020,16 @@ class LiveRoomController extends PlayerController
       addSysMsg("正在读取直播间信息");
       // 本次加载针对哪一路；换台时上一次的请求可能更晚落地
       final target = roomId;
-      detail.value = await site.liveSite.getRoomDetail(roomId: target);
+      // 缓存键统一用**进入时的**房间号：抖音在下面会把 roomId 重写成 19 位真实房间号，
+      // 若三个缓存点各用各的 id，预取写入的 key 永远命中不了（还会留两份重复条目）。
+      _cacheRoomId = target;
+      final cachedDetail = LiveRoomPrefetch.takeDetail(site.id, target);
+      if (cachedDetail != null) {
+        detail.value = cachedDetail;
+      } else {
+        detail.value = await site.liveSite.getRoomDetail(roomId: target);
+        LiveRoomPrefetch.putDetail(site.id, target, detail.value!);
+      }
       // 世代守卫：换台后旧请求晚到会把上一路的标题/封面/在线数盖到新房间上。
       // 只认最后一次发起的那个（注意要放在下面抖音改写 roomId 之前判断，
       // 否则会被那个改写误伤）。
@@ -1051,14 +1108,28 @@ class LiveRoomController extends PlayerController
     currentQuality = -1;
 
     try {
-      var playQualities = await site.liveSite.getPlayQualities(detail: detail.value!);
+      // 连接类型判定是平台调用，串在取清晰度中间纯属白等，先发出去再等它。
+      final qualityLevelFuture = getQualityLevel();
+      final cachedQualities =
+          LiveRoomPrefetch.takeQualities(site.id, _cacheRoomId);
+      final List<LivePlayQuality> playQualities;
+      if (cachedQualities != null) {
+        playQualities = cachedQualities;
+      } else {
+        playQualities = await site.liveSite
+            .getPlayQualities(detail: detail.value!);
+        // 空结果不缓存：这次抖动是瞬时的，缓存住会让重试在 90 秒内一直走空。
+        if (playQualities.isNotEmpty) {
+          LiveRoomPrefetch.putQualities(site.id, _cacheRoomId, playQualities);
+        }
+      }
 
       if (playQualities.isEmpty) {
         SmartDialog.showToast("无法读取播放清晰度");
         return;
       }
       qualities.assignAll(playQualities);
-      var qualityLevel = await getQualityLevel();
+      var qualityLevel = await qualityLevelFuture;
       if (qualityLevel == 2) {
         //最高
         currentQuality = 0;
@@ -1094,12 +1165,44 @@ class LiveRoomController extends PlayerController
     currentQualityInfo.value = qualities[currentQuality].quality;
     currentLineInfo.value = "";
     currentLineIndex = -1;
-    var playUrl = await site.liveSite.getPlayUrls(detail: detail.value!, quality: qualities[currentQuality]);
-    if (playUrl.urls.isEmpty) {
-      SmartDialog.showToast("无法读取播放地址");
-      return;
+    final quality = qualities[currentQuality];
+    final cachedPlay = LiveRoomPrefetch.takePlayUrl(
+      site.id,
+      _cacheRoomId,
+      quality.quality,
+    );
+    final LivePlayUrl playUrl;
+    if (cachedPlay != null) {
+      playUrl = cachedPlay;
+    } else {
+      playUrl = await site.liveSite.getPlayUrls(
+        detail: detail.value!,
+        quality: quality,
+      );
+      if (playUrl.urls.isEmpty) {
+        SmartDialog.showToast("无法读取播放地址");
+        return;
+      }
+      LiveRoomPrefetch.putPlayUrl(
+        site.id,
+        _cacheRoomId,
+        quality.quality,
+        playUrl,
+      );
     }
-    playUrls.assignAll(playUrl.urls); // 深拷贝
+    // CDN 优选走**零成本**路径：静态序 + 上次实测沉淀的 CDN 顺序，
+    // 全是同步纯计算（微秒级），起播路径上不等待任何网络探测。
+    final lines = _rankPlayLinesSync(playUrl.urls);
+    if (lines.isEmpty) {
+      // 优选链路整体不可用（FFI 故障）：退回平台原始顺序，保证能播。
+      playLines = const [];
+      _lineHostOrder = const [];
+      playUrls.assignAll(playUrl.urls);
+    } else {
+      playLines = lines;
+      _lineHostOrder = PlayLineRanker.hostOrderOf(lines);
+      playUrls.assignAll(lines.map((e) => e.url)); // 深拷贝
+    }
     playHeaders = playUrl.headers;
     _playUrlRenewContexts = _buildRenewContexts();
     currentLineIndex = 0;
@@ -1107,6 +1210,153 @@ class LiveRoomController extends PlayerController
     //重置错误次数
     mediaErrorRetryCount = 0;
     initPlaylist();
+    _pendingWarmupUrls = playUrl.urls;
+    _pendingWarmupHeaders = playUrl.headers;
+    _armWarmupsAfterFirstFrame();
+  }
+
+  /// 首帧稳定后预取关注列表里的相邻房间，供上下键换台直接命中缓存。
+  ///
+  /// 只预取「同一个平台」的相邻项：跨平台换台本来就是另一套请求链路，
+  /// 预取也救不了，还会白占带宽。
+  void _scheduleNeighborPrefetch() {
+    _prefetchTimer?.cancel();
+    _prefetchTimer = Timer(kPrefetchDelay, () async {
+      try {
+        // 预取必须用**和播放同一个档位口径**：否则用户设的是「中/低」画质时，
+        // 预取回来的是最高档直链，命中不了还白花带宽。
+        final level = await getQualityLevel();
+        final follows = FollowService.instance.liveList
+            .where((follow) => follow.siteId == site.id)
+            .toList(growable: false);
+        if (follows.length < 2) {
+          return;
+        }
+        final index = follows.indexWhere((follow) => follow.roomId == roomId);
+        if (index < 0) {
+          return;
+        }
+        for (var offset = 1;
+            offset <= LiveRoomPrefetch.prefetchRadius;
+            offset++) {
+          for (final delta in [offset, -offset]) {
+            final next = (index + delta) % follows.length;
+            final target = follows[next];
+            if (target.roomId == roomId) {
+              continue;
+            }
+            // 串行 await：服务里按平台做了互斥，并发调用会被直接拒掉
+            // （表现为「只预取了下一个邻居，上一个永远不预取」）。
+            await LiveRoomPrefetch.warmUp(
+              site,
+              target.roomId,
+              qualityLevel: level,
+            );
+          }
+        }
+      } catch (e) {
+        Log.logPrint(e);
+      }
+    });
+  }
+
+  /// 同步优选：静态序 + 缓存里的 CDN 顺序（顺序决策全在 core，这里只做映射）。
+  List<LivePlayLine> _rankPlayLinesSync(List<String> urls) {
+    final List<LivePlayLine> ranked;
+    try {
+      ranked = PlayLineRanker.rank(
+        platformId: site.id,
+        urls: urls,
+        preferHls: _preferHlsForRank,
+      );
+    } catch (e) {
+      // FFI 层故障（RustLib 未初始化等）也要退回原序：优选绝不能挡住起播。
+      Log.logPrint(e);
+      return const [];
+    }
+    final cached = CdnOrderCache.get(site.id);
+    if (cached.isEmpty || ranked.length < 2) {
+      return ranked;
+    }
+    final byUrl = <String, LivePlayLine>{
+      for (final line in ranked) line.url: line,
+    };
+    final ordered = PlayLineRanker.reorder(
+      urls: ranked.map((e) => e.url).toList(growable: false),
+      hostOrder: cached,
+    );
+    return ordered
+        .map((url) => byUrl[url])
+        .whereType<LivePlayLine>()
+        .toList(growable: false);
+  }
+
+  Timer? _cdnWarmTimer;
+  Timer? _prefetchTimer;
+
+  /// 等首帧的播放事件订阅 + 兜底定时器（复用播放器时 playing 是边沿事件，
+  /// 可能不再触发，所以必须有兜底）。
+  StreamSubscription<bool>? _firstPlaySub;
+  Timer? _firstPlayFallback;
+  bool _warmupsStarted = false;
+  List<String> _pendingWarmupUrls = const [];
+  Map<String, String>? _pendingWarmupHeaders;
+
+  /// 首帧之后才启动预热/预取：起播瞬间它们会和播放器抢带宽，反而拖慢首帧。
+  void _armWarmupsAfterFirstFrame() {
+    _warmupsStarted = false;
+    _firstPlaySub?.cancel();
+    _firstPlayFallback?.cancel();
+    _firstPlaySub = player.stream.playing.listen((playing) {
+      if (playing) {
+        _startWarmups();
+      }
+    });
+    // 兜底：playing 已是 true（复用播放器）时事件不会再发，用定时器收口。
+    _firstPlayFallback = Timer(
+      kPrefetchDelay + const Duration(seconds: 2),
+      _startWarmups,
+    );
+  }
+
+  void _startWarmups() {
+    if (_warmupsStarted) {
+      return;
+    }
+    _warmupsStarted = true;
+    _firstPlaySub?.cancel();
+    _firstPlaySub = null;
+    _firstPlayFallback?.cancel();
+    _firstPlayFallback = null;
+    _scheduleCdnWarmup(_pendingWarmupUrls, _pendingWarmupHeaders);
+    _scheduleNeighborPrefetch();
+  }
+
+  /// 首帧之后在后台测一轮 CDN 时延，把结果沉淀给**下次**切台用。
+  ///
+  /// 延迟启动是刻意的：起播瞬间探测会和播放器抢带宽，反而把首帧推后。
+  /// 连续切台时只保留最后一次预约，避免探测任务堆积。
+  void _scheduleCdnWarmup(List<String> urls, Map<String, String>? headers) {
+    _cdnWarmTimer?.cancel();
+    if (urls.length < 2) {
+      return;
+    }
+    _cdnWarmTimer = Timer(kCdnWarmupDelay, () async {
+      try {
+        final lines = await PlayLineRanker.probe(
+          platformId: site.id,
+          urls: urls,
+          headers: headers,
+          budgetMs: kCdnWarmupBudgetMs,
+          preferHls: _preferHlsForRank,
+        );
+        if (lines.length > 1) {
+          CdnOrderCache.put(site.id, PlayLineRanker.hostOrderOf(lines));
+        }
+      } catch (e) {
+        Log.logPrint(e);
+      }
+    });
   }
 
   /// 斗鱼直链 300 秒后会被 CDN 主动断开，为每条线路登记续流上下文，
@@ -1117,6 +1367,9 @@ class LiveRoomController extends PlayerController
     }
     final roomDetail = detail.value!;
     final quality = qualities[currentQuality];
+    // 捕获快照：闭包读字段会在切换清晰度后拿到**新**主机序，把旧清晰度的直链
+    // 按新顺序重排 —— 下标就错位了。
+    final hostOrder = _lineHostOrder;
     return List.generate(playUrls.length, (line) {
       return StreamRenewContext(
         roomId: roomDetail.roomId,
@@ -1127,7 +1380,12 @@ class LiveRoomController extends PlayerController
             detail: roomDetail,
             quality: quality,
           );
-          return fresh.urls;
+          // 直链刷新后字符串全变、主机稳定：按起播时确定的主机序重排，
+          // 保证 `line` 下标仍指向同一条 CDN（否则续流会悄悄换线路）。
+          return PlayLineRanker.reorder(
+            urls: fresh.urls,
+            hostOrder: hostOrder,
+          );
         },
       );
     });
@@ -1555,7 +1813,7 @@ class LiveRoomController extends PlayerController
               value: i,
               title: Text("线路${i + 1}"),
               secondary: Text(
-                playUrls[i].contains(".flv") ? "FLV" : "HLS",
+                lineKindLabel(i),
               ),
             );
           },
@@ -2271,6 +2529,10 @@ ${error?.stackTrace}''');
     unawaited(releaseMediaControls());
     scrollController.removeListener(scrollListener);
     autoExitTimer?.cancel();
+    _cdnWarmTimer?.cancel();
+    _prefetchTimer?.cancel();
+    _firstPlaySub?.cancel();
+    _firstPlayFallback?.cancel();
     danmakuTimer?.cancel();
     _chatScrollTimer?.cancel();
     _cancelChatFollowResume();
