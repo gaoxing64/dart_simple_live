@@ -56,7 +56,7 @@ void showLinesInfo(LiveRoomController controller, {bool rightPanel = true}) {
                   padding: AppStyle.edgeInsetsH4,
                   margin: AppStyle.edgeInsetsL8,
                   child: Text(
-                    controller.playUrls[i].contains(".flv") ? "FLV" : "HLS",
+                    controller.lineKindLabel(i),
                     style: const TextStyle(
                       fontSize: 12,
                     ),
@@ -66,6 +66,13 @@ void showLinesInfo(LiveRoomController controller, {bool rightPanel = true}) {
             ),
             style: const TextStyle(fontSize: 14),
           ),
+          subtitle: controller.lineHost(i).isEmpty
+              ? null
+              : Text(
+                  controller.lineHost(i),
+                  style: const TextStyle(fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                ),
           minLeadingWidth: 16,
           onTap: () {
             Utils.hideRightDialog();

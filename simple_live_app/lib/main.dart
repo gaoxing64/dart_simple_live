@@ -47,18 +47,20 @@ import 'package:simple_live_core/simple_live_core.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main(List<String> arguments) async {
-  final action = arguments.isEmpty ? null : arguments.first.toLowerCase();
+  // 参数**逐项扫描**，不依赖先后顺序：`-h -p` 与 `-p -h` 必须等价。
+  final launch = _LaunchArgs.parse(arguments);
   var path = (await getApplicationSupportDirectory()).path;
   if (!Platform.isAndroid && !Platform.isIOS) {
     var pathPortable = p.join(p.dirname(Platform.resolvedExecutable), 'data_hive_ce');
     bool dirPortableExist = await Directory(pathPortable).exists();
-    if (action == "-p" || action == "--portable" || dirPortableExist) {
-      path = pathPortable;
-    } else if (action == "-h" || action == "--help") {
+    if (launch.help) {
       printHelp();
       return;
-    } else if (action != null) {
-      print("未知指令: $action");
+    }
+    if (launch.portable || dirPortableExist) {
+      path = pathPortable;
+    } else if (launch.unknown != null) {
+      print("未知指令: ${launch.unknown}");
       printHelp();
       return;
     }
@@ -90,6 +92,41 @@ void main(List<String> arguments) async {
   );
   SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
   runApp(const MyApp());
+}
+
+/// 启动参数（顺序无关）。
+class _LaunchArgs {
+  const _LaunchArgs({
+    required this.portable,
+    required this.help,
+    required this.unknown,
+  });
+
+  final bool portable;
+  final bool help;
+  final String? unknown;
+
+  static _LaunchArgs parse(List<String> arguments) {
+    var portable = false;
+    var help = false;
+    String? unknown;
+
+    for (final raw in arguments) {
+      final arg = raw.toLowerCase();
+      if (arg == "-p" || arg == "--portable") {
+        portable = true;
+      } else if (arg == "-h" || arg == "--help") {
+        help = true;
+      } else {
+        unknown ??= raw;
+      }
+    }
+    return _LaunchArgs(
+      portable: portable,
+      help: help,
+      unknown: unknown,
+    );
+  }
 }
 
 void printHelp() {
