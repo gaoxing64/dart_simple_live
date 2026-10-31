@@ -29,12 +29,15 @@
 /// | `1`–`4` | 多开时聚焦第 N 路 |
 library;
 
+import 'dart:async';
+
 import 'package:flutter/services.dart'
     show
         HardwareKeyboard,
         KeyDownEvent,
         KeyEvent,
         KeyRepeatEvent,
+        KeyUpEvent,
         LogicalKeyboardKey;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:material_ui/material_ui.dart';
@@ -49,12 +52,22 @@ import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 /// 音量每按一次的步进，与音量浮层滚轮（`VolumeActionWidget._step`）同一个量。
 const double kShortcutVolumeStep = 0.05;
 
+/// 按住音量键后的连续步进间隔。
+///
+/// 与 `PiliNara` 的播放器键盘控制保持同一个节拍：首步立即生效，之后每 150ms
+/// 再走一步。不依赖操作系统的按键重复率，长按手感在 Windows/macOS/Linux 上一致。
+const Duration kShortcutVolumeRepeatInterval = Duration(milliseconds: 150);
+
+/// 键盘动作在画面中央短暂停留的提示时长。
+const Duration kShortcutTipDuration = Duration(milliseconds: 900);
+
 /// 把 [PlayerShortcuts] 挂到视频区外面，快捷键即在此子树有焦点时生效。
 ///
 /// 焦点策略（与 PiliPlus `PlayerFocus` 同一个模式）：
 /// - `autofocus: true` 让进直播间就能直接按键；
 /// - [Listener] 的 `onPointerDown` 负责**抢回**焦点——用户点过聊天栏、点过条带按钮
 ///   之后焦点在别处，点一下画面快捷键就回来。
+/// - 鼠标移入画面时也主动抢回焦点；鼠标已经停在画面上时不必再点一次。
 ///
 /// `Listener` 不参与手势竞技（只旁听指针事件），所以它不会顶掉内部控制条自己的
 /// `onTap` / 双击判定；`HitTestBehavior.translucent` 保证孩子照常命中。
@@ -77,10 +90,31 @@ class PlayerShortcuts extends StatefulWidget {
 class _PlayerShortcutsState extends State<PlayerShortcuts> {
   final FocusNode _focusNode = FocusNode(debugLabel: 'PlayerShortcuts');
 
+  Timer? _volumeRepeatTimer;
+  Timer? _shortcutTipTimer;
+  LogicalKeyboardKey? _volumeRepeatKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChanged);
+  }
+
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
+    _stopVolumeRepeat();
+    _shortcutTipTimer?.cancel();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    // KeyUp 可能因为切窗、弹窗或控件重建而丢失；失焦时主动停掉长按，
+    // 否则音量会一直走到 0 或 100%。
+    if (!_focusNode.hasFocus) {
+      _stopVolumeRepeat();
+    }
   }
 
   /// 这一帧该按哪个宿主解释动作。
@@ -104,7 +138,13 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    // 只认按下与系统重复；抬起（KeyUpEvent）什么都不做。
+    // 抬起只负责停掉音量长按；其余动作只在按下时执行。
+    if (event is KeyUpEvent) {
+      if (event.logicalKey == _volumeRepeatKey) {
+        _stopVolumeRepeat();
+      }
+      return KeyEventResult.ignored;
+    }
     final isPress = event is KeyDownEvent;
     final isRepeat = event is KeyRepeatEvent;
     if (!isPress && !isRepeat) {
@@ -128,10 +168,9 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
     if (shortcut == null) {
       return KeyEventResult.ignored;
     }
-    // 长按重复只放给音量：按住 ↑/↓ 连续加减是想要的节拍，而按住 F/D/M/L/P
-    // 若也吃重复，就会一路来回开关全屏／弹幕／静音——那是纯粹的手感事故。
-    // 吞掉但不执行：返回 handled 免得重复事件再冒到上层去干别的。
-    if (isRepeat && !repeatablePlayerShortcuts.contains(shortcut)) {
+    // 系统重复事件一律吞掉：音量长按由本节点自己的 150ms 计时器驱动，
+    // 其余动作也绝不该因为按住而反复开关。返回 handled 同时阻止事件继续冒泡。
+    if (isRepeat) {
       return KeyEventResult.handled;
     }
     // 空格与回车是 Flutter 用来「激活当前聚焦控件」的那两个键。Tab 走进视频区内部
@@ -147,7 +186,48 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
       return KeyEventResult.ignored;
     }
     _invoke(shortcut);
+    if (repeatablePlayerShortcuts.contains(shortcut)) {
+      _startVolumeRepeat(shortcut, event.logicalKey);
+    }
     return KeyEventResult.handled;
+  }
+
+  /// 按住音量键时按固定节拍重复。
+  ///
+  /// 首个 KeyDown 已经由 [_invoke] 执行过一次，这里从下一次开始计时，避免
+  /// 刚按下就出现两步。`KeyRepeatEvent` 不再参与，所以系统重复率不会叠加。
+  void _startVolumeRepeat(PlayerShortcut shortcut, LogicalKeyboardKey key) {
+    _stopVolumeRepeat();
+    _volumeRepeatKey = key;
+    _volumeRepeatTimer = Timer.periodic(kShortcutVolumeRepeatInterval, (_) {
+      if (!mounted || !AppSettingsController.instance.keyboardControl.value) {
+        _stopVolumeRepeat();
+        return;
+      }
+      _invoke(shortcut);
+    });
+  }
+
+  void _stopVolumeRepeat() {
+    _volumeRepeatTimer?.cancel();
+    _volumeRepeatTimer = null;
+    _volumeRepeatKey = null;
+  }
+
+  /// 复用播放器已有的手势提示浮层，给键盘操作一个不打断观看的反馈。
+  void _showShortcutTip(LiveRoomController target, String text) {
+    if (target.isClosed) {
+      return;
+    }
+    target.gestureTipText.value = text;
+    target.showGestureTip.value = true;
+    _shortcutTipTimer?.cancel();
+    _shortcutTipTimer = Timer(kShortcutTipDuration, () {
+      if (!mounted || target.isClosed || target.verticalDragging) {
+        return;
+      }
+      target.showGestureTip.value = false;
+    });
   }
 
   /// 「退出/关闭播放器」在直播间里的三级语义。
@@ -206,11 +286,12 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
             : -kShortcutVolumeStep;
         // 绑哪个量跟按钮同源（见 `player_action_bar.dart` 的 volume 分支）：
         // 格子绑本格系数，其余宿主绑总音量。
-        if (host == PlayerHost.tile) {
-          VolumeTarget.tile(target).nudge(delta);
-        } else {
-          VolumeTarget.master(page).nudge(delta);
-        }
+        final volumeTarget = host == PlayerHost.tile
+            ? VolumeTarget.tile(target)
+            : VolumeTarget.master(page);
+        volumeTarget.nudge(delta);
+        final percent = (volumeTarget.ratio.clamp(0.0, 1.0) * 100).round();
+        _showShortcutTip(target, "音量 $percent%");
 
       case PlayerShortcut.prevLine:
       case PlayerShortcut.nextLine:
@@ -235,6 +316,10 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
 
       case PlayerShortcut.lockControls:
         target.setLockState();
+        _showShortcutTip(
+          target,
+          target.lockControlsState.value ? "控制条已锁定" : "控制条已解锁",
+        );
 
       case PlayerShortcut.focusSlot1:
       case PlayerShortcut.focusSlot2:
@@ -274,10 +359,8 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
         }
         page.chatTab.value = LiveRoomController.kChatTabFollow;
 
-      case PlayerShortcut.fullscreen:
       case PlayerShortcut.danmakuToggle:
       case PlayerShortcut.smallWindow:
-      case PlayerShortcut.mute:
       case PlayerShortcut.screenshot:
       case PlayerShortcut.refresh:
       case PlayerShortcut.quality:
@@ -286,15 +369,42 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
           target: target,
           page: page,
           id: switch (shortcut) {
-            PlayerShortcut.fullscreen => PlayerActionId.fullscreenToggle,
             PlayerShortcut.danmakuToggle => PlayerActionId.danmakuToggle,
             PlayerShortcut.smallWindow => PlayerActionId.smallWindow,
-            PlayerShortcut.mute => PlayerActionId.volume,
             PlayerShortcut.screenshot => PlayerActionId.screenshot,
             PlayerShortcut.refresh => PlayerActionId.refresh,
             _ => PlayerActionId.quality,
           },
         );
+        if (shortcut == PlayerShortcut.danmakuToggle) {
+          _showShortcutTip(
+            target,
+            target.showDanmakuState.value ? "弹幕已开启" : "弹幕已关闭",
+          );
+        }
+
+      case PlayerShortcut.fullscreen:
+        // 小窗里的全屏颗是「全屏播放」，不是「退出小窗」；与按钮走同一条
+        // `enterFullScreen`，否则 F 和按钮会在同一宿主里做相反的事。
+        if (host == PlayerHost.smallWindow) {
+          page.enterFullScreen();
+        } else {
+          invokePlayerAction(
+            host: host,
+            target: target,
+            page: page,
+            id: PlayerActionId.fullscreenToggle,
+          );
+        }
+
+      case PlayerShortcut.mute:
+        // 必须与音量按钮的点击路径同源：`invokePlayerAction(volume)` 只切
+        // `volumeFactor`，当总音量被拖到 0 时无法真正取消静音。
+        final volumeTarget = host == PlayerHost.tile
+            ? VolumeTarget.tile(target)
+            : VolumeTarget.master(page);
+        volumeTarget.toggleMute();
+        _showShortcutTip(target, volumeTarget.muted ? "已静音" : "取消静音");
     }
   }
 
@@ -307,11 +417,20 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
           _focusNode.requestFocus();
         }
       },
-      child: Focus(
-        focusNode: _focusNode,
-        autofocus: true,
-        onKeyEvent: _onKeyEvent,
-        child: widget.child,
+      child: MouseRegion(
+        // 与 PiliNara 的播放器焦点一致：鼠标移入视频区即恢复键盘控制，
+        // 不必先点一下画面。`hasFocus` 同时包含子节点，所以不会抢走条带按钮的焦点。
+        onEnter: (_) {
+          if (!_focusNode.hasFocus) {
+            _focusNode.requestFocus();
+          }
+        },
+        child: Focus(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: _onKeyEvent,
+          child: widget.child,
+        ),
       ),
     );
   }

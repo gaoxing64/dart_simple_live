@@ -23,7 +23,6 @@ import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/app/utils/listen_fourth_button.dart';
 import 'package:simple_live_app/firebase_options.dart';
 import 'package:simple_live_app/hive_registrar.g.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
 import 'package:simple_live_app/modules/other/debug_log_page.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 import 'package:simple_live_app/routes/app_analytics_observer.dart';
@@ -126,6 +125,94 @@ class _LaunchArgs {
       help: help,
       unknown: unknown,
     );
+  }
+}
+
+/// 应用级快捷键兜底。
+///
+/// 之前这里在每次 build 时新建一个 `FocusNode`，既没有自动取得焦点，也没有
+/// dispose；首页没有控件获得焦点时，Esc 可能根本到不了这条链。改为一个稳定的
+/// 祖先 [Focus]：首帧后只有全树都没有焦点时才由它接管，绝不抢搜索框、播放器
+/// 等页面自身的 `autofocus`。
+///
+/// 直播间视频区拿到焦点时，内层 `PlayerShortcuts` 会先消费同一个键并补上
+/// 「离开直播间」这一级；其余页面由本层把 Esc 统一转成返回。
+class _GlobalShortcutListener extends StatefulWidget {
+  const _GlobalShortcutListener({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_GlobalShortcutListener> createState() =>
+      _GlobalShortcutListenerState();
+}
+
+class _GlobalShortcutListenerState extends State<_GlobalShortcutListener> {
+  final FocusNode _focusNode = FocusNode(debugLabel: 'AppShortcuts');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final primary = FocusManager.instance.primaryFocus;
+      if (primary == null ||
+          (primary is FocusScopeNode && primary.focusedChild == null)) {
+        _focusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      focusNode: _focusNode,
+      onKeyEvent: _onKeyEvent,
+      child: widget.child,
+    );
+  }
+
+  static KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape) {
+      return KeyEventResult.ignored;
+    }
+    final hk = HardwareKeyboard.instance;
+    if (hk.isShiftPressed ||
+        hk.isControlPressed ||
+        hk.isAltPressed ||
+        hk.isMetaPressed) {
+      return KeyEventResult.ignored;
+    }
+    unawaited(_handleBackShortcut());
+    return KeyEventResult.handled;
+  }
+
+  /// Esc 的全局返回链：弹窗 → 桌面全屏 → 当前路由。
+  ///
+  /// 路由退栈统一走 `Utils.appBack()` 的 `maybePop`，所以关注页展开的搜索框
+  /// 会先被页面自己的 `PopScope` 收起，搜索页、关注详情等普通页面则直接返回。
+  static Future<void> _handleBackShortcut() async {
+    if (SmartDialog.checkExist()) {
+      MyApp.appBack();
+      return;
+    }
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      if (await windowManager.isFullScreen()) {
+        await windowManager.setFullScreen(false);
+        EventBus.instance.emit(EventBus.kEscapePressed, 0);
+        return;
+      }
+    }
+    Utils.appBack();
   }
 }
 
@@ -333,53 +420,7 @@ class MyApp extends StatelessWidget {
                         },
                       ),
                     },
-                    child: KeyboardListener(
-                      focusNode: FocusNode(),
-                      onKeyEvent: (KeyEvent event) async {
-                        // 「退出/关闭播放器」这一行的**全局兜底**：键位可自定义，
-                        // 默认仍是 Escape。行为链本身与改前逐字一致。
-                        //
-                        // 直播间视频区拿到焦点时，这条链不会走到这里——那里的
-                        // `PlayerShortcuts` 更深一层，会先消费掉同一个键并加上
-                        // 「离开直播间」这第三级。焦点在别处（设置页、聊天输入框、
-                        // 首页）时，本处仍是唯一入口，所以「Esc 关弹窗」在全 app
-                        // 范围内照旧可用，且不受「播放器快捷键」总开关影响：
-                        // 那个开关管的是播放器动作，不是应用级的弹窗/全屏收口。
-                        if (event is! KeyDownEvent) {
-                          return;
-                        }
-                        final exitBinding = AppSettingsController.instance.bindingFor(PlayerShortcut.exitPlayer);
-                        if (exitBinding == null) {
-                          return;
-                        }
-                        final hk = HardwareKeyboard.instance;
-                        if (!shortcutBindingMatches(
-                          exitBinding,
-                          event.logicalKey,
-                          shift: hk.isShiftPressed,
-                          ctrl: hk.isControlPressed,
-                          alt: hk.isAltPressed,
-                          meta: hk.isMetaPressed,
-                        )) {
-                          return;
-                        }
-                        //优先关闭 SmartDialog 弹窗
-                        if (SmartDialog.checkExist()) {
-                          MyApp.appBack();
-                          return;
-                        }
-                        // ESC退出全屏
-                        // 如果处于全屏状态，退出全屏
-                        if (!Platform.isAndroid && !Platform.isIOS) {
-                          if (await windowManager.isFullScreen()) {
-                            await windowManager.setFullScreen(false);
-                            EventBus.instance.emit(EventBus.kEscapePressed, 0);
-                            return;
-                          }
-                        }
-                      },
-                      child: child!,
-                    ),
+                    child: _GlobalShortcutListener(child: child!),
                   ),
 
                   //查看DEBUG日志按钮
