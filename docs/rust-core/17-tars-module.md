@@ -44,7 +44,7 @@ platforms/douyu ─┘
 | `tars/consts.rs` | 协议常量与返回码键名 | `tup/const.dart` |
 
 全部单文件 <= 300 行（门禁：`find crates/slive-core/src/tars -name '*.rs' | xargs wc -l | awk '$1>300'`，无输出）。
-精确行数见 `docs/rust-core/evidence-tars-build-test.log` §1。
+精确行数见 `backup-feat-core-rust-20261017` 分支中的 `evidence-tars-build-test.log` §1。
 
 ## 3. 线格式速查
 
@@ -341,7 +341,7 @@ cargo test -p slive-core --test ac_tars_codec --test ac_tars_wire
 - 单文件行数门禁：全部 <= 300 行
 - 测试：**98 passed / 0 failed**
 
-完整日志：`docs/rust-core/evidence-tars-build-test.log`。
+完整日志：`backup-feat-core-rust-20261017` 分支中的 `evidence-tars-build-test.log`。
 
 > 注：全量 `cargo test -p slive-core` 会一并编译 `platforms/douyin`、`platforms/douyin` 等
 > 并行任务的在制品，其编译错误与本模块无关。故本模块的 98 条用例另在**隔离 crate**

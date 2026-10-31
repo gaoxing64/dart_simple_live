@@ -78,7 +78,7 @@
 | AC-35 | P0 | 确定性 golden 把关核心验收 | join 包逐字节 / wbi 固定 `w_rid` / 脏帧解码结果，**固定输入→固定期望**，不由被测代码自证 | **[就绪]**（golden 已产出） |
 | AC-36 | P0 | held-out 留出集 | `tests/fixtures/bilibili/heldout/` 实现者不可见；`cargo test --features heldout` 单独判定 | [待建]（策略见 §3） |
 | AC-37 | P0 | 实现 diff / 测试 diff 分离 | 两次独立 `git diff`（`-- src` vs `-- tests` `fixtures` `*.toml`）分别评审；见 §4.3 | **[就绪]**（流程，§4.3 给命令） |
-| AC-38 | P0 | 真实命令输出落盘 | `cargo test/clippy` + FRB codegen + `flutter test` 输出落 `docs/rust-core/evidence-*.log` | [待建] |
+| AC-38 | P0 | 真实命令输出落盘 | `cargo test/clippy` + FRB codegen + `flutter test` 输出落 `docs/rust-core/evidence-*.log`（已 gitignore，仅本地留档） | [待建] |
 | AC-39 | P0 | 绑定层零协议逻辑 + 结构约束 | ①`cargo tree -p <bridge>` **不得**含 `reqwest`/`tokio-tungstenite`/`md-5`/`wbi`；②绑定层文件 grep 无 `http`/`wss`/`md5`/`wbi`/`jsonDecode`/`Url(`/`Retry`；③人工审查仅类型翻译 | [待建]（§4.4 给判定式） |
 | AC-40 | P0 | 凭证/日志不泄露明文 | 注入/校验后捕获日志（含 debug），断言**不含** `SESSDATA`/`cookie=` 明文子串 | [待建] |
 
@@ -242,6 +242,9 @@ cargo clippy -p slive-core -- -D warnings  > docs/rust-core/evidence-clippy.log 
 flutter_rust_bridge_codegen --version     > docs/rust-core/evidence-frb-version.log 2>&1
 cd ../simple_live_app && flutter analyze && flutter test > ../../docs/rust-core/evidence-app-test.log 2>&1
 ```
+
+> 以上日志已由根 `.gitignore` 忽略，只落本地、不入库；需要追溯历史原始日志时见
+> `backup-feat-core-rust-20261017` 分支。
 
 ---
 
