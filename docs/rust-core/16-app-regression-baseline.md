@@ -3,7 +3,7 @@
 > 采集：QA（严过关）｜日期：2026-10-16｜工作目录：`C:/Users/admin/WorkBuddy/Worktrees/dart_simple_live/core-rust`
 > 目的：为 **AC-30「其余 4 平台 + App 零新增失败」/ DoD-4「回归为零」** 提供**实现者动 App 之前**的比对基准。
 > 性质：**采集任务**——未修改任何测试、未动任何 `src/`（`test/` 与 `lib/` 零改动，见 §7）。
-> 原始日志：`docs/rust-core/evidence-app-flutter-test.log`（2.0 MB）、`docs/rust-core/evidence-core-flutter-test.log`（0.87 MB）
+> 原始日志：采集时输出到 `docs/rust-core/evidence-*.log`（已 gitignore，不入库）；历史原始日志见 `backup-feat-core-rust-20261017` 分支。
 
 ---
 
@@ -79,7 +79,7 @@ env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
 
 ## 4. App 侧失败清单（15 条，逐条）
 
-> 来源：`evidence-app-flutter-test.log`（`fvm flutter test --no-pub`，Flutter 3.47.6）。
+> 来源：本地 evidence 日志（已 gitignore；历史原始日志见 `backup-feat-core-rust-20261017` 分支），`fvm flutter test --no-pub`，Flutter 3.47.6。
 > 「一行原因」取自日志中失败点的报错首行。
 
 | # | 文件 | 用例名 | 一行原因 |

@@ -359,7 +359,7 @@ QA 会用生成器复核。若确实是生成器缺陷，QA 修生成器并重�
 
 ## 7A. 自检真实结论（不采信"应该能过"）
 
-> 证据：`evidence-fixtures-test.log`、`evidence-fixtures-clippy.log`
+> 证据：`backup-feat-core-rust-20261017` 分支中的 `evidence-fixtures-test.log`、`evidence-fixtures-clippy.log`
 
 | 命令 | 结果 |
 |------|------|

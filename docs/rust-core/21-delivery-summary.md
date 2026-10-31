@@ -72,3 +72,6 @@
 开发过程中的 66 个 `evidence-*.log`（构建/测试/探针/排障原始输出）已在本次提交整理时移除 ——
 其关键结论已全部提炼至本文档 §3 与各 commit message；原始过程日志可由本仓库 git 历史
 （`backup-feat-core-rust-20261017` 分支）完整找回。
+
+2026-10-31 补：整理后重新混入的两份迁移构建日志（`evidence-migrate-*.log`）已移除；
+根 `.gitignore` 新增 `docs/rust-core/evidence-*.log`，此类日志只保留在本地，不再入库。
