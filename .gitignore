@@ -54,3 +54,10 @@ deliverables/
 
 # 本地决策笔记（fork/构建供应链记录），不入库
 /volume-normalize-notes.md
+
+# 验收/构建 evidence 日志只保留在本地，不入库；历史原始日志见
+# backup-feat-core-rust-20261017 分支
+/docs/rust-core/evidence-*.log
+
+# 本地 Android 签名材料（keystore / key.properties / 导出的 secrets），不入库
+/slive-keys/
