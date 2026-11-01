@@ -6,8 +6,6 @@ import 'package:simple_live_app/app/log.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_core/simple_live_core.dart';
-// FRB CoreError 与 Dart core 同名，库层面不导出，按需深导入
-import 'package:simple_live_core/src/rust/api/slive/error.dart';
 
 class BaseController extends GetxController {
   /// 加载中，更新页面
