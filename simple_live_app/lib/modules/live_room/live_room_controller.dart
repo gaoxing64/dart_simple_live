@@ -2507,7 +2507,7 @@ class LiveRoomController extends PlayerController
 
   /// 解析 `danmakuData`（Rust 契约 JSON 串，键为 snake_case）。
   ///
-  /// Dart 侧的 `DouyinDanmakuArgs` / `HuyaDanmakuArgs` 已随 ADR-014 删除，
+  /// Dart 侧的 `DouyinDanmakuArgs` / `HuyaDanmakuArgs` 已随 Rust 化重构删除，
   /// 这里直接读 JSON；缺字段时返回空 Map，让深链退化为浏览器打开。
   Map<String, dynamic> _danmakuArgsMap() {
     final raw = detail.value?.danmakuData;
@@ -2529,7 +2529,7 @@ class LiveRoomController extends PlayerController
       naviteUrl = "bilibili://live/${detail.value?.roomId}";
       webUrl = "https://live.bilibili.com/${detail.value?.roomId}";
     } else if (site.id == Constant.kDouyin) {
-      // danmakuData 是 Rust 契约 JSON 串（Dart 侧 args 类已随 ADR-014 删除）。
+      // danmakuData 是 Rust 契约 JSON 串（Dart 侧 args 类已随 Rust 化重构删除）。
       final args = _danmakuArgsMap();
       naviteUrl = "snssdk1128://webcast_room?room_id=${args['room_id']}";
       webUrl = "https://live.douyin.com/${args['web_rid']}";

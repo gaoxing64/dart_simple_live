@@ -63,6 +63,9 @@ Windows建议下载UWP版[聚合直播](https://www.microsoft.com/store/apps/9N1
 
 - [文档](https://slotsun.github.io/dart_simple_live/)  待完善
 
+架构设计文档（`docs/rust-core/`、`docs/decisions/`）与核心库组件知识库（`simple_live_core/doc/`）
+已归档至备份分支 `backup/future-20261101-234115`。
+
 ## 项目结构
 
 - `simple_live_core` 项目核心库：协议实现全部为 Rust（`crates/slive-core`），Dart 侧只保留跨平台模型与 FRB 绑定层。
