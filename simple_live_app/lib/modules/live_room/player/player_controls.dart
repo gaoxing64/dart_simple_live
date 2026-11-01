@@ -14,7 +14,7 @@ import 'package:simple_live_app/modules/live_room/player/player_action_surfaces.
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_osd_overlay.dart';
 import 'package:simple_live_app/modules/live_room/player/player_tooltip.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
+import 'package:simple_live_app/models/shortcut_binding.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
 import 'package:simple_live_app/widgets/m3e_loading_indicator.dart';
 import 'package:window_manager/window_manager.dart';

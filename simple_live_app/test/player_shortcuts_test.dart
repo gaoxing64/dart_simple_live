@@ -10,7 +10,7 @@
 // 这里不拉起播放器。
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
+import 'package:simple_live_app/models/shortcut_binding.dart';
 
 /// 默认表下按一个键（无修饰键）命中哪个动作。
 PlayerShortcut? _defaultHit(LogicalKeyboardKey key) => matchShortcut(

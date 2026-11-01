@@ -11,7 +11,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
-import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/models/layout/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';

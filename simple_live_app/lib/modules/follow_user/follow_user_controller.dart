@@ -15,7 +15,7 @@ import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/models/db/follow_user_tag.dart';
-import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/models/layout/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_selection.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';

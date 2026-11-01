@@ -7,7 +7,7 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
+import 'package:simple_live_app/models/shortcut_binding.dart';
 
 /// 用「无修饰键」调 matchShortcut 的简写，测试里绝大多数用例都不带修饰键。
 PlayerShortcut? _match(

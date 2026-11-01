@@ -9,7 +9,7 @@ library;
 import 'dart:ui' show Size;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:simple_live_app/modules/live_room/player/pip_aspect.dart';
+import 'package:simple_live_app/models/layout/pip_aspect.dart';
 
 /// 独立推导：由外框宽 W、比例 A、内边距 I，客户区高应为 (W-hx)/A。
 double _expectedClientHeight(double W, double A, FrameInsets I) =>

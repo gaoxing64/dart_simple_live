@@ -9,9 +9,9 @@ import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/follow_snapshot.dart';
-import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
-import 'package:simple_live_app/modules/live_room/sidebar_layout.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
+import 'package:simple_live_app/models/layout/multi_play_layout.dart';
+import 'package:simple_live_app/models/layout/sidebar_layout.dart';
+import 'package:simple_live_app/models/shortcut_binding.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 
 class AppSettingsController extends GetxController {

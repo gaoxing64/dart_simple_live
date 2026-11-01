@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:ui' show Size;
-import 'package:simple_live_app/modules/live_room/player/pip_aspect.dart';
+import 'package:simple_live_app/models/layout/pip_aspect.dart';
 
 void main() {
   const a169 = 16 / 9;

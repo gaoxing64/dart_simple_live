@@ -18,7 +18,7 @@ import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
+import 'package:simple_live_app/models/shortcut_binding.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_app/widgets/settings/shortcut_capture_dialog.dart';

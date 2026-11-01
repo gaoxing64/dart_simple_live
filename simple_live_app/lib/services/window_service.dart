@@ -13,7 +13,7 @@ import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:win32/win32.dart' as win32;
 import 'package:window_manager/window_manager.dart';
-import 'package:simple_live_app/modules/live_room/player/pip_aspect.dart';
+import 'package:simple_live_app/models/layout/pip_aspect.dart';
 
 class WindowService extends GetxService implements WindowListener {
   static WindowService get instance => Get.find<WindowService>();

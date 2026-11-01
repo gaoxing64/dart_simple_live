@@ -18,7 +18,7 @@ import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
+import 'package:simple_live_app/models/shortcut_binding.dart';
 
 /// 播放器动作 → 它对应的快捷键枚举；没有快捷键的动作返回 null。
 ///

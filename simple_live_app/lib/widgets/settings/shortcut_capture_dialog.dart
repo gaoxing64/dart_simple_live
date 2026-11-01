@@ -24,7 +24,7 @@ import 'package:flutter/services.dart'
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/app_style.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
+import 'package:simple_live_app/models/shortcut_binding.dart';
 
 /// 用户的四种落点。用一个类而不是 `ShortcutBinding?` + 布尔，是为了让调用方
 /// 无法把「取消」与「不设置」混成同一个 null——那两者语义相反（一个不改，一个禁用）。

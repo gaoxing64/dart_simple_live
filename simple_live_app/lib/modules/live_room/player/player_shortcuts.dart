@@ -47,7 +47,7 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_views.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
-import 'package:simple_live_app/modules/live_room/player/shortcut_binding.dart';
+import 'package:simple_live_app/models/shortcut_binding.dart';
 
 /// 音量每按一次的步进，与音量浮层滚轮（`VolumeActionWidget._step`）同一个量。
 const double kShortcutVolumeStep = 0.05;

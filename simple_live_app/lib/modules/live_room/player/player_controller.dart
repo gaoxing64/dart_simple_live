@@ -15,7 +15,7 @@ import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/system_ui_inset.dart';
 import 'package:simple_live_app/services/window_service.dart';
-import 'package:simple_live_app/modules/live_room/player/pip_aspect.dart';
+import 'package:simple_live_app/models/layout/pip_aspect.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';

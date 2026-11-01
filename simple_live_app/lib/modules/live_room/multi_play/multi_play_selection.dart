@@ -2,7 +2,7 @@
 library;
 
 import 'package:simple_live_app/models/db/follow_user.dart';
-import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/models/layout/multi_play_layout.dart';
 
 /// 关注列表里那颗「加入多开」icon 只在一种情况下出现：**这一路还没在多开里**。
 ///

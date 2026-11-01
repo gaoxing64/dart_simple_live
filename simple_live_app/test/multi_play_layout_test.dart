@@ -1,7 +1,7 @@
 import 'dart:ui' show Size;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/models/layout/multi_play_layout.dart';
 
 void main() {
   const a169 = 16 / 9;

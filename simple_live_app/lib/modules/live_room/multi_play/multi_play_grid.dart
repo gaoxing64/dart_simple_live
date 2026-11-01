@@ -5,7 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
-import 'package:simple_live_app/modules/live_room/multi_play/multi_play_layout.dart';
+import 'package:simple_live_app/models/layout/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_tile.dart';
 
 /// 多开网格：按窗口形状把 N 路摆成 1×2 / 2×1 / 2×2 / 1×4 / 4×1，
