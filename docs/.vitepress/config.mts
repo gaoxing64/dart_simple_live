@@ -12,7 +12,8 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Home', link: '/' },
-      { text: '开发指南', link: '/contributing' }
+      { text: '开发指南', link: '/contributing' },
+      { text: '分支与发布', link: '/workflow' }
     ],
 
     sidebar: [
@@ -20,6 +21,7 @@ export default defineConfig({
         text: '文档',
         items: [
           { text: '开发指南', link: '/contributing' },
+          { text: '分支与发布流程', link: '/workflow' },
           { text: '用户指南', link: '/user' }
         ]
       }

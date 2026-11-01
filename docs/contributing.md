@@ -2,8 +2,9 @@
 
 感谢你对 Slive 的关注！欢迎各种形式的贡献，无论是修复 bug、添加新功能、改进文档还是提出建议。
 ## 贡献须知
-- 因为一些原因，**dev** 作为Github Flow开发流程的主干
-- **master** 分支发版时 通过 merge squash dev，会在停更时删除dev分支并脱敏
+- **future** 是唯一的开发主线，所有日常改动都合入这里
+- **master** 只接受来自 future 的 Release PR（Squash Merge），只打 Tag 发版
+- 完整的分支、发布、版本号与子模块规则见 [分支与发布流程](/workflow)
 - 所以仓库的贡献者包括贡献代码统计都是不存在的
 
 ## 🎯 贡献类型
@@ -81,7 +82,7 @@ git submodule update --init --recursive
 
 > **重要**：`simple_live_app`、`simple_live_tv_app` 的 `pubspec.yaml` 通过 `path: ../simple_live_core`（以及 `../simple_live_core/rust_builder`）引用核心库。没有拉取 submodule 时 `flutter pub get` 会因找不到路径依赖而失败，且跳过 `git submodule update` 直接构建也会缺文件。子模块更新后记得在对应子项目目录里重新执行 `flutter pub get`。
 >
-> 子仓库地址：[dart_simple_live_core](https://github.com/SlotSun/dart_simple_live_core) / [dart_simple_live_tv_app](https://github.com/SlotSun/dart_simple_live_tv_app)（fork 者请使用各自账号下的同名仓库）。
+> 子仓库地址：[dart_simple_live_core](https://github.com/SlotSun/dart_simple_live_core) / [dart_simple_live_tv_app](https://github.com/SlotSun/dart_simple_live_tv_app)。子模块由父仓库锁定到具体 commit，不要修改 `.gitmodules` 指向自己的 fork，也不要使用 `git submodule update --remote`。
 
 ## 🏷️ 认领任务
 
@@ -211,10 +212,10 @@ feat(api): add layered agent support
 ### PR 流程
 ```bash
 git clone https://github.com/SlotSun/dart_simple_live.git
-# 基于dev分支创建 Type-Scope的分支
-git checkout -b fix-xx origin/dev
+# 基于 future 分支创建 Type-Scope 的分支
+git switch -c fix-xx origin/future
 ```
-**完成测试后，向主仓库的dev分支提交pr**
+**完成测试后，向主仓库的 future 分支提交 PR**
 ### 提交前检查清单
 
 - [ ] 代码通过格式检查

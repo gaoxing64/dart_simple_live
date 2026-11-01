@@ -3,8 +3,7 @@ name: PR Check
 on:
   pull_request:
     branches:
-      - main
-      - dev
+      - master
 
 jobs:
   build-mac-ios-android:

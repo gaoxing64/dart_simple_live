@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - future
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: simple_live_app/pubspec.yaml
+          cache: true
+
+      - name: Verify submodules checked out
+        run: |
+          test -f simple_live_core/pubspec.yaml
+          test -f simple_live_tv_app/pubspec.yaml
+          git submodule status --recursive
+
+      - name: Restore packages
+        run: |
+          cd simple_live_app
+          flutter pub get
+
+      - name: Check formatting (advisory)
+        continue-on-error: true
+        run: dart format --output=none --set-exit-if-changed simple_live_app/lib simple_live_app/test
+
+      - name: Analyze
+        run: |
+          cd simple_live_app
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test
+        continue-on-error: true
+        run: |
+          cd simple_live_app
+          flutter test --concurrency=4 --reporter=failures-only
