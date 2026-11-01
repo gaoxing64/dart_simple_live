@@ -24,12 +24,14 @@ import 'package:simple_live_app/models/db/follow_user_block.dart';
 import 'package:simple_live_app/models/db/history.dart';
 import 'package:simple_live_app/modules/live_room/danmaku_merge_plan.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
+import 'package:simple_live_app/modules/live_room/player/playback_starvation_detector.dart';
 import 'package:simple_live_app/modules/live_room/player/player_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_session.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_volume.dart';
 import 'package:simple_live_app/modules/settings/danmu_settings_page.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
+import 'package:simple_live_app/services/cdn_health_cache.dart';
 import 'package:simple_live_app/services/cdn_order_cache.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_block_service.dart';
@@ -1162,6 +1164,10 @@ class LiveRoomController extends PlayerController
   }
 
   Future<void> getPlayUrl() async {
+    _playbackSelectionGeneration++;
+    _autoCdnSwitchCount = 0;
+    _lastAutoCdnSwitchAt = null;
+    _stopPlaybackHealthMonitor();
     currentQualityInfo.value = qualities[currentQuality].quality;
     currentLineInfo.value = "";
     currentLineIndex = -1;
@@ -1209,9 +1215,9 @@ class LiveRoomController extends PlayerController
     currentLineInfo.value = "线路${currentLineIndex + 1}";
     //重置错误次数
     mediaErrorRetryCount = 0;
-    initPlaylist();
     _pendingWarmupUrls = playUrl.urls;
     _pendingWarmupHeaders = playUrl.headers;
+    await initPlaylist();
     _armWarmupsAfterFirstFrame();
   }
 
@@ -1276,7 +1282,7 @@ class LiveRoomController extends PlayerController
     }
     final cached = CdnOrderCache.get(site.id);
     if (cached.isEmpty || ranked.length < 2) {
-      return ranked;
+      return _preferHealthyCdnLines(ranked);
     }
     final byUrl = <String, LivePlayLine>{
       for (final line in ranked) line.url: line,
@@ -1285,14 +1291,53 @@ class LiveRoomController extends PlayerController
       urls: ranked.map((e) => e.url).toList(growable: false),
       hostOrder: cached,
     );
-    return ordered
+    final reordered = ordered
         .map((url) => byUrl[url])
         .whereType<LivePlayLine>()
         .toList(growable: false);
+    return _preferHealthyCdnLines(reordered);
+  }
+
+  /// 已确认饥饿的 CDN 家族排到后面，但**不丢弃**：全部节点都被拉黑时仍能起播，
+  /// 黑名单只改变尝试顺序，不能让直播间直接无流可放。
+  List<LivePlayLine> _preferHealthyCdnLines(List<LivePlayLine> lines) {
+    if (lines.length < 2) {
+      return lines;
+    }
+    final healthy = <LivePlayLine>[];
+    final blocked = <LivePlayLine>[];
+    for (final line in lines) {
+      if (CdnHealthCache.isBlocked(site.id, line.host)) {
+        blocked.add(line);
+      } else {
+        healthy.add(line);
+      }
+    }
+    return <LivePlayLine>[...healthy, ...blocked];
   }
 
   Timer? _cdnWarmTimer;
   Timer? _prefetchTimer;
+
+  /// 抖音播放饥饿监控：等首帧稳定后按秒读取 mpv 的缓存/码率指标。
+  ///
+  /// 只对抖音启用。它的 CDN 会按请求轮换且同一房间不同节点吞吐能差一倍以上；
+  /// 其它平台没有这组已验证的运行时行为，不在本轮扩大改动范围。
+  static const Duration _kPlaybackHealthStartupDelay = Duration(seconds: 5);
+  static const Duration _kAutoCdnSwitchCooldown = Duration(seconds: 8);
+  static const Duration _kCdnHealthLogInterval = Duration(seconds: 5);
+  static const int _kMaxAutoCdnSwitchesPerPlayback = 3;
+  static const int _kFreshPlaybackFetchAttempts = 3;
+
+  Timer? _playbackHealthTimer;
+  final PlaybackStarvationDetector _starvationDetector = PlaybackStarvationDetector();
+  bool _playbackHealthSampleInFlight = false;
+  bool _cdnFailoverInProgress = false;
+  DateTime? _playbackHealthStartedAt;
+  DateTime? _lastCdnHealthLogAt;
+  DateTime? _lastAutoCdnSwitchAt;
+  int _autoCdnSwitchCount = 0;
+  int _playbackSelectionGeneration = 0;
 
   /// 等首帧的播放事件订阅 + 兜底定时器（复用播放器时 playing 是边沿事件，
   /// 可能不再触发，所以必须有兜底）。
@@ -1330,6 +1375,277 @@ class LiveRoomController extends PlayerController
     _firstPlayFallback = null;
     _scheduleCdnWarmup(_pendingWarmupUrls, _pendingWarmupHeaders);
     _scheduleNeighborPrefetch();
+    _startPlaybackHealthMonitor();
+  }
+
+  void _startPlaybackHealthMonitor() {
+    _playbackHealthTimer?.cancel();
+    _starvationDetector.reset();
+    _playbackHealthStartedAt = DateTime.now();
+    _lastCdnHealthLogAt = null;
+    if (site.id != Constant.kDouyin) {
+      return;
+    }
+    _playbackHealthTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => unawaited(_samplePlaybackHealth()),
+    );
+  }
+
+  /// 手动切清晰度/线路后重新给监控足够的稳定窗口，避免把起播抖动算成饥饿。
+  void _restartPlaybackHealthWindow() {
+    _starvationDetector.reset();
+    _playbackHealthStartedAt = DateTime.now();
+  }
+
+  void _stopPlaybackHealthMonitor() {
+    _playbackHealthTimer?.cancel();
+    _playbackHealthTimer = null;
+    _playbackHealthSampleInFlight = false;
+    _cdnFailoverInProgress = false;
+    _starvationDetector.reset();
+    _playbackHealthStartedAt = null;
+  }
+
+  Future<void> _samplePlaybackHealth() async {
+    if (_mediaReleased ||
+        _cdnFailoverInProgress ||
+        _playbackHealthSampleInFlight ||
+        !liveStatus.value ||
+        detail.value == null ||
+        detail.value!.isRecord ||
+        player.state.completed ||
+        site.id != Constant.kDouyin) {
+      return;
+    }
+    final startedAt = _playbackHealthStartedAt;
+    if (startedAt == null ||
+        DateTime.now().difference(startedAt) < _kPlaybackHealthStartupDelay) {
+      return;
+    }
+
+    final generation = _playbackSelectionGeneration;
+    _playbackHealthSampleInFlight = true;
+    try {
+      final sample = await readPlaybackHealth();
+      if (sample == null ||
+          generation != _playbackSelectionGeneration ||
+          _playbackHealthStartedAt == null) {
+        return;
+      }
+      if (sample.paused) {
+        _starvationDetector.reset();
+        return;
+      }
+
+      final confirmed = _starvationDetector.add(sample);
+      final inputMbps = sample.inputBitsPerSecond / 1000000;
+      final videoMbps = sample.videoBitsPerSecond / 1000000;
+      final ratio = _starvationDetector.lastInputRatio;
+      final windowHits = _starvationDetector.windowHitCount;
+      final notable = sample.pausedForCache ||
+          (sample.videoBitsPerSecond > 0 &&
+              sample.cacheSeconds <= PlaybackStarvationDetector.lowCacheSeconds &&
+              ratio < PlaybackStarvationDetector.inputHeadroom);
+      final now = DateTime.now();
+      if (notable &&
+          (_lastCdnHealthLogAt == null ||
+              now.difference(_lastCdnHealthLogAt!) >= _kCdnHealthLogInterval)) {
+        _lastCdnHealthLogAt = now;
+        Log.w(
+          '[cdn-health] host=${lineHost(currentLineIndex)} '
+          'input=${inputMbps.toStringAsFixed(2)}Mbps '
+          'video=${videoMbps.toStringAsFixed(2)}Mbps '
+          'ratio=${ratio.toStringAsFixed(2)} '
+          'cache=${sample.cacheSeconds.toStringAsFixed(2)}s '
+          'buffering=${sample.cacheBufferingState.toStringAsFixed(0)}% '
+          'pausedForCache=${sample.pausedForCache} '
+          'window=$windowHits/${_starvationDetector.windowSize}',
+        );
+      }
+
+      if (confirmed) {
+        _starvationDetector.reset();
+        await _handlePlaybackStarvation(sample);
+      }
+    } catch (e, st) {
+      // 监控本身不能影响播放；属性不可读或平台实现异常时只记录一次本轮异常。
+      Log.e('[cdn-health] 读取播放健康度失败: $e', st);
+    } finally {
+      _playbackHealthSampleInFlight = false;
+    }
+  }
+
+  Future<void> _handlePlaybackStarvation(
+    PlaybackHealthSample sample,
+  ) async {
+    if (_cdnFailoverInProgress || _mediaReleased) {
+      return;
+    }
+    if (_autoCdnSwitchCount >= _kMaxAutoCdnSwitchesPerPlayback) {
+      _stopPlaybackHealthMonitor();
+      Log.w(
+        '[cdn-health] 本次播放已自动换线 $_autoCdnSwitchCount 次，停止继续重试',
+      );
+      SmartDialog.showToast('自动换线已达到上限，若仍卡顿请手动切换线路');
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastAutoCdnSwitchAt != null &&
+        now.difference(_lastAutoCdnSwitchAt!) < _kAutoCdnSwitchCooldown) {
+      _restartPlaybackHealthWindow();
+      return;
+    }
+
+    final oldLineIndex = currentLineIndex;
+    final oldHost = lineHost(oldLineIndex);
+    if (oldHost.isEmpty) {
+      Log.w('[cdn-health] 无法识别当前 CDN 主机，跳过自动换线');
+      _restartPlaybackHealthWindow();
+      return;
+    }
+
+    final generation = ++_playbackSelectionGeneration;
+    final qualityName = currentQualityInfo.value;
+    _cdnFailoverInProgress = true;
+    _lastAutoCdnSwitchAt = now;
+    _starvationDetector.reset();
+    final blockedFamily = CdnHealthCache.markSlow(site.id, oldHost);
+    Log.w(
+      '[cdn-health] 连续饥饿，拉黑 $blockedFamily，准备重新取流 '
+      '(input=${(sample.inputBitsPerSecond / 1000000).toStringAsFixed(2)}Mbps '
+      'video=${(sample.videoBitsPerSecond / 1000000).toStringAsFixed(2)}Mbps '
+      'cache=${sample.cacheSeconds.toStringAsFixed(2)}s)',
+    );
+
+    try {
+      final fresh = await _fetchFreshDouyinPlayback(
+        blockedFamily: blockedFamily,
+        preferredQuality: qualityName,
+      );
+      if (fresh == null ||
+          generation != _playbackSelectionGeneration ||
+          _mediaReleased ||
+          site.id != Constant.kDouyin) {
+        Log.w('[cdn-health] 未找到可替换的健康 CDN，本次保持原线路');
+        SmartDialog.showToast('没有找到更优 CDN，继续使用当前线路');
+        return;
+      }
+
+      await _applyFreshPlayback(fresh);
+      _autoCdnSwitchCount++;
+      final newHost = lineHost(currentLineIndex);
+      Log.i(
+        '[cdn-health] 自动换线 $_autoCdnSwitchCount/'
+        '$_kMaxAutoCdnSwitchesPerPlayback: $blockedFamily -> $newHost',
+      );
+      SmartDialog.showToast(
+        '检测到线路持续缓冲，已自动切换 CDN ($blockedFamily → $newHost)',
+      );
+    } catch (e, st) {
+      Log.e('[cdn-health] 自动换线失败: $e', st);
+    } finally {
+      _cdnFailoverInProgress = false;
+      _restartPlaybackHealthWindow();
+    }
+  }
+
+  Future<_FreshDouyinPlayback?> _fetchFreshDouyinPlayback({
+    required String blockedFamily,
+    required String preferredQuality,
+  }) async {
+    final targetRoomId = _cacheRoomId.isNotEmpty ? _cacheRoomId : roomId;
+    for (var attempt = 0; attempt < _kFreshPlaybackFetchAttempts; attempt++) {
+      try {
+        final freshDetail = await site.liveSite
+            .getRoomDetail(roomId: targetRoomId)
+            .timeout(const Duration(seconds: 8));
+        if (!freshDetail.status && !freshDetail.isRecord) {
+          return null;
+        }
+        final freshQualities =
+            await site.liveSite.getPlayQualities(detail: freshDetail);
+        if (freshQualities.isEmpty) {
+          continue;
+        }
+        var qualityIndex =
+            freshQualities.indexWhere((q) => q.quality == preferredQuality);
+        if (qualityIndex < 0) {
+          qualityIndex =
+              currentQuality.clamp(0, freshQualities.length - 1).toInt();
+        }
+        final freshQuality = freshQualities[qualityIndex];
+        final play = await site.liveSite.getPlayUrls(
+          detail: freshDetail,
+          quality: freshQuality,
+        );
+        final lines = _rankPlayLinesSync(play.urls);
+        if (lines.isEmpty) {
+          continue;
+        }
+
+        var candidateIndex = -1;
+        for (var i = 0; i < lines.length; i++) {
+          final family = CdnHealthCache.cdnFamilyOf(lines[i].host);
+          if (family != blockedFamily &&
+              !CdnHealthCache.isBlocked(site.id, lines[i].host)) {
+            candidateIndex = i;
+            break;
+          }
+        }
+        if (candidateIndex < 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          continue;
+        }
+
+        LiveRoomPrefetch.putDetail(site.id, targetRoomId, freshDetail);
+        LiveRoomPrefetch.putQualities(
+          site.id,
+          targetRoomId,
+          freshQualities,
+        );
+        LiveRoomPrefetch.putPlayUrl(
+          site.id,
+          targetRoomId,
+          freshQuality.quality,
+          play,
+        );
+        return _FreshDouyinPlayback(
+          detail: freshDetail,
+          qualities: freshQualities,
+          qualityIndex: qualityIndex,
+          play: play,
+          lines: lines,
+          lineIndex: candidateIndex,
+        );
+      } catch (e) {
+        Log.d('[cdn-health] 第 ${attempt + 1} 次重新取流失败: $e');
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+    }
+    return null;
+  }
+
+  Future<void> _applyFreshPlayback(_FreshDouyinPlayback fresh) async {
+    detail.value = fresh.detail;
+    online.value = fresh.detail.online;
+    qualities.assignAll(fresh.qualities);
+    currentQuality = fresh.qualityIndex;
+    currentQualityInfo.value = fresh.qualities[fresh.qualityIndex].quality;
+
+    playLines = fresh.lines;
+    _lineHostOrder = PlayLineRanker.hostOrderOf(fresh.lines);
+    playUrls.assignAll(fresh.lines.map((line) => line.url));
+    playHeaders = fresh.play.headers;
+    _playUrlRenewContexts = _buildRenewContexts();
+    currentLineIndex = fresh.lineIndex;
+    currentLineInfo.value = '线路${currentLineIndex + 1}';
+    mediaErrorRetryCount = 0;
+
+    _pendingWarmupUrls = fresh.play.urls;
+    _pendingWarmupHeaders = fresh.play.headers;
+    await initPlaylist();
+    _armWarmupsAfterFirstFrame();
   }
 
   /// 首帧之后在后台测一轮 CDN 时延，把结果沉淀给**下次**切台用。
@@ -1350,8 +1666,9 @@ class LiveRoomController extends PlayerController
           budgetMs: kCdnWarmupBudgetMs,
           preferHls: _preferHlsForRank,
         );
-        if (lines.length > 1) {
-          CdnOrderCache.put(site.id, PlayLineRanker.hostOrderOf(lines));
+        final healthy = _preferHealthyCdnLines(lines);
+        if (healthy.length > 1) {
+          CdnOrderCache.put(site.id, PlayLineRanker.hostOrderOf(healthy));
         }
       } catch (e) {
         Log.logPrint(e);
@@ -1392,13 +1709,17 @@ class LiveRoomController extends PlayerController
   }
 
   void changePlayLine(int index) {
+    _playbackSelectionGeneration++;
+    _autoCdnSwitchCount = 0;
+    _lastAutoCdnSwitchAt = null;
     currentLineIndex = index;
     //重置错误次数
     mediaErrorRetryCount = 0;
+    _restartPlaybackHealthWindow();
     setPlayer();
   }
 
-  void initPlaylist() async {
+  Future<void> initPlaylist() async {
     currentLineInfo.value = "线路${currentLineIndex + 1}";
     errorMsg.value = "";
 
@@ -2280,6 +2601,8 @@ class LiveRoomController extends PlayerController
 
     // 换台：先摘掉媒体会话并抑制重挂。`player.stop()` 会推一次 playing=false 的事件，
     // 不压住的话那一瞬间会用**旧房间**的标题与封面重新挂上去，而新房间的详情还在路上。
+    _playbackSelectionGeneration++;
+    _stopPlaybackHealthMonitor();
     _mediaSuppressed = true;
     await _mediaHandler?.detach(this);
 
@@ -2531,6 +2854,7 @@ ${error?.stackTrace}''');
     autoExitTimer?.cancel();
     _cdnWarmTimer?.cancel();
     _prefetchTimer?.cancel();
+    _stopPlaybackHealthMonitor();
     _firstPlaySub?.cancel();
     _firstPlayFallback?.cancel();
     danmakuTimer?.cancel();
@@ -2557,6 +2881,24 @@ ${error?.stackTrace}''');
     }
     super.onClose();
   }
+}
+
+class _FreshDouyinPlayback {
+  const _FreshDouyinPlayback({
+    required this.detail,
+    required this.qualities,
+    required this.qualityIndex,
+    required this.play,
+    required this.lines,
+    required this.lineIndex,
+  });
+
+  final LiveRoomDetail detail;
+  final List<LivePlayQuality> qualities;
+  final int qualityIndex;
+  final LivePlayUrl play;
+  final List<LivePlayLine> lines;
+  final int lineIndex;
 }
 
 /// 合并模式的一条展示项：消息对象（计数原地改写）+ 最后命中时间（用于清窗）

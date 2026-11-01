@@ -24,6 +24,7 @@ import 'package:simple_live_app/app/custom_throttle.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
+import 'package:simple_live_app/modules/live_room/player/playback_starvation_detector.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
 import 'package:simple_live_core/simple_live_core.dart';
@@ -399,6 +400,35 @@ mixin PlayerMixin {
       lines.add('  $name = ${value.isEmpty ? '<空>' : value}');
     }
     Log.d(lines.join('\n'));
+  }
+
+  /// 读取自动换线所需的运行时指标。
+  ///
+  /// 这些属性只在媒体打开后存在，因此不能放进 [initializePlayer] 的配置回读表。
+  /// 单次读取失败保持为空值，由 [PlaybackHealthSample] 退化成保守判定，绝不能
+  /// 因某一版 libmpv 不认识属性就让监控本身抛错。
+  Future<PlaybackHealthSample?> readPlaybackHealth() async {
+    if (player.platform is! NativePlayer) {
+      return null;
+    }
+    final pp = player.platform as NativePlayer;
+    const names = <String>[
+      'pause',
+      'paused-for-cache',
+      'cache-speed',
+      'demuxer-cache-duration',
+      'cache-buffering-state',
+      'video-bitrate',
+    ];
+    final props = <String, String>{};
+    for (final name in names) {
+      try {
+        props[name] = await pp.getProperty(name);
+      } catch (_) {
+        // 属性不可用：保留缺省值，交由判定器忽略该信号。
+      }
+    }
+    return PlaybackHealthSample.fromMpvProperties(props);
   }
 
   /// 视频控制器
