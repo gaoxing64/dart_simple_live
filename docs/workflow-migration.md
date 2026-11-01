@@ -2,7 +2,7 @@
 
 本文件记录 2026-11 分支审计结论和收敛步骤，属于一次性迁移说明。迁移完成后可删除。
 
-> 状态（2026-11-02）：版本号已对齐，`future` 已推进到 `1.9.1+10901`，高于已发布的 `master` `1.9.0+10900`。标识迁移仍未执行，`future` 目前仍是 `com.slotsun.slive`。
+> 状态（2026-11-02）：版本号与标识均已对齐。`future` 已推进到 `1.9.1+10901`，并完成全平台 gaoxing 标识迁移，高于已发布的 `master` `1.9.0+10900`。剩余工作是发布 1.9.1 与清理历史分支。
 
 ## 审计结论
 
@@ -12,12 +12,12 @@
 
 | 位置 | 应用 ID | 版本 |
 |------|---------|------|
-| `future` | `com.slotsun.slive` | `1.9.1+10901`（审计时为 1.8.15+10815） |
+| `future` | `com.gaoxing.slive` | `1.9.1+10901`（审计时为 1.8.15+10815、com.slotsun.slive） |
 | `master` | `com.gaoxing.slive` | `1.9.0+10900` |
 
 同时 `future` 有 18 个 `master` 没有的功能提交（切台预取、CDN 缓存、媒体控制、播放器修复等），内容差异 69 个文件、+2479/−462 行。
 
-结论：两条线各有独有内容，不是简单的"master 领先 future"。直接把 `future` 合进 `master` 会丢掉 gaoxing 标识；只把 `master` 合回 `future` 又会带回被 `future` 清理过的旧文件。
+结论：审计时两条线各有独有内容，不是简单的"master 领先 future"。现已通过 cherry-pick 把 gaoxing 标识移植到 `future`，并把版本推进到 1.9.1，`future` 已具备作为唯一内容基线的条件。
 
 ### 2. 子模块用法基本正确
 
@@ -38,7 +38,7 @@
 
 按顺序执行，每步都可回退。
 
-### 第一步：统一标识到 future
+### 第一步：统一标识到 future（已完成）
 
 把 `master` 独有的标识变更移植到 `future`，让 `future` 成为唯一内容基线。
 
@@ -48,7 +48,7 @@ git pull --ff-only
 git cherry-pick 1798223b
 ```
 
-已用 `git merge-tree` 预演过这次 cherry-pick：大部分文件可自动合并，需要人工确认的是 `simple_live_app/lib/main.dart`、`simple_live_app/lib/services/playback/live_playback_audio_handler.dart`、`simple_live_app/pubspec.yaml` 三个文件。
+已执行 `git cherry-pick 1798223b`，并补齐了原提交未覆盖的 Android `applicationId`、`MainActivity` 包路径、Firebase 配置、MPRIS desktop entry 与通知渠道。提交为 `2a51e3b9`。
 
 处理原则：保留 `future` 的功能改动，同时采用 `com.gaoxing.slive`、`io.github.gaoxing.Slive` 等新标识。`pubspec.yaml` 里版本号取 `future` 的递增结果，标识相关配置取 `master` 的。完成后确认：
 
