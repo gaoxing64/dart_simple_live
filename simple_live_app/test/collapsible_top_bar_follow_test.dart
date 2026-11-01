@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
 import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
+import 'package:simple_live_app/widgets/collapsible_top_bar_scaffold.dart';
 import 'follow_test_harness.dart';
 
 void main() {
@@ -83,12 +84,12 @@ void main() {
     // 拖足够远：完全收起，顶栏整条移出、内容区恰好上移一个顶栏高度
     await tester.drag(grid, const Offset(0, -300));
     await tester.pump(const Duration(milliseconds: 16));
-    expect(indexed.barOffset.value, IndexedController.maxBarOffset,
+    expect(indexed.barOffset.value, kMaxBarOffset,
         reason: '拖够距离后应完全收起');
     expect(barTop - followBarTitleTop(tester),
-        moreOrLessEquals(IndexedController.maxBarOffset, epsilon: 0.01));
+        moreOrLessEquals(kMaxBarOffset, epsilon: 0.01));
     expect(gridTop - tester.getTopLeft(grid).dy,
-        moreOrLessEquals(IndexedController.maxBarOffset, epsilon: 0.01));
+        moreOrLessEquals(kMaxBarOffset, epsilon: 0.01));
     expect(tester.getSize(grid), gridSize, reason: '拖动结束后内容区尺寸仍应恒定');
 
     // 反向拖回：顶栏与内容区一起复原
@@ -182,10 +183,10 @@ void main() {
             '通知的 dragDetails 为 null，曾被「惯性不驱动」的过滤一并挡掉');
 
     await wheel(300);
-    expect(indexed.barOffset.value, IndexedController.maxBarOffset,
+    expect(indexed.barOffset.value, kMaxBarOffset,
         reason: '连续滚动后应能完全收起');
     expect(barTop - followBarTitleTop(tester),
-        moreOrLessEquals(IndexedController.maxBarOffset, epsilon: 0.01),
+        moreOrLessEquals(kMaxBarOffset, epsilon: 0.01),
         reason: '顶栏应实际让出一个 toolbar 高度（底部内容不再被裁半行）');
 
     // 反向滚：顶栏回来

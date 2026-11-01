@@ -17,7 +17,7 @@ import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils.dart';
-import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
+import 'package:simple_live_app/models/common/duration_2_str_utils.dart';
 import 'package:simple_live_app/app/utils/dynamic_sort.dart';
 import 'package:simple_live_app/app/utils/extensions/string_normalizer.dart';
 import 'package:simple_live_app/models/db/follow_snapshot.dart';

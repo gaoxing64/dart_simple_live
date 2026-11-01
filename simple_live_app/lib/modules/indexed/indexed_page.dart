@@ -7,6 +7,7 @@ import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/system_ui_inset.dart';
 import 'package:simple_live_app/widgets/bar_collapse.dart';
+import 'package:simple_live_app/widgets/collapsible_top_bar_scaffold.dart';
 import 'package:simple_live_app/widgets/navigation_dock.dart';
 
 import 'indexed_controller.dart';
@@ -121,7 +122,7 @@ class IndexedPage extends GetView<IndexedController> {
       return Obx(
         () => BarCollapse(
           factor:
-              1 - controller.barOffset.value / IndexedController.maxBarOffset,
+              1 - controller.barOffset.value / kMaxBarOffset,
           fromTop: false,
           child: nav,
         ),

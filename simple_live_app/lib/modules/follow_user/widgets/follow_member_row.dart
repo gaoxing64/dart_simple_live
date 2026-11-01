@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/sites.dart';
-import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
+import 'package:simple_live_app/models/common/duration_2_str_utils.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/widgets/group_badge.dart';
 import 'package:simple_live_app/widgets/net_image.dart';

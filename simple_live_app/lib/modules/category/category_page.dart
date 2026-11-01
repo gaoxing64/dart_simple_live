@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/category/category_controller.dart';
@@ -14,6 +15,7 @@ class CategoryPage extends GetView<CategoryController> {
     return CollapsibleTopBarScaffold(
       appBar: _buildAppBar(),
       body: _buildBody(),
+      collapseSource: Get.find<IndexedController>(),
     );
   }
 

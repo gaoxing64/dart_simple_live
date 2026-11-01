@@ -15,10 +15,12 @@ import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart'
 import 'package:simple_live_app/modules/follow_user/follow_user_page.dart';
 import 'package:simple_live_app/modules/mine/mine_page.dart';
 import 'package:simple_live_app/routes/route_path.dart';
+import 'package:simple_live_app/widgets/collapsible_top_bar_scaffold.dart';
 import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
 
 class IndexedController extends GetxController
-    with GetSingleTickerProviderStateMixin {
+    with GetSingleTickerProviderStateMixin
+    implements TopBarCollapseSource {
   RxList<HomePageItem> items = RxList<HomePageItem>([]);
 
   var index = 0.obs;
@@ -81,15 +83,12 @@ class IndexedController extends GetxController
   /// 跳切过渡时长。位移只有顺序切换的十几分之一，用同样的 300ms 会显得拖沓。
   static const Duration jumpTransitionDuration = Duration(milliseconds: 220);
 
-  /// 顶/底栏收起：同步模式的累计偏移（0=展开，[maxBarOffset]=收起）
+  /// 顶/底栏收起：同步模式的累计偏移（0=展开，[kMaxBarOffset]=收起）
   final barOffset = 0.0.obs;
 
   /// 顶/底栏收起：即时模式的顶/底栏显隐
   final showTopBar = true.obs;
   final showBottomBar = true.obs;
-
-  /// 顶栏收起行程（AppBar 工具栏高度）
-  static const double maxBarOffset = 56;
 
   /// 首页列表滚动通知，驱动顶/底栏收起（即时/同步）
   bool onScrollNotification(ScrollNotification notification) {
@@ -145,7 +144,7 @@ class IndexedController extends GetxController
   void _updateBarOffset(double delta) {
     var value = barOffset.value + delta;
     if (value < 0) value = 0;
-    if (value > maxBarOffset) value = maxBarOffset;
+    if (value > kMaxBarOffset) value = kMaxBarOffset;
     // 走到头之后手指还在动：值不变就别写 Rx —— 写入会唤醒两个 Obx，
     // 白白多做一轮重建（夹紧后这种情况在快速滑到底时很常见）。
     if (value == barOffset.value) {
@@ -232,7 +231,7 @@ class IndexedController extends GetxController
     final base = _wheelBarTarget ?? barOffset.value;
     var target = base + delta;
     if (target < 0) target = 0;
-    if (target > maxBarOffset) target = maxBarOffset;
+    if (target > kMaxBarOffset) target = kMaxBarOffset;
     _wheelBarTarget = target;
     if (barOffset.value == target) {
       // 已经到位（栏位早就夹紧了）：不必再起一次动画。

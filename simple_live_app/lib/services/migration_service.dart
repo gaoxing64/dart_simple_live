@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/utils.dart';
-import 'package:simple_live_app/app/utils/extensions/duration_2_str_utils.dart';
+import 'package:simple_live_app/models/common/duration_2_str_utils.dart';
 import 'package:simple_live_app/models/db/account.dart';
 import 'package:simple_live_app/models/db/follow_user.dart';
 import 'package:simple_live_app/services/db_service.dart';

@@ -1,8 +1,17 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
-import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
 import 'package:simple_live_app/widgets/bar_collapse.dart';
+
+/// 顶栏收起状态的观测来源（widgets 层只依赖这份轻接口，不依赖具体控制器）。
+abstract class TopBarCollapseSource {
+  RxBool get showTopBar;
+
+  RxDouble get barOffset;
+}
+
+/// 顶栏槽位高度（Material 默认 toolbar 高度）。
+const double kMaxBarOffset = 56;
 
 /// 顶栏可收起的 [Scaffold]。
 ///
@@ -38,17 +47,21 @@ class CollapsibleTopBarScaffold extends StatelessWidget {
     super.key,
     required this.appBar,
     required this.body,
+    required this.collapseSource,
   });
 
   /// 顶栏。普通模式下作为 [Scaffold.appBar] 直接使用（默认 `primary: true`，
   /// [AppBar] 自带状态栏 padding）；收起模式下被 [MediaQuery.removePadding]
   /// 包裹，等价于 `primary: false`。
   ///
-  /// 高度必须等于 [IndexedController.maxBarOffset]（默认 56，即 Material 的
+  /// 高度必须等于 [kMaxBarOffset]（默认 56，即 Material 的
   /// 默认 toolbar 高度）：同步模式用它把 `barOffset` 换算成收起比例。
   final PreferredSizeWidget appBar;
 
   final Widget body;
+
+  /// 顶栏收起状态来源（页面传入，通常是 `Get.find<IndexedController>()`）。
+  final TopBarCollapseSource collapseSource;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +70,7 @@ class CollapsibleTopBarScaffold extends StatelessWidget {
       if (!settings.hideTopBar.value) {
         return Scaffold(appBar: appBar, body: body);
       }
-      var indexed = Get.find<IndexedController>();
+      var indexed = collapseSource;
       if (settings.barHideType.value == 0) {
         // 即时：方向一变就动画收起/展开
         return TweenAnimationBuilder<double>(
@@ -77,7 +90,7 @@ class CollapsibleTopBarScaffold extends StatelessWidget {
       return Obx(
         () => _CollapsibleLayout(
           factor:
-              1 - indexed.barOffset.value / IndexedController.maxBarOffset,
+              1 - indexed.barOffset.value / kMaxBarOffset,
           appBar: appBar,
           body: body,
         ),
@@ -111,9 +124,9 @@ class _CollapsibleLayout extends StatelessWidget {
     final statusBarHeight = MediaQuery.paddingOf(context).top;
     final barHeight = appBar.preferredSize.height;
     assert(
-      barHeight == IndexedController.maxBarOffset,
-      '顶栏高度($barHeight)必须等于 IndexedController.maxBarOffset'
-      '(${IndexedController.maxBarOffset})，否则同步模式的收起比例算不准',
+      barHeight == kMaxBarOffset,
+      '顶栏高度($barHeight)必须等于 kMaxBarOffset'
+      '($kMaxBarOffset)，否则同步模式的收起比例算不准',
     );
 
     // 内容区：左上角固定在「状态栏 + 顶栏」下方，高度比可见区多一个顶栏高度，

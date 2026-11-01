@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
 import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
@@ -33,6 +34,7 @@ class FollowUserPage extends GetView<FollowUserController> {
     );
     final page = CollapsibleTopBarScaffold(
       appBar: _buildAppBar(iconButtonStyle),
+      collapseSource: Get.find<IndexedController>(),
       // 侧栏宽度由它自己的内容决定（见 [FollowSidebar]），列数不能在这层
       // 用「整窗宽 - 固定侧栏宽」算；把可用宽度传下去，由内容列在剩余空间
       // 里自己量（见 [_buildBody]）。

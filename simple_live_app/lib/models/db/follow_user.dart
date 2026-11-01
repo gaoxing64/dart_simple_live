@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 import 'package:hive_ce/hive_ce.dart';
-import 'package:simple_live_app/app/utils/dynamic_filter.dart';
+import 'package:simple_live_app/models/common/dynamic_filter.dart';
 import 'package:simple_live_app/models/db/follow_snapshot.dart';
 
 part 'follow_user.g.dart';
