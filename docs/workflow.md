@@ -37,6 +37,8 @@ git push -u origin HEAD
 
 日常功能 PR 只跑 `ci.yml`；`pr.yaml` 只在 Release PR 上验证发布候选，避免每次改动都触发六平台重构建。
 
+注意：`pull_request` 事件使用的是 base 分支上的 workflow 文件。`pr.yaml` 的新触发条件要随一次 Release 进入 `master` 后才会对后续 Release PR 生效；首次发布前请本地跑一遍全平台构建。
+
 ## 发布
 
 发布是把 `future` 的成果整体搬到 `master`，不是把 `master` 反向合回 `future`。
