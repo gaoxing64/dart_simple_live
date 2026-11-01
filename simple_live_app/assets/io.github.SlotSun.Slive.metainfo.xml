@@ -39,6 +39,21 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.9.1" date="2026-11-02">
+      <description>
+        <p>feat: 切台预取与 CDN 顺序缓存</p>
+        <p>feat: 系统媒体控制（Windows SMTC / Linux MPRIS / Apple Now Playing）</p>
+        <p>feat: 关注开播状态增量刷新，直播间继承进行中的刷新</p>
+        <p>feat: 多播放格子加载态沿用播放器加载浮层</p>
+        <p>feat: 直播间快捷键优化，Esc 统一返回</p>
+        <p>feat: 核心解耦并新增 C ABI（ADR-016）</p>
+        <p>fix: 修复抖音部分直播间反复缓冲</p>
+        <p>fix: 修复 Android 端 mpv 内置 stats OSD 不可用</p>
+        <p>fix: 修复 B 站登录入口悬空路由与缺失账号参数</p>
+        <p>fix: 统一媒体控制与自动暂停的开关口径</p>
+        <p>chore: media-kit 升级到 917d80ca（新 libmpv）</p>
+      </description>
+    </release>
     <release version="1.8.14" date="2026-09-25">
       <description>
         <p>fix: 进一步修正douyu断流问题</p>

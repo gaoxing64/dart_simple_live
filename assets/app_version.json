@@ -1,7 +1,7 @@
 {
-    "version": "1.8.14",
-    "version_num": 10814,
-    "version_desc": "- fix: 进一步修正douyu断流问题 \n- tips: ios和macos用户请到action更新测试或者下载上游仓库版本",
+    "version": "1.9.1",
+    "version_num": 10901,
+    "version_desc": "- feat: 切台预取与 CDN 顺序缓存 \n- feat: 系统媒体控制（Windows SMTC / Linux MPRIS / Apple Now Playing） \n- feat: 关注开播状态增量刷新，直播间继承进行中的刷新 \n- feat: 多播放格子加载态沿用播放器加载浮层 \n- feat: 直播间快捷键优化，Esc 统一返回 \n- feat: 核心解耦并新增 C ABI（ADR-016） \n- fix: 修复抖音部分直播间反复缓冲 \n- fix: 修复 Android 端 mpv 内置 stats OSD 不可用 \n- fix: 修复 B 站登录入口悬空路由与缺失账号参数 \n- fix: 统一媒体控制与自动暂停的开关口径 \n- chore: media-kit 升级到 917d80ca（新 libmpv）",
     "prerelease": false,
     "download_url": "https://github.com/SlotSun/dart_simple_live/releases"
 }

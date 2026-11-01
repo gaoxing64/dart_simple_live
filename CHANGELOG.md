@@ -6,6 +6,20 @@ Format: Each version section starts with `## x.x.x`, followed by change lines st
 
 ---
 
+## 1.9.1
+
+- feat: 切台预取与 CDN 顺序缓存
+- feat: 系统媒体控制（Windows SMTC / Linux MPRIS / Apple Now Playing）
+- feat: 关注开播状态增量刷新，直播间继承进行中的刷新
+- feat: 多播放格子加载态沿用播放器加载浮层
+- feat: 直播间快捷键优化，Esc 统一返回
+- feat: 核心解耦并新增 C ABI（ADR-016）
+- fix: 修复抖音部分直播间反复缓冲
+- fix: 修复 Android 端 mpv 内置 stats OSD 不可用
+- fix: 修复 B 站登录入口悬空路由与缺失账号参数
+- fix: 统一媒体控制与自动暂停的开关口径
+- chore: media-kit 升级到 917d80ca（新 libmpv）
+
 ## 1.8.14
 
 - fix: 进一步修正douyu断流问题
