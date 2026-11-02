@@ -8,7 +8,7 @@ import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_tooltip.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
 import 'package:simple_live_app/models/shortcut_binding.dart';
-import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
+import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_controller.dart';
 
 /// 条带／胶囊共用的图标按钮样式底版：小尺寸、无内边距、白色前景。
 ///

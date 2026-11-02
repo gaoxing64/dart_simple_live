@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/constant.dart';
-import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
+import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_controller.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/widgets/settings/settings_card.dart';
 import 'package:simple_live_app/widgets/settings/settings_menu.dart';

@@ -8,7 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_osd_widgets.dart';
-import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_contorller.dart';
+import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_controller.dart';
 
 /// 非全屏的窄屏竖屏（手机 / 窄窗口）下，OSD 改由页面在视频下方承载。
 ///

@@ -41,12 +41,13 @@ class Sites {
       logo: "assets/images/Twitch.png",
       name: "Twitch",
       liveSite: RustTwitchSite(),
+      hiddenInSupport: true,
     )
   };
 
   static List<Site> get supportSites {
     return AppSettingsController.instance.siteSort
-        .where((key) => Sites.allSites[key]?.name != 'Twitch')
+        .where((key) => Sites.allSites[key]?.hiddenInSupport == false)
         .map((key) => allSites[key]!)
         .toList();
   }
@@ -80,11 +81,15 @@ class Site {
   final IconData iconData;
   final LiveSite liveSite;
 
+  /// 是否在「支持的平台」入口中隐藏（Twitch 暂未开放完整支持）。
+  final bool hiddenInSupport;
+
   Site({
     required this.id,
     required this.liveSite,
     required this.logo,
     required this.name,
     required this.iconData,
+    this.hiddenInSupport = false,
   });
 }
