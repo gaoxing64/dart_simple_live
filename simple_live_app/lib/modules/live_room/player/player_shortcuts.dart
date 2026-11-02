@@ -266,11 +266,14 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
         break;
 
       case PlayerShortcut.playPause:
-        if (target.playbackPlaying) {
-          target.playbackPause();
-        } else {
-          target.playbackPlay();
-        }
+        // 与条带最左那颗播放/暂停按钮同一个入口：动作语义只留一份
+        // （`invokePlayerAction`），键位与按钮不可能在原子上漂移。
+        invokePlayerAction(
+          host: host,
+          target: target,
+          page: page,
+          id: PlayerActionId.playPause,
+        );
 
       case PlayerShortcut.volumeUp:
       case PlayerShortcut.volumeDown:

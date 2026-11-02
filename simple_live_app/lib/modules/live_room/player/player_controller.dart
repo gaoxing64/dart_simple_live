@@ -473,6 +473,14 @@ mixin PlayerStateMixin on PlayerMixin {
   /// 是否处于全屏状态
   RxBool fullScreenState = false.obs;
 
+  /// 播放器此刻是否在出声（`player.stream.playing` 的最近一次值）。
+  ///
+  /// `playbackPlaying` 是给快捷键/媒体控制用的即时读数（直接问 `player.state`），
+  /// 不参与 Obx 订阅；条带上的播放/暂停按钮要在暂停、恢复时翻面，必须有这份
+  /// 可订阅镜像。EOS 时 mpv 的 `playing` 可能仍为 true，completed 事件里同步落回
+  /// false，与 `playbackPlaying` 的口径保持一致。
+  RxBool playingState = false.obs;
+
   /// 是否处于窗口最大化状态
   RxBool windowMaxState = false.obs;
 
@@ -1359,7 +1367,11 @@ class PlayerController extends BaseController
       mediaError(event);
     });
 
+    // 初始值单独对一次：stream 只在**变化**时推送，监听时已经处于播放态
+    // （复用播放器、或订阅晚于起播）不会收到一条 true。
+    playingState.value = player.state.playing && !player.state.completed;
     _playingSubscription = player.stream.playing.listen((event) {
+      playingState.value = event && !player.state.completed;
       if (event) {
         // 起播成功说明本次挂载的 af 链存活，结束「等待挂载结果」窗口。
         // 否则 pending 永久为 true，之后任何一条 af 失败日志（如流中途
@@ -1372,6 +1384,9 @@ class PlayerController extends BaseController
 
     _completedSubscription = player.stream.completed.listen((event) {
       if (event) {
+        // EOS 后 mpv 只报 completed，`playing` 仍是 true（见 media_controls 那段
+        // 注释），按钮不跟着落回「播放」就会永远停在暂停图标上。
+        playingState.value = false;
         mediaEnd();
       }
     });

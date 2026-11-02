@@ -30,6 +30,14 @@ void invokePlayerAction({
     isDesktop: AppSettingsController.isDesktop,
   );
   switch (id) {
+    case PlayerActionId.playPause:
+      // 与键盘 `Space` 同一个语义（`PlayerShortcut.playPause`）：读的是即时状态而不是
+      // 按钮图标那份订阅值，避免图标与播放器真状态短暂不一致时反向切换。
+      if (target.playbackPlaying) {
+        target.playbackPause();
+      } else {
+        target.playbackPlay();
+      }
     case PlayerActionId.refresh:
       target.refreshRoom();
     case PlayerActionId.danmakuToggle:
@@ -179,6 +187,8 @@ void showActionMenu({
 /// 弹幕开关在条带里由 renderer 换成 asset 的 `ImageIcon`，与本表无关。
 IconData playerActionIcon(PlayerActionId id) {
   return switch (id) {
+    // 抽屉里是静态行：显示「播放/暂停」这一对动作的通用图标，翻面留给条带 renderer。
+    PlayerActionId.playPause => Icons.play_arrow,
     PlayerActionId.refresh => Icons.refresh,
     PlayerActionId.danmakuToggle => Icons.chat_bubble_outline,
     PlayerActionId.danmakuSettings => Icons.tune,

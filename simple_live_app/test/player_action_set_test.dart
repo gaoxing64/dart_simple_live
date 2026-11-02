@@ -150,6 +150,18 @@ void main() {
   });
 
   group('格子', () {
+    // 播放/暂停与刷新同档：窗口化／全屏常驻平铺，小窗／格子收进 ⋮——
+    // 格子胶囊的宽度预算（224px）容不下第六颗平铺按钮。
+    test('格子里播放/暂停进 ⋮，不占胶囊宽度', () {
+      final l = resolvePlayerActions(
+        host: PlayerHost.tile,
+        availableWidth: double.infinity,
+        canCloseTile: true,
+      );
+      expect(l.bar.map((e) => e.id), isNot(contains(PlayerActionId.playPause)));
+      expect(l.overflow.map((e) => e.id), contains(PlayerActionId.playPause));
+    });
+
     test('格子永不给窗口级动作', () {
       final ids = _all(
         resolvePlayerActions(host: PlayerHost.tile, availableWidth: 240),
@@ -216,6 +228,7 @@ void main() {
   group('常驻兜底与收纳', () {
     test('core 动作任何宽度下都留在条带里', () {
       const core = {
+        PlayerActionId.playPause,
         PlayerActionId.danmakuToggle,
         PlayerActionId.volume,
         PlayerActionId.fullscreenToggle,
@@ -228,6 +241,18 @@ void main() {
         ).bar.map((e) => e.id).toSet();
         expect(ids, containsAll(core), reason: '宽 $width 时常驻件被收进了 ⋮');
       }
+    });
+
+    // 作者 2026-11-02 定的位置：播放/暂停占刷新原来的最左位，刷新右移一格。
+    test('播放/暂停在条带最左，刷新紧随其后', () {
+      final bar = resolvePlayerActions(
+        host: PlayerHost.windowed,
+        availableWidth: 1200,
+      ).bar;
+      expect(bar.take(2).map((e) => e.id).toList(), [
+        PlayerActionId.playPause,
+        PlayerActionId.refresh,
+      ]);
     });
 
     test('竖屏主播时清晰度/线路降到 ⋮ 而不是消失', () {
@@ -316,6 +341,7 @@ void main() {
       );
       final rows = actionableMenuItems(l.all);
       expect(rows.map((e) => e.id).toList(), [
+        PlayerActionId.playPause,
         PlayerActionId.refresh,
         PlayerActionId.danmakuToggle,
         PlayerActionId.danmakuSettings,
@@ -348,6 +374,7 @@ void main() {
       );
       // 原页级菜单的措辞一字不改地保留：合流只换清单来源，不换文案。
       expect(rows.map((e) => e.title).toList(), [
+        "播放/暂停",
         "刷新",
         "弹幕",
         "弹幕设置",

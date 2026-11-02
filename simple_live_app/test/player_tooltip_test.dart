@@ -60,6 +60,7 @@ void main() {
 
   group('shortcutForAction 映射表', () {
     test('有默认快捷键的动作各归其位', () {
+      expect(shortcutForAction(PlayerActionId.playPause), PlayerShortcut.playPause);
       expect(shortcutForAction(PlayerActionId.refresh), PlayerShortcut.refresh);
       expect(shortcutForAction(PlayerActionId.danmakuToggle), PlayerShortcut.danmakuToggle);
       expect(shortcutForAction(PlayerActionId.smallWindow), PlayerShortcut.smallWindow);

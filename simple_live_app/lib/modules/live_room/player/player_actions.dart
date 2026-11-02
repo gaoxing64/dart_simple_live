@@ -14,6 +14,9 @@ library;
 enum PlayerHost { windowed, fullscreen, smallWindow, tile }
 
 enum PlayerActionId {
+  /// 播放 / 暂停。条带最左那颗，与键盘 `Space` 同一语义（见
+  /// `PlayerShortcut.playPause`）：图标随 `playingState` 翻面。
+  playPause,
   refresh,
   danmakuToggle,
   danmakuSettings,
@@ -38,7 +41,7 @@ enum PlayerActionId {
 }
 
 enum PlayerActionTier {
-  /// 宽度再窄也留在条带里（音量／弹幕／全屏／刷新这几个是「这条带还在」的底线）
+  /// 宽度再窄也留在条带里（播放/暂停／音量／弹幕／全屏／刷新这几个是「这条带还在」的底线）
   core,
 
   /// 宽度够才平铺，否则沉进 `⋮`
@@ -140,6 +143,11 @@ const double kOverflowButtonWidth = 40;
 /// 清单只携带「存在性」字段，不写 tier：某个动作此刻是平铺还是进 `⋮`，一律由
 /// `_tierFor` 按宿主现算（`PlayerAction` 也没有 tier 字段可读），保持单一真相源。
 const List<PlayerAction> _kAllActions = [
+  // 播放/暂停在刷新之前：它是条带最左那颗，刷新原先占的就是这个位置。
+  PlayerAction(
+    id: PlayerActionId.playPause,
+    title: "播放/暂停",
+  ),
   PlayerAction(
     id: PlayerActionId.refresh,
     title: "刷新",
@@ -304,6 +312,7 @@ PlayerActionTier _tierFor(
       // 并非锚定件、进得了抽屉；但它一旦因宽度沉下去，右上那一簇就少一件作者明确
       // 要求待在原位的入口，所以与音量同类按常驻处理。
       return switch (id) {
+        PlayerActionId.playPause ||
         PlayerActionId.refresh ||
         PlayerActionId.danmakuToggle ||
         PlayerActionId.pick ||

@@ -149,6 +149,8 @@ void main() {
     final tile = _FakeTile();
     tile.currentQualityInfo.value = "原画";
     tile.currentLineInfo.value = "线路1";
+    // 在播时最左颗是「暂停」；显式置位而不是靠默认 false，断言才真的检到翻面文案。
+    tile.playingState.value = true;
     final layout = resolvePlayerActions(
       host: PlayerHost.windowed,
       availableWidth: 900,
@@ -184,8 +186,9 @@ void main() {
       moreOrLessEquals(barRect.right, epsilon: 0.5),
       reason: '右簇必须贴到条带右端，余量留在左右簇之间',
     );
+    // 左簇第一颗是播放/暂停（在刷新左边），刷新紧随其后。
     expect(
-      tester.getRect(find.byTooltip(RegExp('刷新'))).left,
+      tester.getRect(find.byTooltip(RegExp('暂停'))).left,
       moreOrLessEquals(barRect.left, epsilon: 0.5),
       reason: '左簇贴左端',
     );

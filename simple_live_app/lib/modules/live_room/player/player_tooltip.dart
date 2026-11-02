@@ -31,6 +31,7 @@ import 'package:simple_live_app/models/shortcut_binding.dart';
 /// 触屏点音量是弹滑条、静音另有 `muteTile`，所以**调用方**在触屏下不传这个映射
 /// （见 `player_volume_action.dart`），不在表里判平台。
 PlayerShortcut? shortcutForAction(PlayerActionId id) => switch (id) {
+      PlayerActionId.playPause => PlayerShortcut.playPause,
       PlayerActionId.refresh => PlayerShortcut.refresh,
       PlayerActionId.danmakuToggle => PlayerShortcut.danmakuToggle,
       PlayerActionId.smallWindow => PlayerShortcut.smallWindow,

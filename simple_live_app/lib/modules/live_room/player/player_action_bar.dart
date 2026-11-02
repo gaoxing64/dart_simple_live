@@ -311,6 +311,40 @@ Widget buildPlayerActionItem({
   // compact，拿到的就是桌面 36×36，与条带同形。
   final buttonStyle = _iconStyleFor(compact: compact);
   switch (action.id) {
+    case PlayerActionId.playPause:
+      // 图标与文案都跟着播放状态翻面；订阅走 controller 从 `player.stream.playing`
+      // 镜像出来的 Rx（`player.state.playing` 本身不是 observable）。
+      return Obx(
+        () {
+          final playing = target.playingState.value;
+          return shortcutTooltip(
+            label: playing ? '暂停' : '播放',
+            shortcut: PlayerShortcut.playPause,
+            child: IconButton(
+              tooltip: null,
+              iconSize: iconSize,
+              style: buttonStyle,
+              // 桌面条带沿用项目图标族（Remix）；格子胶囊用 Material 表，与其它
+              // tile 动作同形。tile 宿主里这颗是 menuOnly，只影响单独构造的用例。
+              icon: Icon(
+                host == PlayerHost.tile
+                    ? (playing ? Icons.pause : Icons.play_arrow)
+                    : (playing ? Remix.pause_fill : Remix.play_fill),
+                color: Colors.white,
+              ),
+              onPressed: () {
+                onInteract?.call();
+                invokePlayerAction(
+                  host: host,
+                  target: target,
+                  page: page,
+                  id: action.id,
+                );
+              },
+            ),
+          );
+        },
+      );
     case PlayerActionId.danmakuToggle:
       // 开／关两个 asset 图标，是「状态」而不是「动作名」，所以不能收进 ⋮ 用通用图标。
       return Obx(
