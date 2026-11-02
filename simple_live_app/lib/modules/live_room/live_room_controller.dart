@@ -1106,6 +1106,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
     try {
       // 连接类型判定是平台调用，串在取清晰度中间纯属白等，先发出去再等它。
       final qualityLevelFuture = getQualityLevel();
+      final target = roomId;
       final cachedQualities = LiveRoomPrefetch.takeQualities(site.id, _cacheRoomId);
       final List<LivePlayQuality> playQualities;
       if (cachedQualities != null) {
@@ -1136,11 +1137,68 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
         currentQuality = middle;
       }
       await getPlayUrl();
+      if (site.id == Constant.kDouyin &&
+          !playQualities.any((item) => item.quality == "原画") &&
+          _originRecoveryStartedFor != target) {
+        _originRecoveryStartedFor = target;
+        unawaited(
+          _recoverMissingOrigin(
+            target,
+            qualityLevel,
+            currentQualityInfo.value,
+          ),
+        );
+      }
     } catch (e) {
       Log.logPrint(e);
       SmartDialog.showToast("无法读取播放清晰度");
     }
   }
+
+  /// 抖音的画质列表会偶发降级；首帧先按现有档位播，后台重新取一次详情，
+  /// 补回“原画”后再无感切换。正常列表已含原画时不会发这次请求。
+  Future<void> _recoverMissingOrigin(
+    String target,
+    int qualityLevel,
+    String expectedQuality,
+  ) async {
+    try {
+      // 等起播稳定后再重取，避免和首个视频连接抢带宽。
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (roomId != target || _mediaReleased) {
+        return;
+      }
+      final freshDetail = await site.liveSite.getRoomDetail(roomId: target);
+      if (roomId != target || !freshDetail.status) {
+        return;
+      }
+      final fresh = await site.liveSite.getPlayQualities(detail: freshDetail);
+      if (fresh.isEmpty ||
+          !fresh.any((item) => item.quality == "原画") ||
+          currentQualityInfo.value != expectedQuality ||
+          _cdnFailoverInProgress ||
+          _qualityNames(fresh) == _qualityNames(qualities)) {
+        return;
+      }
+      final previousCount = qualities.length;
+      final index = LiveRoomPrefetch.indexForLevel(qualityLevel, fresh.length);
+      detail.value = freshDetail;
+      LiveRoomPrefetch.putQualities(site.id, _cacheRoomId, fresh);
+      qualities.assignAll(fresh);
+      currentQuality = index;
+      await getPlayUrl();
+      Log.i(
+        '[quality] 后台刷新补回清晰度：'
+        '$previousCount -> ${fresh.length} 档，当前 ${fresh[index].quality}',
+      );
+    } catch (e) {
+      // 后台刷新失败不打扰用户，现有缓存与当前播放继续可用。
+      Log.d('[quality] 后台刷新清晰度失败: $e');
+    }
+  }
+
+  static String _qualityNames(Iterable<LivePlayQuality> list) =>
+      list.map((item) => item.quality).join('|');
 
   Future<int> getQualityLevel() async {
     var qualityLevel = AppSettingsController.instance.qualityLevel.value;
@@ -1304,6 +1362,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
 
   Timer? _cdnWarmTimer;
   Timer? _prefetchTimer;
+  String? _originRecoveryStartedFor;
 
   /// 抖音播放饥饿监控：等首帧稳定后按秒读取 mpv 的缓存/码率指标。
   ///
@@ -2561,6 +2620,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
     // 不压住的话那一瞬间会用**旧房间**的标题与封面重新挂上去，而新房间的详情还在路上。
     _playbackSelectionGeneration++;
     _stopPlaybackHealthMonitor();
+    _originRecoveryStartedFor = null;
     _mediaSuppressed = true;
     await _mediaHandler?.detach(this);
 
@@ -2806,6 +2866,7 @@ ${error?.stackTrace}''');
     autoExitTimer?.cancel();
     _cdnWarmTimer?.cancel();
     _prefetchTimer?.cancel();
+    _originRecoveryStartedFor = null;
     _stopPlaybackHealthMonitor();
     _firstPlaySub?.cancel();
     _firstPlayFallback?.cancel();
