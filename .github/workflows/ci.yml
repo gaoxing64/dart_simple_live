@@ -36,8 +36,7 @@ jobs:
           cd simple_live_app
           flutter pub get
 
-      - name: Check formatting (advisory)
-        continue-on-error: true
+      - name: Check formatting
         run: dart format --output=none --set-exit-if-changed simple_live_app/lib simple_live_app/test
 
       - name: Analyze

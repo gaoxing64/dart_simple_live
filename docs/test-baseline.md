@@ -33,4 +33,9 @@
 
 ## 格式
 
-`dart format --set-exit-if-changed` 目前有 116 个文件不符合格式。存量格式化会污染 blame，建议单独一个 `style: format` 提交，不与其他改动混在一起。在此之前，CI 的格式检查保持 advisory，不阻断。
+已按约定以独立的 `style: format` 提交统一存量格式（116 个文件），CI 的格式检查已改为阻断。
+
+## 其他记录
+
+- core 侧 Twitch 夹具用例（`ac_twitch_danmaku` 29 条 + `ac_twitch_fixtures` 14 条）于 2026-11-02 实测全绿，旧文档"8 条恒红"口径作废。
+- 待办：Dart `Constant` 平台字符串与 Rust `Platform` 枚举 / `slive.h` C 宏的全量同步守护（现仅 douyin 有 `id_and_name_match_dart_constants`，C 宏有 `header_sync`）。
