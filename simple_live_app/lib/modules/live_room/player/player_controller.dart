@@ -291,8 +291,7 @@ mixin PlayerMixin {
     //  gpu-shader-cache-dir = "~~/cache/shader"
     //  watch-later-dir = "~~/cache/watch_later"
     // NVIDIA RTX VSR 支持 (Windows 平台)
-    if (Platform.isWindows &&
-        AppSettingsController.instance.enableRtxVsr.value) {
+    if (Platform.isWindows && AppSettingsController.instance.enableRtxVsr.value) {
       await pp.setProperty('hwdec', 'd3d11va');
       await pp.setProperty('vf', 'd3d11vpp=scale=2:scaling-mode=nvidia');
     }
@@ -349,8 +348,7 @@ mixin PlayerMixin {
   /// （player/audio.c 的 "Audio filter initialized failed!"），没有"跳过滤波器继续播"
   /// 的回退，表现就是无声。这里清掉滤波链、标记本会话不再尝试，并让宿主重连恢复声音。
   void checkVolumeNormalizeFailed(PlayerLog event) {
-    if (!_volumeNormalizePending ||
-        !event.text.contains('Audio filter initialized failed')) {
+    if (!_volumeNormalizePending || !event.text.contains('Audio filter initialized failed')) {
       return;
     }
     _volumeNormalizePending = false;
@@ -495,9 +493,7 @@ mixin PlayerStateMixin on PlayerMixin {
 
   /// Stats 覆盖层当前是否可见（按设置里的后端解释，供播放信息里的开关显示）
   bool get osdStatsVisible =>
-      AppSettingsController.instance.osdBackend.value == "mpv"
-          ? showMPVOSDStats.value
-          : showOSDStats.value;
+      AppSettingsController.instance.osdBackend.value == "mpv" ? showMPVOSDStats.value : showOSDStats.value;
 
   /// 提示底部Tip文本
   RxString bottomTipText = "".obs;
@@ -556,9 +552,7 @@ mixin PlayerStateMixin on PlayerMixin {
     // 从 16:9/4:3/自定义 切回 适应/拉伸/铺满 时必须把流原始比例传回去才能顶掉锁定
     // （与原内联实现一致；null 只在 Video 构造参数那一路才等于自动比例）。
     final aspectRatio = resolved.aspectRatio ??
-        (player.state.width != null && player.state.height != null
-            ? player.state.width! / player.state.height!
-            : null);
+        (player.state.width != null && player.state.height != null ? player.state.width! / player.state.height! : null);
     globalPlayerKey.currentState?.update(
       aspectRatio: aspectRatio,
       fit: resolved.fit,
@@ -603,9 +597,7 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
   /// `kUpdateDanmaku` 也是这个值；多开时被 [danmakuFontSizeOverride] 顶掉。
   double resolveWindowScaledDanmakuFontSize() {
     final settings = AppSettingsController.instance;
-    return settings.danmakuFontClamped.value
-        ? settings.danmakuFontResize
-        : settings.danmuSize.value;
+    return settings.danmakuFontClamped.value ? settings.danmakuFontResize : settings.danmuSize.value;
   }
 
   /// 清掉按格字号，回到整窗口径（退出多开时用）。
@@ -760,8 +752,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     if (Platform.isAndroid || Platform.isIOS) {
       // 系统栏即将恢复：若设备不再上报恢复后的 inset，用进全屏前的高度兜底
       SystemUiBottomInset.markRestoring();
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge,
-          overlays: SystemUiOverlay.values);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: SystemUiOverlay.values);
       setPortraitOrientation();
     } else {
       // 退回原来的大小
@@ -837,8 +828,7 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     // 走过任意一条正常退出路径后重采就恢复。
     // （鼠标第四键原先正是这条绕过路径；现已与 Esc 同源，补发 kEscapePressed 交回
     // exitFull，见 main.dart。）
-    if (_normalGeometryCaptured &&
-        (fullScreenState.value || smallWindowState.value)) {
+    if (_normalGeometryCaptured && (fullScreenState.value || smallWindowState.value)) {
       return;
     }
     // 先抢占标志、后 await 赋值：标志若在三段 await 之后才置 true，
@@ -1500,8 +1490,7 @@ class PlayerController extends BaseController
     if (player.platform is! NativePlayer) {
       return false;
     }
-    final luaOption = await (player.platform as NativePlayer)
-        .getProperty('options/load-stats-overlay');
+    final luaOption = await (player.platform as NativePlayer).getProperty('options/load-stats-overlay');
     _mpvLuaSupported = luaOption == 'yes';
     return _mpvLuaSupported!;
   }
@@ -1549,10 +1538,7 @@ class PlayerController extends BaseController
       title: "播放信息",
       child: ListView(
         children: [
-          Obx(() => SettingsSwitch(
-              title: "OSD 显示",
-              value: osdStatsVisible,
-              onChanged: (value) => toggleOSDStats())),
+          Obx(() => SettingsSwitch(title: "OSD 显示", value: osdStatsVisible, onChanged: (value) => toggleOSDStats())),
           ListTile(
             title: const Text("Resolution"),
             subtitle: Text('${player.state.width}x${player.state.height}'),

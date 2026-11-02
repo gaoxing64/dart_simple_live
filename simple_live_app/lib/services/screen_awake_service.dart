@@ -32,8 +32,7 @@ class ScreenAwakeService extends GetxService {
   /// 常亮开关的实际执行入口；测试注入假实现，避免碰平台通道。
   final Future<void> Function(bool enable) _toggle;
 
-  ScreenAwakeService({Future<void> Function(bool enable)? toggle})
-      : _toggle = toggle ?? _defaultToggle;
+  ScreenAwakeService({Future<void> Function(bool enable)? toggle}) : _toggle = toggle ?? _defaultToggle;
 
   static Future<void> _defaultToggle(bool enable) async {
     await WakelockPlus.toggle(enable: enable);

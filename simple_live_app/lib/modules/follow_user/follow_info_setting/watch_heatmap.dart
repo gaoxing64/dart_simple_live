@@ -154,16 +154,13 @@ class _WatchHeatmapState extends State<WatchHeatmap> {
                           child: _DayCell(
                             key: week[weekday] == normalizedToday ? _todayCellKey : null,
                             date: week[weekday],
-                            seconds: week[weekday] == null
-                                ? 0
-                                : widget.dailyWatchSeconds[watchDateKey(week[weekday]!)] ?? 0,
+                            seconds:
+                                week[weekday] == null ? 0 : widget.dailyWatchSeconds[watchDateKey(week[weekday]!)] ?? 0,
                             emptyColor: _levelColor(scheme, 0),
                             color: _levelColor(
                               scheme,
                               watchHeatmapLevel(
-                                week[weekday] == null
-                                    ? 0
-                                    : widget.dailyWatchSeconds[watchDateKey(week[weekday]!)] ?? 0,
+                                week[weekday] == null ? 0 : widget.dailyWatchSeconds[watchDateKey(week[weekday]!)] ?? 0,
                               ),
                             ),
                           ),

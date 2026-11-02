@@ -32,13 +32,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/services.dart'
-    show
-        HardwareKeyboard,
-        KeyDownEvent,
-        KeyEvent,
-        KeyRepeatEvent,
-        KeyUpEvent,
-        LogicalKeyboardKey;
+    show HardwareKeyboard, KeyDownEvent, KeyEvent, KeyRepeatEvent, KeyUpEvent, LogicalKeyboardKey;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
@@ -180,8 +174,7 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
     // 判据是**按下的键**而不是解析出的动作：键位可改之后，「会不会与控件激活撞车」
     // 只取决于按的是哪个键。用户把播放/暂停改到 `J`，那 `J` 就该无条件生效；
     // 反过来把别的动作改到空格，空格仍要让给聚焦中的按钮。
-    if ((event.logicalKey == LogicalKeyboardKey.space ||
-            event.logicalKey == LogicalKeyboardKey.enter) &&
+    if ((event.logicalKey == LogicalKeyboardKey.space || event.logicalKey == LogicalKeyboardKey.enter) &&
         !_focusNode.hasPrimaryFocus) {
       return KeyEventResult.ignored;
     }
@@ -281,14 +274,10 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
 
       case PlayerShortcut.volumeUp:
       case PlayerShortcut.volumeDown:
-        final delta = shortcut == PlayerShortcut.volumeUp
-            ? kShortcutVolumeStep
-            : -kShortcutVolumeStep;
+        final delta = shortcut == PlayerShortcut.volumeUp ? kShortcutVolumeStep : -kShortcutVolumeStep;
         // 绑哪个量跟按钮同源（见 `player_action_bar.dart` 的 volume 分支）：
         // 格子绑本格系数，其余宿主绑总音量。
-        final volumeTarget = host == PlayerHost.tile
-            ? VolumeTarget.tile(target)
-            : VolumeTarget.master(page);
+        final volumeTarget = host == PlayerHost.tile ? VolumeTarget.tile(target) : VolumeTarget.master(page);
         volumeTarget.nudge(delta);
         final percent = (volumeTarget.ratio.clamp(0.0, 1.0) * 100).round();
         _showShortcutTip(target, "音量 $percent%");
@@ -400,9 +389,7 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
       case PlayerShortcut.mute:
         // 必须与音量按钮的点击路径同源：`invokePlayerAction(volume)` 只切
         // `volumeFactor`，当总音量被拖到 0 时无法真正取消静音。
-        final volumeTarget = host == PlayerHost.tile
-            ? VolumeTarget.tile(target)
-            : VolumeTarget.master(page);
+        final volumeTarget = host == PlayerHost.tile ? VolumeTarget.tile(target) : VolumeTarget.master(page);
         volumeTarget.toggleMute();
         _showShortcutTip(target, volumeTarget.muted ? "已静音" : "取消静音");
     }

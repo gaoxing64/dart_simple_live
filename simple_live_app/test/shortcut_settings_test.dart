@@ -29,8 +29,7 @@ void main() {
   /// 关掉自定义之前先摆一份「用户动过」的覆盖表：改一个键 + 禁用一个动作。
   void seedOverrides() {
     settings.shortcutOverrides.value = {
-      PlayerShortcut.fullscreen:
-          const ShortcutBinding(LogicalKeyboardKey.keyJ),
+      PlayerShortcut.fullscreen: const ShortcutBinding(LogicalKeyboardKey.keyJ),
       PlayerShortcut.danmakuToggle: null,
     };
   }

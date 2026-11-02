@@ -50,8 +50,7 @@ class SystemUiBottomInset {
 
   /// 已记住的底部高度（横竖屏取较大值，仅用于测试/调试）
   @visibleForTesting
-  static double get remembered =>
-      _portrait > _landscape ? _portrait : _landscape;
+  static double get remembered => _portrait > _landscape ? _portrait : _landscape;
 
   /// 进入全屏：系统栏即将被隐藏，冻结当前记忆值
   static void markHidden() {

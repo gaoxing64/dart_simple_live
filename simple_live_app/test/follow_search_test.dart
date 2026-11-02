@@ -42,8 +42,7 @@ Finder searchField = find.byKey(const Key('follow-search-field'));
 
 /// 成员行里的名字。搜索框里有字时 `find.text(名字)` 会连输入框一起命中，
 /// 所以一律限定在 [FollowMemberRow] 里找。
-Finder rowText(String name) => find.descendant(
-    of: find.byType(FollowMemberRow), matching: find.text(name));
+Finder rowText(String name) => find.descendant(of: find.byType(FollowMemberRow), matching: find.text(name));
 
 void main() {
   setUp(() {
@@ -170,13 +169,11 @@ void main() {
     await settleEnd(tester);
   });
 
-  testWidgets('选择态不给搜索入口（leading 已是退出选择的 ✕）',
-      (tester) async {
+  testWidgets('选择态不给搜索入口（leading 已是退出选择的 ✕）', (tester) async {
     await seedSearch(tester);
 
     await tester.tap(find.descendant(
-        of: find.ancestor(
-            of: find.text('甲'), matching: find.byType(FollowMemberRow)),
+        of: find.ancestor(of: find.text('甲'), matching: find.byType(FollowMemberRow)),
         matching: find.byType(NetImage)));
     await settle(tester);
 

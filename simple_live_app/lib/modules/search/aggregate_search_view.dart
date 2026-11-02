@@ -11,8 +11,7 @@ import 'package:simple_live_app/widgets/skeleton.dart';
 class AggregateSearchView extends StatelessWidget {
   const AggregateSearchView({super.key});
 
-  AggregateSearchController get controller =>
-      Get.find<AggregateSearchController>(tag: AggregateSearchController.tag);
+  AggregateSearchController get controller => Get.find<AggregateSearchController>(tag: AggregateSearchController.tag);
 
   /// 按条目**自带的数据**渲染，不按当前模式猜类型。
   ///

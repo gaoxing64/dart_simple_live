@@ -114,12 +114,8 @@ Future<void> swipe(WidgetTester tester, double dy) async {
 }
 
 ScrollPosition gridPosition(WidgetTester tester) {
-  return tester
-      .stateList<ScrollableState>(find.byType(Scrollable))
-      .map((state) => state.position)
-      .firstWhere(
-        (position) =>
-            position.axis == Axis.vertical && position.maxScrollExtent > 0,
+  return tester.stateList<ScrollableState>(find.byType(Scrollable)).map((state) => state.position).firstWhere(
+        (position) => position.axis == Axis.vertical && position.maxScrollExtent > 0,
       );
 }
 
@@ -394,8 +390,7 @@ void main() {
     final controller = await pumpGrid(tester);
     expect(controller.requestedPages, [1]);
 
-    final gesture =
-        await tester.startGesture(tester.getCenter(find.byType(CustomScrollView).first));
+    final gesture = await tester.startGesture(tester.getCenter(find.byType(CustomScrollView).first));
     for (var i = 0; i < 400; i++) {
       final position = gridPosition(tester);
       if (position.maxScrollExtent - position.pixels <= 0) break;
@@ -576,8 +571,7 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
-    expect(controller.requestedPages.length, beforeTap,
-        reason: '重试条出现不代表会自动重试，实际 ${controller.requestedPages}');
+    expect(controller.requestedPages.length, beforeTap, reason: '重试条出现不代表会自动重试，实际 ${controller.requestedPages}');
 
     // 点击重试 → 应重新发起请求（该控制器永久失败，用来验证点击确实生效）
     await tester.tap(find.text("加载失败，点击重试"));
@@ -731,4 +725,3 @@ class LateDataController extends BasePageController<String> {
     return List.generate(pageSize, (i) => 'p$page-$i');
   }
 }
-

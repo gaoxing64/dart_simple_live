@@ -96,9 +96,7 @@ class SettingsSwitch extends StatelessWidget {
       }),
       thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (locked) {
-          return value
-              ? scheme.onPrimary
-              : scheme.outline.withValues(alpha: 0.55);
+          return value ? scheme.onPrimary : scheme.outline.withValues(alpha: 0.55);
         }
         if (states.contains(WidgetState.selected)) {
           return scheme.onPrimary;
@@ -108,9 +106,7 @@ class SettingsSwitch extends StatelessWidget {
       trackColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (locked) {
           // 保留「开/关」的色相，只压低饱和与对比度，避免误读成可切换状态
-          return value
-              ? scheme.primary.withValues(alpha: 0.38)
-              : scheme.surfaceContainerHighest.withValues(alpha: 0.6);
+          return value ? scheme.primary.withValues(alpha: 0.38) : scheme.surfaceContainerHighest.withValues(alpha: 0.6);
         }
         if (states.contains(WidgetState.selected)) {
           return scheme.primary;
@@ -121,9 +117,7 @@ class SettingsSwitch extends StatelessWidget {
         if (states.contains(WidgetState.selected)) {
           return Colors.transparent;
         }
-        return locked
-            ? scheme.outline.withValues(alpha: 0.38)
-            : scheme.outline;
+        return locked ? scheme.outline.withValues(alpha: 0.38) : scheme.outline;
       }),
     );
     if (locked && lockedHint != null && lockedHint!.isNotEmpty) {

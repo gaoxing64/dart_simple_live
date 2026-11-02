@@ -171,8 +171,7 @@ class Utils {
                       leading: IconButton(
                         tooltip: "返回",
                         onPressed: () {
-                          SmartDialog.dismiss(status: SmartStatus.allCustom)
-                              .then(
+                          SmartDialog.dismiss(status: SmartStatus.allCustom).then(
                             (value) => onDismiss?.call(),
                           );
                         },

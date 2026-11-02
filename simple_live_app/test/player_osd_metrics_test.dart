@@ -233,10 +233,8 @@ void main() {
     test('滚动区 = 面板 - 头部 - 内容间距（不溢出）', () {
       for (final h in <double>[200, 324, 600, 1080]) {
         final m = resolve(500, h);
-        final header = m.headerTopPadding +
-            (m.titleSize * 1.35 > m.iconButtonSize
-                ? m.titleSize * 1.35
-                : m.iconButtonSize);
+        final header =
+            m.headerTopPadding + (m.titleSize * 1.35 > m.iconButtonSize ? m.titleSize * 1.35 : m.iconButtonSize);
         expect(
             m.bodyMaxHeight,
             lessThanOrEqualTo(
@@ -343,8 +341,7 @@ void main() {
               child: OsdRowList(
                 rows: const [
                   OsdRow(label: 'Display Resolution', value: '1920 × 1080'),
-                  OsdRow(
-                      label: 'Decoder', value: 'D3D11', tone: OsdChipTone.ok),
+                  OsdRow(label: 'Decoder', value: 'D3D11', tone: OsdChipTone.ok),
                 ],
               ),
             ),

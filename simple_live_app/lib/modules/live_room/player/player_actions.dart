@@ -18,6 +18,7 @@ enum PlayerActionId {
   danmakuToggle,
   danmakuSettings,
   volume,
+
   /// 触屏专用的「静音这一路」：桌面音量颗点击＝静音、悬停＝滑条，而触屏没有 hover，
   /// 那颗只能改成「点击弹滑条」，静音这个动作就没了入口 —— 收进 `⋮` 这一行补回来。
   muteTile,
@@ -83,8 +84,7 @@ class PlayerAction {
 /// 一处定义，两处问它：resolver 决定带 `placeInTopBar` 的件落到哪个清单，
 /// renderer 决定 `⋮` 画在哪一簇——两边各判一次就会出现「件在 topBar 里、`⋮`
 /// 却在底栏」这种两头都找不到入口的组合。
-bool hasTopCluster(PlayerHost host) =>
-    host == PlayerHost.windowed || host == PlayerHost.fullscreen;
+bool hasTopCluster(PlayerHost host) => host == PlayerHost.windowed || host == PlayerHost.fullscreen;
 
 /// 这个宿主的清单类弹层用**右侧面板**还是**底部抽屉**。
 ///
@@ -100,8 +100,7 @@ bool hasTopCluster(PlayerHost host) =>
 ///
 /// 移动端**单画面**不经过这里（`playerControls` 的平台门短路，两条老 builder 各自直调
 /// `showQualitySheet` / `showQualitesInfo`），行为逐字不变。
-bool usesRightPanelSurface(PlayerHost host, {required bool isDesktop}) =>
-    isDesktop && host != PlayerHost.windowed;
+bool usesRightPanelSurface(PlayerHost host, {required bool isDesktop}) => isDesktop && host != PlayerHost.windowed;
 
 class PlayerActionLayout {
   const PlayerActionLayout({
@@ -281,7 +280,8 @@ PlayerActionTier _tierFor(
         PlayerActionId.volume ||
         PlayerActionId.pick ||
         PlayerActionId.fullscreenToggle ||
-        PlayerActionId.closeTile => PlayerActionTier.core,
+        PlayerActionId.closeTile =>
+          PlayerActionTier.core,
         _ => PlayerActionTier.menuOnly,
       };
     case PlayerHost.smallWindow:
@@ -290,14 +290,14 @@ PlayerActionTier _tierFor(
         PlayerActionId.smallWindow ||
         PlayerActionId.fullscreenToggle ||
         PlayerActionId.danmakuToggle ||
-        PlayerActionId.volume => PlayerActionTier.core,
+        PlayerActionId.volume =>
+          PlayerActionTier.core,
         _ => PlayerActionTier.menuOnly,
       };
     case PlayerHost.windowed:
     case PlayerHost.fullscreen:
       // 竖屏主播原先是直接 Offstage 掉清晰度/线路，现在降级进 ⋮（spec §9）。
-      if (isVertical &&
-          (id == PlayerActionId.quality || id == PlayerActionId.line)) {
+      if (isVertical && (id == PlayerActionId.quality || id == PlayerActionId.line)) {
         return PlayerActionTier.menuOnly;
       }
       // pick（换台）在桌面宿主是常驻平铺：它点开的是右侧面板（与改造前同一块），
@@ -308,12 +308,14 @@ PlayerActionTier _tierFor(
         PlayerActionId.danmakuToggle ||
         PlayerActionId.pick ||
         PlayerActionId.volume ||
-        PlayerActionId.fullscreenToggle => PlayerActionTier.core,
+        PlayerActionId.fullscreenToggle =>
+          PlayerActionTier.core,
         PlayerActionId.danmakuSettings ||
         PlayerActionId.screenshot ||
         PlayerActionId.quality ||
         PlayerActionId.line ||
-        PlayerActionId.smallWindow => PlayerActionTier.whenFits,
+        PlayerActionId.smallWindow =>
+          PlayerActionTier.whenFits,
         _ => PlayerActionTier.menuOnly,
       };
   }
@@ -373,8 +375,7 @@ PlayerActionLayout resolvePlayerActions({
     final hasAnyMenuContent = candidates.any(
       (e) => e.tier == PlayerActionTier.menuOnly,
     );
-    final needsMenu =
-        (hostsMenu && hasAnyMenuContent) || nonMenuTotal > availableWidth;
+    final needsMenu = (hostsMenu && hasAnyMenuContent) || nonMenuTotal > availableWidth;
     return availableWidth - (needsMenu ? kOverflowButtonWidth : 0);
   }
 
@@ -391,8 +392,7 @@ PlayerActionLayout resolvePlayerActions({
     }
     final budget = candidate.onTop ? topBudget : barBudget;
     // core 无条件在场：宽度不够也要留住，这是「常驻至少三件」的底线。
-    if (candidate.tier == PlayerActionTier.core ||
-        budget >= action.slotWidth) {
+    if (candidate.tier == PlayerActionTier.core || budget >= action.slotWidth) {
       if (candidate.onTop) {
         topBar.add(action);
         topBudget -= action.slotWidth;

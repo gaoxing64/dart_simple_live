@@ -73,27 +73,27 @@ const List<PlayerShortcut> kShortcutOrder = [
 
 /// 设置页里显示的动作名。
 String shortcutActionTitle(PlayerShortcut action) => switch (action) {
-  PlayerShortcut.playPause => "播放/暂停",
-  PlayerShortcut.fullscreen => "切换全屏",
-  PlayerShortcut.exitPlayer => "退出/关闭播放器",
-  PlayerShortcut.volumeUp => "音量增大",
-  PlayerShortcut.volumeDown => "音量减小",
-  PlayerShortcut.danmakuToggle => "弹幕开关",
-  PlayerShortcut.mute => "静音/取消静音",
-  PlayerShortcut.screenshot => "截图",
-  PlayerShortcut.smallWindow => "小窗播放",
-  PlayerShortcut.lockControls => "锁定/解锁控制条",
-  PlayerShortcut.refresh => "刷新直播间",
-  PlayerShortcut.quality => "切换清晰度",
-  PlayerShortcut.pick => "换台",
-  PlayerShortcut.prevLine => "上一条线路",
-  PlayerShortcut.nextLine => "下一条线路",
-  PlayerShortcut.toggleControls => "显示/隐藏控制条",
-  PlayerShortcut.focusSlot1 => "聚焦第 1 路",
-  PlayerShortcut.focusSlot2 => "聚焦第 2 路",
-  PlayerShortcut.focusSlot3 => "聚焦第 3 路",
-  PlayerShortcut.focusSlot4 => "聚焦第 4 路",
-};
+      PlayerShortcut.playPause => "播放/暂停",
+      PlayerShortcut.fullscreen => "切换全屏",
+      PlayerShortcut.exitPlayer => "退出/关闭播放器",
+      PlayerShortcut.volumeUp => "音量增大",
+      PlayerShortcut.volumeDown => "音量减小",
+      PlayerShortcut.danmakuToggle => "弹幕开关",
+      PlayerShortcut.mute => "静音/取消静音",
+      PlayerShortcut.screenshot => "截图",
+      PlayerShortcut.smallWindow => "小窗播放",
+      PlayerShortcut.lockControls => "锁定/解锁控制条",
+      PlayerShortcut.refresh => "刷新直播间",
+      PlayerShortcut.quality => "切换清晰度",
+      PlayerShortcut.pick => "换台",
+      PlayerShortcut.prevLine => "上一条线路",
+      PlayerShortcut.nextLine => "下一条线路",
+      PlayerShortcut.toggleControls => "显示/隐藏控制条",
+      PlayerShortcut.focusSlot1 => "聚焦第 1 路",
+      PlayerShortcut.focusSlot2 => "聚焦第 2 路",
+      PlayerShortcut.focusSlot3 => "聚焦第 3 路",
+      PlayerShortcut.focusSlot4 => "聚焦第 4 路",
+    };
 
 /// 一个动作的按键绑定：一个主键 + 四个修饰键。
 ///
@@ -171,8 +171,7 @@ const Set<PlayerShortcut> repeatablePlayerShortcuts = {
 /// `Tab` / `Shift+Tab` 是 Flutter 焦点遍历的键，绑上去等于把设置界面与播放器
 /// 条带变成按不动的按钮；纯修饰键单独按下不产生任何可派发事件（`KeyDownEvent`
 /// 会来，但用户还没按主键，此时触发动作就是误触）。
-bool isForbiddenShortcutKey(LogicalKeyboardKey key) =>
-    key == LogicalKeyboardKey.tab || isModifierKey(key);
+bool isForbiddenShortcutKey(LogicalKeyboardKey key) => key == LogicalKeyboardKey.tab || isModifierKey(key);
 
 /// 是不是一个纯修饰键（左右各一都算）。
 bool isModifierKey(LogicalKeyboardKey key) => _modifierKeys.contains(key);
@@ -273,9 +272,7 @@ Map<PlayerShortcut, ShortcutBinding?> resolveEffectiveShortcuts(
 ) {
   return {
     for (final action in kShortcutOrder)
-      action: overrides.containsKey(action)
-          ? overrides[action]
-          : kDefaultShortcuts[action],
+      action: overrides.containsKey(action) ? overrides[action] : kDefaultShortcuts[action],
   };
 }
 
@@ -296,8 +293,7 @@ bool isLetterShortcutKey(LogicalKeyboardKey key) => _letterKeys.contains(key);
 /// 而不是手抄 26 个常量（抄漏一个就是「某个字母在中文输入法下按不动」这种
 /// 只在特定键上复现的诡异 bug）。
 final Set<LogicalKeyboardKey> _letterKeys = {
-  for (var i = 0; i < 26; i++)
-    LogicalKeyboardKey(LogicalKeyboardKey.keyA.keyId + i),
+  for (var i = 0; i < 26; i++) LogicalKeyboardKey(LogicalKeyboardKey.keyA.keyId + i),
 };
 
 /// 单个绑定是否命中这次按键。
@@ -324,10 +320,7 @@ bool _bindingMatches(
   if (binding.ctrl == ctrl) {
     return true;
   }
-  return imeBypass &&
-      ctrl &&
-      !binding.ctrl &&
-      isLetterShortcutKey(key);
+  return imeBypass && ctrl && !binding.ctrl && isLetterShortcutKey(key);
 }
 
 /// 按下的键（含修饰键状态）命中哪个动作。
@@ -448,8 +441,7 @@ String encodeShortcuts(Map<PlayerShortcut, ShortcutBinding?> overrides) {
     return '';
   }
   final map = <String, Object?>{
-    for (final entry in overrides.entries)
-      entry.key.name: entry.value == null ? null : _bindingToJson(entry.value!),
+    for (final entry in overrides.entries) entry.key.name: entry.value == null ? null : _bindingToJson(entry.value!),
   };
   return jsonEncode(map);
 }
@@ -497,12 +489,12 @@ Map<PlayerShortcut, ShortcutBinding?> decodeShortcuts(String raw) {
 }
 
 Map<String, Object?> _bindingToJson(ShortcutBinding b) => {
-  'k': b.key.keyId,
-  if (b.shift) 's': true,
-  if (b.ctrl) 'c': true,
-  if (b.alt) 'a': true,
-  if (b.meta) 'm': true,
-};
+      'k': b.key.keyId,
+      if (b.shift) 's': true,
+      if (b.ctrl) 'c': true,
+      if (b.alt) 'a': true,
+      if (b.meta) 'm': true,
+    };
 
 /// 主键存 `keyId` 而**不是**显示名：`keyLabel` 是有歧义的（`'Enter'` 同时是
 /// `enter` 与 `numpadEnter` 的 label，`'Space'` 也有两个来源），拿名字往返会把

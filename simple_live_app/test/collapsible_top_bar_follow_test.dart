@@ -77,18 +77,14 @@ void main() {
       );
     }
 
-    expect(indexed.barOffset.value, greaterThan(0),
-        reason: '同步模式下拖动必须累计 barOffset');
+    expect(indexed.barOffset.value, greaterThan(0), reason: '同步模式下拖动必须累计 barOffset');
 
     // 拖足够远：完全收起，顶栏整条移出、内容区恰好上移一个顶栏高度
     await tester.drag(grid, const Offset(0, -300));
     await tester.pump(const Duration(milliseconds: 16));
-    expect(indexed.barOffset.value, kMaxBarOffset,
-        reason: '拖够距离后应完全收起');
-    expect(barTop - followBarTitleTop(tester),
-        moreOrLessEquals(kMaxBarOffset, epsilon: 0.01));
-    expect(gridTop - tester.getTopLeft(grid).dy,
-        moreOrLessEquals(kMaxBarOffset, epsilon: 0.01));
+    expect(indexed.barOffset.value, kMaxBarOffset, reason: '拖够距离后应完全收起');
+    expect(barTop - followBarTitleTop(tester), moreOrLessEquals(kMaxBarOffset, epsilon: 0.01));
+    expect(gridTop - tester.getTopLeft(grid).dy, moreOrLessEquals(kMaxBarOffset, epsilon: 0.01));
     expect(tester.getSize(grid), gridSize, reason: '拖动结束后内容区尺寸仍应恒定');
 
     // 反向拖回：顶栏与内容区一起复原
@@ -115,8 +111,7 @@ void main() {
     await tester.drag(grid, const Offset(0, -200));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(indexed.showTopBar.value, false,
-        reason: '即时模式向上滑应置 showTopBar=false');
+    expect(indexed.showTopBar.value, false, reason: '即时模式向上滑应置 showTopBar=false');
     expect(tester.getSize(grid), gridSize, reason: '收起动画同样不得改变内容区尺寸');
 
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
@@ -148,14 +143,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
 
     expect(indexed.barOffset.value, greaterThan(0));
-    expect(tester.getSize(grid), gridSize,
-        reason: '底栏收起不得改变 body 约束（否则每帧重排整页）');
+    expect(tester.getSize(grid), gridSize, reason: '底栏收起不得改变 body 约束（否则每帧重排整页）');
 
     await tester.pump(const Duration(milliseconds: 400));
   });
 
-  testWidgets('同步模式：滚轮滚动同样驱动顶/底栏收起（桌面端与拖动一致）',
-      (tester) async {
+  testWidgets('同步模式：滚轮滚动同样驱动顶/底栏收起（桌面端与拖动一致）', (tester) async {
     final indexed = await pumpIndexed(tester);
     await gotoFollowPage(tester, indexed);
     // 排空 refreshOnStart 的收起动画，否则它会 hold 住列表、吃掉第一次 animateTo
@@ -175,17 +168,14 @@ void main() {
     }
 
     await wheel(40);
-    expect(c.scrollController.position.pixels, greaterThan(0),
-        reason: '前置条件：滚轮确实滚动了外层列表');
+    expect(c.scrollController.position.pixels, greaterThan(0), reason: '前置条件：滚轮确实滚动了外层列表');
     expect(indexed.barOffset.value, greaterThan(0),
         reason: '滚轮向下必须驱动同步模式收起：滚轮走 animateTo，'
             '通知的 dragDetails 为 null，曾被「惯性不驱动」的过滤一并挡掉');
 
     await wheel(300);
-    expect(indexed.barOffset.value, kMaxBarOffset,
-        reason: '连续滚动后应能完全收起');
-    expect(barTop - followBarTitleTop(tester),
-        moreOrLessEquals(kMaxBarOffset, epsilon: 0.01),
+    expect(indexed.barOffset.value, kMaxBarOffset, reason: '连续滚动后应能完全收起');
+    expect(barTop - followBarTitleTop(tester), moreOrLessEquals(kMaxBarOffset, epsilon: 0.01),
         reason: '顶栏应实际让出一个 toolbar 高度（底部内容不再被裁半行）');
 
     // 反向滚：顶栏回来

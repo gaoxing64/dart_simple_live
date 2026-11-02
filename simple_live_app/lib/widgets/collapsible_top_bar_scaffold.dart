@@ -89,8 +89,7 @@ class CollapsibleTopBarScaffold extends StatelessWidget {
       // 每帧重建（`appBar` / `body` 实例由调用方传入，子树因此可以复用）。
       return Obx(
         () => _CollapsibleLayout(
-          factor:
-              1 - indexed.barOffset.value / kMaxBarOffset,
+          factor: 1 - indexed.barOffset.value / kMaxBarOffset,
           appBar: appBar,
           body: body,
         ),

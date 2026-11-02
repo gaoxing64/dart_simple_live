@@ -13,7 +13,8 @@ import 'package:simple_live_app/models/shortcut_binding.dart';
 PlayerShortcut? _match(
   Map<PlayerShortcut, ShortcutBinding?> effective,
   LogicalKeyboardKey key,
-) => matchShortcut(effective, key, shift: false, ctrl: false, alt: false, meta: false);
+) =>
+    matchShortcut(effective, key, shift: false, ctrl: false, alt: false, meta: false);
 
 void main() {
   final effective = resolveEffectiveShortcuts({});
@@ -25,8 +26,7 @@ void main() {
         kShortcutOrder.toSet(),
         reason: '新增动作忘了给默认值，或删了动作没清默认值',
       );
-      expect(kShortcutOrder.toSet().length, kShortcutOrder.length,
-          reason: '展示顺序里有重复动作');
+      expect(kShortcutOrder.toSet().length, kShortcutOrder.length, reason: '展示顺序里有重复动作');
     });
 
     test('默认键位互不冲突（两两不同）', () {
@@ -48,12 +48,9 @@ void main() {
 
   group('生效表：三种状态', () {
     test('没有覆盖项时全部回落默认', () {
-      expect(_match(effective, LogicalKeyboardKey.space),
-          PlayerShortcut.playPause);
-      expect(_match(effective, LogicalKeyboardKey.keyF),
-          PlayerShortcut.fullscreen);
-      expect(_match(effective, LogicalKeyboardKey.escape),
-          PlayerShortcut.exitPlayer);
+      expect(_match(effective, LogicalKeyboardKey.space), PlayerShortcut.playPause);
+      expect(_match(effective, LogicalKeyboardKey.keyF), PlayerShortcut.fullscreen);
+      expect(_match(effective, LogicalKeyboardKey.escape), PlayerShortcut.exitPlayer);
     });
 
     test('覆盖项存在但为 null＝该动作被禁用，按它的默认键不再命中', () {
@@ -62,8 +59,7 @@ void main() {
       });
       expect(_match(withUnset, LogicalKeyboardKey.space), isNull);
       // 别的动作不受影响
-      expect(_match(withUnset, LogicalKeyboardKey.keyF),
-          PlayerShortcut.fullscreen);
+      expect(_match(withUnset, LogicalKeyboardKey.keyF), PlayerShortcut.fullscreen);
     });
 
     test('覆盖项存在且有值＝改键生效，旧默认键释放', () {
@@ -71,8 +67,7 @@ void main() {
         PlayerShortcut.playPause: const ShortcutBinding(LogicalKeyboardKey.keyJ),
       });
       expect(_match(rebound, LogicalKeyboardKey.keyJ), PlayerShortcut.playPause);
-      expect(_match(rebound, LogicalKeyboardKey.space), isNull,
-          reason: '改键后旧键必须彻底失效，否则用户会以为有两个键都能暂停');
+      expect(_match(rebound, LogicalKeyboardKey.space), isNull, reason: '改键后旧键必须彻底失效，否则用户会以为有两个键都能暂停');
     });
 
     test('未知动作名的覆盖项不会污染生效表', () {
@@ -90,14 +85,12 @@ void main() {
     // 中英标点切换，抢了就废掉系统热键。
     test('字母绑定可被 Ctrl+字母 旁路命中（中文输入法下的通路）', () {
       expect(
-        matchShortcut(effective, LogicalKeyboardKey.keyS,
-            shift: false, ctrl: true, alt: false, meta: false),
+        matchShortcut(effective, LogicalKeyboardKey.keyS, shift: false, ctrl: true, alt: false, meta: false),
         PlayerShortcut.screenshot,
         reason: '中文输入法下 Ctrl+S 要能触发截图',
       );
       expect(
-        matchShortcut(effective, LogicalKeyboardKey.keyF,
-            shift: false, ctrl: true, alt: false, meta: false),
+        matchShortcut(effective, LogicalKeyboardKey.keyF, shift: false, ctrl: true, alt: false, meta: false),
         PlayerShortcut.fullscreen,
       );
     });
@@ -115,8 +108,7 @@ void main() {
         LogicalKeyboardKey.escape,
       ]) {
         expect(
-          matchShortcut(effective, key,
-              shift: false, ctrl: true, alt: false, meta: false),
+          matchShortcut(effective, key, shift: false, ctrl: true, alt: false, meta: false),
           isNull,
           reason: 'Ctrl+$key 不该被应用抢走',
         );
@@ -129,19 +121,16 @@ void main() {
         LogicalKeyboardKey.keyF,
       ]) {
         expect(
-          matchShortcut(effective, key,
-              shift: true, ctrl: false, alt: false, meta: false),
+          matchShortcut(effective, key, shift: true, ctrl: false, alt: false, meta: false),
           isNull,
           reason: 'Shift+$key 不该命中裸 $key 的绑定',
         );
         expect(
-          matchShortcut(effective, key,
-              shift: false, ctrl: false, alt: true, meta: false),
+          matchShortcut(effective, key, shift: false, ctrl: false, alt: true, meta: false),
           isNull,
         );
         expect(
-          matchShortcut(effective, key,
-              shift: false, ctrl: false, alt: false, meta: true),
+          matchShortcut(effective, key, shift: false, ctrl: false, alt: false, meta: true),
           isNull,
         );
       }
@@ -149,19 +138,16 @@ void main() {
 
     test('显式绑定了 Ctrl 的组合：裸主键不命中，且多按一个 Shift 不命中', () {
       final rebound = resolveEffectiveShortcuts({
-        PlayerShortcut.screenshot: const ShortcutBinding(LogicalKeyboardKey.keyS,
-            ctrl: true),
+        PlayerShortcut.screenshot: const ShortcutBinding(LogicalKeyboardKey.keyS, ctrl: true),
       });
       expect(_match(rebound, LogicalKeyboardKey.keyS), isNull);
       expect(
-        matchShortcut(rebound, LogicalKeyboardKey.keyS,
-            shift: false, ctrl: true, alt: false, meta: false),
+        matchShortcut(rebound, LogicalKeyboardKey.keyS, shift: false, ctrl: true, alt: false, meta: false),
         PlayerShortcut.screenshot,
       );
       // 多按一个 Shift 就不算同一个组合
       expect(
-        matchShortcut(rebound, LogicalKeyboardKey.keyS,
-            shift: true, ctrl: true, alt: false, meta: false),
+        matchShortcut(rebound, LogicalKeyboardKey.keyS, shift: true, ctrl: true, alt: false, meta: false),
         isNull,
       );
     });
@@ -171,17 +157,14 @@ void main() {
       // 而不是被裸 F 的旁路截走。两遍匹配（先严格后旁路）保证这一点。
       final rebound = resolveEffectiveShortcuts({
         PlayerShortcut.fullscreen: const ShortcutBinding(LogicalKeyboardKey.keyF),
-        PlayerShortcut.screenshot: const ShortcutBinding(LogicalKeyboardKey.keyF,
-            ctrl: true),
+        PlayerShortcut.screenshot: const ShortcutBinding(LogicalKeyboardKey.keyF, ctrl: true),
       });
       expect(
-        matchShortcut(rebound, LogicalKeyboardKey.keyF,
-            shift: false, ctrl: true, alt: false, meta: false),
+        matchShortcut(rebound, LogicalKeyboardKey.keyF, shift: false, ctrl: true, alt: false, meta: false),
         PlayerShortcut.screenshot,
       );
       expect(
-        matchShortcut(rebound, LogicalKeyboardKey.keyF,
-            shift: false, ctrl: false, alt: false, meta: false),
+        matchShortcut(rebound, LogicalKeyboardKey.keyF, shift: false, ctrl: false, alt: false, meta: false),
         PlayerShortcut.fullscreen,
       );
     });
@@ -252,11 +235,10 @@ void main() {
     test('自定义 / 禁用 / 默认三种状态各自往返无损', () {
       final overrides = <PlayerShortcut, ShortcutBinding?>{
         PlayerShortcut.playPause: const ShortcutBinding(LogicalKeyboardKey.keyJ),
-        PlayerShortcut.screenshot: const ShortcutBinding(LogicalKeyboardKey.keyS,
-            shift: true, ctrl: true, alt: true, meta: true),
+        PlayerShortcut.screenshot:
+            const ShortcutBinding(LogicalKeyboardKey.keyS, shift: true, ctrl: true, alt: true, meta: true),
         PlayerShortcut.mute: null, // 不设置
-        PlayerShortcut.fullscreen: const ShortcutBinding(
-            LogicalKeyboardKey.f5), // 非 ASCII 标签的键
+        PlayerShortcut.fullscreen: const ShortcutBinding(LogicalKeyboardKey.f5), // 非 ASCII 标签的键
       };
       final decoded = decodeShortcuts(encodeShortcuts(overrides));
       expect(decoded, overrides);
@@ -375,8 +357,8 @@ void main() {
 
     test('组合键串里修饰键顺序固定', () {
       expect(
-        shortcutBindingLabel(const ShortcutBinding(LogicalKeyboardKey.space,
-            meta: true, alt: true, ctrl: true, shift: true)),
+        shortcutBindingLabel(
+            const ShortcutBinding(LogicalKeyboardKey.space, meta: true, alt: true, ctrl: true, shift: true)),
         'Shift + Ctrl + Alt + Meta + Space',
       );
       expect(

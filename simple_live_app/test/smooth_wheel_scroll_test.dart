@@ -86,8 +86,7 @@ void main() {
 
     // 动画进行中：既离开了起点、又还没到目标，说明走的是 animateTo
     // 而不是 forcePixels（框架默认实现一帧就到 120）。
-    expect(controller.position.pixels, greaterThan(0),
-        reason: '滚轮必须走过渡动画，一帧到位等于没改');
+    expect(controller.position.pixels, greaterThan(0), reason: '滚轮必须走过渡动画，一帧到位等于没改');
     expect(controller.position.pixels, lessThan(120));
 
     await tester.pumpAndSettle();

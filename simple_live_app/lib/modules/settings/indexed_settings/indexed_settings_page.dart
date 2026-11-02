@@ -18,8 +18,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
   /// `Icons.drag_handle` 包进即时拖动监听器，移动端则把整行包进"长按后才
   /// 可拖"的监听器（见 material/reorderable_list.dart）。提示文案必须跟着分派，
   /// 否则桌面端会让人以为要长按。
-  static String get _reorderHint =>
-      AppSettingsController.isDesktop ? "拖动右侧图标排序" : "长按拖动排序";
+  static String get _reorderHint => AppSettingsController.isDesktop ? "拖动右侧图标排序" : "长按拖动排序";
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +57,7 @@ class IndexedSettingsPage extends GetView<IndexedSettingsController> {
             child: Obx(
               () {
                 var settings = AppSettingsController.instance;
-                var anyOn =
-                    settings.hideTopBar.value || settings.hideBottomBar.value;
+                var anyOn = settings.hideTopBar.value || settings.hideBottomBar.value;
                 return Column(
                   children: [
                     SettingsSwitch(

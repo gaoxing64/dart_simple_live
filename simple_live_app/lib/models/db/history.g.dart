@@ -25,10 +25,8 @@ class HistoryAdapter extends TypeAdapter<History> {
       updateTime: fields[5] as DateTime,
       watchDuration: fields[6] == null ? "00:00:00" : fields[6] as String?,
       syncDuration: fields[7] == null ? 0 : (fields[7] as num).toInt(),
-      dailyWatchSeconds:
-          fields[8] == null ? {} : (fields[8] as Map?)?.cast<String, int>(),
-      dailySyncSeconds:
-          fields[9] == null ? {} : (fields[9] as Map?)?.cast<String, int>(),
+      dailyWatchSeconds: fields[8] == null ? {} : (fields[8] as Map?)?.cast<String, int>(),
+      dailySyncSeconds: fields[9] == null ? {} : (fields[9] as Map?)?.cast<String, int>(),
     );
   }
 
@@ -63,8 +61,5 @@ class HistoryAdapter extends TypeAdapter<History> {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is HistoryAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
+      identical(this, other) || other is HistoryAdapter && runtimeType == other.runtimeType && typeId == other.typeId;
 }

@@ -264,9 +264,7 @@ Widget _buildDesktopFullControls(
   return Obx(() {
     // 小窗 implies fullScreenState==true，所以 host 先判小窗再判全屏，否则小窗会错用
     // 全屏宿主（顶栏冒出来、动作集也没收成四件）。
-    final host = controller.smallWindowState.value
-        ? PlayerHost.smallWindow
-        : PlayerHost.fullscreen;
+    final host = controller.smallWindowState.value ? PlayerHost.smallWindow : PlayerHost.fullscreen;
     final isVertical = controller.isVertical.value;
     final hasQuality = controller.hasMultipleQualities;
     final hasLine = controller.hasMultipleLines;
@@ -289,8 +287,7 @@ Widget _buildDesktopFullControls(
               Center(
                 child: StreamBuilder(
                   stream: videoState.widget.controller.player.stream.buffering,
-                  initialData:
-                      videoState.widget.controller.player.state.buffering,
+                  initialData: videoState.widget.controller.player.state.buffering,
                   builder: (_, s) => Visibility(
                     visible: s.data ?? false,
                     child: const PlayerLoadingOverlay(),
@@ -338,9 +335,7 @@ Widget _buildDesktopFullControls(
               if (showTopBar)
                 Obx(
                   () {
-                    final visible =
-                        controller.showControlsState.value &&
-                        !controller.lockControlsState.value;
+                    final visible = controller.showControlsState.value && !controller.lockControlsState.value;
                     return AnimatedPositioned(
                       left: 0,
                       right: 0,
@@ -416,9 +411,7 @@ Widget _buildDesktopFullControls(
               // 底部：小窗宿主（host==smallWindow）也走这条，只是 layout 收成四件。
               Obx(
                 () {
-                  final visible =
-                      controller.showControlsState.value &&
-                      !controller.lockControlsState.value;
+                  final visible = controller.showControlsState.value && !controller.lockControlsState.value;
                   return AnimatedPositioned(
                     left: 0,
                     right: 0,
@@ -455,9 +448,7 @@ Widget _buildDesktopFullControls(
                 () => AnimatedPositioned(
                   top: 0,
                   bottom: 0,
-                  right: controller.showControlsState.value
-                      ? padding.right + 12
-                      : -(64 + padding.right),
+                  right: controller.showControlsState.value ? padding.right + 12 : -(64 + padding.right),
                   duration: const Duration(milliseconds: 200),
                   child: buildLockButton(controller),
                 ),
@@ -467,9 +458,7 @@ Widget _buildDesktopFullControls(
                 () => AnimatedPositioned(
                   top: 0,
                   bottom: 0,
-                  left: controller.showControlsState.value
-                      ? padding.left + 12
-                      : -(64 + padding.right),
+                  left: controller.showControlsState.value ? padding.left + 12 : -(64 + padding.right),
                   duration: const Duration(milliseconds: 200),
                   child: buildLockButton(controller),
                 ),
@@ -490,7 +479,6 @@ Widget _buildDesktopFullControls(
     );
   });
 }
-
 
 Widget buildFullControls(
   VideoState videoState,
@@ -577,9 +565,7 @@ Widget buildFullControls(
               child: Row(
                 children: [
                   IconButton(
-                    tooltip: controller.smallWindowState.value
-                        ? "退出小窗"
-                        : "退出全屏",
+                    tooltip: controller.smallWindowState.value ? "退出小窗" : "退出全屏",
                     onPressed: () {
                       if (controller.smallWindowState.value) {
                         controller.exitSmallWindow();
@@ -696,8 +682,7 @@ Widget buildFullControls(
                     offstage: controller.showDanmakuState.value,
                     child: IconButton(
                       tooltip: "开启弹幕",
-                      onPressed: () => controller.showDanmakuState.value =
-                          !controller.showDanmakuState.value,
+                      onPressed: () => controller.showDanmakuState.value = !controller.showDanmakuState.value,
                       icon: const ImageIcon(
                         AssetImage('assets/icons/icon_danmaku_open.png'),
                         size: 24,
@@ -709,8 +694,7 @@ Widget buildFullControls(
                     offstage: !controller.showDanmakuState.value,
                     child: IconButton(
                       tooltip: "关闭弹幕",
-                      onPressed: () => controller.showDanmakuState.value =
-                          !controller.showDanmakuState.value,
+                      onPressed: () => controller.showDanmakuState.value = !controller.showDanmakuState.value,
                       icon: const ImageIcon(
                         AssetImage('assets/icons/icon_danmaku_close.png'),
                         size: 24,
@@ -755,8 +739,7 @@ Widget buildFullControls(
                       },
                       child: Text(
                         controller.currentLineInfo.value,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 15),
+                        style: const TextStyle(color: Colors.white, fontSize: 15),
                       ),
                     ),
                   ),
@@ -764,9 +747,7 @@ Widget buildFullControls(
                     // 和顶部返回按钮同一个动作，提示文案也要一致：
                     // 小窗态下两处都该说「退出小窗」，不然同一屏两个同义按钮
                     // 给出不同提示。
-                    tooltip: controller.smallWindowState.value
-                        ? "退出小窗"
-                        : "退出全屏",
+                    tooltip: controller.smallWindowState.value ? "退出小窗" : "退出全屏",
                     onPressed: () {
                       if (controller.smallWindowState.value) {
                         controller.exitSmallWindow();
@@ -777,9 +758,7 @@ Widget buildFullControls(
                     icon: Icon(
                       // 退出小窗用与「小窗播放」入口相同的图标，
                       // 全屏的进入/退出才用 fullscreen 图标族
-                      controller.smallWindowState.value
-                          ? Icons.picture_in_picture
-                          : Remix.fullscreen_exit_fill,
+                      controller.smallWindowState.value ? Icons.picture_in_picture : Remix.fullscreen_exit_fill,
                       color: Colors.white,
                     ),
                   ),
@@ -846,8 +825,7 @@ Widget buildFullControls(
 /// 改由页面在视频下方承载（[buildPageOsdOverlay]）。
 Widget buildOsdOverlay(BuildContext context, LiveRoomController controller) {
   return Obx(
-    () => controller.showOSDStats.value &&
-            !usePageOsdHost(context, controller)
+    () => controller.showOSDStats.value && !usePageOsdHost(context, controller)
         ? PlayerOsdOverlay(
             controller: controller,
             onClose: () => controller.showOSDStats.value = false,
@@ -865,8 +843,7 @@ Widget buildPageOsdOverlay(
   LiveRoomController controller,
 ) {
   return Obx(
-    () => controller.showOSDStats.value &&
-            usePageOsdHost(context, controller)
+    () => controller.showOSDStats.value && usePageOsdHost(context, controller)
         ? PlayerOsdOverlay(
             controller: controller,
             onClose: () => controller.showOSDStats.value = false,
@@ -897,9 +874,7 @@ Widget buildLockButton(LiveRoomController controller) {
           height: 40,
           child: Center(
             child: Icon(
-              controller.lockControlsState.value
-                  ? Icons.lock_outline_rounded
-                  : Icons.lock_open_outlined,
+              controller.lockControlsState.value ? Icons.lock_outline_rounded : Icons.lock_open_outlined,
               color: Colors.white,
               size: 20,
             ),
@@ -981,8 +956,7 @@ Widget buildControls(
                   offstage: controller.showDanmakuState.value,
                   child: IconButton(
                     tooltip: "开启弹幕",
-                    onPressed: () => controller.showDanmakuState.value =
-                        !controller.showDanmakuState.value,
+                    onPressed: () => controller.showDanmakuState.value = !controller.showDanmakuState.value,
                     icon: const ImageIcon(
                       AssetImage('assets/icons/icon_danmaku_open.png'),
                       size: 24,
@@ -994,8 +968,7 @@ Widget buildControls(
                   offstage: !controller.showDanmakuState.value,
                   child: IconButton(
                     tooltip: "关闭弹幕",
-                    onPressed: () => controller.showDanmakuState.value =
-                        !controller.showDanmakuState.value,
+                    onPressed: () => controller.showDanmakuState.value = !controller.showDanmakuState.value,
                     icon: const ImageIcon(
                       AssetImage('assets/icons/icon_danmaku_close.png'),
                       size: 24,
@@ -1045,8 +1018,7 @@ Widget buildControls(
                       },
                       child: Text(
                         controller.currentLineInfo.value,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 15),
+                        style: const TextStyle(color: Colors.white, fontSize: 15),
                       ),
                     ),
                   ),

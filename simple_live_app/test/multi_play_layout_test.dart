@@ -343,9 +343,11 @@ void main() {
       // 2 × 360 × 9/16 + 8 = 413
       expect(h, closeTo(413, 1e-9));
       // 每格 202.5 高 ≥ 135 下限
-      expect((h! - kMultiPlaySpacing) / 2, greaterThanOrEqualTo(
-        kMultiPlayMinTileHeight,
-      ));
+      expect(
+          (h! - kMultiPlaySpacing) / 2,
+          greaterThanOrEqualTo(
+            kMultiPlayMinTileHeight,
+          ));
     });
 
     test('屏高不够时夹到 62%，仍给得出合法格高就用夹值', () {
@@ -357,9 +359,11 @@ void main() {
         rows: 2,
       );
       expect(h, closeTo(600 * kMultiPlayPortraitMaxFraction, 1e-9));
-      expect((h! - kMultiPlaySpacing) / 2, greaterThanOrEqualTo(
-        kMultiPlayMinTileHeight,
-      ));
+      expect(
+          (h! - kMultiPlaySpacing) / 2,
+          greaterThanOrEqualTo(
+            kMultiPlayMinTileHeight,
+          ));
     });
 
     test('矮屏放不下两格时返回 null，调用方退回单画面', () {
@@ -408,8 +412,7 @@ void main() {
       // 设置项都拿不到一个布局引擎不接受的区间外的值。
       for (final desktop in [true, false]) {
         for (final stored in [null, -1, 0, 1, 2, 3, 4, 5, 99]) {
-          final value =
-              resolveDefaultMultiPlayTiles(isDesktop: desktop, stored: stored);
+          final value = resolveDefaultMultiPlayTiles(isDesktop: desktop, stored: stored);
           final why = 'isDesktop=$desktop stored=$stored';
           expect(value, greaterThanOrEqualTo(kMultiPlayMinTiles), reason: why);
           expect(value, lessThanOrEqualTo(kMultiPlayMaxTiles), reason: why);

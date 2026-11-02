@@ -31,8 +31,7 @@ class _FakeLiveSite extends LiveSite {
   }) async {
     roomKeywords.add(keyword);
     roomPages.add(page);
-    return await roomProvider?.call(keyword, page) ??
-        LiveSearchRoomResult(hasMore: false, items: []);
+    return await roomProvider?.call(keyword, page) ?? LiveSearchRoomResult(hasMore: false, items: []);
   }
 
   @override
@@ -42,8 +41,7 @@ class _FakeLiveSite extends LiveSite {
   }) async {
     anchorKeywords.add(keyword);
     anchorPages.add(page);
-    return await anchorProvider?.call(keyword, page) ??
-        LiveSearchAnchorResult(hasMore: false, items: []);
+    return await anchorProvider?.call(keyword, page) ?? LiveSearchAnchorResult(hasMore: false, items: []);
   }
 }
 
@@ -137,8 +135,7 @@ void main() {
             _anchor('b1'),
             _anchor('b2'),
           ]);
-    final douyu = _FakeLiveSite(Constant.kDouyu)
-      ..anchorProvider = (_, __) async => _anchors([_anchor('d1')]);
+    final douyu = _FakeLiveSite(Constant.kDouyu)..anchorProvider = (_, __) async => _anchors([_anchor('d1')]);
     final controller = AggregateSearchController(
       sites: [_site(bilibili), _site(douyu)],
     );
@@ -155,9 +152,8 @@ void main() {
 
   test('单平台失败保留其他结果，并从失败页和成功平台的下一页重试', () async {
     final working = _FakeLiveSite('working')
-      ..roomProvider = (_, page) async => page == 1
-          ? _rooms([_room('w1')], hasMore: true)
-          : _rooms([_room('w2')], hasMore: false);
+      ..roomProvider =
+          (_, page) async => page == 1 ? _rooms([_room('w1')], hasMore: true) : _rooms([_room('w2')], hasMore: false);
     var flakyCalls = 0;
     final flaky = _FakeLiveSite('flaky')
       ..roomProvider = (_, page) async {
@@ -194,10 +190,8 @@ void main() {
   });
 
   test('所有适用平台均失败且没有结果时进入整页错误', () async {
-    final first = _FakeLiveSite('first')
-      ..roomProvider = (_, __) async => throw Exception('network down');
-    final second = _FakeLiveSite('second')
-      ..roomProvider = (_, __) async => throw Exception('rate limited');
+    final first = _FakeLiveSite('first')..roomProvider = (_, __) async => throw Exception('network down');
+    final second = _FakeLiveSite('second')..roomProvider = (_, __) async => throw Exception('rate limited');
     final controller = AggregateSearchController(
       sites: [_site(first), _site(second)],
     );
@@ -209,10 +203,8 @@ void main() {
   });
 
   test('所有平台均无下一页时停止加载且不显示空页', () async {
-    final first = _FakeLiveSite('first')
-      ..roomProvider = (_, __) async => _rooms([_room('a1')], hasMore: false);
-    final second = _FakeLiveSite('second')
-      ..roomProvider = (_, __) async => _rooms([_room('b1')], hasMore: false);
+    final first = _FakeLiveSite('first')..roomProvider = (_, __) async => _rooms([_room('a1')], hasMore: false);
+    final second = _FakeLiveSite('second')..roomProvider = (_, __) async => _rooms([_room('b1')], hasMore: false);
     final controller = AggregateSearchController(
       sites: [_site(first), _site(second)],
     );
@@ -260,8 +252,7 @@ void main() {
     final oldResponse = Completer<LiveSearchRoomResult>();
     final newResponse = Completer<LiveSearchRoomResult>();
     final site = _FakeLiveSite('keyword')
-      ..roomProvider = (keyword, __) async =>
-          keyword == 'old' ? oldResponse.future : newResponse.future;
+      ..roomProvider = (keyword, __) async => keyword == 'old' ? oldResponse.future : newResponse.future;
     final controller = AggregateSearchController(sites: [_site(site)]);
 
     final oldSearch = controller.startSearch(keyword: 'old', searchMode: 0);
@@ -308,8 +299,7 @@ void main() {
 
   test('主播模式排除不支持搜索主播的抖音且不触发错误', () async {
     final douyin = _FakeLiveSite(Constant.kDouyin);
-    final huya = _FakeLiveSite(Constant.kHuya)
-      ..anchorProvider = (_, __) async => _anchors([_anchor('h1')]);
+    final huya = _FakeLiveSite(Constant.kHuya)..anchorProvider = (_, __) async => _anchors([_anchor('h1')]);
     final controller = AggregateSearchController(
       sites: [_site(douyin), _site(huya)],
     );
@@ -337,12 +327,9 @@ void main() {
   });
 
   test('跨平台相同房间号均保留，同平台重复项移除', () async {
-    final first = _FakeLiveSite('first')
-      ..roomProvider = (_, __) async => _rooms([_room('same')]);
-    final second = _FakeLiveSite('second')
-      ..roomProvider = (_, __) async => _rooms([_room('same')]);
-    final third = _FakeLiveSite('third')
-      ..roomProvider = (_, __) async => _rooms([_room('same'), _room('other')]);
+    final first = _FakeLiveSite('first')..roomProvider = (_, __) async => _rooms([_room('same')]);
+    final second = _FakeLiveSite('second')..roomProvider = (_, __) async => _rooms([_room('same')]);
+    final third = _FakeLiveSite('third')..roomProvider = (_, __) async => _rooms([_room('same'), _room('other')]);
     final controller = AggregateSearchController(
       sites: [_site(first), _site(second), _site(third)],
     );
@@ -358,8 +345,7 @@ void main() {
   });
 
   test('平台连续两页全部重复后停止该平台且不重复追加', () async {
-    final repeating = _FakeLiveSite('repeating')
-      ..roomProvider = (_, __) async => _rooms([_room('same')]);
+    final repeating = _FakeLiveSite('repeating')..roomProvider = (_, __) async => _rooms([_room('same')]);
     final controller = AggregateSearchController(
       sites: [_site(repeating)],
     );
@@ -374,8 +360,7 @@ void main() {
 
   test('页面关闭后迟到响应不得更新结果', () async {
     final completion = Completer<LiveSearchRoomResult>();
-    final slow = _FakeLiveSite('slow')
-      ..roomProvider = (_, __) => completion.future;
+    final slow = _FakeLiveSite('slow')..roomProvider = (_, __) => completion.future;
     final controller = AggregateSearchController(sites: [_site(slow)]);
 
     final loading = controller.startSearch(keyword: 'test', searchMode: 0);

@@ -38,20 +38,19 @@ const double _kCompactIconSize = 20;
 
 /// 同一份底版按密度派生出按钮样式：只 merge 最小尺寸，其余属性两档共用。
 ButtonStyle _iconStyleFor({required bool compact}) => _iconStyleBase.merge(
-  ButtonStyle(
-    minimumSize: WidgetStatePropertyAll<Size?>(
-      compact ? _kCompactButtonSize : _kDesktopButtonSize,
-    ),
-  ),
-);
+      ButtonStyle(
+        minimumSize: WidgetStatePropertyAll<Size?>(
+          compact ? _kCompactButtonSize : _kDesktopButtonSize,
+        ),
+      ),
+    );
 
 /// 条带／顶栏／格子胶囊共用的按钮样式，按密度取档。
 ///
 /// 对外暴露这一个而不是让宿主各自照抄参数：格子的信息胶囊 ▾、顶栏的右上簇与底栏
 /// 必须是同一份 chrome。曾经格子那边手写了一份复制品（30×30/zero/white 逐字段重写），
 /// 样式来源就分了两处——收在本文件里，两档才不会再各自漂移。
-ButtonStyle playerActionIconStyle({bool compact = false}) =>
-    _iconStyleFor(compact: compact);
+ButtonStyle playerActionIconStyle({bool compact = false}) => _iconStyleFor(compact: compact);
 
 /// 底栏按钮（含「多开播放」胶囊）的文字样式。
 ///
@@ -62,9 +61,9 @@ ButtonStyle playerActionIconStyle({bool compact = false}) =>
 /// 页面里的底栏曾经各写一份这个 getter，跨不了库（私有 getter 别人 import 不到），
 /// 于是提到这里当公共 helper，条带／顶栏／页面三处共用一个来源。
 TextStyle playerToolbarTextStyle() => TextStyle(
-  fontSize: 14,
-  fontFamily: AppStyleSettingController.instance.curFontName.value,
-);
+      fontSize: 14,
+      fontFamily: AppStyleSettingController.instance.curFontName.value,
+    );
 
 /// 播放条带／胶囊的渲染器：把 resolver 的产物画出来，三个宿主共用。
 ///
@@ -156,9 +155,7 @@ class PlayerActionBar extends StatelessWidget {
       // `fit` 必须是 loose：tight 会去抢余量（见 build 的 WHY），只给上限、不占位。
       // hug（格子胶囊）在无界主轴里包 Flexible 会直接抛错，且 tile 宿主的
       // quality/line 恒是 menuOnly、进不了 bar——收缩只给有界宿主。
-      if (!hug &&
-          (action.id == PlayerActionId.quality ||
-              action.id == PlayerActionId.line)) {
+      if (!hug && (action.id == PlayerActionId.quality || action.id == PlayerActionId.line)) {
         item = Flexible(fit: FlexFit.loose, child: item);
       }
       (action.rightSide ? right : left).add(item);
@@ -372,9 +369,7 @@ Widget buildPlayerActionItem({
             // 只写 color/fontSize 会把 [textStyle] 带来的用户字族丢掉，清晰度／线路
             // 就与同屏其它文字对不上。以 [textStyle] 为底再覆盖颜色字号，字族才留得住。
             child: Text(
-              action.id == PlayerActionId.quality
-                  ? target.currentQualityInfo.value
-                  : target.currentLineInfo.value,
+              action.id == PlayerActionId.quality ? target.currentQualityInfo.value : target.currentLineInfo.value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: (textStyle ?? const TextStyle()).copyWith(
@@ -387,9 +382,7 @@ Widget buildPlayerActionItem({
       );
     case PlayerActionId.volume:
       return VolumeActionWidget(
-        target: host == PlayerHost.tile
-            ? VolumeTarget.tile(target)
-            : VolumeTarget.master(page),
+        target: host == PlayerHost.tile ? VolumeTarget.tile(target) : VolumeTarget.master(page),
         style: buttonStyle,
         iconSize: iconSize,
         // 触屏没有 hover，滑条只能由点击开；静音改走 `⋮` 里的 muteTile。

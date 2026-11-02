@@ -62,8 +62,7 @@ void main() {
     Get.reset();
   });
 
-  testWidgets('桌面那层带屏蔽入口：先收起当前层，再开这一格的屏蔽面板',
-      (tester) async {
+  testWidgets('桌面那层带屏蔽入口：先收起当前层，再开这一格的屏蔽面板', (tester) async {
     final tile = _FakeTile();
     var dismissCalls = 0;
     await tester.pumpWidget(

@@ -96,8 +96,7 @@ void main() {
     expect(resolveThumbIcon()?.icon, Icons.check);
   });
 
-  testWidgets('锁定但没给 lockedHint 时断言（静默失败要能在 debug 看到）',
-      (tester) async {
+  testWidgets('锁定但没给 lockedHint 时断言（静默失败要能在 debug 看到）', (tester) async {
     await tester.pumpWidget(host(
       value: false,
       locked: true,

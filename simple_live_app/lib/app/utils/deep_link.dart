@@ -36,8 +36,7 @@ NativeAppLink? buildNativeAppLink(
       );
     case Constant.kDouyu:
       return NativeAppLink(
-        nativeUrl:
-            "douyulink://?type=90001&schemeUrl=douyuapp%3A%2F%2Froom%3FliveType%3D0%26rid%3D$roomId",
+        nativeUrl: "douyulink://?type=90001&schemeUrl=douyuapp%3A%2F%2Froom%3FliveType%3D0%26rid%3D$roomId",
         webUrl: "https://www.douyu.com/$roomId",
       );
   }

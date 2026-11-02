@@ -87,93 +87,88 @@ class FollowUserItem extends StatelessWidget {
         TextSpan(
           text: item.displayName,
           children: [
-              WidgetSpan(
-                alignment: ui.PlaceholderAlignment.middle,
-                child: Obx(
-                  () => Offstage(
-                    offstage: item.liveStatus.value == 0,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AppStyle.hGap12,
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: item.liveStatus.value == 2
-                                ? Colors.green
-                                : Colors.grey,
-                            borderRadius: AppStyle.radius12,
-                          ),
+            WidgetSpan(
+              alignment: ui.PlaceholderAlignment.middle,
+              child: Obx(
+                () => Offstage(
+                  offstage: item.liveStatus.value == 0,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppStyle.hGap12,
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: item.liveStatus.value == 2 ? Colors.green : Colors.grey,
+                          borderRadius: AppStyle.radius12,
                         ),
-                        AppStyle.hGap4,
-                        Text(
-                          getStatus(item.liveStatus.value),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.normal,
-                            color: item.liveStatus.value == 2
-                                ? null
-                                : Colors.grey,
-                          ),
+                      ),
+                      AppStyle.hGap4,
+                      Text(
+                        getStatus(item.liveStatus.value),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.normal,
+                          color: item.liveStatus.value == 2 ? null : Colors.grey,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),
       subtitle: Wrap(
-          runSpacing: 1.0,
-          children: [
-            Image.asset(
-              site.logo,
-              width: 20,
+        runSpacing: 1.0,
+        children: [
+          Image.asset(
+            site.logo,
+            width: 20,
+          ),
+          AppStyle.hGap4,
+          Text(
+            site.name,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
             ),
-            AppStyle.hGap4,
-            Text(
-              site.name,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
+          ),
+          AppStyle.hGap4,
+          Text(
+            item.watchDuration ?? "00:00:00",
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
             ),
-            AppStyle.hGap4,
-            Text(
-              item.watchDuration ?? "00:00:00",
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
+          ),
+          AppStyle.hGap4,
+          Text(
+            // 归属唯一真源是分组的成员表，这里显示它所属的分组（多个用 · 连接，
+            // 整体仍截到 8 字，避免长组名把行尾挤没）。
+            () {
+              // 本组件还被直播间关注面板等宿主复用，那边（以及单测宿主）
+              // 可能没注册 FollowService；归属真源在分组成员表里，拿不到
+              // 服务就无从查起，退回哨兵「全部」（不崩、不拉数据）。
+              if (!Get.isRegistered<FollowService>()) {
+                return '全部';
+              }
+              final names = FollowService.instance.userTagNamesOf(item.id);
+              if (names.isEmpty) return '全部';
+              final joined = names.join(' · ');
+              return joined.length > 8 ? '${joined.substring(0, 8)}...' : joined;
+            }(),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
             ),
-            AppStyle.hGap4,
-            Text(
-              // 归属唯一真源是分组的成员表，这里显示它所属的分组（多个用 · 连接，
-              // 整体仍截到 8 字，避免长组名把行尾挤没）。
-              () {
-                // 本组件还被直播间关注面板等宿主复用，那边（以及单测宿主）
-                // 可能没注册 FollowService；归属真源在分组成员表里，拿不到
-                // 服务就无从查起，退回哨兵「全部」（不崩、不拉数据）。
-                if (!Get.isRegistered<FollowService>()) {
-                  return '全部';
-                }
-                final names =
-                    FollowService.instance.userTagNamesOf(item.id);
-                if (names.isEmpty) return '全部';
-                final joined = names.join(' · ');
-                return joined.length > 8 ? '${joined.substring(0, 8)}...' : joined;
-              }(),
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
       trailing: _buildTrailing(),
       onTap: onTap,
       onLongPress: onLongPress,

@@ -22,17 +22,13 @@ class FrameInsets {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FrameInsets &&
-          horizontal == other.horizontal &&
-          vertical == other.vertical;
+      identical(this, other) || other is FrameInsets && horizontal == other.horizontal && vertical == other.vertical;
 
   @override
   int get hashCode => horizontal.hashCode ^ vertical.hashCode;
 
   @override
-  String toString() =>
-      'FrameInsets(horizontal: $horizontal, vertical: $vertical)';
+  String toString() => 'FrameInsets(horizontal: $horizontal, vertical: $vertical)';
 }
 
 /// 小窗纵横比纯计算单元：无状态、无平台依赖、无 IO。
@@ -146,8 +142,7 @@ class PipAspectCalculator {
     required double aspect,
     required FrameInsets insets,
   }) {
-    return (clientWidth + insets.horizontal) /
-        (clientWidth / aspect + insets.vertical);
+    return (clientWidth + insets.horizontal) / (clientWidth / aspect + insets.vertical);
   }
 
   /// 测量反推：horizontal = outer.width - client.width（负值按 0）；
@@ -174,8 +169,7 @@ class PipAspectCalculator {
     required double aspect,
     double minLongSide = 320,
   }) {
-    final longSide =
-        memoryLongSide < minLongSide ? minLongSide : memoryLongSide;
+    final longSide = memoryLongSide < minLongSide ? minLongSide : memoryLongSide;
     return clientSizeForAspect(
       memoryLongSide: longSide,
       aspect: aspect,

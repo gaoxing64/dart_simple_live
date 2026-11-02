@@ -16,8 +16,7 @@ class CategoryDetailController extends BasePageController<LiveRoomItem> {
 
   @override
   Future<List<LiveRoomItem>> getData(int page, int pageSize) async {
-    var result = await site.liveSite
-        .getCategoryRooms(subCategory, page: page, pageSize: pageSize);
+    var result = await site.liveSite.getCategoryRooms(subCategory, page: page, pageSize: pageSize);
     serverHasMore = result.hasMore;
     return result.items;
   }

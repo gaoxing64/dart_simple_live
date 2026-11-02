@@ -66,9 +66,7 @@ const int kCdnWarmupBudgetMs = 1200;
 /// 1.8~2s 的平台，预取还没取完用户就已经切走了（实测 3 轮里第 1 轮全未命中）。
 const Duration kPrefetchDelay = Duration(seconds: 1);
 
-class LiveRoomController extends PlayerController
-    with WidgetsBindingObserver
-    implements LivePlaybackTarget {
+class LiveRoomController extends PlayerController with WidgetsBindingObserver implements LivePlaybackTarget {
   StreamSubscription<dynamic>? subscription;
   final Site pSite;
   final String pRoomId;
@@ -202,8 +200,7 @@ class LiveRoomController extends PlayerController
   }
 
   @override
-  String get playerTitle =>
-      isSecondaryTile ? "Slive Player · 第${tileSlot + 1}路" : "Slive Player";
+  String get playerTitle => isSecondaryTile ? "Slive Player · 第${tileSlot + 1}路" : "Slive Player";
 
   /// 副格用设置项压低缓存上限：四路各 32MiB 起步对弱机不友好。
   ///
@@ -337,13 +334,10 @@ class LiveRoomController extends PlayerController
   }
 
   /// 线路列表用：CDN 主机（未优选过时为空串）。
-  String lineHost(int index) =>
-      index >= 0 && index < playLines.length ? playLines[index].host : "";
+  String lineHost(int index) => index >= 0 && index < playLines.length ? playLines[index].host : "";
 
   /// 线路优选是否让 HLS 优先（当前只有抖音提供该用户偏好）。
-  bool get _preferHlsForRank =>
-      site.id == Constant.kDouyin &&
-      AppSettingsController.instance.douyinHlsFirst.value;
+  bool get _preferHlsForRank => site.id == Constant.kDouyin && AppSettingsController.instance.douyinHlsFirst.value;
 
   Map<String, String>? playHeaders;
 
@@ -757,9 +751,8 @@ class LiveRoomController extends PlayerController
         autoExitTimer?.cancel();
         // 多开时把「关的是几路」讲清楚：到点退的是整个 app，不只是当前这一格。
         final routes = multiPlay.isActive ? multiPlay.slots.length : 0;
-        var delay = await Utils.showAlertDialog(
-          routes > 1 ? "定时关闭已到时，将关闭全部 $routes 路播放，是否延迟关闭?" : "定时关闭已到时,是否延迟关闭?",
-          title: "延迟关闭", confirm: "延迟", cancel: "关闭", selectable: true);
+        var delay = await Utils.showAlertDialog(routes > 1 ? "定时关闭已到时，将关闭全部 $routes 路播放，是否延迟关闭?" : "定时关闭已到时,是否延迟关闭?",
+            title: "延迟关闭", confirm: "延迟", cancel: "关闭", selectable: true);
         if (delay) {
           timer.cancel();
           delayAutoExit.value = true;
@@ -1113,14 +1106,12 @@ class LiveRoomController extends PlayerController
     try {
       // 连接类型判定是平台调用，串在取清晰度中间纯属白等，先发出去再等它。
       final qualityLevelFuture = getQualityLevel();
-      final cachedQualities =
-          LiveRoomPrefetch.takeQualities(site.id, _cacheRoomId);
+      final cachedQualities = LiveRoomPrefetch.takeQualities(site.id, _cacheRoomId);
       final List<LivePlayQuality> playQualities;
       if (cachedQualities != null) {
         playQualities = cachedQualities;
       } else {
-        playQualities = await site.liveSite
-            .getPlayQualities(detail: detail.value!);
+        playQualities = await site.liveSite.getPlayQualities(detail: detail.value!);
         // 空结果不缓存：这次抖动是瞬时的，缓存住会让重试在 90 秒内一直走空。
         if (playQualities.isNotEmpty) {
           LiveRoomPrefetch.putQualities(site.id, _cacheRoomId, playQualities);
@@ -1233,9 +1224,8 @@ class LiveRoomController extends PlayerController
         // 预取必须用**和播放同一个档位口径**：否则用户设的是「中/低」画质时，
         // 预取回来的是最高档直链，命中不了还白花带宽。
         final level = await getQualityLevel();
-        final follows = FollowService.instance.liveList
-            .where((follow) => follow.siteId == site.id)
-            .toList(growable: false);
+        final follows =
+            FollowService.instance.liveList.where((follow) => follow.siteId == site.id).toList(growable: false);
         if (follows.length < 2) {
           return;
         }
@@ -1243,9 +1233,7 @@ class LiveRoomController extends PlayerController
         if (index < 0) {
           return;
         }
-        for (var offset = 1;
-            offset <= LiveRoomPrefetch.prefetchRadius;
-            offset++) {
+        for (var offset = 1; offset <= LiveRoomPrefetch.prefetchRadius; offset++) {
           for (final delta in [offset, -offset]) {
             final next = (index + delta) % follows.length;
             final target = follows[next];
@@ -1292,10 +1280,7 @@ class LiveRoomController extends PlayerController
       urls: ranked.map((e) => e.url).toList(growable: false),
       hostOrder: cached,
     );
-    final reordered = ordered
-        .map((url) => byUrl[url])
-        .whereType<LivePlayLine>()
-        .toList(growable: false);
+    final reordered = ordered.map((url) => byUrl[url]).whereType<LivePlayLine>().toList(growable: false);
     return _preferHealthyCdnLines(reordered);
   }
 
@@ -1420,8 +1405,7 @@ class LiveRoomController extends PlayerController
       return;
     }
     final startedAt = _playbackHealthStartedAt;
-    if (startedAt == null ||
-        DateTime.now().difference(startedAt) < _kPlaybackHealthStartupDelay) {
+    if (startedAt == null || DateTime.now().difference(startedAt) < _kPlaybackHealthStartupDelay) {
       return;
     }
 
@@ -1429,9 +1413,7 @@ class LiveRoomController extends PlayerController
     _playbackHealthSampleInFlight = true;
     try {
       final sample = await readPlaybackHealth();
-      if (sample == null ||
-          generation != _playbackSelectionGeneration ||
-          _playbackHealthStartedAt == null) {
+      if (sample == null || generation != _playbackSelectionGeneration || _playbackHealthStartedAt == null) {
         return;
       }
       if (sample.paused) {
@@ -1449,9 +1431,7 @@ class LiveRoomController extends PlayerController
               sample.cacheSeconds <= PlaybackStarvationDetector.lowCacheSeconds &&
               ratio < PlaybackStarvationDetector.inputHeadroom);
       final now = DateTime.now();
-      if (notable &&
-          (_lastCdnHealthLogAt == null ||
-              now.difference(_lastCdnHealthLogAt!) >= _kCdnHealthLogInterval)) {
+      if (notable && (_lastCdnHealthLogAt == null || now.difference(_lastCdnHealthLogAt!) >= _kCdnHealthLogInterval)) {
         _lastCdnHealthLogAt = now;
         Log.w(
           '[cdn-health] host=${lineHost(currentLineIndex)} '
@@ -1492,8 +1472,7 @@ class LiveRoomController extends PlayerController
       return;
     }
     final now = DateTime.now();
-    if (_lastAutoCdnSwitchAt != null &&
-        now.difference(_lastAutoCdnSwitchAt!) < _kAutoCdnSwitchCooldown) {
+    if (_lastAutoCdnSwitchAt != null && now.difference(_lastAutoCdnSwitchAt!) < _kAutoCdnSwitchCooldown) {
       _restartPlaybackHealthWindow();
       return;
     }
@@ -1558,22 +1537,17 @@ class LiveRoomController extends PlayerController
     final targetRoomId = _cacheRoomId.isNotEmpty ? _cacheRoomId : roomId;
     for (var attempt = 0; attempt < _kFreshPlaybackFetchAttempts; attempt++) {
       try {
-        final freshDetail = await site.liveSite
-            .getRoomDetail(roomId: targetRoomId)
-            .timeout(const Duration(seconds: 8));
+        final freshDetail = await site.liveSite.getRoomDetail(roomId: targetRoomId).timeout(const Duration(seconds: 8));
         if (!freshDetail.status && !freshDetail.isRecord) {
           return null;
         }
-        final freshQualities =
-            await site.liveSite.getPlayQualities(detail: freshDetail);
+        final freshQualities = await site.liveSite.getPlayQualities(detail: freshDetail);
         if (freshQualities.isEmpty) {
           continue;
         }
-        var qualityIndex =
-            freshQualities.indexWhere((q) => q.quality == preferredQuality);
+        var qualityIndex = freshQualities.indexWhere((q) => q.quality == preferredQuality);
         if (qualityIndex < 0) {
-          qualityIndex =
-              currentQuality.clamp(0, freshQualities.length - 1).toInt();
+          qualityIndex = currentQuality.clamp(0, freshQualities.length - 1).toInt();
         }
         final freshQuality = freshQualities[qualityIndex];
         final play = await site.liveSite.getPlayUrls(
@@ -1588,8 +1562,7 @@ class LiveRoomController extends PlayerController
         var candidateIndex = -1;
         for (var i = 0; i < lines.length; i++) {
           final family = CdnHealthCache.cdnFamilyOf(lines[i].host);
-          if (family != blockedFamily &&
-              !CdnHealthCache.isBlocked(site.id, lines[i].host)) {
+          if (family != blockedFamily && !CdnHealthCache.isBlocked(site.id, lines[i].host)) {
             candidateIndex = i;
             break;
           }
@@ -2092,8 +2065,7 @@ class LiveRoomController extends PlayerController
                 icon: const Icon(Icons.copy),
                 onPressed: () async {
                   try {
-                    var playUrl = await site.liveSite
-                        .getPlayUrls(detail: detail.value!, quality: item);
+                    var playUrl = await site.liveSite.getPlayUrls(detail: detail.value!, quality: item);
                     if (playUrl.urls.isNotEmpty) {
                       Utils.copyToClipboard(playUrl.urls.first);
                       SmartDialog.showToast("已复制直链");
@@ -2149,9 +2121,7 @@ class LiveRoomController extends PlayerController
   /// 标题与作用范围必须用**同一个谓词**（multiPlay.isActive，即下方写入分支的判据）：
   /// 主格在多开期间也是槽位、也只改本格（isSecondaryTile=false 却 isActive=true），
   /// 若按 isSecondaryTile 定标题，主格会显示「全局」字样却做按格的事。
-  String get scaleModeSheetTitle => multiPlay.isActive
-      ? "画面尺寸 · 第${tileSlot + 1}路（仅这一格）"
-      : "画面尺寸";
+  String get scaleModeSheetTitle => multiPlay.isActive ? "画面尺寸 · 第${tileSlot + 1}路（仅这一格）" : "画面尺寸";
 
   /// 「画面尺寸」单选列表本体：底部抽屉（移动）与右侧抽屉（桌面）共用这一份。
   ///
@@ -2633,8 +2603,7 @@ ${error?.stackTrace}''');
   bool _mediaSuppressed = false;
 
   /// 「audio_service 初始化失败 / 当前平台没有实现」时是 null，下面整套逻辑随之空转。
-  LivePlaybackAudioHandler? get _mediaHandler =>
-      LivePlaybackAudioHandler.maybeInstance;
+  LivePlaybackAudioHandler? get _mediaHandler => LivePlaybackAudioHandler.maybeInstance;
 
   /// 通知权限只在本次运行里问一次（Android 13+）。默认开关是开的，没有这个入口
   /// 的话，默认值的用户永远走不到设置页里那次请求，通知栏就一直是空的。
@@ -2645,16 +2614,12 @@ ${error?.stackTrace}''');
     if (isSecondaryTile) {
       return;
     }
-    _playingSyncSubscription =
-        player.stream.playing.listen((_) => syncMediaControls());
-    _bufferingSyncSubscription =
-        player.stream.buffering.listen((_) => syncMediaControls());
+    _playingSyncSubscription = player.stream.playing.listen((_) => syncMediaControls());
+    _bufferingSyncSubscription = player.stream.buffering.listen((_) => syncMediaControls());
     // 直播结束（EOS）时 mpv 只报 completed，`playing` 仍是 true：不接这一路的话
     // 通知会停在「正在播放」上，而声音早就没了。
-    _completedSyncSubscription =
-        player.stream.completed.listen((_) => syncMediaControls());
-    _settingSyncSubscription =
-        EventBus.instance.listen(EventBus.kMediaControlsChanged, (event) {
+    _completedSyncSubscription = player.stream.completed.listen((_) => syncMediaControls());
+    _settingSyncSubscription = EventBus.instance.listen(EventBus.kMediaControlsChanged, (event) {
       // 开与关都要立刻处理：流稳定时 playing/buffering 可以很久不跳，等下一次事件的
       // 话，用户在设置页关了开关、通知还挂在屏幕上。
       syncMediaControls();
@@ -2759,8 +2724,7 @@ ${error?.stackTrace}''');
   bool get playbackIsLive => !(detail.value?.isRecord ?? false);
 
   @override
-  bool get playbackPlaying =>
-      !_mediaReleased && player.state.playing && !player.state.completed;
+  bool get playbackPlaying => !_mediaReleased && player.state.playing && !player.state.completed;
 
   @override
   bool get playbackBuffering => !_mediaReleased && player.state.buffering;

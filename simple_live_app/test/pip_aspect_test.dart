@@ -36,29 +36,17 @@ void main() {
 
   group('resolveVideoAspect', () {
     test('正常比例', () {
-      expect(PipAspectCalculator.resolveVideoAspect(width: 1920, height: 1080),
-          closeTo(a169, 1e-12));
-      expect(PipAspectCalculator.resolveVideoAspect(width: 1280, height: 960),
-          closeTo(a43, 1e-12));
+      expect(PipAspectCalculator.resolveVideoAspect(width: 1920, height: 1080), closeTo(a169, 1e-12));
+      expect(PipAspectCalculator.resolveVideoAspect(width: 1280, height: 960), closeTo(a43, 1e-12));
     });
 
     test('null / 非有限 / <=0 回退 16/9', () {
-      expect(PipAspectCalculator.resolveVideoAspect(width: null, height: 1080),
-          a169);
-      expect(PipAspectCalculator.resolveVideoAspect(width: 1920, height: null),
-          a169);
-      expect(
-          PipAspectCalculator.resolveVideoAspect(width: 0, height: 1080), a169);
-      expect(
-          PipAspectCalculator.resolveVideoAspect(width: 1920, height: 0), a169);
-      expect(
-          PipAspectCalculator.resolveVideoAspect(
-              width: double.infinity, height: 1080),
-          a169);
-      expect(
-          PipAspectCalculator.resolveVideoAspect(
-              width: 1920, height: double.nan),
-          a169);
+      expect(PipAspectCalculator.resolveVideoAspect(width: null, height: 1080), a169);
+      expect(PipAspectCalculator.resolveVideoAspect(width: 1920, height: null), a169);
+      expect(PipAspectCalculator.resolveVideoAspect(width: 0, height: 1080), a169);
+      expect(PipAspectCalculator.resolveVideoAspect(width: 1920, height: 0), a169);
+      expect(PipAspectCalculator.resolveVideoAspect(width: double.infinity, height: 1080), a169);
+      expect(PipAspectCalculator.resolveVideoAspect(width: 1920, height: double.nan), a169);
     });
   });
 
@@ -66,32 +54,24 @@ void main() {
     test('scaleMode 3/4/5 与非法回退', () {
       // 3 → 16/9
       expect(
-          PipAspectCalculator.resolveDisplayAspect(
-              scaleMode: 3, aspectByUser: a43, videoWidth: 800, videoHeight: 600),
+          PipAspectCalculator.resolveDisplayAspect(scaleMode: 3, aspectByUser: a43, videoWidth: 800, videoHeight: 600),
           closeTo(a169, 1e-12));
       // 4 → 4/3
       expect(
-          PipAspectCalculator.resolveDisplayAspect(
-              scaleMode: 4, aspectByUser: a169, videoWidth: 800, videoHeight: 600),
+          PipAspectCalculator.resolveDisplayAspect(scaleMode: 4, aspectByUser: a169, videoWidth: 800, videoHeight: 600),
           closeTo(a43, 1e-12));
       // 5 + 合法 aspectByUser → 返回用户比例
       expect(
-          PipAspectCalculator.resolveDisplayAspect(
-              scaleMode: 5, aspectByUser: a43, videoWidth: 800, videoHeight: 600),
+          PipAspectCalculator.resolveDisplayAspect(scaleMode: 5, aspectByUser: a43, videoWidth: 800, videoHeight: 600),
           closeTo(a43, 1e-12));
       // 5 + 非法 aspectByUser → 回退视频比例
       expect(
-          PipAspectCalculator.resolveDisplayAspect(
-              scaleMode: 5, aspectByUser: 0, videoWidth: 1920, videoHeight: 1080),
+          PipAspectCalculator.resolveDisplayAspect(scaleMode: 5, aspectByUser: 0, videoWidth: 1920, videoHeight: 1080),
           closeTo(a169, 1e-12));
       // 0/1/2/其它 → 视频比例；非法视频 → 16/9
-      expect(
-          PipAspectCalculator.resolveDisplayAspect(
-              scaleMode: 0, videoWidth: 1920, videoHeight: 1080),
+      expect(PipAspectCalculator.resolveDisplayAspect(scaleMode: 0, videoWidth: 1920, videoHeight: 1080),
           closeTo(a169, 1e-12));
-      expect(
-          PipAspectCalculator.resolveDisplayAspect(
-              scaleMode: 2, videoWidth: null, videoHeight: null),
+      expect(PipAspectCalculator.resolveDisplayAspect(scaleMode: 2, videoWidth: null, videoHeight: null),
           closeTo(a169, 1e-12));
     });
   });
@@ -251,8 +231,7 @@ void main() {
         );
         final cw = outer.width - 16;
         final ch = outer.height - 8;
-        expect((cw / a169 - ch).abs(), lessThan(1e-9),
-            reason: 'W=$W 应对齐');
+        expect((cw / a169 - ch).abs(), lessThan(1e-9), reason: 'W=$W 应对齐');
       }
     });
   });
@@ -371,14 +350,10 @@ void main() {
   group('expectedHiddenInsets（无标题栏态理论内边距）', () {
     test('dpr 各取值 → 逻辑像素 = 物理/dpr', () {
       // 物理边框 16(左右)/8(底, Win11)：horizontal=16/dpr、vertical=8/dpr
-      expect(PipAspectCalculator.expectedHiddenInsets(1.0),
-          const FrameInsets(horizontal: 16, vertical: 8));
-      expect(PipAspectCalculator.expectedHiddenInsets(1.25),
-          const FrameInsets(horizontal: 12.8, vertical: 6.4));
-      expect(PipAspectCalculator.expectedHiddenInsets(1.5),
-          const FrameInsets(horizontal: 16 / 1.5, vertical: 8 / 1.5));
-      expect(PipAspectCalculator.expectedHiddenInsets(2.0),
-          const FrameInsets(horizontal: 8, vertical: 4));
+      expect(PipAspectCalculator.expectedHiddenInsets(1.0), const FrameInsets(horizontal: 16, vertical: 8));
+      expect(PipAspectCalculator.expectedHiddenInsets(1.25), const FrameInsets(horizontal: 12.8, vertical: 6.4));
+      expect(PipAspectCalculator.expectedHiddenInsets(1.5), const FrameInsets(horizontal: 16 / 1.5, vertical: 8 / 1.5));
+      expect(PipAspectCalculator.expectedHiddenInsets(2.0), const FrameInsets(horizontal: 8, vertical: 4));
     });
 
     test('Win10 垂直为 9/dpr', () {
@@ -402,9 +377,7 @@ void main() {
     test('隐藏态各 dpr 通过', () {
       for (final dpr in const [1.0, 1.25, 1.5, 2.0]) {
         final hidden = PipAspectCalculator.expectedHiddenInsets(dpr);
-        expect(PipAspectCalculator.isPlausibleHiddenInsets(hidden, dpr: dpr),
-            isTrue,
-            reason: 'dpr=$dpr 隐藏态应判为合理');
+        expect(PipAspectCalculator.isPlausibleHiddenInsets(hidden, dpr: dpr), isTrue, reason: 'dpr=$dpr 隐藏态应判为合理');
       }
     });
 
@@ -418,9 +391,7 @@ void main() {
         2.0: const FrameInsets(horizontal: 8, vertical: 19.5),
       };
       normals.forEach((dpr, ins) {
-        expect(PipAspectCalculator.isPlausibleHiddenInsets(ins, dpr: dpr),
-            isFalse,
-            reason: 'dpr=$dpr 正常态应被拒（物理垂直≥39）');
+        expect(PipAspectCalculator.isPlausibleHiddenInsets(ins, dpr: dpr), isFalse, reason: 'dpr=$dpr 正常态应被拒（物理垂直≥39）');
       });
     });
 
@@ -430,22 +401,14 @@ void main() {
     // 正是竞态残留黑边的根因；修正后物理判据正确拒绝它。
     test('dpr=2 正常态（逻辑 8/19.5）必须被拒——关键回归点', () {
       const normal2 = FrameInsets(horizontal: 8, vertical: 19.5);
-      expect(PipAspectCalculator.isPlausibleHiddenInsets(normal2, dpr: 2.0),
-          isFalse);
+      expect(PipAspectCalculator.isPlausibleHiddenInsets(normal2, dpr: 2.0), isFalse);
     });
 
     test('负 / 非有限内边距被拒', () {
+      expect(PipAspectCalculator.isPlausibleHiddenInsets(const FrameInsets(horizontal: -1, vertical: 5)), isFalse);
       expect(
-          PipAspectCalculator.isPlausibleHiddenInsets(
-              const FrameInsets(horizontal: -1, vertical: 5)),
-          isFalse);
-      expect(
-          PipAspectCalculator.isPlausibleHiddenInsets(
-              const FrameInsets(horizontal: double.nan, vertical: 5)),
-          isFalse);
-      expect(
-          PipAspectCalculator.isPlausibleHiddenInsets(
-              const FrameInsets(horizontal: 5, vertical: double.infinity)),
+          PipAspectCalculator.isPlausibleHiddenInsets(const FrameInsets(horizontal: double.nan, vertical: 5)), isFalse);
+      expect(PipAspectCalculator.isPlausibleHiddenInsets(const FrameInsets(horizontal: 5, vertical: double.infinity)),
           isFalse);
     });
 
@@ -453,9 +416,7 @@ void main() {
       const hidden = FrameInsets(horizontal: 16, vertical: 8);
       expect(PipAspectCalculator.isPlausibleHiddenInsets(hidden, dpr: 0), isTrue);
       expect(PipAspectCalculator.isPlausibleHiddenInsets(hidden, dpr: -1), isTrue);
-      expect(
-          PipAspectCalculator.isPlausibleHiddenInsets(hidden, dpr: double.nan),
-          isTrue);
+      expect(PipAspectCalculator.isPlausibleHiddenInsets(hidden, dpr: double.nan), isTrue);
       const normal = FrameInsets(horizontal: 8, vertical: 39);
       expect(PipAspectCalculator.isPlausibleHiddenInsets(normal, dpr: 0), isFalse);
     });
@@ -463,12 +424,10 @@ void main() {
     test('恰好压线（物理 32/20）通过，超线被拒', () {
       // dpr=2 下逻辑 (16,10) → 物理 (32,20)，边界值通过
       const onEdge = FrameInsets(horizontal: 16, vertical: 10);
-      expect(PipAspectCalculator.isPlausibleHiddenInsets(onEdge, dpr: 2.0),
-          isTrue);
+      expect(PipAspectCalculator.isPlausibleHiddenInsets(onEdge, dpr: 2.0), isTrue);
       // 物理垂直刚超 20 → 拒
       const overV = FrameInsets(horizontal: 16, vertical: 10.001);
-      expect(PipAspectCalculator.isPlausibleHiddenInsets(overV, dpr: 2.0),
-          isFalse);
+      expect(PipAspectCalculator.isPlausibleHiddenInsets(overV, dpr: 2.0), isFalse);
     });
   });
 
@@ -481,14 +440,11 @@ void main() {
       const I = FrameInsets(horizontal: 16, vertical: 8);
       const A = 16 / 9;
       final outer0 = const Size(416, 233);
-      final long =
-          PipAspectCalculator.clientLongSideFromOuter(outer: outer0, insets: I);
+      final long = PipAspectCalculator.clientLongSideFromOuter(outer: outer0, insets: I);
       expect(long, 400);
-      final client = PipAspectCalculator.normalizeClientSize(
-          memoryLongSide: long, aspect: A);
+      final client = PipAspectCalculator.normalizeClientSize(memoryLongSide: long, aspect: A);
       expect(client, const Size(400, 225));
-      final outer1 = PipAspectCalculator.outerSizeForClient(
-          client: client, insets: I);
+      final outer1 = PipAspectCalculator.outerSizeForClient(client: client, insets: I);
       expect(outer1, const Size(416, 233)); // 恒等恢复（不动点）
     });
 
@@ -499,18 +455,14 @@ void main() {
     test('竖屏：外框(233,416) → 客户区长边 408（高为长边，减 vertical）', () {
       const I = FrameInsets(horizontal: 16, vertical: 8);
       const A = 9 / 16;
-      final long = PipAspectCalculator.clientLongSideFromOuter(
-          outer: const Size(233, 416), insets: I);
+      final long = PipAspectCalculator.clientLongSideFromOuter(outer: const Size(233, 416), insets: I);
       expect(long, 408);
-      final client = PipAspectCalculator.normalizeClientSize(
-          memoryLongSide: long, aspect: A);
-      final outer1 = PipAspectCalculator.outerSizeForClient(
-          client: client, insets: I);
+      final client = PipAspectCalculator.normalizeClientSize(memoryLongSide: long, aspect: A);
+      final outer1 = PipAspectCalculator.outerSizeForClient(client: client, insets: I);
       // 外框高 = 408+8 = 416 不变，即该比例下的稳定不动点。
       expect(outer1.height, 416);
       // 再次提取长边仍是 408 → 证明不再漂移。
-      final long2 = PipAspectCalculator.clientLongSideFromOuter(
-          outer: outer1, insets: I);
+      final long2 = PipAspectCalculator.clientLongSideFromOuter(outer: outer1, insets: I);
       expect(long2, 408);
     });
 
@@ -519,40 +471,22 @@ void main() {
       const I = FrameInsets.zero;
       const A = 16 / 9;
       final outer0 = const Size(400, 225);
-      final long =
-          PipAspectCalculator.clientLongSideFromOuter(outer: outer0, insets: I);
+      final long = PipAspectCalculator.clientLongSideFromOuter(outer: outer0, insets: I);
       expect(long, 400);
-      final client = PipAspectCalculator.normalizeClientSize(
-          memoryLongSide: long, aspect: A);
-      final outer1 = PipAspectCalculator.outerSizeForClient(
-          client: client, insets: I);
+      final client = PipAspectCalculator.normalizeClientSize(memoryLongSide: long, aspect: A);
+      final outer1 = PipAspectCalculator.outerSizeForClient(client: client, insets: I);
       expect(outer1, const Size(400, 225));
     });
 
     // 非法输入：负数 / NaN / Infinity / 内边距 ≥ 长边 → 返回 0（由调用方兜底）。
     test('非法输入返回 0', () {
       const I = FrameInsets(horizontal: 16, vertical: 8);
-      expect(
-          PipAspectCalculator.clientLongSideFromOuter(
-              outer: const Size(-10, 50), insets: I),
-          0);
-      expect(
-          PipAspectCalculator.clientLongSideFromOuter(
-              outer: const Size(50, -10), insets: I),
-          0);
-      expect(
-          PipAspectCalculator.clientLongSideFromOuter(
-              outer: Size(double.nan, 50), insets: I),
-          0);
-      expect(
-          PipAspectCalculator.clientLongSideFromOuter(
-              outer: Size(double.infinity, 50), insets: I),
-          0);
+      expect(PipAspectCalculator.clientLongSideFromOuter(outer: const Size(-10, 50), insets: I), 0);
+      expect(PipAspectCalculator.clientLongSideFromOuter(outer: const Size(50, -10), insets: I), 0);
+      expect(PipAspectCalculator.clientLongSideFromOuter(outer: Size(double.nan, 50), insets: I), 0);
+      expect(PipAspectCalculator.clientLongSideFromOuter(outer: Size(double.infinity, 50), insets: I), 0);
       // 内边距 ≥ 长边：近方小窗，高 5 < 8 → 5-8 < 0 → 0
-      expect(
-          PipAspectCalculator.clientLongSideFromOuter(
-              outer: const Size(5, 5), insets: I),
-          0);
+      expect(PipAspectCalculator.clientLongSideFromOuter(outer: const Size(5, 5), insets: I), 0);
     });
 
     // 多轮迭代不漂移：outer→clientLong→normalize→outer 连跑 5 次，
@@ -563,30 +497,24 @@ void main() {
       var land = const Size(416, 233);
       final landLongs = <double>[];
       for (var i = 0; i < 5; i++) {
-        final long =
-            PipAspectCalculator.clientLongSideFromOuter(outer: land, insets: I);
+        final long = PipAspectCalculator.clientLongSideFromOuter(outer: land, insets: I);
         landLongs.add(long);
-        final client = PipAspectCalculator.normalizeClientSize(
-            memoryLongSide: long, aspect: 16 / 9);
+        final client = PipAspectCalculator.normalizeClientSize(memoryLongSide: long, aspect: 16 / 9);
         land = PipAspectCalculator.outerSizeForClient(client: client, insets: I);
       }
-      expect(landLongs.every((l) => l == 400), isTrue,
-          reason: '横屏长边恒 400');
+      expect(landLongs.every((l) => l == 400), isTrue, reason: '横屏长边恒 400');
 
       // 竖屏：首轮由记忆 (233,416) 得 408，随后全部保持 408（不再变化）
       var port = const Size(233, 416);
       final portLongs = <double>[];
       for (var i = 0; i < 5; i++) {
-        final long =
-            PipAspectCalculator.clientLongSideFromOuter(outer: port, insets: I);
+        final long = PipAspectCalculator.clientLongSideFromOuter(outer: port, insets: I);
         portLongs.add(long);
-        final client = PipAspectCalculator.normalizeClientSize(
-            memoryLongSide: long, aspect: 9 / 16);
+        final client = PipAspectCalculator.normalizeClientSize(memoryLongSide: long, aspect: 9 / 16);
         port = PipAspectCalculator.outerSizeForClient(client: client, insets: I);
       }
       expect(portLongs.first, 408);
-      expect(portLongs.skip(1).every((l) => l == 408), isTrue,
-          reason: '竖屏长边恒 408');
+      expect(portLongs.skip(1).every((l) => l == 408), isTrue, reason: '竖屏长边恒 408');
     });
 
     // —— Task C 收口：近方形方向定义回归（核心）——
@@ -607,34 +535,24 @@ void main() {
       for (final A in aspects) {
         for (final o0 in initialOuters) {
           test('A=$A, outer=$o0：一轮映射后长边幂等 F(F(x))==F(x)', () {
-            final long0 = PipAspectCalculator.clientLongSideFromOuter(
-                outer: o0, insets: I);
+            final long0 = PipAspectCalculator.clientLongSideFromOuter(outer: o0, insets: I);
             // 完整应用一次映射：长边 → 归一化客户区 → 外框
-            final client = PipAspectCalculator.normalizeClientSize(
-                memoryLongSide: long0, aspect: A);
-            final o1 = PipAspectCalculator.outerSizeForClient(
-                client: client, insets: I);
-            final long1 = PipAspectCalculator.clientLongSideFromOuter(
-                outer: o1, insets: I);
-            expect(long1, closeTo(long0, 1e-9),
-                reason: 'A=$A 近方形映射非幂等（方向翻转）');
+            final client = PipAspectCalculator.normalizeClientSize(memoryLongSide: long0, aspect: A);
+            final o1 = PipAspectCalculator.outerSizeForClient(client: client, insets: I);
+            final long1 = PipAspectCalculator.clientLongSideFromOuter(outer: o1, insets: I);
+            expect(long1, closeTo(long0, 1e-9), reason: 'A=$A 近方形映射非幂等（方向翻转）');
           });
 
           test('A=$A, outer=$o0：5 轮迭代长边恒定（不漂移/不收缩）', () {
             var o = o0;
             final longs = <double>[];
             for (var i = 0; i < 5; i++) {
-              final long = PipAspectCalculator.clientLongSideFromOuter(
-                  outer: o, insets: I);
+              final long = PipAspectCalculator.clientLongSideFromOuter(outer: o, insets: I);
               longs.add(long);
-              final client = PipAspectCalculator.normalizeClientSize(
-                  memoryLongSide: long, aspect: A);
-              o = PipAspectCalculator.outerSizeForClient(
-                  client: client, insets: I);
+              final client = PipAspectCalculator.normalizeClientSize(memoryLongSide: long, aspect: A);
+              o = PipAspectCalculator.outerSizeForClient(client: client, insets: I);
             }
-            expect(
-                longs.skip(1).every((l) => (l - longs.first).abs() < 1e-9),
-                isTrue,
+            expect(longs.skip(1).every((l) => (l - longs.first).abs() < 1e-9), isTrue,
                 reason: 'A=$A 近方形多轮长边漂移（应为恒定序列 $longs）');
           });
         }
@@ -660,8 +578,7 @@ void main() {
         final cw = o.width - I.horizontal;
         final ch = o.height - I.vertical;
         final expected = cw > ch ? cw : ch;
-        final got =
-            PipAspectCalculator.clientLongSideFromOuter(outer: o, insets: I);
+        final got = PipAspectCalculator.clientLongSideFromOuter(outer: o, insets: I);
         expect(got, closeTo(expected, 1e-9), reason: 'outer=$o');
       }
     });

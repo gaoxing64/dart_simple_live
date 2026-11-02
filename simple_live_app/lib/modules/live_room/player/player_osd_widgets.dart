@@ -13,18 +13,13 @@ abstract final class OsdShape {
   /// M3 底部表单的顶部圆角：比 large 再大一档，是移动端的标准形态。
   static const double sheet = 28;
 
-  static const BorderRadius extraSmallRadius =
-      BorderRadius.all(Radius.circular(extraSmall));
-  static const BorderRadius smallRadius =
-      BorderRadius.all(Radius.circular(small));
-  static const BorderRadius mediumRadius =
-      BorderRadius.all(Radius.circular(medium));
-  static const BorderRadius largeRadius =
-      BorderRadius.all(Radius.circular(large));
+  static const BorderRadius extraSmallRadius = BorderRadius.all(Radius.circular(extraSmall));
+  static const BorderRadius smallRadius = BorderRadius.all(Radius.circular(small));
+  static const BorderRadius mediumRadius = BorderRadius.all(Radius.circular(medium));
+  static const BorderRadius largeRadius = BorderRadius.all(Radius.circular(large));
 
   /// 底部表单只圆上面两个角 —— 下边缘贴着屏幕，圆角会露出缝隙。
-  static const BorderRadius sheetTopRadius =
-      BorderRadius.vertical(top: Radius.circular(sheet));
+  static const BorderRadius sheetTopRadius = BorderRadius.vertical(top: Radius.circular(sheet));
 }
 
 /// 布局断点：按**可用宽度**划分，而不是按平台划分（同一套组件，只换尺寸表）。
@@ -418,26 +413,20 @@ class OsdMetrics {
     required EdgeInsets safePadding,
     required bool touch,
   }) {
-    final double maxW =
-        constraints.maxWidth.isFinite ? constraints.maxWidth : 1920.0;
-    final double maxH =
-        constraints.maxHeight.isFinite ? constraints.maxHeight : 1080.0;
+    final double maxW = constraints.maxWidth.isFinite ? constraints.maxWidth : 1920.0;
+    final double maxH = constraints.maxHeight.isFinite ? constraints.maxHeight : 1080.0;
 
-    final OsdBreakpoint breakpoint = maxW >= 900
-        ? OsdBreakpoint.desktop
-        : (maxW >= 600 ? OsdBreakpoint.tablet : OsdBreakpoint.mobile);
+    final OsdBreakpoint breakpoint =
+        maxW >= 900 ? OsdBreakpoint.desktop : (maxW >= 600 ? OsdBreakpoint.tablet : OsdBreakpoint.mobile);
 
     // 窄屏走底部表单：通栏贴底，不再是一张浮在左上角的卡片。
-    final OsdPresentment presentment = breakpoint == OsdBreakpoint.mobile
-        ? OsdPresentment.sheet
-        : OsdPresentment.overlay;
+    final OsdPresentment presentment =
+        breakpoint == OsdBreakpoint.mobile ? OsdPresentment.sheet : OsdPresentment.overlay;
 
     // 表单形态贴着视频区边缘，不需要外边距；浮层形态四周各留 12。
-    final double horizontalMargin =
-        presentment == OsdPresentment.sheet ? 0 : 12;
+    final double horizontalMargin = presentment == OsdPresentment.sheet ? 0 : 12;
     final double verticalMargin = presentment == OsdPresentment.sheet ? 0 : 12;
-    final double usableHeight =
-        maxH - safePadding.top - safePadding.bottom - verticalMargin * 2;
+    final double usableHeight = maxH - safePadding.top - safePadding.bottom - verticalMargin * 2;
     final bool dense = usableHeight < 300;
 
     double panelMaxWidth;
@@ -602,12 +591,9 @@ class OsdMetrics {
     final double panelMaxHeight = usableHeight.clamp(0.0, 620.0);
 
     final double titleLine = titleSize * 1.35;
-    final double topLine =
-        titleLine > iconButtonSize ? titleLine : iconButtonSize;
+    final double topLine = titleLine > iconButtonSize ? titleLine : iconButtonSize;
     final double headerHeight = headerTopPadding + topLine;
-    final double bodyMaxHeight = minimal
-        ? 0.0
-        : (panelMaxHeight - headerHeight - contentGap).clamp(0.0, 520.0);
+    final double bodyMaxHeight = minimal ? 0.0 : (panelMaxHeight - headerHeight - contentGap).clamp(0.0, 520.0);
 
     return OsdMetrics(
       breakpoint: breakpoint,
@@ -620,9 +606,7 @@ class OsdMetrics {
       panelMaxWidth: panelMaxWidth,
       panelMaxHeight: panelMaxHeight,
       bodyMaxHeight: bodyMaxHeight,
-      panelRadius: presentment == OsdPresentment.sheet
-          ? OsdShape.sheetTopRadius
-          : OsdShape.largeRadius,
+      panelRadius: presentment == OsdPresentment.sheet ? OsdShape.sheetTopRadius : OsdShape.largeRadius,
       contentPadding: contentPadding,
       contentGap: contentGap,
       sectionGap: sectionGap,
@@ -695,8 +679,7 @@ class OsdMetricsScope extends InheritedWidget {
   );
 
   @override
-  bool updateShouldNotify(OsdMetricsScope oldWidget) =>
-      oldWidget.metrics != metrics;
+  bool updateShouldNotify(OsdMetricsScope oldWidget) => oldWidget.metrics != metrics;
 }
 
 /// 面板外壳：M3 surface 容器（tonal surface + level3 阴影 + large 圆角）。
@@ -1006,15 +989,13 @@ class OsdStatTileGrid extends StatelessWidget {
         final index = i + j;
         cells.add(
           Expanded(
-            child:
-                index < tiles.length ? tiles[index] : const SizedBox.shrink(),
+            child: index < tiles.length ? tiles[index] : const SizedBox.shrink(),
           ),
         );
       }
       rows.add(
         Padding(
-          padding: EdgeInsets.only(
-              bottom: i + columns < tiles.length ? m.tileGap : 0),
+          padding: EdgeInsets.only(bottom: i + columns < tiles.length ? m.tileGap : 0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: cells,
@@ -1088,9 +1069,7 @@ class OsdRow extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 value,
-                style: secondary
-                    ? s.type.secondaryValue
-                    : s.type.value.copyWith(color: valueColor),
+                style: secondary ? s.type.secondaryValue : s.type.value.copyWith(color: valueColor),
                 textAlign: TextAlign.end,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1116,8 +1095,7 @@ class OsdRowList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = OsdMetricsScope.of(context);
-    final List<OsdRow> visible =
-        m.showSecondaryRows ? rows : rows.where((r) => !r.secondary).toList();
+    final List<OsdRow> visible = m.showSecondaryRows ? rows : rows.where((r) => !r.secondary).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
     final children = <Widget>[];

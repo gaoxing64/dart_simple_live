@@ -39,12 +39,10 @@ class AppPopupMenuItem<T> extends PopupMenuItem<T> {
   });
 
   @override
-  PopupMenuItemState<T, AppPopupMenuItem<T>> createState() =>
-      _AppPopupMenuItemState<T>();
+  PopupMenuItemState<T, AppPopupMenuItem<T>> createState() => _AppPopupMenuItemState<T>();
 }
 
-class _AppPopupMenuItemState<T>
-    extends PopupMenuItemState<T, AppPopupMenuItem<T>> {
+class _AppPopupMenuItemState<T> extends PopupMenuItemState<T, AppPopupMenuItem<T>> {
   /// 高亮块左右内缩量。
   static const double _kInset = 8;
 
@@ -98,8 +96,7 @@ class _AppPopupMenuItemState<T>
           child: InkWell(
             onTap: widget.enabled ? handleTap : null,
             canRequestFocus: widget.enabled,
-            mouseCursor: widget.mouseCursor ??
-                popupMenuTheme.mouseCursor?.resolve(states),
+            mouseCursor: widget.mouseCursor ?? popupMenuTheme.mouseCursor?.resolve(states),
             borderRadius: AppStyle.radius16,
             hoverColor: scheme.onSurfaceVariant.withValues(alpha: 0.08),
             highlightColor: scheme.onSurfaceVariant.withValues(alpha: 0.1),

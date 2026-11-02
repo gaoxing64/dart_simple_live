@@ -59,8 +59,7 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
   /// 3 次给瞬断与临时限流留了两次重试机会，又不至于让坏源永远吊着列表。
   static const int _maxConsecutiveSourceFailures = 3;
 
-  AggregateSearchController({List<Site>? sites})
-      : _sites = sites ?? Sites.supportSites;
+  AggregateSearchController({List<Site>? sites}) : _sites = sites ?? Sites.supportSites;
 
   final List<Site> _sites;
   final RxInt searchMode = 0.obs;
@@ -123,9 +122,7 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
       // refreshData 都会再递增），免得连点同一模式时把别人刚起好的查询又清一遍。
       // 必须走本类的 refreshData：只有 _beginQuery 会清 _seen，直接调 super 会把
       // 重启后的条目全判成重复项。
-      if (_generation == invalidated &&
-          _requestedMode == searchMode.value &&
-          _keyword.isNotEmpty) {
+      if (_generation == invalidated && _requestedMode == searchMode.value && _keyword.isNotEmpty) {
         await refreshData();
       }
       return;
@@ -187,9 +184,8 @@ class AggregateSearchController extends BasePageController<AggregateSearchItem> 
     if (_failedSourceNames.isEmpty) {
       return super.loadMoreFailedText;
     }
-    final names = _failedSourceNames.length <= 3
-        ? _failedSourceNames.join('、')
-        : '${_failedSourceNames.take(3).join('、')}等';
+    final names =
+        _failedSourceNames.length <= 3 ? _failedSourceNames.join('、') : '${_failedSourceNames.take(3).join('、')}等';
     return '$names 加载失败，点击重试';
   }
 

@@ -82,13 +82,10 @@ void main() {
     calls = <_Call>[];
     bounds = const Rect.fromLTWH(320, 180, 1000, 700);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-            const MethodChannel('window_manager'), (call) async {
+        .setMockMethodCallHandler(const MethodChannel('window_manager'), (call) async {
       calls.add((
         method: call.method,
-        args: call.arguments is Map
-            ? Map<Object?, Object?>.from(call.arguments as Map)
-            : <Object?, Object?>{},
+        args: call.arguments is Map ? Map<Object?, Object?>.from(call.arguments as Map) : <Object?, Object?>{},
       ));
       switch (call.method) {
         case 'getBounds':
@@ -113,9 +110,7 @@ void main() {
 
   /// 只保留**会改窗口摆放**的调用；读取类（getBounds/isMaximized）与
   /// setMinimumSize（只存值）都不算。
-  List<_Call> placements() => calls
-      .where((c) => c.method == 'setBounds' || c.method == 'setFullScreen')
-      .toList();
+  List<_Call> placements() => calls.where((c) => c.method == 'setBounds' || c.method == 'setFullScreen').toList();
 
   test('窗口态下关掉最后一路副格：还原多开前尺寸（现有行为不变）', () async {
     final page = _FakeRoom();
@@ -132,8 +127,7 @@ void main() {
     session.removeTile(tile);
     await Future<void>.delayed(Duration.zero);
 
-    final restores =
-        placements().where((c) => c.args['width'] != null).toList();
+    final restores = placements().where((c) => c.args['width'] != null).toList();
     expect(restores, hasLength(1));
     expect(restores.single.args['width'], 1000.0);
     expect(restores.single.args['height'], 700.0);

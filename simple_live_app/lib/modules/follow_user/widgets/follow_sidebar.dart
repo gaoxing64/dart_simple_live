@@ -335,21 +335,15 @@ class _FollowSidebarState extends State<FollowSidebar> with SingleTickerProvider
 
     final iconExtent = showSiteIcon ? FollowSidebar._kItemGap + FollowSidebar._kSiteIconSize : 0.0;
     final countExtent = showCount ? FollowSidebar._kItemGap + countWidth : 0.0;
-    final naturalWidth = FollowSidebar._kItemPaddingLeft +
-        labelWidth +
-        iconExtent +
-        countExtent +
-        FollowSidebar._kItemPaddingRight;
+    final naturalWidth =
+        FollowSidebar._kItemPaddingLeft + labelWidth + iconExtent + countExtent + FollowSidebar._kItemPaddingRight;
     // 封顶：既不超过 [FollowSidebar.maxWidth]，也给内容列留出最小宽度。
     final limit = math.min(
       FollowSidebar.maxWidth,
       math.max(0.0, widget.availableWidth - FollowSidebar.minContentWidth),
     );
     final width = math.min(naturalWidth, limit);
-    final fixedWidth = FollowSidebar._kItemPaddingLeft +
-        iconExtent +
-        countExtent +
-        FollowSidebar._kItemPaddingRight;
+    final fixedWidth = FollowSidebar._kItemPaddingLeft + iconExtent + countExtent + FollowSidebar._kItemPaddingRight;
     return _SidebarMetrics(
       width: width,
       labelWidth: math.max(0.0, width - fixedWidth),

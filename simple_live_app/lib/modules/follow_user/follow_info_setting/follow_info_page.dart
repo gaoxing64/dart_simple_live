@@ -151,8 +151,7 @@ class _WatchStatsCard extends StatelessWidget {
     final yearDays = daily.entries.where((entry) => entry.key.startsWith(yearPrefix) && entry.value > 0);
     final yearSeconds = yearDays.fold<int>(0, (total, entry) => total + entry.value);
     final totalSeconds = history?.duration.inSeconds ?? follow.watchDurationSec;
-    final recent = daily.entries.where((entry) => entry.value > 0).toList()
-      ..sort((a, b) => b.key.compareTo(a.key));
+    final recent = daily.entries.where((entry) => entry.value > 0).toList()..sort((a, b) => b.key.compareTo(a.key));
 
     return _SectionCard(
       icon: Remix.bar_chart_box_line,
@@ -314,9 +313,7 @@ class _FollowSettingsCard extends StatelessWidget {
             () => ListTile(
               title: const Text('备注'),
               subtitle: Text(
-                controller.followUser.value?.remark?.isNotEmpty == true
-                    ? controller.followUser.value!.remark!
-                    : '未设置',
+                controller.followUser.value?.remark?.isNotEmpty == true ? controller.followUser.value!.remark! : '未设置',
               ),
               contentPadding: EdgeInsets.zero,
               trailing: const Icon(Icons.chevron_right),

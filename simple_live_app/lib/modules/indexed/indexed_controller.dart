@@ -18,9 +18,7 @@ import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/widgets/collapsible_top_bar_scaffold.dart';
 import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
 
-class IndexedController extends GetxController
-    with GetSingleTickerProviderStateMixin
-    implements TopBarCollapseSource {
+class IndexedController extends GetxController with GetSingleTickerProviderStateMixin implements TopBarCollapseSource {
   RxList<HomePageItem> items = RxList<HomePageItem>([]);
 
   var index = 0.obs;
@@ -126,8 +124,7 @@ class IndexedController extends GetxController
     // 但它是指令式滚动而不是惯性 —— 不驱动的话顶栏永远不收起，
     // 列表底部一个 toolbar 高度会被内容槽位的溢出裁掉（滚到底少一行）。
     if (notification is ScrollUpdateNotification) {
-      if (notification.dragDetails == null &&
-          !SmoothWheelScrollPosition.isWheelAnimating) {
+      if (notification.dragDetails == null && !SmoothWheelScrollPosition.isWheelAnimating) {
         return false;
       }
       var pixels = notification.metrics.pixels;
@@ -287,8 +284,7 @@ class IndexedController extends GetxController
       // 或命中了 default，下次点击还能再试一次，不会变成永久空白页。
       _instantiated.add(i);
     } else if (index.value == i) {
-      EventBus.instance
-          .emit<int>(EventBus.kBottomNavigationBarClicked, items[i].index);
+      EventBus.instance.emit<int>(EventBus.kBottomNavigationBarClicked, items[i].index);
     }
 
     index.value = i;
@@ -326,9 +322,7 @@ class IndexedController extends GetxController
   @override
   void onInit() {
     Future.delayed(Duration.zero, showFirstRun);
-    items.value = AppSettingsController.instance.homeSort
-        .map((key) => Constant.allHomePages[key]!)
-        .toList();
+    items.value = AppSettingsController.instance.homeSort.map((key) => Constant.allHomePages[key]!).toList();
     // 占位数量跟随 items：PageView 的子项数必须与导航项一一对应，
     // 否则 jumpToPage 会越界
     pages.value = List<Widget>.generate(items.length, (_) => const SizedBox());

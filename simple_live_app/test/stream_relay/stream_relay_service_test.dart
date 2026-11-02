@@ -99,12 +99,9 @@ class _FakeCdn {
     // 时间轴重置模式：重连后的连接从 0 重新计时。
     final resetBase = resetTimelineOnReconnect && index > 1;
     final connStarted = DateTime.now();
-    int nowMs() => resetBase
-        ? DateTime.now().difference(connStarted).inMilliseconds
-        : _nowMs();
+    int nowMs() => resetBase ? DateTime.now().difference(connStarted).inMilliseconds : _nowMs();
 
-    List<int> videoPayload(bool keyframe) =>
-        [keyframe ? 0x17 : 0x27, 0x01, ...List<int>.filled(tagPayload, 0)];
+    List<int> videoPayload(bool keyframe) => [keyframe ? 0x17 : 0x27, 0x01, ...List<int>.filled(tagPayload, 0)];
     List<int> audioPayload() => [0xaf, 0x01, ...List<int>.filled(tagPayload, 0)];
 
     Future<void> write(List<int> bytes) async {

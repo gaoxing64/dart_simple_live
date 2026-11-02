@@ -191,8 +191,7 @@ void main() {
     );
     // 左右簇之间那道空是真的空：音量颗（右簇第一颗）离左簇末端远大于按钮间距。
     expect(
-      tester.getRect(find.byType(VolumeActionWidget)).left -
-          tester.getRect(find.byTooltip("弹幕设置")).right,
+      tester.getRect(find.byType(VolumeActionWidget)).left - tester.getRect(find.byTooltip("弹幕设置")).right,
       greaterThan(300),
     );
   });
@@ -272,20 +271,14 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: w)));
     final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
-    expect(tooltip.richMessage, isNotNull,
-        reason: '有默认绑定的动作应走 richMessage');
+    expect(tooltip.richMessage, isNotNull, reason: '有默认绑定的动作应走 richMessage');
     expect(tooltip.richMessage!.toPlainText(), contains('全屏播放'));
     // 键帽那颗是 WidgetSpan：toPlainText() 只给出 U+FFFC（占位符），读不到它孩子的
     // 文字，所以「键帽是 F」不能按 toPlainText 断言（同 player_tooltip_test 的
     // _keycapText：把 WidgetSpan 的 child 单独 pump 一次，既拿到文字也证明它真能渲染）。
-    final keycap = (tooltip.richMessage! as TextSpan)
-        .children!
-        .whereType<WidgetSpan>()
-        .single
-        .child;
+    final keycap = (tooltip.richMessage! as TextSpan).children!.whereType<WidgetSpan>().single.child;
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: keycap)));
-    expect(find.text('F'), findsOneWidget,
-        reason: '键帽必须显示当前生效绑定的键（默认 fullscreen=F）');
+    expect(find.text('F'), findsOneWidget, reason: '键帽必须显示当前生效绑定的键（默认 fullscreen=F）');
   });
 
   testWidgets('danmakuSettings 臂（无快捷键）仍是纯 message', (tester) async {

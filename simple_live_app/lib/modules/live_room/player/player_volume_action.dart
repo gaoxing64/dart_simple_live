@@ -288,9 +288,7 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
   void _onPointerSignal(PointerScrollEvent event) {
     widget.onInteract?.call();
     widget.target.nudge(
-      event.scrollDelta.dy > 0
-          ? -VolumeActionWidget._step
-          : VolumeActionWidget._step,
+      event.scrollDelta.dy > 0 ? -VolumeActionWidget._step : VolumeActionWidget._step,
     );
     _showTip();
   }
@@ -410,8 +408,8 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
             label: widget.isTouch
                 ? "音量"
                 : muted
-                ? "取消静音（悬停可调音量）"
-                : "静音（悬停可调音量）",
+                    ? "取消静音（悬停可调音量）"
+                    : "静音（悬停可调音量）",
             // 触屏点音量颗是弹滑条、不是静音（静音在 ⋮ 的 muteTile），
             // 所以只有非触屏才挂 M 键帽，否则提示的是「点它并不会做」的动作。
             shortcut: widget.isTouch ? null : PlayerShortcut.mute,

@@ -194,8 +194,7 @@ class _ShortcutListBodyState extends State<_ShortcutListBody> {
               : Obx(() {
                   // 订阅覆盖表：改完一行，整张表（含别的行上可能出现的冲突态）
                   // 跟着重建。读 effectiveShortcuts 必须在这个 Obx 里面。
-                  final effective =
-                      AppSettingsController.instance.effectiveShortcuts;
+                  final effective = AppSettingsController.instance.effectiveShortcuts;
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

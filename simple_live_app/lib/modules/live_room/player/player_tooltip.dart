@@ -67,8 +67,7 @@ Widget shortcutTooltip({
   final action = shortcut;
   return Obx(() {
     final settings = AppSettingsController.instance;
-    final binding =
-        settings.keyboardControl.value ? settings.bindingFor(action) : null;
+    final binding = settings.keyboardControl.value ? settings.bindingFor(action) : null;
     if (binding == null) {
       return Tooltip(message: label, child: child);
     }

@@ -29,14 +29,12 @@ class LiveAudioSession {
 
   // 转发而不是直接暴露 AudioSession 的流：会话是异步拿到的，而订阅方（handler）
   // 在构造期就要挂上监听，这里先给出一条恒在的广播流把两段隔开。
-  final _interruptionController =
-      StreamController<AudioInterruptionEvent>.broadcast();
+  final _interruptionController = StreamController<AudioInterruptionEvent>.broadcast();
   final _becomingNoisyController = StreamController<void>.broadcast();
 
   /// 系统级中断（来电、别的 app 抢焦点）。原样转发，**由订阅方决定**要不要暂停：
   /// `duck` 只是提示「让出音量」（导航播报就是这档），据此暂停直播会莫名其妙。
-  Stream<AudioInterruptionEvent> get interruptions =>
-      _interruptionController.stream;
+  Stream<AudioInterruptionEvent> get interruptions => _interruptionController.stream;
 
   /// 拔出有线耳机 / 断开蓝牙音频。
   ///
@@ -72,15 +70,13 @@ class LiveAudioSession {
         await session.configure(const AudioSessionConfiguration.music());
         _session = session;
         // 只订阅一次：中断与拔耳机是进程级的事，跟具体哪一路直播间无关。
-        _interruptionSubscription ??=
-            session.interruptionEventStream.listen((event) {
+        _interruptionSubscription ??= session.interruptionEventStream.listen((event) {
           Log.d('系统媒体控制：系统中断 begin=${event.begin} type=${event.type}');
           if (event.begin) {
             _interruptionController.add(event);
           }
         });
-        _becomingNoisySubscription ??=
-            session.becomingNoisyEventStream.listen((_) {
+        _becomingNoisySubscription ??= session.becomingNoisyEventStream.listen((_) {
           Log.d('系统媒体控制：音频输出设备已断开');
           _becomingNoisyController.add(null);
         });
@@ -110,8 +106,7 @@ class LiveAudioSession {
     try {
       await _session?.setActive(
         false,
-        avAudioSessionSetActiveOptions:
-            AVAudioSessionSetActiveOptions.notifyOthersOnDeactivation,
+        avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.notifyOthersOnDeactivation,
       );
     } catch (e) {
       Log.e('系统媒体控制：音频会话释放失败 ($e)', StackTrace.current);

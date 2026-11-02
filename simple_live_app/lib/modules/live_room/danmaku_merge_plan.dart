@@ -46,8 +46,7 @@ List<DanmakuMergeAction> planDanmakuMerge({
 }
 
 /// 合并后的飘屏文案：计数 >1 时附「×N」，否则原样。
-String danmakuMergeText(String text, int count) =>
-    count > 1 ? "$text ×$count" : text;
+String danmakuMergeText(String text, int count) => count > 1 ? "$text ×$count" : text;
 
 /// 合并动作基类
 sealed class DanmakuMergeAction {

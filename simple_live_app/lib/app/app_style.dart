@@ -206,8 +206,7 @@ class AppStyle {
         // 与 M3 标准 IconButton 严格一致（`_IconButtonDefaultsM3.overlayColor`）：
         // hover 8%、pressed / focused 10%，颜色取 `onSurfaceVariant`。
         overlayColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.pressed) ||
-              states.contains(WidgetState.focused)) {
+          if (states.contains(WidgetState.pressed) || states.contains(WidgetState.focused)) {
             return scheme.onSurfaceVariant.withValues(alpha: 0.1);
           }
           if (states.contains(WidgetState.hovered)) {

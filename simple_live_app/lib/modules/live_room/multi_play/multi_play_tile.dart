@@ -323,9 +323,7 @@ class MultiPlayTile extends StatelessWidget {
       return StreamBuilder<bool>(
         stream: tile.player.stream.buffering,
         initialData: tile.player.state.buffering,
-        builder: (_, s) => (s.data ?? false)
-            ? const PlayerLoadingOverlay(size: 32)
-            : const SizedBox.shrink(),
+        builder: (_, s) => (s.data ?? false) ? const PlayerLoadingOverlay(size: 32) : const SizedBox.shrink(),
       );
     });
   }

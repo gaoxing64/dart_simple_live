@@ -44,68 +44,54 @@ void main() {
   tearDown(SystemUiBottomInset.reset);
 
   test('平台正常上报时采信上报值并记忆', () {
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait), 24);
     expect(SystemUiBottomInset.remembered, 24);
     // 上报值变化时跟随平台（例如三键导航 48）
-    expect(SystemUiBottomInset.resolve(48, systemBar: 48, viewSize: _portrait),
-        48);
+    expect(SystemUiBottomInset.resolve(48, systemBar: 48, viewSize: _portrait), 48);
     expect(SystemUiBottomInset.remembered, 48);
   });
 
   test('全屏隐藏系统栏期间上报 0 属正常，横屏不会串用竖屏记忆值', () {
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait), 24);
     SystemUiBottomInset.markHidden();
     // 进全屏后旋转到横屏：横屏本来就没有底部系统栏，不该套用竖屏的 24
-    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _landscape),
-        0);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _landscape), 0);
     // 全屏中平台上报了系统栏高度时仍然采信平台
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _landscape),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _landscape), 24);
   });
 
   test('退出全屏后平台漏报 inset 时用记忆值兜底，恢复上报后回到平台值', () {
     // 竖屏进全屏前记下底部高度
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait), 24);
     SystemUiBottomInset.markHidden();
     // 横屏全屏
     SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _landscape);
     // 退出全屏回到竖屏，平台一直没有重新上报
     SystemUiBottomInset.markRestoring();
-    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
-        24);
-    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait), 24);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait), 24);
     // 平台恢复上报：立刻回到平台值
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait), 24);
     // 刚变回 0 时先去抖，仍用记忆值兜底
-    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait), 24);
     // 平台持续不上报（超过去抖窗口）才清空记忆值
     SystemUiBottomInset.clearDelay = Duration.zero;
-    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
-        0);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait), 0);
     expect(SystemUiBottomInset.remembered, 0);
   });
 
   test('退出全屏过渡期的 0 不会清空记忆值（MIX 3 实测时序）', () {
     // 竖屏进全屏前平台上报 24（手势小白条）
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait), 24);
     SystemUiBottomInset.markHidden();
     // 全屏中旋转到横屏，系统栏隐藏
     SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _landscape);
 
     SystemUiBottomInset.markRestoring();
     // 退出瞬间仍报 0：必须走记忆值
-    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait), 24);
     // 过渡期：旋转过程中平台短暂上报了一次 24，会把 awaiting 标志清掉
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait), 24);
     // ⚠️ 紧接着又回落到 0（系统栏实际还没恢复）。
     // 修复前这里会命中「正常状态下没有底部系统栏」分支，把 _portrait 清成 0，
     // 底部按钮随即被导航条压住，且页面不会重建、无法自愈。
@@ -117,33 +103,27 @@ void main() {
     expect(SystemUiBottomInset.remembered, 24);
 
     // 平台补报真实高度后回到平台值
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait), 24);
   });
 
   test('键盘遮挡（系统栏仍在上报）时不兜底，也不多留白', () {
-    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait),
-        24);
+    expect(SystemUiBottomInset.resolve(24, systemBar: 24, viewSize: _portrait), 24);
     SystemUiBottomInset.markRestoring();
     // 键盘弹出：padding.bottom 收缩为 0，但 viewPadding.bottom 仍是 24
-    expect(SystemUiBottomInset.resolve(0, systemBar: 24, viewSize: _portrait),
-        0);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 24, viewSize: _portrait), 0);
     expect(SystemUiBottomInset.remembered, 24);
   });
 
   test('横屏三键导航（系统栏在侧边）退出全屏后不多留白', () {
     SystemUiBottomInset.markRestoring();
-    expect(
-        SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _landscape), 0);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _landscape), 0);
   });
 
   test('从未上报过底部 inset 的设备保持 0', () {
     SystemUiBottomInset.markHidden();
-    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
-        0);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait), 0);
     SystemUiBottomInset.markRestoring();
-    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait),
-        0);
+    expect(SystemUiBottomInset.resolve(0, systemBar: 0, viewSize: _portrait), 0);
   });
 
   testWidgets('悬浮 dock 导航栏：退出全屏后 inset 丢失仍避让小白条', (tester) async {
@@ -158,11 +138,7 @@ void main() {
 
     final barFinder = find.byType(NavigationDock);
     // dock 自身的 Padding 之外还有 kNavigationDockShadowRoom 的阴影预留。
-    final double expected =
-        kNavigationDockShadowRoom +
-        kNavigationDockHeight +
-        kNavigationDockBottomPadding +
-        24;
+    final double expected = kNavigationDockShadowRoom + kNavigationDockHeight + kNavigationDockBottomPadding + 24;
     expect(tester.getSize(barFinder).height, expected);
 
     // 进全屏 → 系统栏隐藏；退出全屏 → 平台不再上报恢复后的 inset

@@ -129,9 +129,7 @@ class _RemoteSyncWebDAVConfigPageState extends State<RemoteSyncWebDAVConfigPage>
                         ),
                         AppStyle.hGap12,
                         Tooltip(
-                          message: controller.passwordVisible.value
-                              ? "显示密码"
-                              : "隐藏密码",
+                          message: controller.passwordVisible.value ? "显示密码" : "隐藏密码",
                           child: InkWell(
                             borderRadius: AppStyle.radius8,
                             child: controller.passwordVisible.value

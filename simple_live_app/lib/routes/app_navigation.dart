@@ -34,9 +34,7 @@ class AppNavigator {
     required String roomId,
     List<LiveRoomTarget> together = const [],
   }) async {
-    if (site.id == Constant.kBiliBili &&
-        !_biliBiliLogined() &&
-        AppSettingsController.instance.bilibiliLoginTip.value) {
+    if (site.id == Constant.kBiliBili && !_biliBiliLogined() && AppSettingsController.instance.bilibiliLoginTip.value) {
       var result = await Utils.showAlertDialog(
         "哔哩哔哩需要登录才能观看高清直播，是否前往登录？",
         title: "登录哔哩哔哩",
@@ -88,9 +86,7 @@ class AppNavigator {
   /// 登录页的 controller 都从 `Get.arguments` 取 `Account`，这里必须把账号传过去，
   /// 否则 controller 拿到 null 直接崩。B 站账号由迁移种子保证恒存在。
   static Future toBiliBiliLogin() async {
-    var accounts = DBService.instance
-        .getAllAccounts()
-        .where((account) => account.siteId == Constant.kBiliBili);
+    var accounts = DBService.instance.getAllAccounts().where((account) => account.siteId == Constant.kBiliBili);
     if (accounts.isEmpty) {
       SmartDialog.showToast("未找到哔哩哔哩账号");
       return;

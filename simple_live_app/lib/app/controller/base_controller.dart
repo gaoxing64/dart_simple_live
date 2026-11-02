@@ -92,8 +92,7 @@ class BasePageController<T> extends BaseController {
   /// 判据不是某个平台的特例，而是「已经没有下一页」这个通用事实：
   /// 各平台翻到服务端说没有更多都会命中。
   /// 加载中 / 失败 / 空列表都不展示，避免和骨架、重试条打架。
-  bool get showEndBar =>
-      list.isNotEmpty && !canLoadMore.value && !loadingMore.value && !loadding;
+  bool get showEndBar => list.isNotEmpty && !canLoadMore.value && !loadingMore.value && !loadding;
 
   /// 是否正在加载下一页（用于列表底部骨架占位）
   var loadingMore = false.obs;
@@ -138,8 +137,7 @@ class BasePageController<T> extends BaseController {
   /// 带上 [canLoadMore] 是安全网：关注页 / 搜索页会绕过 [_doLoad] 直接写
   /// [list] 并把 canLoadMore 置 false，此时即使残留 loadMoreFailed
   /// 也不该显示一个点了没用的重试条。
-  bool get showLoadMoreFailedBar =>
-      loadMoreFailed.value && canLoadMore.value && !loadingMore.value;
+  bool get showLoadMoreFailedBar => loadMoreFailed.value && canLoadMore.value && !loadingMore.value;
 
   /// 进行中的加载（用于让并发调用共享同一次请求）
   Future<void>? _currentLoad;

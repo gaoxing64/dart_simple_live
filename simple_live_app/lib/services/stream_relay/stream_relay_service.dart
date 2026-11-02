@@ -272,8 +272,7 @@ class _RelayPipe {
 
   final _RelaySession session;
 
-  final HttpClient _client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 10);
+  final HttpClient _client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
 
   HttpResponse? _response;
   _Segment? _segment;
@@ -389,8 +388,7 @@ class _RelayPipe {
       }
       return;
     }
-    if (now.difference(segment.startedAt) + session.service.renewLead >=
-        session.service.streamTtl) {
+    if (now.difference(segment.startedAt) + session.service.renewLead >= session.service.streamTtl) {
       _prefetch = _Prefetch(_acquire(), createdAt: now);
     }
   }
@@ -495,14 +493,11 @@ class _RelayPipe {
           continue;
         }
         // 从第一个未落后于旧流位置的关键帧开始接。
-        final usable = tag.tagType == kFlvTagTypeVideo &&
-            tag.isKeyframe &&
-            _timeline.isNotBehind(tag);
+        final usable = tag.tagType == kFlvTagTypeVideo && tag.isKeyframe && _timeline.isNotBehind(tag);
         if (!usable) {
           // 一直等不到合适的关键帧（主播重开播导致时间轴重置等）：
           // 放弃本次接续，关闭响应交给播放层的重试逻辑。
-          if (DateTime.now().difference(segment.startedAt) >
-              session.service.keyframeWaitTimeout) {
+          if (DateTime.now().difference(segment.startedAt) > session.service.keyframeWaitTimeout) {
             Log.d("[relay] 等待接续关键帧超时，放弃");
             aborted = true;
             break;

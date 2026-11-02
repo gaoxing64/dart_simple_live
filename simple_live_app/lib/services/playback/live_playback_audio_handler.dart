@@ -34,11 +34,7 @@ class LivePlaybackAudioHandler extends BaseAudioHandler {
 
   /// 五个系统都有系统媒体控制；TV 是另一个 app（simple_live_tv_app），不在这里。
   static bool get isSupported =>
-      Platform.isAndroid ||
-      Platform.isIOS ||
-      Platform.isMacOS ||
-      Platform.isLinux ||
-      Platform.isWindows;
+      Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isLinux || Platform.isWindows;
 
   LivePlaybackAudioHandler() {
     // 焦点与设备插拔只能由我们自己接（原因见 LiveAudioSession 的类注释）。
@@ -138,8 +134,7 @@ class LivePlaybackAudioHandler extends BaseAudioHandler {
     // 从没进过播放态、又正处在后台：先按未播发布，回前台后的下一次再补（原因见
     // appInForeground）。这道网只为 Android 12+ 的前台服务异常而设，别的平台
     // 没有它，不能被它压住（桌面窗口失焦时 lifecycle 也会离开 resumed）。
-    final safePlaying = t.playbackPlaying &&
-        (!Platform.isAndroid || _enteredPlayingState || appInForeground);
+    final safePlaying = t.playbackPlaying && (!Platform.isAndroid || _enteredPlayingState || appInForeground);
     if (safePlaying) {
       _enteredPlayingState = true;
     }
@@ -160,11 +155,9 @@ class LivePlaybackAudioHandler extends BaseAudioHandler {
     }
   }
 
-  String _itemKey(MediaItem m) =>
-      '${m.id}|${m.title}|${m.artist}|${m.album}|${m.artUri}|${m.isLive}';
+  String _itemKey(MediaItem m) => '${m.id}|${m.title}|${m.artist}|${m.album}|${m.artUri}|${m.isLive}';
 
-  String _stateKey(PlaybackState s) =>
-      '${s.playing}|${s.processingState.name}|${s.updatePosition.inMilliseconds}';
+  String _stateKey(PlaybackState s) => '${s.playing}|${s.processingState.name}|${s.updatePosition.inMilliseconds}';
 
   // ---------------------------------------------------------------- 远程指令
 
@@ -248,9 +241,7 @@ class LivePlaybackAudioHandler extends BaseAudioHandler {
         MediaControl.stop,
       ],
       systemActions: const {MediaAction.stop},
-      processingState: t.playbackBuffering
-          ? AudioProcessingState.buffering
-          : AudioProcessingState.ready,
+      processingState: t.playbackBuffering ? AudioProcessingState.buffering : AudioProcessingState.ready,
       playing: safePlaying,
       // 直播不推进进度；录像的进度也等真要做时再补（要订阅 position 流）。
       updatePosition: Duration.zero,

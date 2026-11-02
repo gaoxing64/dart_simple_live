@@ -85,9 +85,7 @@ class FollowCardPreviewDialog extends StatelessWidget {
     // 桌面端按窗口比例放大，移动端保持窗口减边距；封面图的分辨率不参与
     // 布局计算，只由这里的宽度和下方 AspectRatio 决定显示尺寸。
     final preferredWidth = screenWidth * 0.62;
-    final maxWidth = screenWidth >= 700
-        ? preferredWidth.clamp(520.0, 760.0).toDouble()
-        : screenWidth - 48;
+    final maxWidth = screenWidth >= 700 ? preferredWidth.clamp(520.0, 760.0).toDouble() : screenWidth - 48;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -157,8 +155,7 @@ class FollowCardPreviewDialog extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: (isLive ? scheme.primary : scheme.onSurfaceVariant)
-                                .withValues(alpha: 0.12),
+                            color: (isLive ? scheme.primary : scheme.onSurfaceVariant).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(

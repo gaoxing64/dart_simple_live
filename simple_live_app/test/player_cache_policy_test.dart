@@ -32,8 +32,7 @@ void main() {
   test('Twitch 桌面端写入 cache-secs=10，双重缓冲开合都是 10', () {
     final controller = controllerFor(twitch: true);
     for (final doubleBuffering in [false, true]) {
-      final props =
-          tableOf(controller, isAndroid: false, doubleBuffering: doubleBuffering);
+      final props = tableOf(controller, isAndroid: false, doubleBuffering: doubleBuffering);
       expect(
         props['cache-secs'],
         '10',

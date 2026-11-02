@@ -27,10 +27,9 @@ class FollowTagManagerController extends BaseController {
   RxList<FollowUserTag> userTagList = <FollowUserTag>[].obs;
 
   /// 共享实例：顶栏开 sheet、卡片头部长按改名都复用同一份状态。
-  static FollowTagManagerController get shared =>
-      Get.isRegistered<FollowTagManagerController>()
-          ? Get.find<FollowTagManagerController>()
-          : Get.put(FollowTagManagerController());
+  static FollowTagManagerController get shared => Get.isRegistered<FollowTagManagerController>()
+      ? Get.find<FollowTagManagerController>()
+      : Get.put(FollowTagManagerController());
 
   @override
   void onInit() {
@@ -94,72 +93,67 @@ class FollowTagManagerController extends BaseController {
   void showTagsManager() {
     Utils.showBottomSheet(
       title: '分组管理',
-      child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppStyle.divider,
-            ListTile(
-              title: const Text("新建分组"),
-              leading: const Icon(Icons.add),
-              onTap: () {
-                editTagDialog("新建分组");
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        AppStyle.divider,
+        ListTile(
+          title: const Text("新建分组"),
+          leading: const Icon(Icons.add),
+          onTap: () {
+            editTagDialog("新建分组");
+          },
+        ),
+        AppStyle.divider,
+        // 列表内容
+        Expanded(
+          child: Obx(
+            () => ReorderableListView.builder(
+              buildDefaultDragHandles: false,
+              itemCount: userTagList.length,
+              itemBuilder: (context, index) {
+                // 偏移
+                FollowUserTag item = userTagList[index];
+                return ListTile(
+                  key: ValueKey(item.id),
+                  title: SecondaryTapRegion(
+                    onSecondaryTap: () => editTagDialog("重命名分组", followUserTag: item),
+                    child: GestureDetector(
+                      child: Text(item.tag),
+                      onLongPress: () {
+                        editTagDialog("重命名分组", followUserTag: item);
+                      },
+                    ),
+                  ),
+                  leading: IconButton(
+                    tooltip: "删除分组",
+                    icon: const Icon(Icons.delete),
+                    onPressed: () {
+                      removeTag(item);
+                    },
+                  ),
+                  // 用即时拖动而不是 Delayed：拖动目标是右侧这个小手柄，
+                  // 不存在与列表滚动抢手势的问题，按住 500ms 才可拖
+                  // 在桌面端纯属负担（触屏上直接按住手柄拖动也更顺手）。
+                  trailing: ReorderableDragStartListener(
+                    index: index,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Icon(Icons.drag_handle),
+                    ),
+                  ),
+                );
+              },
+              onReorderItem: (int oldIndex, int newIndex) {
+                updateTagOrder(oldIndex, newIndex);
               },
             ),
-            AppStyle.divider,
-            // 列表内容
-            Expanded(
-              child: Obx(
-                () => ReorderableListView.builder(
-                  buildDefaultDragHandles: false,
-                  itemCount: userTagList.length,
-                  itemBuilder: (context, index) {
-                    // 偏移
-                    FollowUserTag item = userTagList[index];
-                    return ListTile(
-                      key: ValueKey(item.id),
-                      title: SecondaryTapRegion(
-                        onSecondaryTap: () => editTagDialog("重命名分组",
-                            followUserTag: item),
-                        child: GestureDetector(
-                          child: Text(item.tag),
-                          onLongPress: () {
-                            editTagDialog("重命名分组", followUserTag: item);
-                          },
-                        ),
-                      ),
-                      leading: IconButton(
-                        tooltip: "删除分组",
-                        icon: const Icon(Icons.delete),
-                        onPressed: () {
-                          removeTag(item);
-                        },
-                      ),
-                      // 用即时拖动而不是 Delayed：拖动目标是右侧这个小手柄，
-                      // 不存在与列表滚动抢手势的问题，按住 500ms 才可拖
-                      // 在桌面端纯属负担（触屏上直接按住手柄拖动也更顺手）。
-                      trailing: ReorderableDragStartListener(
-                        index: index,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12.0),
-                          child: Icon(Icons.drag_handle),
-                        ),
-                      ),
-                    );
-                  },
-                  onReorderItem: (int oldIndex, int newIndex) {
-                    updateTagOrder(oldIndex, newIndex);
-                  },
-                ),
-              ),
-            ),
-          ]),
+          ),
+        ),
+      ]),
     );
   }
 
   void editTagDialog(String title, {FollowUserTag? followUserTag}) {
-    final TextEditingController tagEditController =
-        TextEditingController(text: followUserTag?.tag);
+    final TextEditingController tagEditController = TextEditingController(text: followUserTag?.tag);
     bool upMode = title == "新建分组" ? true : false;
     Get.dialog(
       AlertDialog(
@@ -196,9 +190,7 @@ class FollowTagManagerController extends BaseController {
                   ),
                 ),
                 onSubmitted: (tag) {
-                  upMode
-                      ? addTag(tagEditController.text)
-                      : updateTagName(followUserTag!, tagEditController.text);
+                  upMode ? addTag(tagEditController.text) : updateTagName(followUserTag!, tagEditController.text);
                   Get.back();
                 },
               ),
@@ -237,5 +229,4 @@ class FollowTagManagerController extends BaseController {
 }
 
 /// 打开分组管理 bottom sheet（关注页顶栏 / 关注设置页共用入口）。
-void showFollowTagManagerSheet() =>
-    FollowTagManagerController.shared.showTagsManager();
+void showFollowTagManagerSheet() => FollowTagManagerController.shared.showTagsManager();

@@ -113,8 +113,8 @@ void showQualitesInfo(
             icon: const Icon(Icons.copy),
             onPressed: () async {
               try {
-                var playUrl = await controller.site.liveSite.getPlayUrls(
-                    detail: controller.detail.value!, quality: item);
+                var playUrl =
+                    await controller.site.liveSite.getPlayUrls(detail: controller.detail.value!, quality: item);
                 if (playUrl.urls.isNotEmpty) {
                   Utils.copyToClipboard(playUrl.urls.first);
                   SmartDialog.showToast("已复制直链");

@@ -143,8 +143,7 @@ class _GlobalShortcutListener extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_GlobalShortcutListener> createState() =>
-      _GlobalShortcutListenerState();
+  State<_GlobalShortcutListener> createState() => _GlobalShortcutListenerState();
 }
 
 class _GlobalShortcutListenerState extends State<_GlobalShortcutListener> {
@@ -158,8 +157,7 @@ class _GlobalShortcutListenerState extends State<_GlobalShortcutListener> {
         return;
       }
       final primary = FocusManager.instance.primaryFocus;
-      if (primary == null ||
-          (primary is FocusScopeNode && primary.focusedChild == null)) {
+      if (primary == null || (primary is FocusScopeNode && primary.focusedChild == null)) {
         _focusNode.requestFocus();
       }
     });
@@ -181,15 +179,11 @@ class _GlobalShortcutListenerState extends State<_GlobalShortcutListener> {
   }
 
   static KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.escape) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape) {
       return KeyEventResult.ignored;
     }
     final hk = HardwareKeyboard.instance;
-    if (hk.isShiftPressed ||
-        hk.isControlPressed ||
-        hk.isAltPressed ||
-        hk.isMetaPressed) {
+    if (hk.isShiftPressed || hk.isControlPressed || hk.isAltPressed || hk.isMetaPressed) {
       return KeyEventResult.ignored;
     }
     unawaited(_handleBackShortcut());

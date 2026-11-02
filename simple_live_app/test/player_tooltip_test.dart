@@ -30,8 +30,7 @@ class _FakeSettings extends AppSettingsController {
 /// 好在设置页返回后即时改掉键帽），直接 cast 成 Tooltip 会失败。`Obx.builder`
 /// 是公开字段，直接调一遍就是它此刻会建出来的那棵树——本组测试关心的正是这个
 /// 构造产物。
-Tooltip _tooltipOf(Widget widget) =>
-    widget is Obx ? widget.builder() as Tooltip : widget as Tooltip;
+Tooltip _tooltipOf(Widget widget) => widget is Obx ? widget.builder() as Tooltip : widget as Tooltip;
 
 /// 从 [tooltip] 的 richMessage 里取出键帽文字。
 ///
@@ -41,11 +40,7 @@ Tooltip _tooltipOf(Widget widget) =>
 /// `toPlainText()`），键帽单独把那颗 child 塞进最小 MaterialApp 里 pump 一次：
 /// 既拿到文字，也顺手证明它是**真能渲染**的 widget，而不是个没接线的对象。
 Future<String> _keycapText(Tooltip tooltip, WidgetTester tester) async {
-  final cap = (tooltip.richMessage! as TextSpan)
-      .children!
-      .whereType<WidgetSpan>()
-      .single
-      .child;
+  final cap = (tooltip.richMessage! as TextSpan).children!.whereType<WidgetSpan>().single.child;
   await tester.pumpWidget(MaterialApp(home: Scaffold(body: cap)));
   return tester.widget<Text>(find.byType(Text)).data!;
 }
@@ -66,15 +61,11 @@ void main() {
   group('shortcutForAction 映射表', () {
     test('有默认快捷键的动作各归其位', () {
       expect(shortcutForAction(PlayerActionId.refresh), PlayerShortcut.refresh);
-      expect(shortcutForAction(PlayerActionId.danmakuToggle),
-          PlayerShortcut.danmakuToggle);
-      expect(shortcutForAction(PlayerActionId.smallWindow),
-          PlayerShortcut.smallWindow);
-      expect(shortcutForAction(PlayerActionId.screenshot),
-          PlayerShortcut.screenshot);
+      expect(shortcutForAction(PlayerActionId.danmakuToggle), PlayerShortcut.danmakuToggle);
+      expect(shortcutForAction(PlayerActionId.smallWindow), PlayerShortcut.smallWindow);
+      expect(shortcutForAction(PlayerActionId.screenshot), PlayerShortcut.screenshot);
       expect(shortcutForAction(PlayerActionId.pick), PlayerShortcut.pick);
-      expect(shortcutForAction(PlayerActionId.fullscreenToggle),
-          PlayerShortcut.fullscreen);
+      expect(shortcutForAction(PlayerActionId.fullscreenToggle), PlayerShortcut.fullscreen);
       expect(shortcutForAction(PlayerActionId.quality), PlayerShortcut.quality);
       // 音量颗点击=静音（桌面），故映射到 mute
       expect(shortcutForAction(PlayerActionId.volume), PlayerShortcut.mute);
@@ -114,8 +105,7 @@ void main() {
 
     testWidgets('键帽跟随用户改键：改成 J 后显示 J、不显示 F', (tester) async {
       settings.shortcutOverrides.value = {
-        PlayerShortcut.fullscreen:
-            const ShortcutBinding(LogicalKeyboardKey.keyJ),
+        PlayerShortcut.fullscreen: const ShortcutBinding(LogicalKeyboardKey.keyJ),
       };
       final tooltip = _tooltipOf(shortcutTooltip(
         label: '全屏播放',
@@ -180,8 +170,7 @@ void main() {
     testWidgets('自定义关闭 → 改过的键不生效，键帽回到默认 F', (tester) async {
       settings.shortcutCustom.value = false;
       settings.shortcutOverrides.value = {
-        PlayerShortcut.fullscreen:
-            const ShortcutBinding(LogicalKeyboardKey.keyJ),
+        PlayerShortcut.fullscreen: const ShortcutBinding(LogicalKeyboardKey.keyJ),
       };
       final tooltip = _tooltipOf(shortcutTooltip(
         label: '全屏播放',

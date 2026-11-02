@@ -38,8 +38,7 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   ///
   /// 取不可变视图：这是进程级共享实例，而 `dragDevices` 的契约是「只读」，
   /// 万一有调用方对它 add / remove，污染的是所有 [Scrollable]。
-  static final Set<PointerDeviceKind> _allDragDevices =
-      Set.unmodifiable(PointerDeviceKind.values);
+  static final Set<PointerDeviceKind> _allDragDevices = Set.unmodifiable(PointerDeviceKind.values);
 
   @override
   Set<PointerDeviceKind> get dragDevices => _allDragDevices;
@@ -169,8 +168,7 @@ class SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
       -delta > 0.0 ? ScrollDirection.forward : ScrollDirection.reverse,
     );
     _wheelAnimatingCount++;
-    animateTo(target, duration: wheelStepDuration, curve: Curves.easeOutCubic)
-        .whenComplete(() {
+    animateTo(target, duration: wheelStepDuration, curve: Curves.easeOutCubic).whenComplete(() {
       _wheelAnimatingCount--;
       // 动画结束且期间没有新目标就清掉，免得下次从一个过期的目标起算。
       if (_wheelTarget == target) {
@@ -183,6 +181,5 @@ class SmoothWheelScrollPosition extends ScrollPositionWithSingleContext {
   ///
   /// 栏位收起只跟竖向滚动走：横向滚动区（真要有人把本 controller 用在横列表上）
   /// 的滚轮余量不该驱动它。
-  bool get _isVertical =>
-      axisDirection == AxisDirection.up || axisDirection == AxisDirection.down;
+  bool get _isVertical => axisDirection == AxisDirection.up || axisDirection == AxisDirection.down;
 }

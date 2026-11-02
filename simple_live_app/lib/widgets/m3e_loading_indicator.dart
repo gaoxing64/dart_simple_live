@@ -45,8 +45,7 @@ class M3ELoadingIndicator extends StatefulWidget {
   /// 渲染会前后矛盾）。
   /// ⚠️ 不能写 `const [...]`：`MaterialShapes.*` 是 `static final`，
   /// 不是编译期常量，加 `const` 会报「Constant evaluation error」。
-  static final List<RoundedPolygon> defaultPolygons =
-      List.unmodifiable([
+  static final List<RoundedPolygon> defaultPolygons = List.unmodifiable([
     MaterialShapes.softBurst,
     MaterialShapes.cookie9Sided,
     MaterialShapes.pentagon,
@@ -78,8 +77,7 @@ class M3ELoadingIndicator extends StatefulWidget {
   State<M3ELoadingIndicator> createState() => _M3ELoadingIndicatorState();
 }
 
-class _M3ELoadingIndicatorState extends State<M3ELoadingIndicator>
-    with TickerProviderStateMixin {
+class _M3ELoadingIndicatorState extends State<M3ELoadingIndicator> with TickerProviderStateMixin {
   /// 自转一圈的时间（AOSP 常量）。
   static const Duration _rotationDuration = Duration(milliseconds: 4666);
 
@@ -133,8 +131,7 @@ class _M3ELoadingIndicatorState extends State<M3ELoadingIndicator>
     _setupPolygons();
     _morph = AnimationController.unbounded(vsync: this);
     _rotation = AnimationController(vsync: this, duration: _rotationDuration);
-    _metronome = AnimationController(vsync: this, duration: _morphInterval)
-      ..addListener(_onMetronome);
+    _metronome = AnimationController(vsync: this, duration: _morphInterval)..addListener(_onMetronome);
   }
 
   @override
@@ -160,12 +157,9 @@ class _M3ELoadingIndicatorState extends State<M3ELoadingIndicator>
   /// 长度 1 则退化为形状自己变形给自己。这里兜底回默认序列。
   void _setupPolygons() {
     final polygons = widget.polygons;
-    _polygons = (polygons == null || polygons.length < 2)
-        ? M3ELoadingIndicator.defaultPolygons
-        : polygons;
+    _polygons = (polygons == null || polygons.length < 2) ? M3ELoadingIndicator.defaultPolygons : polygons;
     _morphs = [
-      for (var i = 0; i < _polygons.length; i++)
-        Morph(_polygons[i], _polygons[(i + 1) % _polygons.length]),
+      for (var i = 0; i < _polygons.length; i++) Morph(_polygons[i], _polygons[(i + 1) % _polygons.length]),
     ];
     _shapeScale = M3ELoadingIndicator.scaleFactorFor(_polygons);
   }
@@ -229,9 +223,7 @@ class _M3ELoadingIndicatorState extends State<M3ELoadingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.color ??
-        ProgressIndicatorTheme.of(context).color ??
-        Theme.of(context).colorScheme.primary;
+    final color = widget.color ?? ProgressIndicatorTheme.of(context).color ?? Theme.of(context).colorScheme.primary;
     final reduceMotion = _reduceMotion;
 
     return Semantics(
@@ -244,11 +236,8 @@ class _M3ELoadingIndicatorState extends State<M3ELoadingIndicator>
             animation: Listenable.merge([_morph, _rotation]),
             builder: (context, child) {
               final progress = _morph.value.clamp(0.0, 1.0);
-              final rotation = reduceMotion
-                  ? 0.0
-                  : progress * _quarterTurn +
-                      _stepRotation +
-                      _rotation.value * _fullTurn;
+              final rotation =
+                  reduceMotion ? 0.0 : progress * _quarterTurn + _stepRotation + _rotation.value * _fullTurn;
               return Transform.rotate(
                 angle: rotation * math.pi / 180,
                 child: CustomPaint(
@@ -290,9 +279,7 @@ class _MorphPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final shape = staticShape;
-    final path = shape != null
-        ? shape.toPath()
-        : morph.toPath(progress: progress);
+    final path = shape != null ? shape.toPath() : morph.toPath(progress: progress);
 
     // 归一化多边形的坐标约在 1×1 的范围内，乘上 size 即目标尺寸；
     // 再按实际 bounds 中心回正，兼容不以原点为中心的图形。

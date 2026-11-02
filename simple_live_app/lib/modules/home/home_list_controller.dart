@@ -12,8 +12,7 @@ class HomeListController extends BasePageController<LiveRoomItem> {
 
   @override
   Future<List<LiveRoomItem>> getData(int page, int pageSize) async {
-    var result = await site.liveSite
-        .getRecommendRooms(page: page, pageSize: pageSize);
+    var result = await site.liveSite.getRecommendRooms(page: page, pageSize: pageSize);
     // 采信服务端的 hasMore：抖音等平台的推荐流用"本页是否非空"判断会导致
     // canLoadMore 永远为 true，"加载更多"一直堆重复数据。
     serverHasMore = result.hasMore;

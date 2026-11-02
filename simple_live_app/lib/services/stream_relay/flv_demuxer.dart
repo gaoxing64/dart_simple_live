@@ -87,10 +87,8 @@ class FlvDemuxer {
       return false;
     }
     if (_buf[_start] == 0x46 && _buf[_start + 1] == 0x4C && _buf[_start + 2] == 0x56) {
-      final dataOffset = (_buf[_start + 5] << 24) |
-          (_buf[_start + 6] << 16) |
-          (_buf[_start + 7] << 8) |
-          _buf[_start + 8];
+      final dataOffset =
+          (_buf[_start + 5] << 24) | (_buf[_start + 6] << 16) | (_buf[_start + 7] << 8) | _buf[_start + 8];
       final total = dataOffset + 4;
       if (_length < total) {
         return false;
@@ -140,10 +138,7 @@ class FlvDemuxer {
 
     final tagType = _buf[_start] & 0x1f;
     // 时间戳 = 3 字节大端（偏移 4..6）+ 1 字节高位扩展（偏移 7）。
-    final timestamp = (_buf[_start + 4] << 16) |
-        (_buf[_start + 5] << 8) |
-        _buf[_start + 6] |
-        (_buf[_start + 7] << 24);
+    final timestamp = (_buf[_start + 4] << 16) | (_buf[_start + 5] << 8) | _buf[_start + 6] | (_buf[_start + 7] << 24);
 
     var isKeyframe = false;
     var isSequenceHeader = false;

@@ -20,12 +20,10 @@ String? siteIdAtHomeTab(int tabIndex) {
   return sites[tabIndex].id;
 }
 
-class HomeController extends GetxController
-    with GetSingleTickerProviderStateMixin {
+class HomeController extends GetxController with GetSingleTickerProviderStateMixin {
   late TabController tabController;
   HomeController() {
-    tabController =
-        TabController(length: Sites.supportSites.length, vsync: this);
+    tabController = TabController(length: Sites.supportSites.length, vsync: this);
   }
 
   StreamSubscription<dynamic>? streamSubscription;

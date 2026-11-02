@@ -6,9 +6,9 @@ Set<PlayerActionId> _all(PlayerActionLayout l) => l.all.map((e) => e.id).toSet()
 
 /// 平铺件（顶簇 + 底栏）——「沉进 ⋮ 之前有没有位置」问的是这个并集。
 Set<PlayerActionId> _flat(PlayerActionLayout l) => {
-  ...l.topBar.map((e) => e.id),
-  ...l.bar.map((e) => e.id),
-};
+      ...l.topBar.map((e) => e.id),
+      ...l.bar.map((e) => e.id),
+    };
 
 void main() {
   group('跨宿主一致性', () {
@@ -173,8 +173,7 @@ void main() {
         isTrue,
       );
       expect(
-        _all(resolvePlayerActions(host: PlayerHost.tile, availableWidth: 400))
-            .contains(PlayerActionId.closeTile),
+        _all(resolvePlayerActions(host: PlayerHost.tile, availableWidth: 400)).contains(PlayerActionId.closeTile),
         isFalse,
       );
     });

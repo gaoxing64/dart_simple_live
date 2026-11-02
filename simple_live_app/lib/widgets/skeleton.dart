@@ -12,9 +12,7 @@ const double _kPulseMax = 0.14;
 /// 必须走本地的 `Theme.of(context)`：`Get.isDarkMode` 只读当前主题、不建立
 /// InheritedWidget 依赖，主题切换后骨架屏不会重建，会一直停在旧配色上。
 Color _skeletonBaseColor(BuildContext context) {
-  return Theme.of(context).brightness == Brightness.dark
-      ? Colors.white
-      : Colors.black;
+  return Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black;
 }
 
 /// 骨架块
@@ -58,8 +56,7 @@ class _SkeletonPulse extends StatefulWidget {
   State<_SkeletonPulse> createState() => _SkeletonPulseState();
 }
 
-class _SkeletonPulseState extends State<_SkeletonPulse>
-    with SingleTickerProviderStateMixin {
+class _SkeletonPulseState extends State<_SkeletonPulse> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: _kPulseDuration,

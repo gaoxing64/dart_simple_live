@@ -59,32 +59,27 @@ void main() {
       ..addEntries(svc.followTagList.map((t) => MapEntry(t.id, t)));
   }
 
-  List<String> ids() =>
-      FollowService.instance.followTagList.map((t) => t.id).toList();
+  List<String> ids() => FollowService.instance.followTagList.map((t) => t.id).toList();
 
   void expectStrictlyIncreasing() {
     final list = ids();
     for (var i = 0; i < list.length - 1; i++) {
-      expect(list[i].compareTo(list[i + 1]) < 0, isTrue,
-          reason: 'id 必须严格递增（排序不变量），实际：$list');
+      expect(list[i].compareTo(list[i + 1]) < 0, isTrue, reason: 'id 必须严格递增（排序不变量），实际：$list');
     }
   }
 
   test('向下调序：不抛异常、顺序正确、三个组都还在', () {
     seed();
     FollowService.instance.reorderFollowTag(0, 2); // X 挪到末尾
-    expect(FollowService.instance.followTagList.map((t) => t.tag),
-        ['Y', 'Z', 'X']);
+    expect(FollowService.instance.followTagList.map((t) => t.tag), ['Y', 'Z', 'X']);
     expectStrictlyIncreasing();
-    expect((Get.find<DBService>() as _FakeDBService).box.length, 3,
-        reason: '落库记录数不得变少（覆盖丢组）');
+    expect((Get.find<DBService>() as _FakeDBService).box.length, 3, reason: '落库记录数不得变少（覆盖丢组）');
   });
 
   test('向上调序：正常', () {
     seed();
     FollowService.instance.reorderFollowTag(2, 0); // Z 挪到最前
-    expect(FollowService.instance.followTagList.map((t) => t.tag),
-        ['Z', 'X', 'Y']);
+    expect(FollowService.instance.followTagList.map((t) => t.tag), ['Z', 'X', 'Y']);
     expectStrictlyIncreasing();
     expect((Get.find<DBService>() as _FakeDBService).box.length, 3);
   });
@@ -98,7 +93,6 @@ void main() {
     expect(ids().toSet().length, 3, reason: 'id 不得相撞：${ids()}');
     expectStrictlyIncreasing();
     expect((Get.find<DBService>() as _FakeDBService).box.length, 3);
-    expect(FollowService.instance.followTagList.map((t) => t.tag).toSet(),
-        {'X', 'Y', 'Z'});
+    expect(FollowService.instance.followTagList.map((t) => t.tag).toSet(), {'X', 'Y', 'Z'});
   });
 }

@@ -75,8 +75,7 @@ void main() {
     await controller.refreshData();
 
     expect(controller.list.length, 30);
-    expect(controller.canLoadMore.value, isFalse,
-        reason: '服务端说没有更多，就不该再让自动补页继续请求');
+    expect(controller.canLoadMore.value, isFalse, reason: '服务端说没有更多，就不该再让自动补页继续请求');
     expect(controller.pageEmpty.value, isFalse);
   });
 
@@ -89,8 +88,7 @@ void main() {
 
     expect(controller.requestedPages, [1, 2]);
     expect(controller.list.length, 60);
-    expect(controller.list.map((e) => e.roomId).toSet().length, 60,
-        reason: '两页房间号应互不相同');
+    expect(controller.list.map((e) => e.roomId).toSet().length, 60, reason: '两页房间号应互不相同');
   });
 
   test('接口忽略翻页参数时，连续多页零新增才停止且不产生重复卡片', () async {
@@ -110,8 +108,7 @@ void main() {
     await controller.loadData(); // 第 3 页：仍全为重复项，累计 2 页 → 停
     expect(controller.requestedPages, [1, 2, 3]);
     expect(controller.list.length, 30, reason: '全为重复项，不应追加');
-    expect(controller.canLoadMore.value, isFalse,
-        reason: '连续两页零新增必须停下，否则自动补页会无限空转');
+    expect(controller.canLoadMore.value, isFalse, reason: '连续两页零新增必须停下，否则自动补页会无限空转');
   });
 
   test('未实现 itemKey 的子类保持旧行为（不去重、非空即可加载更多）', () async {
@@ -142,13 +139,11 @@ void main() {
     final controller = _FailOnceSecondPageController();
     await controller.refreshData();
 
-    expect(controller.loadMoreFailed.value, isFalse,
-        reason: '第一页成功，不该出现重试条');
+    expect(controller.loadMoreFailed.value, isFalse, reason: '第一页成功，不该出现重试条');
 
     await controller.loadData(); // 第 2 页失败
     expect(controller.loadFailed, isTrue);
-    expect(controller.loadMoreFailed.value, isTrue,
-        reason: '界面需要可观察标记才能渲染重试条（loadFailed 是普通 bool，不触发重建）');
+    expect(controller.loadMoreFailed.value, isTrue, reason: '界面需要可观察标记才能渲染重试条（loadFailed 是普通 bool，不触发重建）');
     expect(controller.showLoadMoreFailedBar, isTrue);
     expect(controller.requestedPages, [1, 2]);
     expect(controller.currentPage, 2, reason: '失败页不自增，重试才能续上同一页');
@@ -170,8 +165,7 @@ void main() {
     expect(controller.loadFailed, isFalse, reason: '重试前必须先解闩');
     expect(controller.loadMoreFailed.value, isFalse, reason: '成功后重试条应消失');
     expect(controller.showLoadMoreFailedBar, isFalse);
-    expect(controller.requestedPages, [1, 2, 2],
-        reason: '重试的是失败的同一页，不应跳过它');
+    expect(controller.requestedPages, [1, 2, 2], reason: '重试的是失败的同一页，不应跳过它');
     expect(controller.list.length, 60);
   });
 
@@ -241,8 +235,7 @@ void _aliasingRegressionTests() {
     expect(controller.list.length, 3);
 
     source.removeLast();
-    expect(controller.list.length, 3,
-        reason: '页面列表必须是独立副本，外部改动不应穿透进来');
+    expect(controller.list.length, 3, reason: '页面列表必须是独立副本，外部改动不应穿透进来');
   });
 
   test('对数据源自赋值不会清空页面列表', () async {

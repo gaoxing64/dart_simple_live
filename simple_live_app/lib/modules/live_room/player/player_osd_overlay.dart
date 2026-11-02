@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -19,9 +18,7 @@ bool shouldUsePageOsd({
   required Orientation orientation,
   required double width,
 }) {
-  return !fullScreen &&
-      orientation == Orientation.portrait &&
-      width < 600;
+  return !fullScreen && orientation == Orientation.portrait && width < 600;
 }
 
 /// 当前上下文是否应把 OSD 交给页面承载（见 [shouldUsePageOsd]）。
@@ -148,8 +145,7 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
   PlayerState get _state => widget.controller.player.state;
 
   /// 应用当前字体（null 表示系统默认），与 main.dart 主题里的 fontFamily 一致。
-  String? get _fontFamily =>
-      AppStyleSettingController.instance.curFontName.value;
+  String? get _fontFamily => AppStyleSettingController.instance.curFontName.value;
 
   bool get _hardwareDecoding {
     final v = (_props['hwdec-current'] ?? '').trim().toLowerCase();
@@ -203,8 +199,7 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
   /// 帧率同理：读不到时不要在卡片上留一个孤零零的 "FPS"。
   String? _fpsUnit(String? raw) => _fpsNum(raw) == '—' ? null : 'FPS';
 
-  String _bufferSeconds(Duration d) =>
-      (d.inMilliseconds / 1000).toStringAsFixed(1);
+  String _bufferSeconds(Duration d) => (d.inMilliseconds / 1000).toStringAsFixed(1);
 
   String _fmtHz(String? raw) {
     final v = double.tryParse((raw ?? '').trim());
@@ -283,8 +278,7 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
     if (c.isEmpty) return '—';
     // 先去掉括号里的别名串，再取 ' / ' 的第一段。
     final int paren = c.indexOf(' (');
-    final String head =
-        (paren > 0 ? c.substring(0, paren) : c.split(' / ').first).trim();
+    final String head = (paren > 0 ? c.substring(0, paren) : c.split(' / ').first).trim();
     if (head.isEmpty) return '—';
     return _codecNames[head.toLowerCase()] ?? head;
   }
@@ -359,8 +353,7 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
     final c = widget.controller;
     // 帧率 / 流格式 / 直播状态都可能读不到（属性不可用、detail 未加载完），
     // 统一先算一次，让 value 与 unit / chip 的判定取自同一个值。
-    final String? fpsRaw =
-        _props['estimated-vf-fps'] ?? _props['container-fps'];
+    final String? fpsRaw = _props['estimated-vf-fps'] ?? _props['container-fps'];
     final String streamFormat = _streamFormat();
     final String streamStatus = _streamStatus();
 
@@ -437,12 +430,9 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
           title: 'Stream',
           chips: [
             // 三个 chip 用同一套「有值才挂」的判定，避免出现内容就是「—」的空令牌
-            if (_has(streamFormat))
-              OsdChip(label: streamFormat, tone: OsdChipTone.primary),
-            if (_has(c.currentQualityInfo.value))
-              OsdChip(label: _dash(c.currentQualityInfo.value)),
-            if (_has(streamStatus))
-              OsdChip(label: streamStatus, tone: _streamStatusTone()),
+            if (_has(streamFormat)) OsdChip(label: streamFormat, tone: OsdChipTone.primary),
+            if (_has(c.currentQualityInfo.value)) OsdChip(label: _dash(c.currentQualityInfo.value)),
+            if (_has(streamStatus)) OsdChip(label: streamStatus, tone: _streamStatusTone()),
           ],
           child: OsdRowList(
             rows: [
@@ -601,17 +591,14 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
   @override
   Widget build(BuildContext context) {
     // 触控尺寸按平台判定（而不是按宽度），避免小屏上把点击区域压到点不中。
-    final bool touch = defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS;
+    final bool touch = defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
     return LayoutBuilder(
       builder: (context, constraints) {
         // 非全屏时 OSD 落在 16:9 视频区里，本身已在安全区内，再扣一次会白白内缩；
         // 只有接近铺满屏幕（全屏）时才需要避开刘海 / 状态栏 / 手势区。
         final double screenHeight = MediaQuery.sizeOf(context).height;
-        final bool coversScreen = !constraints.maxHeight.isFinite ||
-            constraints.maxHeight >= screenHeight * 0.8;
-        final EdgeInsets safePadding =
-            coversScreen ? MediaQuery.paddingOf(context) : EdgeInsets.zero;
+        final bool coversScreen = !constraints.maxHeight.isFinite || constraints.maxHeight >= screenHeight * 0.8;
+        final EdgeInsets safePadding = coversScreen ? MediaQuery.paddingOf(context) : EdgeInsets.zero;
 
         // 尺寸表由「可用空间 + 安全区 + 是否触控」决定；桌面参数与重构前逐值一致。
         final metrics = OsdMetrics.resolve(
@@ -623,8 +610,7 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
         return Align(
           // 窄屏（安卓竖屏）走底部表单：通栏贴底，宽度与高度都吃满视频区，
           // 且落在拇指可达范围；宽屏仍是左上角浮层，不挡画面中心。
-          alignment:
-              metrics.isSheet ? Alignment.bottomCenter : Alignment.topLeft,
+          alignment: metrics.isSheet ? Alignment.bottomCenter : Alignment.topLeft,
           child: Padding(
             padding: EdgeInsets.only(
               left: safePadding.left + metrics.horizontalMargin,

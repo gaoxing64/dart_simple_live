@@ -16,8 +16,7 @@ void main() {
   final polygons = M3ELoadingIndicator.defaultPolygons;
 
   test('7 个默认形状都能生成尺寸合理的闭合路径', () {
-    expect(polygons.length, 7,
-        reason: '默认形状序列改了数量，这里与下面的 38/48 绘制比例要同步');
+    expect(polygons.length, 7, reason: '默认形状序列改了数量，这里与下面的 38/48 绘制比例要同步');
 
     for (var i = 0; i < polygons.length; i++) {
       final bounds = polygons[i].toPath().getBounds();
@@ -165,11 +164,9 @@ void main() {
     expect(() => M3ELoadingIndicator(polygons: _twoShapes), returnsNormally);
   });
 
-  testWidgets('默认序列不可变：外部修改不会污染正在显示的实例',
-      (tester) async {
+  testWidgets('默认序列不可变：外部修改不会污染正在显示的实例', (tester) async {
     // 组件内部按引用持有序列，可变列表被外部 add 会污染渲染。
-    expect(() => M3ELoadingIndicator.defaultPolygons.add(MaterialShapes.oval),
-        throwsUnsupportedError);
+    expect(() => M3ELoadingIndicator.defaultPolygons.add(MaterialShapes.oval), throwsUnsupportedError);
   });
 }
 

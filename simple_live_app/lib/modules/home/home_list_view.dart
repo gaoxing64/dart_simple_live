@@ -59,8 +59,7 @@ int resolveHomeColumns({
   required bool canLoadMore,
   double bottomInset = 0,
 }) {
-  final byWidth =
-      (maxWidth / kMinCardWidth).floor().clamp(2, kMaxColumns).toInt();
+  final byWidth = (maxWidth / kMinCardWidth).floor().clamp(2, kMaxColumns).toInt();
 
   if (itemCount == 0 || canLoadMore) {
     return byWidth;
@@ -71,8 +70,7 @@ int resolveHomeColumns({
   // 未 extendBody 时 padding.bottom 会被置 0，而 viewPadding.bottom 仍是系统 inset，
   // 二者之差为负（PageGridView / PageListView 里同一表达式都带 `> 0` 守卫）。
   // 负值会让可用高度不减反增，减列判断比预期更激进，与 doc 的语义相反。
-  final usableHeight =
-      maxHeight - kVerticalPadding - math.max(0, bottomInset);
+  final usableHeight = maxHeight - kVerticalPadding - math.max(0, bottomInset);
   if (usableHeight <= 0) {
     return byWidth;
   }
@@ -120,8 +118,7 @@ class HomeListView extends StatelessWidget {
     );
   }
 
-  int _resolveColumns(BuildContext context, BoxConstraints constraints) =>
-      resolveHomeColumns(
+  int _resolveColumns(BuildContext context, BoxConstraints constraints) => resolveHomeColumns(
         maxWidth: constraints.maxWidth,
         maxHeight: constraints.maxHeight,
         itemCount: controller.list.length,

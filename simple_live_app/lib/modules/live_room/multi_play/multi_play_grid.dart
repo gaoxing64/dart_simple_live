@@ -12,8 +12,7 @@ import 'package:simple_live_app/modules/live_room/multi_play/multi_play_tile.dar
 /// 窗口不够大时折叠掉最后加入的格子。
 ///
 /// **格子位置只跟加入顺序有关**：切换焦点只改高亮描边和音量，画面不会跳位置。
-Widget buildMultiPlayGrid(LiveRoomController controller) =>
-    _MultiPlayGrid(controller: controller);
+Widget buildMultiPlayGrid(LiveRoomController controller) => _MultiPlayGrid(controller: controller);
 
 class _MultiPlayGrid extends StatefulWidget {
   const _MultiPlayGrid({required this.controller});

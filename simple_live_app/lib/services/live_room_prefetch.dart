@@ -121,8 +121,7 @@ class LiveRoomPrefetch {
     if (play.urls.isEmpty) {
       return;
     }
-    _live[_key(siteId, roomId) + "#$quality"] =
-        _LiveEntry(play, DateTime.now());
+    _live[_key(siteId, roomId) + "#$quality"] = _LiveEntry(play, DateTime.now());
     _trim();
   }
 
@@ -163,9 +162,7 @@ class LiveRoomPrefetch {
     try {
       var detail = takeDetail(site.id, roomId);
       if (detail == null) {
-        detail = await site.liveSite
-            .getRoomDetail(roomId: roomId)
-            .timeout(_requestTimeout);
+        detail = await site.liveSite.getRoomDetail(roomId: roomId).timeout(_requestTimeout);
         putDetail(site.id, roomId, detail);
       }
       if (!detail.status && !detail.isRecord) {
@@ -174,9 +171,7 @@ class LiveRoomPrefetch {
 
       var qualities = takeQualities(site.id, roomId);
       if (qualities == null) {
-        final fetched = await site.liveSite
-            .getPlayQualities(detail: detail)
-            .timeout(_requestTimeout);
+        final fetched = await site.liveSite.getPlayQualities(detail: detail).timeout(_requestTimeout);
         putQualities(site.id, roomId, fetched);
         qualities = takeQualities(site.id, roomId);
       }
@@ -189,9 +184,7 @@ class LiveRoomPrefetch {
       if (takePlayUrl(site.id, roomId, quality.quality) != null) {
         return;
       }
-      final play = await site.liveSite
-          .getPlayUrls(detail: detail, quality: quality)
-          .timeout(_requestTimeout);
+      final play = await site.liveSite.getPlayUrls(detail: detail, quality: quality).timeout(_requestTimeout);
       putPlayUrl(site.id, roomId, quality.quality, play);
     } catch (e) {
       // 预取失败只影响「下次切台能不能命中缓存」，一律静默。
@@ -216,8 +209,7 @@ class LiveRoomPrefetch {
       _MetaEntry? oldestMeta;
       String? oldestMetaKey;
       for (final entry in _meta.entries) {
-        if (oldestMeta == null ||
-            entry.value.createdAt.isBefore(oldestMeta.createdAt)) {
+        if (oldestMeta == null || entry.value.createdAt.isBefore(oldestMeta.createdAt)) {
           oldestMeta = entry.value;
           oldestMetaKey = entry.key;
         }
@@ -225,8 +217,7 @@ class LiveRoomPrefetch {
       _LiveEntry? oldestLive;
       String? oldestLiveKey;
       for (final entry in _live.entries) {
-        if (oldestLive == null ||
-            entry.value.createdAt.isBefore(oldestLive.createdAt)) {
+        if (oldestLive == null || entry.value.createdAt.isBefore(oldestLive.createdAt)) {
           oldestLive = entry.value;
           oldestLiveKey = entry.key;
         }
@@ -234,9 +225,8 @@ class LiveRoomPrefetch {
       if (oldestMeta == null && oldestLive == null) {
         return;
       }
-      final dropMeta = oldestLive == null ||
-          (oldestMeta != null &&
-              oldestMeta.createdAt.isBefore(oldestLive.createdAt));
+      final dropMeta =
+          oldestLive == null || (oldestMeta != null && oldestMeta.createdAt.isBefore(oldestLive.createdAt));
       if (dropMeta && oldestMetaKey != null) {
         _meta.remove(oldestMetaKey);
       } else if (oldestLiveKey != null) {
@@ -249,8 +239,7 @@ class LiveRoomPrefetch {
 }
 
 class _MetaEntry {
-  _MetaEntry(this.detail, this.createdAt)
-      : expiresAt = createdAt.add(LiveRoomPrefetch.metaTtl);
+  _MetaEntry(this.detail, this.createdAt) : expiresAt = createdAt.add(LiveRoomPrefetch.metaTtl);
 
   final LiveRoomDetail detail;
   final DateTime createdAt;
@@ -263,16 +252,14 @@ class _MetaEntry {
 }
 
 class _LiveEntry {
-  _LiveEntry(this.play, this.createdAt)
-      : expiresAt = createdAt.add(LiveRoomPrefetch.liveTtl);
+  _LiveEntry(this.play, this.createdAt) : expiresAt = createdAt.add(LiveRoomPrefetch.liveTtl);
 
   final LivePlayUrl play;
   final DateTime createdAt;
   final DateTime expiresAt;
 
   /// 剩余寿命不足出借余量即视为过期（避免把「马上到期」的直链交给播放器）。
-  bool get isExpired =>
-      DateTime.now().isAfter(expiresAt.subtract(LiveRoomPrefetch.serveMargin));
+  bool get isExpired => DateTime.now().isAfter(expiresAt.subtract(LiveRoomPrefetch.serveMargin));
 
   bool isExpiredAt(DateTime now) => now.isAfter(expiresAt);
 }

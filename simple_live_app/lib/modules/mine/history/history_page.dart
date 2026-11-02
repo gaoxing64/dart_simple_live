@@ -110,8 +110,7 @@ class HistoryPage extends GetView<HistoryController> {
                   ],
                 ),
                 onTap: () {
-                  AppNavigator.toLiveRoomDetail(
-                      site: site, roomId: item.roomId);
+                  AppNavigator.toLiveRoomDetail(site: site, roomId: item.roomId);
                 },
                 onLongPress: removeRecord,
               ),

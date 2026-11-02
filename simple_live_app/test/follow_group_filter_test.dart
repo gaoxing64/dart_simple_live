@@ -91,7 +91,10 @@ void main() {
     // 测试窗口 400 宽 → 两字模式：标签截到前两个字（两端对齐后逐字符排开）。
     // 「全部」只剩内容区段头那一处，侧栏标签不再是单个 Text。
     expect(find.text('全部'), findsOneWidget);
-    for (final (key, chars) in [('live', ['直', '播']), ('offline', ['未', '开'])]) {
+    for (final (key, chars) in [
+      ('live', ['直', '播']),
+      ('offline', ['未', '开'])
+    ]) {
       final label = find.byKey(ValueKey('sidebar-label-$key'));
       expect(label, findsOneWidget);
       for (final char in chars) {

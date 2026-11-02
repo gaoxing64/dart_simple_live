@@ -14,8 +14,7 @@ import 'package:simple_live_app/modules/follow_user/widgets/follow_sidebar.dart'
 import 'package:simple_live_app/services/follow_service.dart';
 import 'follow_test_harness.dart';
 
-FollowSidebarItem _item(FollowSidebarKind kind, String label, int count, {Site? site}) =>
-    FollowSidebarItem(
+FollowSidebarItem _item(FollowSidebarKind kind, String label, int count, {Site? site}) => FollowSidebarItem(
       // 内置项的 key 只取 kind 名；分组 / 平台用 label 当稳定 id。
       kind: kind,
       id: label,

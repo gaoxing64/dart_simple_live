@@ -179,10 +179,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                                       () => Center(
                                         child: Icon(
                                           Icons.check,
-                                          color: controller.styleColor.value ==
-                                                  e.v
-                                              ? Colors.white
-                                              : Colors.transparent,
+                                          color: controller.styleColor.value == e.v ? Colors.white : Colors.transparent,
                                         ),
                                       ),
                                     ),
@@ -240,8 +237,7 @@ class AppStyleSettingPage extends GetView<AppStyleSettingController> {
                         widget: Tooltip(
                           message: "应用字体",
                           child: IconButton(
-                            icon:
-                                const Icon(Icons.check_circle_outline_outlined),
+                            icon: const Icon(Icons.check_circle_outline_outlined),
                             onPressed: () => controller.changeFontFamily(),
                           ),
                         ),
@@ -262,9 +258,5 @@ extension ColorExt on Color {
     return (x * 255.0).round() & 0xff;
   }
 
-  int get v =>
-      _floatToInt8(a) << 24 |
-      _floatToInt8(r) << 16 |
-      _floatToInt8(g) << 8 |
-      _floatToInt8(b) << 0;
+  int get v => _floatToInt8(a) << 24 | _floatToInt8(r) << 16 | _floatToInt8(g) << 8 | _floatToInt8(b) << 0;
 }

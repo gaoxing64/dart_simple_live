@@ -124,9 +124,7 @@ void invokePlayerAction({
 List<PlayerAction> actionableMenuItems(List<PlayerAction> items) {
   return items
       .where(
-        (item) =>
-            item.id != PlayerActionId.volume &&
-            item.id != PlayerActionId.closeTile,
+        (item) => item.id != PlayerActionId.volume && item.id != PlayerActionId.closeTile,
       )
       .toList();
 }

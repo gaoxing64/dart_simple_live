@@ -229,8 +229,7 @@ Rect lensRectFor({
   required double height,
   required double lift,
 }) {
-  final stretch =
-      (velocity.abs() / _kJellySpeed).clamp(0.0, 1.0) * _kJellyStretch;
+  final stretch = (velocity.abs() / _kJellySpeed).clamp(0.0, 1.0) * _kJellyStretch;
   final growth = _kLensGrowth * 2 * lift;
   final width = (extent + growth) * (1 + stretch);
   final lensHeight = (height + growth) * (1 - stretch / 2);
@@ -243,8 +242,7 @@ Rect lensRectFor({
 }
 
 /// widget 内部用的别名，保持调用处简短。
-double _rubberBand(double overshoot, double limit) =>
-    rubberBandOffset(overshoot, limit);
+double _rubberBand(double overshoot, double limit) => rubberBandOffset(overshoot, limit);
 
 Rect _lensRect({
   required double position,
@@ -252,13 +250,14 @@ Rect _lensRect({
   required double extent,
   required double height,
   required double lift,
-}) => lensRectFor(
-  position: position,
-  velocity: velocity,
-  extent: extent,
-  height: height,
-  lift: lift,
-);
+}) =>
+    lensRectFor(
+      position: position,
+      velocity: velocity,
+      extent: extent,
+      height: height,
+      lift: lift,
+    );
 
 /// 一个「弹簧趋近目标值」的量，目标可以每帧都被手指改写。
 ///
@@ -373,8 +372,7 @@ class _RenderHitSlop extends RenderProxyBox {
     if (size.contains(position)) {
       return super.hitTest(result, position: position);
     }
-    if (size.isEmpty ||
-        !(Offset.zero & size).inflate(_kHitSlop).contains(position)) {
+    if (size.isEmpty || !(Offset.zero & size).inflate(_kHitSlop).contains(position)) {
       return false;
     }
     if (!hitTestChildren(result, position: _onSpine(position))) {
@@ -422,8 +420,8 @@ class _PressTransform extends SingleChildRenderObjectWidget {
 
 class _RenderPressTransform extends RenderProxyBox {
   _RenderPressTransform({required double lift, required Offset pull})
-    : _lift = lift,
-      _pull = pull;
+      : _lift = lift,
+        _pull = pull;
 
   double _lift;
   Offset _pull;
@@ -445,16 +443,16 @@ class _RenderPressTransform extends RenderProxyBox {
   }
 
   Matrix4 get _transform {
-    final swell =
-        1 + _lift * math.min(_kPressGrowth * 2, _kMaxPressGrowth / size.longestSide);
+    final swell = 1 + _lift * math.min(_kPressGrowth * 2, _kMaxPressGrowth / size.longestSide);
     final scaleX = swell * (1 + _pull.dx.abs() / size.width * _kPullStretch);
     final scaleY = swell * (1 + _pull.dy.abs() / size.height * _kPullStretch);
     final center = size.center(Offset.zero);
-    return Matrix4.diagonal3Values(scaleX, scaleY, 1)..setTranslationRaw(
-      center.dx * (1 - scaleX) + _pull.dx,
-      center.dy * (1 - scaleY) + _pull.dy,
-      0,
-    );
+    return Matrix4.diagonal3Values(scaleX, scaleY, 1)
+      ..setTranslationRaw(
+        center.dx * (1 - scaleX) + _pull.dx,
+        center.dy * (1 - scaleY) + _pull.dy,
+        0,
+      );
   }
 
   @override
@@ -589,8 +587,7 @@ class _FloatingBarItem extends StatefulWidget {
   State<_FloatingBarItem> createState() => _FloatingBarItemState();
 }
 
-class _FloatingBarItemState extends State<_FloatingBarItem>
-    with SingleTickerProviderStateMixin {
+class _FloatingBarItemState extends State<_FloatingBarItem> with SingleTickerProviderStateMixin {
   late final Map<Type, Action<Intent>> _actions = {
     ActivateIntent: CallbackAction<ActivateIntent>(
       onInvoke: (_) {
@@ -640,9 +637,8 @@ class _FloatingBarItemState extends State<_FloatingBarItem>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final color = colorScheme.onSurfaceVariant;
-    final icon = widget.selected
-        ? (widget.destination.selectedIcon ?? widget.destination.icon)
-        : widget.destination.icon;
+    final icon =
+        widget.selected ? (widget.destination.selectedIcon ?? widget.destination.icon) : widget.destination.icon;
     final content = _LensTint(
       lens: widget.lens,
       lift: widget.lift,
@@ -688,23 +684,17 @@ class _FloatingBarItemState extends State<_FloatingBarItem>
         onTap: widget.onActivate,
         child: DecoratedBox(
           decoration: ShapeDecoration(
-            color: _focused
-                ? colorScheme.onSurface.withValues(alpha: 0.1)
-                : Colors.transparent,
+            color: _focused ? colorScheme.onSurface.withValues(alpha: 0.1) : Colors.transparent,
             // 聚焦描边只在键盘聚焦时出现，不能走 _dockShape（它没有 copyWith，
             // 也不该为了一个边框复制一份形状）—— 这里按同一半径重建。
             shape: RoundedSuperellipseBorder(
               borderRadius: const BorderRadius.all(
                 Radius.circular(kNavigationDockHeight / 2),
               ),
-              side: _focused
-                  ? BorderSide(color: colorScheme.secondary, width: 2)
-                  : BorderSide.none,
+              side: _focused ? BorderSide(color: colorScheme.secondary, width: 2) : BorderSide.none,
             ),
           ),
-          child: widget.labelOverflows
-              ? Tooltip(message: widget.destination.label, child: content)
-              : content,
+          child: widget.labelOverflows ? Tooltip(message: widget.destination.label, child: content) : content,
         ),
       ),
     );
@@ -766,12 +756,12 @@ class _RenderLensTint extends RenderProxyBox {
     required int index,
     required Color color,
     required TextDirection textDirection,
-  }) : _lens = lens,
-       _lift = lift,
-       _parallax = parallax,
-       _index = index,
-       _color = color,
-       _textDirection = textDirection;
+  })  : _lens = lens,
+        _lift = lift,
+        _parallax = parallax,
+        _index = index,
+        _color = color,
+        _textDirection = textDirection;
 
   final _outside = LayerHandle<ClipPathLayer>();
   final _inside = LayerHandle<ClipPathLayer>();
@@ -900,11 +890,12 @@ class _RenderLensTint extends RenderProxyBox {
       return null;
     }
     final center = size.center(Offset.zero);
-    return Matrix4.diagonal3Values(scale, scale, 1)..setTranslationRaw(
-      center.dx * (1 - scale) + shift,
-      center.dy * (1 - scale),
-      0,
-    );
+    return Matrix4.diagonal3Values(scale, scale, 1)
+      ..setTranslationRaw(
+        center.dx * (1 - scale) + shift,
+        center.dy * (1 - scale),
+        0,
+      );
   }
 
   @override
@@ -994,15 +985,13 @@ class _RenderLensTint extends RenderProxyBox {
       _tint.layer = context.pushColorFilter(
         offset,
         filter,
-        (context, offset) =>
-            _paintMoved(context, offset, motion, _insideMotion),
+        (context, offset) => _paintMoved(context, offset, motion, _insideMotion),
         oldLayer: _tint.layer,
       );
       return;
     }
     _tint.layer = null;
-    final canvas = context.canvas
-      ..saveLayer(lensBounds.shift(offset), Paint()..colorFilter = filter);
+    final canvas = context.canvas..saveLayer(lensBounds.shift(offset), Paint()..colorFilter = filter);
     _paintMoved(context, offset, motion, _insideMotion);
     canvas.restore();
   }
@@ -1030,9 +1019,9 @@ class NavigationDock extends StatefulWidget {
     this.bottomPadding = kNavigationDockBottomPadding,
     this.height = kNavigationDockHeight,
     this.itemExtent = kNavigationDockItemExtent,
-  }) : assert(destinations.length >= 2),
-       assert(selectedIndex >= 0),
-       assert(selectedIndex < destinations.length);
+  })  : assert(destinations.length >= 2),
+        assert(selectedIndex >= 0),
+        assert(selectedIndex < destinations.length);
 
   final List<NavigationDockDestination> destinations;
   final int selectedIndex;
@@ -1051,8 +1040,7 @@ class NavigationDock extends StatefulWidget {
   State<NavigationDock> createState() => _NavigationDockState();
 }
 
-class _NavigationDockState extends State<NavigationDock>
-    with TickerProviderStateMixin {
+class _NavigationDockState extends State<NavigationDock> with TickerProviderStateMixin {
   late final _Spring _lens = _Spring(this, widget.selectedIndex.toDouble());
   late final _Spring _lift = _Spring(this, 0);
   late final _Spring _hover = _Spring(this, 0);
@@ -1183,8 +1171,7 @@ class _NavigationDockState extends State<NavigationDock>
       return;
     }
     _pointer = event.pointer;
-    _tracker = VelocityTracker.withKind(event.kind)
-      ..addPosition(event.timeStamp, event.localPosition);
+    _tracker = VelocityTracker.withKind(event.kind)..addPosition(event.timeStamp, event.localPosition);
     _hoverShow.springTo(0, _kFadeSpring);
     _hoverAt.value = null;
     _swell.springTo(1, _kLiftSpring);
@@ -1240,8 +1227,7 @@ class _NavigationDockState extends State<NavigationDock>
       _dragging = true;
     }
     final size = context.size!;
-    final overshoot =
-        localPosition.dx - localPosition.dx.clamp(0.0, size.width);
+    final overshoot = localPosition.dx - localPosition.dx.clamp(0.0, size.width);
     _stretch.springTo(
       _rubberBand(overshoot, size.shortestSide * _kPullLimit),
       _kTrackSpring,
@@ -1262,19 +1248,10 @@ class _NavigationDockState extends State<NavigationDock>
     if (!_dragging || pressed == null) {
       return;
     }
-    final extent =
-        (context.size!.width - _kBarPadding * 2) / widget.destinations.length;
+    final extent = (context.size!.width - _kBarPadding * 2) / widget.destinations.length;
     final direction = Directionality.of(context) == TextDirection.ltr ? 1 : -1;
-    final lead =
-        velocityX /
-        extent *
-        direction *
-        _kFlingProjection.inMicroseconds /
-        Duration.microsecondsPerSecond;
-    final index = (_lens.target + lead)
-        .round()
-        .clamp(pressed - 1, pressed + 1)
-        .clamp(0, _lastIndex);
+    final lead = velocityX / extent * direction * _kFlingProjection.inMicroseconds / Duration.microsecondsPerSecond;
+    final index = (_lens.target + lead).round().clamp(pressed - 1, pressed + 1).clamp(0, _lastIndex);
     if (index != pressed) {
       HapticFeedback.selectionClick();
       _pressedIndex = index;
@@ -1304,13 +1281,12 @@ class _NavigationDockState extends State<NavigationDock>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final labelStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-      fontSize: _kLabelSize,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    );
+          fontSize: _kLabelSize,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0,
+        );
     final labels = [
-      for (final destination in widget.destinations)
-        _measureLabel(context, destination.label, labelStyle),
+      for (final destination in widget.destinations) _measureLabel(context, destination.label, labelStyle),
     ];
     final widest = labels.fold(
       0.0,
@@ -1348,15 +1324,11 @@ class _NavigationDockState extends State<NavigationDock>
               child: RepaintBoundary(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final extent =
-                        constraints.maxWidth /
-                        math.max(1, widget.destinations.length);
+                    final extent = constraints.maxWidth / math.max(1, widget.destinations.length);
                     final room = extent - _kLabelInset * 2;
                     // 放得下就正常字号；放不下先缩，但不低于 _kMinLabelSize，
                     // 再放不下就交给 Tooltip。
-                    final labelScale = widest <= room
-                        ? 1.0
-                        : math.max(room / widest, _kMinLabelSize / _kLabelSize);
+                    final labelScale = widest <= room ? 1.0 : math.max(room / widest, _kMinLabelSize / _kLabelSize);
                     return Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -1382,8 +1354,7 @@ class _NavigationDockState extends State<NavigationDock>
                           ),
                         Row(
                           children: [
-                            for (final (index, destination)
-                                in widget.destinations.indexed)
+                            for (final (index, destination) in widget.destinations.indexed)
                               Expanded(
                                 child: _FloatingBarItem(
                                   destination: destination,
@@ -1396,10 +1367,8 @@ class _NavigationDockState extends State<NavigationDock>
                                     fontSize: _kLabelSize * labelScale,
                                   ),
                                   labelHeight: lineHeight,
-                                  labelOverflows:
-                                      labels[index].width * labelScale > room,
-                                  onActivate: () =>
-                                      widget.onDestinationSelected(index),
+                                  labelOverflows: labels[index].width * labelScale > room,
+                                  onActivate: () => widget.onDestinationSelected(index),
                                 ),
                               ),
                           ],

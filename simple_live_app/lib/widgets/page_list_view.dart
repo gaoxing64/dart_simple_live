@@ -48,8 +48,7 @@ class PageListView extends StatelessWidget {
       // MediaQuery.padding.bottom；调用方传入显式 padding 会覆盖它，
       // 这里把这段额外高度补回 padding.bottom，避免最后一项被悬浮底栏遮住。
       var mediaQuery = MediaQuery.of(context);
-      var floatingBarInset =
-          mediaQuery.padding.bottom - mediaQuery.viewPadding.bottom;
+      var floatingBarInset = mediaQuery.padding.bottom - mediaQuery.viewPadding.bottom;
       if (floatingBarInset > 0) {
         effectivePadding = effectivePadding.copyWith(
           bottom: effectivePadding.bottom + floatingBarInset,
@@ -92,19 +91,16 @@ class PageListView extends StatelessWidget {
                   if (showRetry && index == listLength + skeletonCount) {
                     return LoadMoreFailedBar(pageController: pageController);
                   }
-                  if (showEnd &&
-                      index == listLength + skeletonCount + (showRetry ? 1 : 0)) {
+                  if (showEnd && index == listLength + skeletonCount + (showRetry ? 1 : 0)) {
                     return const PageEndBar();
                   }
                   // 加载下一页时在底部补几行骨架，提示用户正在加载
                   if (index >= listLength) {
-                    return skeletonBuilder?.call(context, index) ??
-                        const ListRowSkeleton();
+                    return skeletonBuilder?.call(context, index) ?? const ListRowSkeleton();
                   }
                   return itemBuilder(context, index);
                 },
-                separatorBuilder:
-                    separatorBuilder ?? (context, i) => const SizedBox(),
+                separatorBuilder: separatorBuilder ?? (context, i) => const SizedBox(),
               ),
             ),
           ),

@@ -76,9 +76,7 @@ Future<IndexedController> pumpIndexed(
   WidgetTester tester, {
   bool landscape = false,
 }) async {
-  tester.view.physicalSize = landscape
-      ? const Size(800 * 3, 400 * 3)
-      : const Size(400 * 3, 800 * 3);
+  tester.view.physicalSize = landscape ? const Size(800 * 3, 400 * 3) : const Size(400 * 3, 800 * 3);
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
 
@@ -111,8 +109,7 @@ Future<IndexedController> pumpIndexed(
 /// 取 `first` 是因为 TabBarView 内部也用了 PageView，而 `find.byType` 按深度
 /// 优先前序返回，外层的视口一定排在前面。视口自身的盒子不随翻页移动，所以这个
 /// 读数只会被跳切过渡影响 —— 正好用来区分「视口在动」和「页内内容在动」。
-Offset viewportOrigin(WidgetTester tester) =>
-    tester.getTopLeft(find.byType(PageView).first);
+Offset viewportOrigin(WidgetTester tester) => tester.getTopLeft(find.byType(PageView).first);
 
 double viewportLeft(WidgetTester tester) => viewportOrigin(tester).dx;
 

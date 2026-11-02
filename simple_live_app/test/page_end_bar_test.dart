@@ -296,18 +296,15 @@ void main() {
   });
 
   testWidgets('未开启 showEndBar 的列表不显示结束条', (tester) async {
-    final controller =
-        await pumpGrid(tester, EndsAtFirstPageController(), showEndBar: false);
+    final controller = await pumpGrid(tester, EndsAtFirstPageController(), showEndBar: false);
 
     expect(controller.showEndBar, isTrue, reason: '控制器状态仍然是"到底"');
-    expect(find.text('没有更多了'), findsNothing,
-        reason: '关注页 / 历史记录是一次性全量数据，结束条没有意义');
+    expect(find.text('没有更多了'), findsNothing, reason: '关注页 / 历史记录是一次性全量数据，结束条没有意义');
   });
 
   testWidgets('加载中不显示结束条，加载完成后恢复', (tester) async {
     // 第 2 页会挂起，好让"加载中"这一帧稳定可观察
-    final controller =
-        await pumpGrid(tester, EndsAtFirstPageController(gateCount: 2));
+    final controller = await pumpGrid(tester, EndsAtFirstPageController(gateCount: 2));
 
     await wheelToBottom(tester);
     expect(controller.showEndBar, isTrue);

@@ -82,9 +82,7 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                     title: "系统媒体控制",
                     // 移动端这一项就是媒体通知本身：既是控制入口，也是 Android
                     // 前台服务的载体；切后台是否继续出声由下一项决定。
-                    subtitle: Platform.isWindows ||
-                            Platform.isLinux ||
-                            Platform.isMacOS
+                    subtitle: Platform.isWindows || Platform.isLinux || Platform.isMacOS
                         ? "在系统媒体控件中显示播放控制与封面"
                         : controller.playerAutoPause.value
                             ? "在${Platform.isIOS ? "锁定屏幕与控制中心" : "通知栏与锁屏"}显示播放控制"

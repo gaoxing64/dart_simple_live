@@ -10,8 +10,7 @@ import 'package:simple_live_app/modules/search/search_controller.dart';
 import 'package:simple_live_app/modules/search/search_list_view.dart';
 
 class _SearchModeSelector extends StatelessWidget {
-  static const BorderRadius _kTriggerRadius =
-      BorderRadius.all(Radius.circular(20));
+  static const BorderRadius _kTriggerRadius = BorderRadius.all(Radius.circular(20));
   static const List<int> _modeValues = [0, 1];
   static const List<String> _modeLabels = ["房间", "主播"];
 
@@ -84,8 +83,7 @@ class SearchPage extends GetView<AppSearchController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final aggregateEnabled =
-          AppSettingsController.instance.aggregateSearchEnabled.value;
+      final aggregateEnabled = AppSettingsController.instance.aggregateSearchEnabled.value;
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,

@@ -54,12 +54,8 @@ Future<void> pumpGrid(
 }
 
 ScrollPosition gridPosition(WidgetTester tester) {
-  return tester
-      .stateList<ScrollableState>(find.byType(Scrollable))
-      .map((state) => state.position)
-      .firstWhere(
-        (position) =>
-            position.axis == Axis.vertical && position.maxScrollExtent > 0,
+  return tester.stateList<ScrollableState>(find.byType(Scrollable)).map((state) => state.position).firstWhere(
+        (position) => position.axis == Axis.vertical && position.maxScrollExtent > 0,
       );
 }
 
@@ -141,14 +137,10 @@ void main() {
     // 滚到接近底部触发加载
     var guard = 0;
     while (guard < 20) {
-      final position = tester
-          .stateList<ScrollableState>(find.byType(Scrollable))
-          .map((state) => state.position)
-          .firstWhere(
-            (position) =>
-                position.axis == Axis.vertical &&
-                position.maxScrollExtent > 0,
-          );
+      final position =
+          tester.stateList<ScrollableState>(find.byType(Scrollable)).map((state) => state.position).firstWhere(
+                (position) => position.axis == Axis.vertical && position.maxScrollExtent > 0,
+              );
       if (position.maxScrollExtent - position.pixels <= 150) break;
       final center = tester.getCenter(find.byType(ListView).first);
       final gesture = await tester.startGesture(center);
@@ -219,10 +211,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final rects = find
-        .byType(LiveRoomCardSkeleton)
-        .evaluate()
-        .map((e) {
+    final rects = find.byType(LiveRoomCardSkeleton).evaluate().map((e) {
       final box = e.renderObject as RenderBox;
       return box.localToGlobal(Offset.zero) & box.size;
     }).toList();
@@ -249,12 +238,8 @@ void main() {
     expect(xs.first, greaterThanOrEqualTo(400), reason: '第 1、2 列已被真实内容占用');
 
     // 第二行骨架应是完整的一排
-    final secondRowY = rects
-        .map((r) => r.top)
-        .where((y) => (y - firstRowY).abs() >= 1)
-        .reduce((a, b) => a < b ? a : b);
-    final secondRow =
-        rects.where((r) => (r.top - secondRowY).abs() < 1).toList();
+    final secondRowY = rects.map((r) => r.top).where((y) => (y - firstRowY).abs() >= 1).reduce((a, b) => a < b ? a : b);
+    final secondRow = rects.where((r) => (r.top - secondRowY).abs() < 1).toList();
     expect(secondRow.length, 6, reason: '第二排骨架应完整');
     controller.loadding = false;
     controller.loadingMore.value = false;

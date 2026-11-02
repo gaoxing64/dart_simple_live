@@ -8,8 +8,7 @@ import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/search/aggregate_search_controller.dart';
 import 'package:simple_live_app/modules/search/search_list_controller.dart';
 
-class AppSearchController extends GetxController
-    with GetSingleTickerProviderStateMixin {
+class AppSearchController extends GetxController with GetSingleTickerProviderStateMixin {
   /// 打开搜索页时默认选中的平台 id。
   ///
   /// 由首页把「当前正在看的平台」带过来（见 `HomeController.toSearch`），这样在
@@ -57,12 +56,9 @@ class AppSearchController extends GetxController
       //   return;
       // }
 
-      var controller =
-          Get.find<SearchListController>(tag: Sites.supportSites[index].id);
+      var controller = Get.find<SearchListController>(tag: Sites.supportSites[index].id);
 
-      if (controller.list.isEmpty &&
-          !controller.pageEmpty.value &&
-          controller.keyword.isNotEmpty) {
+      if (controller.list.isEmpty && !controller.pageEmpty.value && controller.keyword.isNotEmpty) {
         controller.refreshData();
       }
     });
@@ -146,8 +142,7 @@ class AppSearchController extends GetxController
       //}
     }
     // if (Sites.supportSites[index].id != Constant.kDouyin) {
-    var controller =
-        Get.find<SearchListController>(tag: Sites.supportSites[index].id);
+    var controller = Get.find<SearchListController>(tag: Sites.supportSites[index].id);
     controller.refreshData();
     //}
   }

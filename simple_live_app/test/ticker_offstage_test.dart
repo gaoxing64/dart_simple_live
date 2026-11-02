@@ -24,8 +24,7 @@ class _RepeatingAnimation extends StatefulWidget {
   State<_RepeatingAnimation> createState() => _RepeatingAnimationState();
 }
 
-class _RepeatingAnimationState extends State<_RepeatingAnimation>
-    with SingleTickerProviderStateMixin {
+class _RepeatingAnimationState extends State<_RepeatingAnimation> with SingleTickerProviderStateMixin {
   late final AnimationController controller;
 
   @override
@@ -54,8 +53,7 @@ class _TickerModeProbe extends StatelessWidget {
   const _TickerModeProbe();
 
   @override
-  Widget build(BuildContext context) =>
-      Text('${TickerMode.valuesOf(context).enabled}');
+  Widget build(BuildContext context) => Text('${TickerMode.valuesOf(context).enabled}');
 }
 
 Widget _host({required bool offstage, required Widget child}) {
@@ -99,10 +97,7 @@ void main() {
       expect(tester.binding.hasScheduledFrame, isTrue);
 
       // 收尾：停掉动画，避免测试结束时仍有活跃 ticker。
-      tester
-          .state<_RepeatingAnimationState>(find.byType(_RepeatingAnimation))
-          .controller
-          .stop();
+      tester.state<_RepeatingAnimationState>(find.byType(_RepeatingAnimation)).controller.stop();
       await tester.pump();
     });
 

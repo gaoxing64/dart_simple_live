@@ -58,8 +58,7 @@ class MultiPlaySession {
   /// 轻量浮层，不如直接给完整 OSD。
   bool get isActive => enabled.value && slots.length > 1;
 
-  LiveRoomController get focused =>
-      slots[focusedSlot.value.clamp(0, slots.length - 1)];
+  LiveRoomController get focused => slots[focusedSlot.value.clamp(0, slots.length - 1)];
 
   /// 关注列表点选：多画面模式下占一个空格，否则维持原来的「替换当前房间」。
   void onFollowItemTap(Site site, String roomId) {
@@ -235,7 +234,7 @@ class MultiPlaySession {
   }
 
   /// 摘掉一路副格（主格不可摘：它是路由绑定的那个 controller，销掉它等于把整页拆了；
-/// 要换内容请走 [onFollowItemTap] 的单画面分支，或格子上的 ▾ 换台）。
+  /// 要换内容请走 [onFollowItemTap] 的单画面分支，或格子上的 ▾ 换台）。
   void removeTile(LiveRoomController tile) {
     final index = slots.indexOf(tile);
     if (index <= 0) {
@@ -355,8 +354,7 @@ class MultiPlaySession {
   void setTileDanmakuVisible(bool value) {
     AppSettingsController.instance.setMultiPlayTileDanmaku(value);
     for (final tile in slots) {
-      tile.showDanmakuState.value =
-          value && AppSettingsController.instance.danmuEnable.value;
+      tile.showDanmakuState.value = value && AppSettingsController.instance.danmuEnable.value;
     }
   }
 
@@ -389,8 +387,7 @@ class MultiPlaySession {
     // 退出多开，单画面会一直没弹幕。只在「确实退出过多种布局」时写，单画面
     // 关闭页面这条路径不该顺手动它（保持单画面逐位不变）。
     if (enabled.value) {
-      page.showDanmakuState.value =
-          AppSettingsController.instance.danmuEnable.value;
+      page.showDanmakuState.value = AppSettingsController.instance.danmuEnable.value;
     }
   }
 

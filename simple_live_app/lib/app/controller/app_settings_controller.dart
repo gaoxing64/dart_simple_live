@@ -157,8 +157,7 @@ class AppSettingsController extends GetxController {
     // 默认开：五个系统（TV 除外）都有媒体面，它在桌面端就是最小化后唯一的播放入口；
     // 移动端它还承载前台服务那条通知——它决定「通知栏/锁屏有没有控制」，
     // 而「切后台是否继续出声」另由「进入后台自动暂停」决定。
-    final storedMediaControls =
-        LocalStorageService.instance.getValue(LocalStorageService.kMediaControls, true);
+    final storedMediaControls = LocalStorageService.instance.getValue(LocalStorageService.kMediaControls, true);
     // WebDAV 恢复也走这个入口（值改了但不经过 setter）：补发一次事件，让直播间
     // 立刻重挂/摘除，而不是停在旧状态直到下一次播放事件。
     if (mediaControls.value != storedMediaControls) {
@@ -775,8 +774,7 @@ class AppSettingsController extends GetxController {
   /// 读它要在 `Obx` 里（会订阅 [shortcutOverrides] 与 [shortcutCustom]）。播放器
   /// 挂件是在按键发生时现读，不建订阅——它不需要「键位变了就重建」，只需要
   /// 「按下的那一刻按最新配置解释」。
-  Map<PlayerShortcut, ShortcutBinding?> get effectiveShortcuts =>
-      resolveEffectiveShortcuts(
+  Map<PlayerShortcut, ShortcutBinding?> get effectiveShortcuts => resolveEffectiveShortcuts(
         shortcutCustom.value ? shortcutOverrides.value : const {},
       );
 

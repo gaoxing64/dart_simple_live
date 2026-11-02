@@ -63,10 +63,7 @@ void main() {
 
       expect(
         tester.getSize(find.byType(NavigationDock)).height,
-        kNavigationDockShadowRoom +
-            kNavigationDockHeight +
-            kNavigationDockBottomPadding +
-            24,
+        kNavigationDockShadowRoom + kNavigationDockHeight + kNavigationDockBottomPadding + 24,
       );
     });
 

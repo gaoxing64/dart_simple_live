@@ -149,9 +149,7 @@ class PageGridView extends StatelessWidget {
     if (skeletonBuilder != null) {
       return skeletonBuilder!(context, index);
     }
-    return itemExtent >= _cardSkeletonMinExtent
-        ? const LiveRoomCardSkeleton()
-        : const ListRowSkeleton();
+    return itemExtent >= _cardSkeletonMinExtent ? const LiveRoomCardSkeleton() : const ListRowSkeleton();
   }
 
   /// 默认行高，对应 [LiveRoomCard] 的自然高度。
@@ -185,9 +183,7 @@ class PageGridView extends StatelessWidget {
       left: gridPadding.left,
       right: gridPadding.right,
     );
-    final visible = sections!
-        .where((s) => s is! GridSection || s.itemCount > 0)
-        .toList();
+    final visible = sections!.where((s) => s is! GridSection || s.itemCount > 0).toList();
     for (var i = 0; i < visible.length; i++) {
       final section = visible[i];
       final isFirst = i == 0;
@@ -314,10 +310,8 @@ class PageGridView extends StatelessWidget {
                             }
                             return itemBuilder!(context, index);
                           },
-                          childCount: pageController.list.length +
-                              (pageController.loadingMore.value
-                                  ? crossAxisCount * 2
-                                  : 0),
+                          childCount:
+                              pageController.list.length + (pageController.loadingMore.value ? crossAxisCount * 2 : 0),
                         ),
                       ),
                     )
@@ -332,8 +326,7 @@ class PageGridView extends StatelessWidget {
                     SliverPadding(
                       padding: EdgeInsets.only(bottom: gridPadding.bottom),
                       sliver: SliverToBoxAdapter(
-                        child:
-                            LoadMoreFailedBar(pageController: pageController),
+                        child: LoadMoreFailedBar(pageController: pageController),
                       ),
                     ),
                   // 已到底提示条。与上面的重试条互斥（一个要 canLoadMore 为

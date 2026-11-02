@@ -1,4 +1,4 @@
-﻿import 'package:hive_ce/hive.dart';
+import 'package:hive_ce/hive.dart';
 part 'follow_snapshot.g.dart';
 
 @HiveType(typeId: 5)
@@ -13,19 +13,15 @@ class FollowSnapshot {
   @HiveField(1, defaultValue: [])
   List<FollowSnapshotItem> followSnapshotItems;
 
-  factory FollowSnapshot.fromJson(Map<String, dynamic> json) =>
-      FollowSnapshot(
+  factory FollowSnapshot.fromJson(Map<String, dynamic> json) => FollowSnapshot(
         expireAt: json['expireAt'] ?? 0,
-        followSnapshotItems: (json['followSnapshotItems'] as List<dynamic>?)
-                ?.map((e) => FollowSnapshotItem.fromJson(e))
-                .toList() ??
-            [],
+        followSnapshotItems:
+            (json['followSnapshotItems'] as List<dynamic>?)?.map((e) => FollowSnapshotItem.fromJson(e)).toList() ?? [],
       );
 
   Map<String, dynamic> toJson() => {
         'expireAt': expireAt,
-        'followSnapshotItems':
-            followSnapshotItems.map((e) => e.toJson()).toList(),
+        'followSnapshotItems': followSnapshotItems.map((e) => e.toJson()).toList(),
       };
 
   Map<String, dynamic> toMap() => toJson();
@@ -62,8 +58,7 @@ class FollowSnapshotItem {
   // 画面去配**这一次**直播，画面是对不上的，比不显示更糟。
   // 老快照里残留的第 5 个字段会被 Hive 忽略，不需要做迁移。
 
-  factory FollowSnapshotItem.fromJson(Map<String, dynamic> json) =>
-      FollowSnapshotItem(
+  factory FollowSnapshotItem.fromJson(Map<String, dynamic> json) => FollowSnapshotItem(
         id: json['id'],
         liveStatus: json['liveStatus'] ?? 0,
         cover: json['cover'] ?? '',

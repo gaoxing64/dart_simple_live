@@ -54,8 +54,7 @@ class WindowService extends GetxService implements WindowListener {
   bool get pipAspectLocked => _pipActiveAspect != null;
 
   /// 是否应当施加锁定（设置项开启）。
-  bool get pipAspectWanted =>
-      AppSettingsController.instance.pipLockAspect.value;
+  bool get pipAspectWanted => AppSettingsController.instance.pipLockAspect.value;
 
   /// Flutter Windows runner 的窗口类名，用于定位窗口句柄
   /// （窗口标题可能被修改，按类名查找更可靠）
@@ -176,9 +175,7 @@ class WindowService extends GetxService implements WindowListener {
   /// （与 MaterialApp 的解析规则一致），因此不会出现读取到主题动画中间态
   /// 而反复写入的问题。
   void _applyTitleBarTheme() {
-    final platformDark = WidgetsBinding
-            .instance.platformDispatcher.platformBrightness ==
-        Brightness.dark;
+    final platformDark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
     _setImmersiveDarkMode(
       AppSettingsController.instance.shouldUseDarkTheme(
         platformDark: platformDark,
@@ -201,18 +198,16 @@ class WindowService extends GetxService implements WindowListener {
     value.value = dark ? 1 : 0;
     try {
       // 20 对应 Windows 10 20H1 及以上，失败时回退到旧版本的 19
-      var result = win32.DwmSetWindowAttribute(
-          hwnd, win32.DWMWA_USE_IMMERSIVE_DARK_MODE, value, sizeOf<Int32>());
+      var result = win32.DwmSetWindowAttribute(hwnd, win32.DWMWA_USE_IMMERSIVE_DARK_MODE, value, sizeOf<Int32>());
       if (result != 0) {
-        result = win32.DwmSetWindowAttribute(
-            hwnd, _dwmwaUseImmersiveDarkModeLegacy, value, sizeOf<Int32>());
+        result = win32.DwmSetWindowAttribute(hwnd, _dwmwaUseImmersiveDarkModeLegacy, value, sizeOf<Int32>());
       }
       if (result != 0) {
         return;
       }
       // 触发非客户区重绘，让标题栏立即刷新
-      win32.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
-          win32.SWP_NOMOVE | win32.SWP_NOSIZE | win32.SWP_NOZORDER | win32.SWP_FRAMECHANGED);
+      win32.SetWindowPos(
+          hwnd, 0, 0, 0, 0, 0, win32.SWP_NOMOVE | win32.SWP_NOSIZE | win32.SWP_NOZORDER | win32.SWP_FRAMECHANGED);
     } finally {
       calloc.free(value);
     }
@@ -222,11 +217,9 @@ class WindowService extends GetxService implements WindowListener {
   static bool? _readImmersiveDarkMode(int hwnd) {
     final Pointer<Int32> value = calloc<Int32>();
     try {
-      var result = win32.DwmGetWindowAttribute(
-          hwnd, win32.DWMWA_USE_IMMERSIVE_DARK_MODE, value, sizeOf<Int32>());
+      var result = win32.DwmGetWindowAttribute(hwnd, win32.DWMWA_USE_IMMERSIVE_DARK_MODE, value, sizeOf<Int32>());
       if (result != 0) {
-        result = win32.DwmGetWindowAttribute(
-            hwnd, _dwmwaUseImmersiveDarkModeLegacy, value, sizeOf<Int32>());
+        result = win32.DwmGetWindowAttribute(hwnd, _dwmwaUseImmersiveDarkModeLegacy, value, sizeOf<Int32>());
       }
       if (result != 0) {
         return null;
@@ -245,14 +238,10 @@ class WindowService extends GetxService implements WindowListener {
 
   Future<void> resize() async {
     // 初始分辨率默认 1920×1080
-    final width = LocalStorageService.instance
-        .getValue(LocalStorageService.kWindowWidth, 1280.0);
-    final height = LocalStorageService.instance
-        .getValue(LocalStorageService.kWindowHeight, 720.0);
-    final x = LocalStorageService.instance
-        .getValue(LocalStorageService.kWindowX, 320.0);
-    final y = LocalStorageService.instance
-        .getValue(LocalStorageService.kWindowY, 180.0);
+    final width = LocalStorageService.instance.getValue(LocalStorageService.kWindowWidth, 1280.0);
+    final height = LocalStorageService.instance.getValue(LocalStorageService.kWindowHeight, 720.0);
+    final x = LocalStorageService.instance.getValue(LocalStorageService.kWindowX, 320.0);
+    final y = LocalStorageService.instance.getValue(LocalStorageService.kWindowY, 180.0);
     windowManager.setBounds(Rect.fromLTWH(x, y, width, height));
   }
 
@@ -549,8 +538,7 @@ class WindowService extends GetxService implements WindowListener {
   Future<void> reapplyPipAspect(double aspect) async {
     if (!pipAspectLocked) return;
     if (!PipAspectCalculator.isUsableAspect(aspect)) return;
-    if ((_pipActiveAspect != null) &&
-        ((_pipActiveAspect! - aspect).abs() < 1e-9)) {
+    if ((_pipActiveAspect != null) && ((_pipActiveAspect! - aspect).abs() < 1e-9)) {
       // 比例未实质变化：保持当前外框宽，避免换清晰度时窗口尺寸突跳
       return;
     }
@@ -708,8 +696,7 @@ class WindowService extends GetxService implements WindowListener {
 
   /// 施加原生纵横比约束（Windows 外框比例 R / Linux 客户区比例 A）。
   /// macOS 方案 B 不调原生，故此处空实现。
-  Future<void> _applyAspectRatioConstraint(double aspect,
-      {double outerWidth = 0}) async {
+  Future<void> _applyAspectRatioConstraint(double aspect, {double outerWidth = 0}) async {
     try {
       if (Platform.isWindows) {
         final r = PipAspectCalculator.outerAspectRatioForOuterWidth(

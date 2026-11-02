@@ -44,8 +44,7 @@ class _FakeLocalStorage extends LocalStorageService {
   Future init() async {}
 
   @override
-  T getValue<T>(dynamic key, T defaultValue) =>
-      _mem.containsKey(key) ? _mem[key] as T : defaultValue;
+  T getValue<T>(dynamic key, T defaultValue) => _mem.containsKey(key) ? _mem[key] as T : defaultValue;
 
   @override
   Future setValue<T>(dynamic key, T value) async {
@@ -84,8 +83,7 @@ void main() {
   tearDown(() {
     Get.reset();
   });
-  testWidgets('鼠标从按钮移到浮层滑条上：滑条不消失，拖得动这一路',
-      (tester) async {
+  testWidgets('鼠标从按钮移到浮层滑条上：滑条不消失，拖得动这一路', (tester) async {
     final tile = _FakeTile();
     // 起点放在中间偏左，往右拖才是「变大」（系数上限 1.0）
     tile.volumeFactor.value = 0.4;
@@ -327,8 +325,7 @@ void main() {
     await tester.tap(find.byType(IconButton));
     await tester.pump();
     expect(page.muted, isFalse, reason: '系数那一份也要被还原');
-    expect(settings.playerVolume.value, greaterThan(0.0),
-        reason: '总音量那一份也要被还原');
+    expect(settings.playerVolume.value, greaterThan(0.0), reason: '总音量那一份也要被还原');
     expect(find.byIcon(Icons.volume_up), findsOneWidget);
   });
 
@@ -378,9 +375,7 @@ void main() {
     await tester.pump();
 
     // 读数应当与这一路当时的实际系数一致。
-    final shown = tester
-        .widget<Text>(find.textContaining('%'))
-        .data!;
+    final shown = tester.widget<Text>(find.textContaining('%')).data!;
     expect(
       shown.trim(),
       '${(tile.volumeFactor.value * 100).round()}%',
@@ -407,11 +402,7 @@ void main() {
     expect(tooltip.richMessage, isNotNull);
     // 键帽是 WidgetSpan：toPlainText() 只给 U+FFFC，读不到它的文字，必须把
     // WidgetSpan 的 child 单独 pump 出来断言（同 player_tooltip_test 的 _keycapText）。
-    final keycap = (tooltip.richMessage! as TextSpan)
-        .children!
-        .whereType<WidgetSpan>()
-        .single
-        .child;
+    final keycap = (tooltip.richMessage! as TextSpan).children!.whereType<WidgetSpan>().single.child;
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: keycap)));
     expect(find.text('M'), findsOneWidget);
   });

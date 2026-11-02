@@ -134,10 +134,7 @@ class MultiPlayTileSlot {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MultiPlayTileSlot &&
-          other.index == index &&
-          other.row == row &&
-          other.col == col;
+      other is MultiPlayTileSlot && other.index == index && other.row == row && other.col == col;
 
   @override
   int get hashCode => Object.hash(index, row, col);
@@ -226,6 +223,7 @@ MultiPlayLayoutSpec resolveMultiPlayLayout({
   required double maxHeight,
   required int roomCount,
   required double tileAspect,
+
   /// 只用于「折叠时先保留谁」；不参与位置计算。
   int focusedIndex = 0,
   double spacing = kMultiPlaySpacing,
@@ -329,9 +327,8 @@ List<int>? _pickArrangement({
   required double tileAspect,
 }) {
   final candidates = _kArrangementCandidates[count]!;
-  final windowAspect = (maxWidth > 0 && maxHeight > 0 && maxWidth.isFinite && maxHeight.isFinite)
-      ? maxWidth / maxHeight
-      : tileAspect;
+  final windowAspect =
+      (maxWidth > 0 && maxHeight > 0 && maxWidth.isFinite && maxHeight.isFinite) ? maxWidth / maxHeight : tileAspect;
   final sorted = candidates.toList()
     ..sort((a, b) {
       final da = _shapeDistance(a, tileAspect, windowAspect);

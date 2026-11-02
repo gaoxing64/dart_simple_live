@@ -14,13 +14,13 @@ import 'package:simple_live_app/models/shortcut_binding.dart';
 
 /// 默认表下按一个键（无修饰键）命中哪个动作。
 PlayerShortcut? _defaultHit(LogicalKeyboardKey key) => matchShortcut(
-  resolveEffectiveShortcuts({}),
-  key,
-  shift: false,
-  ctrl: false,
-  alt: false,
-  meta: false,
-);
+      resolveEffectiveShortcuts({}),
+      key,
+      shift: false,
+      ctrl: false,
+      alt: false,
+      meta: false,
+    );
 
 void main() {
   group('默认键位逐键对应（参考 PiliPlus 的播放器手势集）', () {
@@ -28,8 +28,7 @@ void main() {
       expect(_defaultHit(LogicalKeyboardKey.space), PlayerShortcut.playPause);
       expect(_defaultHit(LogicalKeyboardKey.keyF), PlayerShortcut.fullscreen);
       expect(_defaultHit(LogicalKeyboardKey.escape), PlayerShortcut.exitPlayer);
-      expect(
-          _defaultHit(LogicalKeyboardKey.keyD), PlayerShortcut.danmakuToggle);
+      expect(_defaultHit(LogicalKeyboardKey.keyD), PlayerShortcut.danmakuToggle);
       expect(_defaultHit(LogicalKeyboardKey.keyP), PlayerShortcut.smallWindow);
       expect(_defaultHit(LogicalKeyboardKey.keyM), PlayerShortcut.mute);
       expect(_defaultHit(LogicalKeyboardKey.keyS), PlayerShortcut.screenshot);
@@ -39,27 +38,19 @@ void main() {
 
     test('直播适配：方向键切线路与音量，Q/G 开面板', () {
       expect(_defaultHit(LogicalKeyboardKey.arrowUp), PlayerShortcut.volumeUp);
-      expect(
-          _defaultHit(LogicalKeyboardKey.arrowDown), PlayerShortcut.volumeDown);
-      expect(
-          _defaultHit(LogicalKeyboardKey.arrowLeft), PlayerShortcut.prevLine);
-      expect(_defaultHit(LogicalKeyboardKey.arrowRight),
-          PlayerShortcut.nextLine);
+      expect(_defaultHit(LogicalKeyboardKey.arrowDown), PlayerShortcut.volumeDown);
+      expect(_defaultHit(LogicalKeyboardKey.arrowLeft), PlayerShortcut.prevLine);
+      expect(_defaultHit(LogicalKeyboardKey.arrowRight), PlayerShortcut.nextLine);
       expect(_defaultHit(LogicalKeyboardKey.keyQ), PlayerShortcut.quality);
       expect(_defaultHit(LogicalKeyboardKey.keyG), PlayerShortcut.pick);
     });
 
     test('Enter 显隐控制条，1-4 切多开聚焦格', () {
-      expect(
-          _defaultHit(LogicalKeyboardKey.enter), PlayerShortcut.toggleControls);
-      expect(_defaultHit(LogicalKeyboardKey.digit1),
-          PlayerShortcut.focusSlot1);
-      expect(_defaultHit(LogicalKeyboardKey.digit2),
-          PlayerShortcut.focusSlot2);
-      expect(_defaultHit(LogicalKeyboardKey.digit3),
-          PlayerShortcut.focusSlot3);
-      expect(_defaultHit(LogicalKeyboardKey.digit4),
-          PlayerShortcut.focusSlot4);
+      expect(_defaultHit(LogicalKeyboardKey.enter), PlayerShortcut.toggleControls);
+      expect(_defaultHit(LogicalKeyboardKey.digit1), PlayerShortcut.focusSlot1);
+      expect(_defaultHit(LogicalKeyboardKey.digit2), PlayerShortcut.focusSlot2);
+      expect(_defaultHit(LogicalKeyboardKey.digit3), PlayerShortcut.focusSlot3);
+      expect(_defaultHit(LogicalKeyboardKey.digit4), PlayerShortcut.focusSlot4);
     });
   });
 
@@ -158,13 +149,13 @@ void main() {
         ),
       });
       PlayerShortcut? hit(LogicalKeyboardKey k) => matchShortcut(
-        rebound,
-        k,
-        shift: false,
-        ctrl: false,
-        alt: false,
-        meta: false,
-      );
+            rebound,
+            k,
+            shift: false,
+            ctrl: false,
+            alt: false,
+            meta: false,
+          );
       expect(hit(LogicalKeyboardKey.keyK), PlayerShortcut.playPause);
       expect(hit(LogicalKeyboardKey.space), isNull);
     });
@@ -174,13 +165,11 @@ void main() {
         PlayerShortcut.exitPlayer: null,
       });
       expect(
-        matchShortcut(withUnset, LogicalKeyboardKey.escape,
-            shift: false, ctrl: false, alt: false, meta: false),
+        matchShortcut(withUnset, LogicalKeyboardKey.escape, shift: false, ctrl: false, alt: false, meta: false),
         isNull,
       );
       expect(
-        matchShortcut(withUnset, LogicalKeyboardKey.space,
-            shift: false, ctrl: false, alt: false, meta: false),
+        matchShortcut(withUnset, LogicalKeyboardKey.space, shift: false, ctrl: false, alt: false, meta: false),
         PlayerShortcut.playPause,
       );
     });

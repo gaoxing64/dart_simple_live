@@ -46,8 +46,7 @@ void main() {
   });
 
   /// 平台 id 在 tab 列表里的下标（与生产代码同一个列表、同一个顺序）。
-  int indexOf(String siteId) =>
-      Sites.supportSites.indexWhere((e) => e.id == siteId);
+  int indexOf(String siteId) => Sites.supportSites.indexWhere((e) => e.id == siteId);
 
   group('首页 tab -> 平台 id 的映射', () {
     test('取到的就是该下标的平台', () {

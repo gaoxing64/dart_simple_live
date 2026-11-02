@@ -158,9 +158,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
             ),
             actions: buildAppbarActions(context),
           ),
-          body: orientation == Orientation.portrait
-              ? buildPhoneUI(context)
-              : buildTabletUI(context),
+          body: orientation == Orientation.portrait ? buildPhoneUI(context) : buildTabletUI(context),
         );
       },
     );
@@ -616,9 +614,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     return PlayerShortcuts(
       controller: controller,
       child: Obx(
-        () => controller.multiPlay.isActive
-            ? buildMultiPlayGrid(controller)
-            : buildMediaPlayer(),
+        () => controller.multiPlay.isActive ? buildMultiPlayGrid(controller) : buildMediaPlayer(),
       ),
     );
   }
@@ -965,11 +961,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                               // InheritedWidget 依赖，主题切换后这里不会重建，气泡文字
                               // 会一直停在旧配色上（浅色底 + 白字）。
                               color:
-                                  Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white
-                                      : AppColors.black333,
-                              fontSize: AppSettingsController
-                                  .instance.chatTextSize.value,
+                                  Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.black333,
+                              fontSize: AppSettingsController.instance.chatTextSize.value,
                             ),
                           ),
                           ..._repeatCountSpans(message),
@@ -996,9 +989,7 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                     context,
                     message,
                     TextStyle(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : AppColors.black333,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.black333,
                       fontSize: AppSettingsController.instance.chatTextSize.value,
                     ),
                   ),
@@ -1074,10 +1065,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       context,
       editableTextState,
       {
-        '屏蔽用户': (s) =>
-            room.addCurBlockAccount(stripEmoticonPlaceholder(s)),
-        '屏蔽关键词': (s) =>
-            room.addCurBlockWord(stripEmoticonPlaceholder(s)),
+        '屏蔽用户': (s) => room.addCurBlockAccount(stripEmoticonPlaceholder(s)),
+        '屏蔽关键词': (s) => room.addCurBlockWord(stripEmoticonPlaceholder(s)),
       },
     );
   }
@@ -1776,8 +1765,7 @@ class _ChatTabs extends StatefulWidget {
   State<_ChatTabs> createState() => _ChatTabsState();
 }
 
-class _ChatTabsState extends State<_ChatTabs>
-    with SingleTickerProviderStateMixin {
+class _ChatTabsState extends State<_ChatTabs> with SingleTickerProviderStateMixin {
   late final TabController _controller;
 
   /// 观察共享页码的 worker。
@@ -1919,8 +1907,7 @@ class _ChatMessageEntrance extends StatefulWidget {
   State<_ChatMessageEntrance> createState() => _ChatMessageEntranceState();
 }
 
-class _ChatMessageEntranceState extends State<_ChatMessageEntrance>
-    with SingleTickerProviderStateMixin {
+class _ChatMessageEntranceState extends State<_ChatMessageEntrance> with SingleTickerProviderStateMixin {
   static const Duration _kDuration = Duration(milliseconds: 200);
 
   AnimationController? _controller;
@@ -1937,8 +1924,7 @@ class _ChatMessageEntranceState extends State<_ChatMessageEntrance>
     if (!claimed || !AppSettingsController.instance.chatAnimationEnable.value) {
       return;
     }
-    final controller = AnimationController(vsync: this, duration: _kDuration)
-      ..forward();
+    final controller = AnimationController(vsync: this, duration: _kDuration)..forward();
     _controller = controller;
     _opacity = controller.drive(CurveTween(curve: Curves.easeOutCubic));
     _offset = controller.drive(

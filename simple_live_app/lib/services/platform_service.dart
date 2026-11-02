@@ -28,7 +28,6 @@ class PlatformService extends GetxService {
     }
   }
 
-
   // 更新指定的站点账户数据
   Future<void> updateAccount(Account ac) async {
     accountList.assignAll(
@@ -165,7 +164,7 @@ class PlatformService extends GetxService {
   }
 
   @override
-  void onClose(){
+  void onClose() {
     subscription?.cancel();
   }
 }

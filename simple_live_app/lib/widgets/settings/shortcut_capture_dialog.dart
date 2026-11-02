@@ -15,12 +15,7 @@
 /// 代价是这几个按钮不能用 Tab 走到——录制框本来就是一个「按下键即完成」的界面。
 library;
 
-import 'package:flutter/services.dart'
-    show
-        KeyDownEvent,
-        KeyEvent,
-        KeyRepeatEvent,
-        HardwareKeyboard;
+import 'package:flutter/services.dart' show KeyDownEvent, KeyEvent, KeyRepeatEvent, HardwareKeyboard;
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/app_style.dart';
@@ -30,24 +25,24 @@ import 'package:simple_live_app/models/shortcut_binding.dart';
 /// 无法把「取消」与「不设置」混成同一个 null——那两者语义相反（一个不改，一个禁用）。
 class ShortcutEditResult {
   const ShortcutEditResult.saved(ShortcutBinding b)
-    : binding = b,
-      toDefault = false,
-      unset = false;
+      : binding = b,
+        toDefault = false,
+        unset = false;
 
   const ShortcutEditResult.toDefault()
-    : binding = null,
-      toDefault = true,
-      unset = false;
+      : binding = null,
+        toDefault = true,
+        unset = false;
 
   const ShortcutEditResult.unset()
-    : binding = null,
-      toDefault = false,
-      unset = true;
+      : binding = null,
+        toDefault = false,
+        unset = true;
 
   const ShortcutEditResult.cancelled()
-    : binding = null,
-      toDefault = false,
-      unset = false;
+      : binding = null,
+        toDefault = false,
+        unset = false;
 
   /// 只有 [ShortcutEditResult.saved] 才非空。
   final ShortcutBinding? binding;
@@ -163,10 +158,7 @@ class _ShortcutCaptureDialogState extends State<_ShortcutCaptureDialog> {
       hk.isAltPressed,
       hk.isMetaPressed,
     );
-    if (next.$1 == _shift &&
-        next.$2 == _ctrl &&
-        next.$3 == _alt &&
-        next.$4 == _meta) {
+    if (next.$1 == _shift && next.$2 == _ctrl && next.$3 == _alt && next.$4 == _meta) {
       return;
     }
     setState(() {
@@ -179,10 +171,10 @@ class _ShortcutCaptureDialogState extends State<_ShortcutCaptureDialog> {
 
   /// 按钮的公共包装：不吃键盘焦点，见文件头的 ⚠️。
   Widget _button(Widget child) => Focus(
-    canRequestFocus: false,
-    skipTraversal: true,
-    child: child,
-  );
+        canRequestFocus: false,
+        skipTraversal: true,
+        child: child,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -242,8 +234,8 @@ class _ShortcutCaptureDialogState extends State<_ShortcutCaptureDialog> {
                     onPressed: _alreadyDefault
                         ? null
                         : () => Get.back(
-                            result: const ShortcutEditResult.toDefault(),
-                          ),
+                              result: const ShortcutEditResult.toDefault(),
+                            ),
                     icon: const Icon(Icons.restore, size: 16),
                     label: const Text('恢复默认'),
                   ),
@@ -254,8 +246,8 @@ class _ShortcutCaptureDialogState extends State<_ShortcutCaptureDialog> {
                     onPressed: _recorded == null
                         ? null
                         : () => Get.back(
-                            result: const ShortcutEditResult.unset(),
-                          ),
+                              result: const ShortcutEditResult.unset(),
+                            ),
                     icon: const Icon(Icons.close, size: 16),
                     label: const Text('不设置'),
                   ),
@@ -267,8 +259,7 @@ class _ShortcutCaptureDialogState extends State<_ShortcutCaptureDialog> {
         actions: [
           _button(
             TextButton(
-              onPressed: () =>
-                  Get.back(result: const ShortcutEditResult.cancelled()),
+              onPressed: () => Get.back(result: const ShortcutEditResult.cancelled()),
               child: const Text('取消'),
             ),
           ),

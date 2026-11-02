@@ -25,8 +25,7 @@ class FixedController extends BasePageController<String> {
 }
 
 void main() {
-  Widget host(BasePageController<String> controller,
-      {required List<GridSection> sections}) {
+  Widget host(BasePageController<String> controller, {required List<GridSection> sections}) {
     return GetMaterialApp(
       home: Scaffold(
         body: PageGridView(
@@ -112,8 +111,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('正在直播'), findsOneWidget);
-    expect(find.text('未开播'), findsNothing,
-        reason: '条目为 0 的段要连同段头一起跳过');
+    expect(find.text('未开播'), findsNothing, reason: '条目为 0 的段要连同段头一起跳过');
   });
 
   test('itemBuilder 与 sections 都不传时构造期就拒绝', () {

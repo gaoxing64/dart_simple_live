@@ -68,8 +68,7 @@ void main() {
 
       expect(controller.themeModeIndex, 0);
       expect(
-        LocalStorageService.instance
-            .getValue(LocalStorageService.kThemeMode, -1),
+        LocalStorageService.instance.getValue(LocalStorageService.kThemeMode, -1),
         0,
       );
 
@@ -78,15 +77,13 @@ void main() {
 
       expect(controller.themeModeIndex, 2);
       expect(
-        LocalStorageService.instance
-            .getValue(LocalStorageService.kThemeMode, -1),
+        LocalStorageService.instance.getValue(LocalStorageService.kThemeMode, -1),
         2,
       );
     });
 
     test('onInit 读到越界值时回退到跟随系统', () async {
-      await LocalStorageService.instance
-          .setValue(LocalStorageService.kThemeMode, 42);
+      await LocalStorageService.instance.setValue(LocalStorageService.kThemeMode, 42);
 
       final controller = Get.put(AppSettingsController());
 
@@ -118,8 +115,7 @@ void main() {
               controller.themeModeIndex,
             ),
             home: Builder(
-              builder: (context) =>
-                  Text('brightness=${Theme.of(context).brightness.name}'),
+              builder: (context) => Text('brightness=${Theme.of(context).brightness.name}'),
             ),
           ),
         ),

@@ -53,13 +53,10 @@ void main() {
     Get.put<WindowService>(_FakeWindowService());
     calls = <_Call>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-            const MethodChannel('window_manager'), (call) async {
+        .setMockMethodCallHandler(const MethodChannel('window_manager'), (call) async {
       calls.add((
         method: call.method,
-        args: call.arguments is Map
-            ? Map<Object?, Object?>.from(call.arguments as Map)
-            : <Object?, Object?>{},
+        args: call.arguments is Map ? Map<Object?, Object?>.from(call.arguments as Map) : <Object?, Object?>{},
       ));
       switch (call.method) {
         // 窗口态几何：1280×720 @ (320,180)。进全屏时采的就是这份。
@@ -85,9 +82,7 @@ void main() {
 
   /// 只保留**会改窗口摆放**的调用；读取类（getBounds/isMaximized）与
   /// setTitleBarStyle（只带 SWP_NOSIZE）都不算。
-  List<_Call> placements() => calls
-      .where((c) => c.method == 'setBounds' || c.method == 'setFullScreen')
-      .toList();
+  List<_Call> placements() => calls.where((c) => c.method == 'setBounds' || c.method == 'setFullScreen').toList();
 
   test('退出全屏：还原点排在 setFullScreen(false) 之后落，OS 回弹顶不掉它', () async {
     final room = _FakeRoom();
@@ -114,8 +109,7 @@ void main() {
 
     // 3) 还原之后不得再有任何 setFullScreen —— 那正是 bug 的形状。
     expect(
-      seq.sublist(seq.indexOf(sizeRestore) + 1)
-          .where((c) => c.method == 'setFullScreen'),
+      seq.sublist(seq.indexOf(sizeRestore) + 1).where((c) => c.method == 'setFullScreen'),
       isEmpty,
       reason: '还原点之后又落了一次退全屏，窗口会被摆回「进全屏那一刻」的外框；'
           '从小窗进的全屏那一刻外框就是小窗矩形，于是退出后停在几百 px 的窗口态。',

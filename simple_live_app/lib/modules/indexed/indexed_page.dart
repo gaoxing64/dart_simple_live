@@ -121,8 +121,7 @@ class IndexedPage extends GetView<IndexedController> {
       // 同步
       return Obx(
         () => BarCollapse(
-          factor:
-              1 - controller.barOffset.value / kMaxBarOffset,
+          factor: 1 - controller.barOffset.value / kMaxBarOffset,
           fromTop: false,
           child: nav,
         ),
@@ -145,8 +144,7 @@ class IndexedPage extends GetView<IndexedController> {
       builder: (context, inner) {
         var delta = 0.0;
         final pageController = controller.pageController;
-        if (pageController.hasClients &&
-            pageController.position.haveDimensions) {
+        if (pageController.hasClients && pageController.position.haveDimensions) {
           final page = pageController.page;
           if (page != null) {
             delta = (page - pageIndex).clamp(-1.0, 1.0);
@@ -323,9 +321,7 @@ class _JumpTransitionState extends State<_JumpTransition> with SingleTickerProvi
   void _onJump(int _) {
     final sign = widget.controller.jumpDirection.value;
     final magnitude = IndexedPage._parallaxFraction;
-    _travel = widget.axis == Axis.vertical
-        ? Offset(0, sign * magnitude)
-        : Offset(sign * magnitude, 0);
+    _travel = widget.axis == Axis.vertical ? Offset(0, sign * magnitude) : Offset(sign * magnitude, 0);
     // forward 会同步把进度打回 0 并通知，下面那层随即用新起点重建
     _animation.forward(from: 0);
   }
