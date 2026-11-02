@@ -16,7 +16,6 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/modules/follow_user/follow_user_controller.dart';
-import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
 import 'package:simple_live_app/widgets/collapsible_top_bar_scaffold.dart';
 import 'follow_test_harness.dart';
 

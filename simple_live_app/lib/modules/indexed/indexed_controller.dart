@@ -84,9 +84,11 @@ class IndexedController extends GetxController
   static const Duration jumpTransitionDuration = Duration(milliseconds: 220);
 
   /// 顶/底栏收起：同步模式的累计偏移（0=展开，[kMaxBarOffset]=收起）
+  @override
   final barOffset = 0.0.obs;
 
   /// 顶/底栏收起：即时模式的顶/底栏显隐
+  @override
   final showTopBar = true.obs;
   final showBottomBar = true.obs;
 
