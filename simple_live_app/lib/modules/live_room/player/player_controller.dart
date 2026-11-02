@@ -1516,7 +1516,7 @@ class PlayerController extends BaseController
     showMPVOSDStats.value = false;
     AppSettingsController.instance.osdBackend.value = "app";
     Log.d('Stats 覆盖层：内核未编入 Lua，mpv 内置 OSD 不可用，已回退应用自绘');
-    SmartDialog.showToast('mpv 内置 OSD 不可用：内核未编入 Lua，已改用应用自绘');
+    SmartDialog.showToast('mpv 内置统计面板不可用：内核未编入 Lua，已改用应用自绘');
     if (showStats) {
       showOSDStats.value = true;
     }
@@ -1553,7 +1553,14 @@ class PlayerController extends BaseController
       title: "播放信息",
       child: ListView(
         children: [
-          Obx(() => SettingsSwitch(title: "OSD 显示", value: osdStatsVisible, onChanged: (value) => toggleOSDStats())),
+          Obx(
+            () => SettingsSwitch(
+              title: "统计信息",
+              subtitle: "在画面上叠加显示帧率、丢帧、缓存等播放统计",
+              value: osdStatsVisible,
+              onChanged: (value) => toggleOSDStats(),
+            ),
+          ),
           ListTile(
             title: const Text("Resolution"),
             subtitle: Text('${player.state.width}x${player.state.height}'),

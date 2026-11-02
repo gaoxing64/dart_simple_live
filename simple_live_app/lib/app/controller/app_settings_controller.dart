@@ -136,11 +136,6 @@ class AppSettingsController extends GetxController {
         .clamp(kLiveRoomSidebarMinWidth, kLiveRoomSidebarMaxWidth)
         .toDouble();
 
-    roomSidebarCollapsed.value = LocalStorageService.instance.getValue(
-      LocalStorageService.kLiveRoomSidebarCollapsed,
-      false,
-    );
-
     qualityLevel.value = LocalStorageService.instance.getValue(LocalStorageService.kQualityLevel, 2);
     qualityLevelCellular.value = LocalStorageService.instance.getValue(LocalStorageService.kQualityLevelCellular, 1);
 
@@ -269,11 +264,6 @@ class AppSettingsController extends GetxController {
 
     videoDoubleBuffering.value = LocalStorageService.instance.getValue(
       LocalStorageService.kVideoDoubleBuffering,
-      false,
-    );
-
-    multiPlayEnable.value = LocalStorageService.instance.getValue(
-      LocalStorageService.kMultiPlayEnable,
       false,
     );
 
@@ -527,17 +517,6 @@ class AppSettingsController extends GetxController {
         clamped,
       );
     }
-  }
-
-  /// 直播间横屏聊天侧栏是否收起。收起后视频区占满整行。
-  var roomSidebarCollapsed = false.obs;
-
-  void setRoomSidebarCollapsed(bool e) {
-    roomSidebarCollapsed.value = e;
-    LocalStorageService.instance.setValue(
-      LocalStorageService.kLiveRoomSidebarCollapsed,
-      e,
-    );
   }
 
   var danmuSize = 16.0.obs;
@@ -923,17 +902,6 @@ class AppSettingsController extends GetxController {
     }
     // 通知当前播放器重设 volume-max，不必重进直播间
     EventBus.instance.emit(EventBus.kPlayerMaxVolumeChanged, e);
-  }
-
-  /// 多开播放：记住上次的布局模式（单画面 / 多画面）。
-  ///
-  /// 注意它只表示「上次是不是多画面」；真正的多开是否成立还要看已经加了几路
-  /// （见 `MultiPlaySession.isActive`）。
-  var multiPlayEnable = false.obs;
-
-  void setMultiPlayEnable(bool e) {
-    multiPlayEnable.value = e;
-    LocalStorageService.instance.setValue(LocalStorageService.kMultiPlayEnable, e);
   }
 
   /// 多开播放：非聚焦格的音量比例，乘在总音量上。

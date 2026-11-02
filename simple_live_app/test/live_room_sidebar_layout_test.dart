@@ -6,6 +6,7 @@ import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_page.dart';
 import 'package:simple_live_app/models/layout/sidebar_layout.dart';
+import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_controller.dart';
 import 'package:simple_live_core/simple_live_core.dart';
 
 class _FakeSettings extends AppSettingsController {
@@ -30,6 +31,28 @@ class _FakeRoom extends LiveRoomController {
 
   @override
   void onClose() {}
+}
+
+/// 只验证横屏骨架的几何：把视频区与侧栏换成两块纯色，
+/// 避开 `PlayerShortcuts` / 真播放器这些单测环境跑不动的东西。
+/// 带 key 是为了在满屏别的 `ColoredBox` 里精确取到这两块。
+class _LayoutProbePage extends LiveRoomPage {
+  const _LayoutProbePage();
+
+  static const videoKey = ValueKey('probe-video');
+  static const chatKey = ValueKey('probe-chat');
+
+  @override
+  Widget buildLiveRoomVideoArea() => const ColoredBox(
+        key: videoKey,
+        color: Color(0xFF00FF00),
+      );
+
+  @override
+  Widget buildChatColumn(BuildContext context) => const ColoredBox(
+        key: chatKey,
+        color: Color(0xFF0000FF),
+      );
 }
 
 void main() {
@@ -118,6 +141,44 @@ void main() {
         identical(before, after),
         isTrue,
         reason: '切回聊天不应重新挂载整棵消息列表',
+      );
+    });
+  });
+
+  group('横屏骨架几何', () {
+    setUp(() {
+      Get.testMode = true;
+      Get.put<AppSettingsController>(_FakeSettings());
+      // 底栏文字样式会读字体设置（`playerToolbarTextStyle`），
+      // 缺它整条底栏都建不起来，几何也就无从量起。
+      Get.put<AppStyleSettingController>(AppStyleSettingController());
+    });
+
+    tearDown(Get.reset);
+
+    /// 侧栏左缘必须与视频区右缘相接：中间不能夹一条空带。
+    ///
+    /// 回归的是「分隔条占 12px 布局宽度、竖线画在中间」那版：视频右边到竖线、
+    /// 竖线到侧栏各空 6px，侧栏看起来向左溢出了半条分隔条。
+    testWidgets('侧栏紧贴视频区右缘，交界处没有空带', (tester) async {
+      Get.put<LiveRoomController>(_FakeRoom());
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => const _LayoutProbePage().buildTabletUI(context),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final video = tester.getRect(find.byKey(_LayoutProbePage.videoKey));
+      final chat = tester.getRect(find.byKey(_LayoutProbePage.chatKey));
+      expect(
+        chat.left,
+        video.right,
+        reason: '侧栏左缘应等于视频区右缘，中间不留空带',
       );
     });
   });

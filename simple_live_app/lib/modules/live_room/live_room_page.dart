@@ -41,7 +41,7 @@ import 'package:simple_live_core/simple_live_core.dart';
 class LiveRoomPage extends GetView<LiveRoomController> {
   const LiveRoomPage({super.key});
 
-  /// 底栏按钮（含「多开播放」胶囊）的文字样式。
+  /// 底栏按钮的文字样式。
   ///
   /// 与桌面播放条带／全屏顶栏共用 `player_action_bar.dart` 里那一份来源：
   /// 这个 getter 原先是本文件的私有实现，跨不到播放器那边，于是条带与页面各写一份、
@@ -245,30 +245,49 @@ class LiveRoomPage extends GetView<LiveRoomController> {
   }
 
   /// 横屏骨架：左视频、右聊天栏。侧栏宽度可拖拽（约束见 [sidebar_layout]），
-  /// 收起后视频占满整行，底栏右段随之并回左段。
+  /// 布局形态与 DEV 分支一致：侧栏始终显示，底栏是一条跨整窗的单行。
+  ///
+  /// 分隔条**不占布局宽度**：它浮在视频与侧栏的交界线上（Stack 叠层），
+  /// 竖线正好落在交界处。以前它作为 Row 的第三个孩子占 12px，竖线画在这 12px
+  /// 的中间——于是视频右边到竖线、竖线到侧栏各空出 6px，两段都跟侧栏同色，
+  /// 看起来就是聊天面板白白向左边溢出、没有贴着分隔线。
   Widget buildTabletUI(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return Obx(() {
           final settings = AppSettingsController.instance;
-          final collapsed = settings.roomSidebarCollapsed.value;
-          // 分隔条也占宽度，先从可用宽里扣掉，视频区的 320 下限才是真的。
-          final sidebarWidth = collapsed
-              ? 0.0
-              : resolveLiveRoomSidebarWidth(
-                  desired: settings.roomSidebarWidth.value,
-                  availableWidth: constraints.maxWidth - kLiveRoomSidebarHandleWidth,
-                );
+          // 分隔条已改成叠层，可用宽不必再扣掉它，视频区的 320 下限才是真的。
+          final sidebarWidth = resolveLiveRoomSidebarWidth(
+            desired: settings.roomSidebarWidth.value,
+            availableWidth: constraints.maxWidth,
+          );
           return Column(
             children: [
               Expanded(
-                child: Row(
+                child: Stack(
+                  // 展开而不是默认的 loose：Row 要拿到整块高度，否则 Stack
+                  // 会按 Row 的内容高度收缩，视频区/侧栏下方留出一条空带。
+                  fit: StackFit.expand,
                   children: [
-                    Expanded(
-                      child: buildLiveRoomVideoArea(),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: buildLiveRoomVideoArea(),
+                        ),
+                        SizedBox(
+                          width: sidebarWidth,
+                          child: buildChatColumn(context),
+                        ),
+                      ],
                     ),
-                    if (!collapsed) ...[
-                      _SidebarResizeHandle(
+                    // 热区横跨交界线（左右各半），竖线正好压在交界上；
+                    // 侧栏内容从交界线开始，中间不再夹一段空带。
+                    Positioned(
+                      top: 0,
+                      bottom: 0,
+                      right: sidebarWidth - kLiveRoomSidebarHandleWidth / 2,
+                      width: kLiveRoomSidebarHandleWidth,
+                      child: _SidebarResizeHandle(
                         width: sidebarWidth,
                         onWidthChanged: (width) {
                           // 拖动期间只改内存值：每个像素写一次 Hive 既没必要也卡。
@@ -284,19 +303,11 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                           }
                         },
                       ),
-                      SizedBox(
-                        width: sidebarWidth,
-                        child: buildChatColumn(context),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-              buildTabletBottomBar(
-                context,
-                sidebarWidth: sidebarWidth,
-                collapsed: collapsed,
-              ),
+              buildTabletBottomBar(context),
             ],
           );
         });
@@ -304,14 +315,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     );
   }
 
-  /// 横屏底栏。左段对齐视频区、右段对齐侧栏——分隔条也算进右段宽度，
-  /// 两行才会在同一处切段。侧栏收起后右段没有可对齐的对象，动作直接并进整行。
-  Widget buildTabletBottomBar(
-    BuildContext context, {
-    required double sidebarWidth,
-    required bool collapsed,
-  }) {
-    final rightActions = _buildTabletRightActions(iconOnly: collapsed);
+  /// 横屏底栏：`刷新／关注 → 余量 → 分享／浏览器打开`，与 DEV 分支同一条整行。
+  Widget buildTabletBottomBar(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -327,98 +332,42 @@ class LiveRoomPage extends GetView<LiveRoomController> {
       ),
       child: Row(
         children: [
-          // 与上面一行同宽地切成两段：左段对齐视频区、右段对齐侧栏。
-          // 「多开播放」与「收起侧栏」要贴着视频区右边距，只能这么放——原来那条
-          // 单行跨整窗，它的最右端其实已经落到侧栏下面，跟视频区脱钩了。
-          Expanded(
-            child: Row(
-              children: [
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    textStyle: _toolbarTextStyle,
-                  ),
-                  onPressed: () => room.refreshRoom(),
-                  icon: const Icon(Remix.refresh_line),
-                  label: const Text("刷新"),
-                ),
-                Obx(
-                  () => room.followed.value
-                      ? TextButton.icon(
-                          style: TextButton.styleFrom(
-                            textStyle: _toolbarTextStyle,
-                          ),
-                          onPressed: () => room.removeFollowUser(),
-                          icon: const Icon(Remix.heart_fill),
-                          label: const Text("取消关注"),
-                        )
-                      : TextButton.icon(
-                          style: TextButton.styleFrom(
-                            textStyle: _toolbarTextStyle,
-                          ),
-                          onPressed: () => room.followUser(),
-                          icon: const Icon(Remix.heart_line),
-                          label: const Text("关注"),
-                        ),
-                ),
-                const Expanded(child: Center()),
-                _buildSidebarToggle(collapsed: collapsed),
-                const SizedBox(width: 4),
-                // 横屏侧栏底栏（桌面）与竖屏底栏（移动端）各有一份入口，
-                // 两处都要有：横屏不是只有桌面能用。
-                _buildMultiPlayToggle(
-                  context,
-                  iconOnly: !AppSettingsController.isDesktop,
-                ),
-                if (collapsed) ...[
-                  const SizedBox(width: 12),
-                  ...rightActions,
-                ],
-                const SizedBox(width: 12),
-              ],
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              textStyle: _toolbarTextStyle,
             ),
+            onPressed: () => room.refreshRoom(),
+            icon: const Icon(Remix.refresh_line),
+            label: const Text("刷新"),
           ),
-          if (!collapsed)
-            SizedBox(
-              width: sidebarWidth + kLiveRoomSidebarHandleWidth,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: rightActions,
-              ),
-            ),
+          Obx(
+            () => room.followed.value
+                ? TextButton.icon(
+                    style: TextButton.styleFrom(
+                      textStyle: _toolbarTextStyle,
+                    ),
+                    onPressed: () => room.removeFollowUser(),
+                    icon: const Icon(Remix.heart_fill),
+                    label: const Text("取消关注"),
+                  )
+                : TextButton.icon(
+                    style: TextButton.styleFrom(
+                      textStyle: _toolbarTextStyle,
+                    ),
+                    onPressed: () => room.followUser(),
+                    icon: const Icon(Remix.heart_line),
+                    label: const Text("关注"),
+                  ),
+          ),
+          const Expanded(child: Center()),
+          ..._buildTabletRightActions(),
         ],
       ),
     );
   }
 
-  /// 底栏右段（对齐侧栏）的两个动作：分享 + 浏览器打开/复制链接。
-  ///
-  /// 收起侧栏后这组动作并入左段继续显示——底栏只是切段方式变了，
-  /// 不该因此少两个入口。此时用图标按钮：整行还要容纳视频区那一串动作，
-  /// 文字版在窄窗里会挤爆。
-  List<Widget> _buildTabletRightActions({bool iconOnly = false}) {
-    if (iconOnly) {
-      return [
-        IconButton(
-          tooltip: "分享",
-          visualDensity: VisualDensity.compact,
-          onPressed: () => room.share(),
-          icon: const Icon(Remix.share_line, size: 20),
-        ),
-        (Platform.isWindows || Platform.isLinux)
-            ? IconButton(
-                tooltip: "浏览器打开",
-                visualDensity: VisualDensity.compact,
-                onPressed: () => room.visitWebLive(),
-                icon: const Icon(Remix.chrome_fill, size: 20),
-              )
-            : IconButton(
-                tooltip: "复制链接",
-                visualDensity: VisualDensity.compact,
-                onPressed: () => room.copyUrl(),
-                icon: const Icon(Remix.file_copy_line, size: 20),
-              ),
-      ];
-    }
+  /// 底栏右侧的两个动作：分享 + 浏览器打开/复制链接。
+  List<Widget> _buildTabletRightActions() {
     return [
       TextButton.icon(
         style: TextButton.styleFrom(
@@ -446,60 +395,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               label: const Text("复制链接"),
             ),
     ];
-  }
-
-  Widget _buildSidebarToggle({required bool collapsed}) {
-    return IconButton(
-      tooltip: collapsed ? "展开聊天侧栏" : "收起聊天侧栏",
-      visualDensity: VisualDensity.compact,
-      onPressed: () {
-        final settings = AppSettingsController.instance;
-        settings.setRoomSidebarCollapsed(!collapsed);
-        if (controller.multiPlay.isActive) {
-          // 收起后 chrome 宽归零、展开后按新宽度重算，别让下限停在旧值。
-          controller.multiPlay.refreshWindowFloor();
-        }
-      },
-      icon: Icon(
-        collapsed ? Remix.sidebar_unfold_line : Remix.sidebar_fold_line,
-        size: 20,
-      ),
-    );
-  }
-
-  /// 多开播放开关：胶囊。关闭态是普通文字按钮，开启态用强调色填充 + 带上 `3/4` 路数。
-  ///
-  /// 横屏挂在底栏**视频区那一段**的右端（紧邻侧栏收起按钮，一起贴着视频区右边距）；
-  /// 竖屏/窄窗挂在底栏最右端。
-  /// 不额外占一行——多一条 40px 的窄条是不必要的。
-  /// [iconOnly] 给移动端用：竖屏底栏那三个 `Expanded`（关注/刷新/分享）已经把 360px
-  /// 占满，文字胶囊挤不进去，只留图标。
-  Widget _buildMultiPlayToggle(
-    BuildContext context, {
-    bool iconOnly = false,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    return Obx(() {
-      final session = controller.multiPlay;
-      final on = session.enabled.value;
-      final counting = on && session.slots.length > 1;
-      return TextButton.icon(
-        style: TextButton.styleFrom(
-          textStyle: _toolbarTextStyle,
-          shape: const StadiumBorder(),
-          padding: EdgeInsets.symmetric(horizontal: iconOnly ? 8 : 14),
-          foregroundColor: on ? scheme.onPrimary : null,
-          backgroundColor: on ? scheme.primary : null,
-        ),
-        onPressed: () => session.setEnabled(!on),
-        icon: const Icon(Remix.play_circle_line, size: 18),
-        label: iconOnly
-            ? const SizedBox.shrink()
-            : Text(
-                counting ? "多开播放 · ${session.slots.length}/$kMultiPlayMaxTiles" : "多开播放",
-              ),
-      );
-    });
   }
 
   /// 侧栏跟随提示：聊天/SC 跟着聚焦格走这件事在界面上本来完全无形，
@@ -806,15 +701,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               label: const Text("分享"),
             ),
           ),
-          // 竖屏/窄窗没有视频区下方那条，开关就挂在这条底栏的最右端；
-          // 移动端 2026-10-04 起也显示（多开适配到手机），但只给图标——三个
-          // `Expanded` 已经把 360px 占满。
-          const SizedBox(width: 8),
-          _buildMultiPlayToggle(
-            context,
-            iconOnly: !AppSettingsController.isDesktop,
-          ),
-          const SizedBox(width: 12),
         ],
       ),
     );
@@ -1111,8 +997,8 @@ class LiveRoomPage extends GetView<LiveRoomController> {
         // 多开参数旋钮。原来整段被「仅桌面」的平台门挡着（当时移动端根本没有多开），
         // 移动端适配后放开：里面几个旋钮（默认路数、压低开关与比例、各格弹幕、
         // 每路缓存）都是纯设置项，没有一个是窗口/平台相关的。
-        // 「多画面」开关在视频区底栏（那里才是它管的行为），这里只留参数旋钮；
-        // 没开多画面时整段不渲染（也不加解释性提示）。每个旋钮各自包 Obx —— 它们的
+        // 多开现在是「动作」而不是模式（从关注面板加路），底栏不再有总开关；
+        // 没在多开时整段不渲染（也不加解释性提示）。每个旋钮各自包 Obx —— 它们的
         // 取值要能随点击当场刷新，只订阅 enabled 是不够的。
         Obx(() {
           if (!controller.multiPlay.enabled.value) {
@@ -1252,20 +1138,6 @@ class LiveRoomPage extends GetView<LiveRoomController> {
                       ),
                     ],
                   ),
-                ),
-              ),
-              AppStyle.divider,
-              Obx(
-                () => SettingsNumber(
-                  title: "最大音量",
-                  value: AppSettingsController.instance.playerMaxVolume.value,
-                  min: 100,
-                  max: 130,
-                  step: 10,
-                  unit: "%",
-                  onChanged: (e) {
-                    AppSettingsController.instance.setPlayerMaxVolume(e);
-                  },
                 ),
               ),
             ],
@@ -1418,8 +1290,9 @@ class LiveRoomPage extends GetView<LiveRoomController> {
 
   /// 关注面板的一行：**点行＝看这一路，行尾那颗＝加入多开**。
   ///
-  /// 这条拆分是「多开从模式改成动作」的核心：加入不再依赖底栏那颗模式开关
-  /// （[MultiPlaySession.enabled]），而是行尾一颗 icon 直接表达的意图。
+  /// 这条拆分是「多开从模式改成动作」的核心：加入不再依赖一个全局模式开关
+  /// （[MultiPlaySession.enabled] 现在由路数自动维护），而是行尾一颗 icon
+  /// 直接表达的意图。
   ///
   /// 行点击的语义随之变干净了：**永远是「看这一路」**——
   /// 已在多开里就切焦点过去，不在就替换当前房间。原来行点击要靠 `enabled` 分流

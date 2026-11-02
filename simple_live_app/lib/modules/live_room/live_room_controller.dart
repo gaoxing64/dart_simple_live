@@ -1197,8 +1197,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
     }
   }
 
-  static String _qualityNames(Iterable<LivePlayQuality> list) =>
-      list.map((item) => item.quality).join('|');
+  static String _qualityNames(Iterable<LivePlayQuality> list) => list.map((item) => item.quality).join('|');
 
   Future<int> getQualityLevel() async {
     var qualityLevel = AppSettingsController.instance.qualityLevel.value;

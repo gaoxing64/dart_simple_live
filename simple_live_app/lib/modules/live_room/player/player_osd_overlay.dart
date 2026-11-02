@@ -628,14 +628,14 @@ class _PlayerOsdOverlayState extends State<PlayerOsdOverlay> {
                   style: TextStyle(fontFamily: _fontFamily),
                   child: metrics.minimal
                       ? OsdHeader(
-                          title: 'Video Information',
+                          title: 'Stats',
                           onClose: widget.onClose,
                         )
                       : Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             OsdHeader(
-                              title: 'Video Information',
+                              title: 'Stats',
                               onClose: widget.onClose,
                             ),
                             SizedBox(height: metrics.contentGap),

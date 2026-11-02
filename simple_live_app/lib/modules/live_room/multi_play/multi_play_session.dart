@@ -13,7 +13,6 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/models/layout/multi_play_layout.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_selection.dart';
 import 'package:simple_live_app/models/layout/pip_aspect.dart';
-import 'package:simple_live_app/models/layout/sidebar_layout.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/window_service.dart';
@@ -32,13 +31,16 @@ import 'package:window_manager/window_manager.dart';
 class MultiPlaySession {
   MultiPlaySession(this.page) {
     slots.add(page);
-    enabled.value = AppSettingsController.instance.multiPlayEnable.value;
   }
 
   /// 页面主格（`slots[0]` 恒为它）。它同时是路由绑定的那个 controller。
   final LiveRoomController page;
 
-  /// 多画面模式开关（持久化）。真正的多开还要看已经加了几路，见 [isActive]。
+  /// 多画面模式开关。真正的多开还要看已经加了几路，见 [isActive]。
+  ///
+  /// 不再有底栏那颗模式开关后，它由**加入/移除路数**自动维护：加一路时打开，
+  /// 掉回只剩主格时关掉（见 [_dropTile]）。不落盘——它是「这次会话有没有在多开」，
+  /// 跨会话记着它只会让下一次启动悄悄处在多开分支里。
   final RxBool enabled = false.obs;
 
   /// 当前聚焦格在 [slots] 里的下标。聊天区、音量分配都以它为唯一真源。
@@ -99,19 +101,12 @@ class MultiPlaySession {
     );
   }
 
-  /// 开关多画面模式。
-  void setEnabled(bool value) {
-    if (enabled.value == value) {
+  /// 进入多画面模式（加进第一路副格时由 [addRoom] / [addRooms] 调用）。
+  void _enterMultiPlay() {
+    if (enabled.value) {
       return;
     }
-    enabled.value = value;
-    AppSettingsController.instance.setMultiPlayEnable(value);
-    if (!value) {
-      // 关掉多开时其余几路必须一起停：不然它们还在后台出声、还在耗解码，
-      // 而界面上已经看不到任何线索。removeTile 会顺带恢复窗口下限。
-      closeAllTiles();
-      return;
-    }
+    enabled.value = true;
     refreshWindowFloor();
   }
 
@@ -130,7 +125,7 @@ class MultiPlaySession {
     }
 
     _createTile(site, roomId);
-    setEnabled(true);
+    _enterMultiPlay();
     // 这里**不切焦点**：多开时注意力本来就在你正看的那一路（加一路通常是因为它提到了
     // 别人），不切焦点也不会打断当前音频；新那一路等加载好了手动点过去即可。
     //
@@ -168,7 +163,7 @@ class MultiPlaySession {
     if (added == 0) {
       return;
     }
-    setEnabled(true);
+    _enterMultiPlay();
     focusSlot(0);
     refreshWindowFloor();
   }
@@ -243,7 +238,7 @@ class MultiPlaySession {
     _dropTile(index);
   }
 
-  /// 摘掉全部副格，回到只剩主格（返回键第一段 / 关掉多开开关时用）。
+  /// 摘掉全部副格，回到只剩主格（返回键第一段用）。
   void closeAllTiles() {
     final tiles = slots.where((t) => t != page).toList();
     for (final tile in tiles) {
@@ -264,6 +259,13 @@ class MultiPlaySession {
     applyVolumes();
     _clearScaleModeOverridesWhenIdle();
     refreshWindowFloor();
+    // 掉回单画面即视为退出多开：底栏不再有模式开关，这个旗标要跟着路数走，
+    // 否则下次从关注面板点一行仍会被当成「往多开里加一路」。
+    // 放在 refreshWindowFloor 之后：restoreTileDanmakuOwnership 还要读旧值恢复
+    // 主格的弹幕显隐。
+    if (slots.length <= 1) {
+      enabled.value = false;
+    }
   }
 
   /// 会话不再以多开形态呈现时，清掉留下来的每一路按格画面尺寸覆盖。
@@ -272,8 +274,8 @@ class MultiPlaySession {
   /// 「这一格的临时选择」（会话级、不落盘）；一路不再是「一格」（关掉多开 / 关到
   /// 只剩主格）之后，再持有这个临时值就没有身份可归属——主格若留着它，单画面会
   /// 带着「第 2 路选的铺满」继续播，而设置面板显示「适应」，下一次 `Video` 重建
-  /// 还静默换画面。`setEnabled(false)`→`closeAllTiles` 与逐格 `removeTile` 全部
-  /// 汇入 `_dropTile`，所以这一处就是「会话不再 active」的唯一漏斗。
+  /// 还静默换画面。逐格 `removeTile`（含返回键的 `closeAllTiles`）全部汇入
+  /// `_dropTile`，所以这一处就是「会话不再 active」的唯一漏斗。
   void _clearScaleModeOverridesWhenIdle() {
     if (isActive) {
       return;
@@ -443,13 +445,11 @@ class MultiPlaySession {
 
   /// 当前路数下不折叠所需的窗口下限，且不低于常规下限。
   ///
-  /// 右侧 chrome 按**实际**侧栏宽度算（收起时为 0，展开时还要带上分隔条）：
-  /// 侧栏可拖拽后它不再是 [kMultiPlayChromeWidth] 那个定值，继续写死会在
-  /// 侧栏拖宽时算出偏小的下限、拖窄或收起时白占一截。
+  /// 右侧 chrome 按**实际**侧栏宽度算：侧栏可拖拽后它不再是 [kMultiPlayChromeWidth]
+  /// 那个定值，继续写死会在侧栏拖宽时算出偏小的下限。分隔条不占布局宽度
+  /// （浮在交界线上，见 `live_room_page.buildTabletUI`），所以这里不再加它。
   Size requiredMinimumWindowSize() {
-    final settings = AppSettingsController.instance;
-    final chromeWidth =
-        settings.roomSidebarCollapsed.value ? 0.0 : settings.roomSidebarWidth.value + kLiveRoomSidebarHandleWidth;
+    final chromeWidth = AppSettingsController.instance.roomSidebarWidth.value;
     final layout = resolveMultiPlayMinimumWindowSize(
       roomCount: slots.length,
       tileAspect: tileAspect(),

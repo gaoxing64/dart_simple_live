@@ -15,7 +15,9 @@ const double kLiveRoomSidebarMaxWidth = 560;
 /// 视频区至少要留的宽度；窗口不够宽时优先保证画面。
 const double kLiveRoomSidebarVideoMinWidth = 320;
 
-/// 分隔条宽度。拖动热区按它算，底栏右侧留白也必须带上它才能与侧栏对齐。
+/// 分隔条热区宽度。它**不占布局宽度**：拖动热区浮在视频与侧栏的交界线上
+/// （见 `live_room_page.buildTabletUI`），竖线正好压在交界处，侧栏内容也就紧贴
+/// 分割线，不会在交界处夹出一条与侧栏同色的空带。
 const double kLiveRoomSidebarHandleWidth = 12;
 
 /// 把期望宽度夹进「窗口放得下」的范围。

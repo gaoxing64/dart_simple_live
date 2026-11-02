@@ -154,6 +154,21 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                       }),
                 ),
                 AppStyle.divider,
+                Obx(
+                  () => SettingsNumber(
+                    title: "最大音量",
+                    subtitle: "允许把音量调到 100% 以上（mpv volume-max）",
+                    value: controller.playerMaxVolume.value,
+                    min: 100,
+                    max: 130,
+                    step: 10,
+                    unit: "%",
+                    onChanged: (e) {
+                      controller.setPlayerMaxVolume(e);
+                    },
+                  ),
+                ),
+                AppStyle.divider,
                 // 键盘控制的总开关、自定义开关与逐条改键都收进了独立页：这里十几行
                 // 动作塞进播放设置会把整页撑得没法用，而且改键要弹录制框，本身就该
                 // 有自己的家。
@@ -165,12 +180,11 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                 AppStyle.divider,
                 Obx(
                   () => SettingsMenu<String>(
-                    title: "Stats 覆盖层后端",
-                    subtitle: "应用自绘可避免 mpv 内置 OSD 在 HDR 屏上引发的 1Hz 亮度闪烁，推荐保持默认",
+                    title: "统计信息后端",
                     value: controller.osdBackend.value,
                     valueMap: const {
                       "app": "应用自绘（推荐）",
-                      "mpv": "mpv 内置 OSD",
+                      "mpv": "mpv 内置统计面板",
                     },
                     onChanged: (e) {
                       controller.setOSDBackend(e);

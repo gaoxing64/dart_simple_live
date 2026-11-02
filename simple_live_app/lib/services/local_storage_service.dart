@@ -140,9 +140,6 @@ class LocalStorageService extends GetxService {
   /// 直播间横屏聊天侧栏宽度（逻辑像素）
   static const String kLiveRoomSidebarWidth = "LiveRoomSidebarWidth";
 
-  /// 直播间横屏聊天侧栏是否收起
-  static const String kLiveRoomSidebarCollapsed = "LiveRoomSidebarCollapsed";
-
   /// 播放清晰度，0=低，1=中，2=高
   static const String kQualityLevel = "QualityLevel";
 
@@ -189,9 +186,6 @@ class LocalStorageService extends GetxService {
 
   /// 播放器最大音量（mpv volume-max，百分比）
   static const String kPlayerMaxVolume = "PlayerMaxVolume";
-
-  /// 多开播放：记住上次的布局模式（单画面 / 多画面）
-  static const String kMultiPlayEnable = "MultiPlayEnable";
 
   /// 多开播放：批量入口一次预载几路（2~4）。
   ///

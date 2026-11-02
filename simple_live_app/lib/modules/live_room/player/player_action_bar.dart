@@ -52,7 +52,7 @@ ButtonStyle _iconStyleFor({required bool compact}) => _iconStyleBase.merge(
 /// 样式来源就分了两处——收在本文件里，两档才不会再各自漂移。
 ButtonStyle playerActionIconStyle({bool compact = false}) => _iconStyleFor(compact: compact);
 
-/// 底栏按钮（含「多开播放」胶囊）的文字样式。
+/// 底栏按钮的文字样式。
 ///
 /// ⚠️ 必须自己带上字族：`TextButton.styleFrom(textStyle: …)` 在 Flutter 里的取值是
 /// `widgetStyle ?? themeStyle ?? defaultStyle`——**取第一个非空、不做合并**
