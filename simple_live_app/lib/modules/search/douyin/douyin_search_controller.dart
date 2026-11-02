@@ -4,6 +4,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
+import 'package:simple_live_app/app/utils/url_parse.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_core/simple_live_core.dart';
@@ -54,8 +55,7 @@ class DouyinSearchController extends BaseController {
   Future<bool?> onCreateWindow(InAppWebViewController controller, CreateWindowAction createWindowAction) async {
     if (createWindowAction.request.url?.host == "live.douyin.com") {
       {
-        var regExp = RegExp(r"live\.douyin\.com/([\d|\w]+)");
-        var id = regExp.firstMatch(createWindowAction.request.url.toString())?.group(1) ?? "";
+        var id = kDouyinLiveRoomRegExp.firstMatch(createWindowAction.request.url.toString())?.group(1) ?? "";
 
         AppNavigator.toLiveRoomDetail(site: site, roomId: id);
         return false;

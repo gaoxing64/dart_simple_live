@@ -16,6 +16,7 @@ import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/event_bus.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
+import 'package:simple_live_app/app/utils/deep_link.dart';
 import 'package:simple_live_app/app/utils/permission_handler.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/app/utils/sandbox.dart';
@@ -2523,33 +2524,20 @@ class LiveRoomController extends PlayerController
   }
 
   void openNaviteAPP() async {
-    var naviteUrl = "";
-    var webUrl = "";
-    if (site.id == Constant.kBiliBili) {
-      naviteUrl = "bilibili://live/${detail.value?.roomId}";
-      webUrl = "https://live.bilibili.com/${detail.value?.roomId}";
-    } else if (site.id == Constant.kDouyin) {
-      // danmakuData 是 Rust 契约 JSON 串（Dart 侧 args 类已随 Rust 化重构删除）。
-      final args = _danmakuArgsMap();
-      naviteUrl = "snssdk1128://webcast_room?room_id=${args['room_id']}";
-      webUrl = "https://live.douyin.com/${args['web_rid']}";
-    } else if (site.id == Constant.kHuya) {
-      final args = _danmakuArgsMap();
-      final subSid = args['sub_sid'];
-      naviteUrl =
-          "yykiwi://homepage/index.html?banneraction=https%3A%2F%2Fdiy-front.cdn.huya.com%2Fzt%2Ffrontpage%2Fcc%2Fupdate.html%3Fhyaction%3Dlive%26channelid%3D$subSid%26subid%3D$subSid%26liveuid%3D$subSid%26screentype%3D1%26sourcetype%3D0%26fromapp%3Dhuya_wap%252Fclick%252Fopen_app_guide%26&fromapp=huya_wap/click/open_app_guide";
-      webUrl = "https://www.huya.com/${detail.value?.roomId}";
-    } else if (site.id == Constant.kDouyu) {
-      naviteUrl =
-          "douyulink://?type=90001&schemeUrl=douyuapp%3A%2F%2Froom%3FliveType%3D0%26rid%3D${detail.value?.roomId}";
-      webUrl = "https://www.douyu.com/${detail.value?.roomId}";
+    final link = buildNativeAppLink(
+      site.id,
+      detail.value?.roomId,
+      _danmakuArgsMap(),
+    );
+    if (link == null) {
+      return;
     }
     try {
-      await launchUrlString(naviteUrl, mode: LaunchMode.externalApplication);
+      await launchUrlString(link.nativeUrl, mode: LaunchMode.externalApplication);
     } catch (e) {
       Log.logPrint(e);
       SmartDialog.showToast("无法打开APP，将使用浏览器打开");
-      await launchUrlString(webUrl, mode: LaunchMode.externalApplication);
+      await launchUrlString(link.webUrl, mode: LaunchMode.externalApplication);
     }
   }
 

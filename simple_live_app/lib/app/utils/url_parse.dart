@@ -3,6 +3,9 @@ import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
 
+/// 抖音直播间 URL 的房间标识（web_rid）提取，全仓唯一来源。
+final kDouyinLiveRoomRegExp = RegExp(r"live\.douyin\.com/([\d\w.]+)");
+
 class UrlParse {
   static UrlParse? _urlParse;
 
@@ -45,8 +48,7 @@ class UrlParse {
       return [id, Sites.allSites[Constant.kHuya]!];
     }
     if (url.contains("live.douyin.com")) {
-      var regExp = RegExp(r"live\.douyin\.com/([\d\w.]+)");
-      id = regExp.firstMatch(url)?.group(1) ?? "";
+      id = kDouyinLiveRoomRegExp.firstMatch(url)?.group(1) ?? "";
 
       return [id, Sites.allSites[Constant.kDouyin]!];
     }

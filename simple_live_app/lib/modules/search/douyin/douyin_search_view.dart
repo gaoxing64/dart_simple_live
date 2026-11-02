@@ -5,6 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:get/get.dart';
 import 'package:simple_live_app/app/app_style.dart';
+import 'package:simple_live_app/app/utils/url_parse.dart';
 import 'package:simple_live_app/modules/search/douyin/douyin_search_controller.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
@@ -63,8 +64,7 @@ class DouyinSearchView extends StatelessWidget {
                   return NavigationActionPolicy.ALLOW;
                 }
                 if (uri.host == "live.douyin.com") {
-                  var regExp = RegExp(r"live\.douyin\.com/([\d|\w]+)");
-                  var id = regExp.firstMatch(uri.toString())?.group(1) ?? "";
+                  var id = kDouyinLiveRoomRegExp.firstMatch(uri.toString())?.group(1) ?? "";
 
                   AppNavigator.toLiveRoomDetail(site: controller.site, roomId: id);
                   return NavigationActionPolicy.CANCEL;
