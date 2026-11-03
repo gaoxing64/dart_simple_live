@@ -1168,11 +1168,17 @@ mixin PlayerGestureControlMixin on PlayerStateMixin, PlayerMixin, PlayerSystemMi
   }
 
   void onHover(PointerHoverEvent event, BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final targetPosition = screenHeight * 0.25; // 计算屏幕顶部25%的位置
-    if (event.position.dy <= targetPosition || event.position.dy >= targetPosition * 3) {
-      if (!showControlsState.value) {
-        showControls();
+    // 全屏状态下，任何位置的鼠标移动都应该触发 OSD 显示
+    if (fullScreenState.value && !showControlsState.value && !lockControlsState.value) {
+      showControls();
+    } else {
+      // 非全屏状态保留原有的边缘检测逻辑（用于小窗/窗口化形态）
+      final screenHeight = MediaQuery.of(context).size.height;
+      final targetPosition = screenHeight * 0.25;
+      if (event.position.dy <= targetPosition || event.position.dy >= targetPosition * 3) {
+        if (!showControlsState.value) {
+          showControls();
+        }
       }
     }
   }

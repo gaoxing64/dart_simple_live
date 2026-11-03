@@ -317,16 +317,32 @@ Widget _buildDesktopFullControls(
                   // 永远接不到 `startDragging()`：表现就是「小窗/全屏整窗拖不动，只有被
                   // 顶/底栏或锁定钮盖住的那几条能拖」。移动端两个 builder
                   // （`buildFullControls`/`buildControls`）照旧保留，那里才是这套手势的归宿。
-                  child: MouseRegion(
-                    onHover: (PointerHoverEvent event) {
-                      controller.onHover(event, videoState.context);
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      color: Colors.transparent,
-                    ),
-                  ),
+                  // 全屏空闲时指针跟随条带一起隐藏：条带收起后画面里只剩视频，
+                  // 箭头留着就像贴了块贴片。两条豁免：
+                  // * 窗口化／小窗（host != fullscreen）——那两种形态随时要拖窗、点按钮，
+                  //   看不见指针反而没法操作；
+                  // * 锁定态——条带虽然同样收起，但单击后左右锁定钮会滑出来，
+                  //   指针藏起来就找不到它解锁。
+                  // `defer` 让指针落在条带按钮／OSD 面板上时仍由它们自己的光标接管
+                  // （click／basic），只有落在视频与条带渐变带的空白处才按显隐决定。
+                  // 订阅必须写在本 Obx 的 builder 里：外层 Obx 只订了 layout 的输入，
+                  // 在 LayoutBuilder 里读 reactive 值订不上（见 `_buildDesktopControls` 的 WHY）。
+                  child: Obx(() {
+                    final hideCursor = host == PlayerHost.fullscreen &&
+                        !controller.lockControlsState.value &&
+                        !controller.showControlsState.value;
+                    return MouseRegion(
+                      cursor: hideCursor ? SystemMouseCursors.none : MouseCursor.defer,
+                      onHover: (PointerHoverEvent event) {
+                        controller.onHover(event, videoState.context);
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        color: Colors.transparent,
+                      ),
+                    );
+                  }),
                 ),
               ),
               // 顶部：返回 + 标题 + placeInTopBar 动作。手排而非交给 PlayerActionBar，
