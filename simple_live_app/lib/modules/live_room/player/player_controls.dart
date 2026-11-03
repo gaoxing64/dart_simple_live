@@ -270,6 +270,18 @@ Widget _buildDesktopFullControls(
     final hasLine = controller.hasMultipleLines;
     // 顶栏只在非小窗的全屏画：小窗没有返回/标题那一行。
     final showTopBar = host == PlayerHost.fullscreen;
+    // 全屏空闲时指针跟随条带一起隐藏：条带收起后画面里只剩视频，箭头留着就像
+    // 贴了块贴片。两条豁免：
+    // * 窗口化／小窗（host != fullscreen）——那两种形态随时要拖窗、点按钮，
+    //   看不见指针反而没法操作；
+    // * 锁定态——条带虽然同样收起，但单击后左右锁定钮会滑出来，指针藏起来就
+    //   找不到它解锁。
+    // 订阅留在本层 Obx（LayoutBuilder 之外）：内层 builder 在布局阶段执行，
+    // 在那里挂 GetX 订阅会让重建发生在布局期，时机与普通 build 不同，容易踩到
+    // 渲染层的边界问题（小窗灰遮罩排查时这里正是唯一的播放器路径差异）。
+    final hideCursor = host == PlayerHost.fullscreen &&
+        !controller.lockControlsState.value &&
+        !controller.showControlsState.value;
     return buildDragToMoveArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -317,32 +329,21 @@ Widget _buildDesktopFullControls(
                   // 永远接不到 `startDragging()`：表现就是「小窗/全屏整窗拖不动，只有被
                   // 顶/底栏或锁定钮盖住的那几条能拖」。移动端两个 builder
                   // （`buildFullControls`/`buildControls`）照旧保留，那里才是这套手势的归宿。
-                  // 全屏空闲时指针跟随条带一起隐藏：条带收起后画面里只剩视频，
-                  // 箭头留着就像贴了块贴片。两条豁免：
-                  // * 窗口化／小窗（host != fullscreen）——那两种形态随时要拖窗、点按钮，
-                  //   看不见指针反而没法操作；
-                  // * 锁定态——条带虽然同样收起，但单击后左右锁定钮会滑出来，
-                  //   指针藏起来就找不到它解锁。
                   // `defer` 让指针落在条带按钮／OSD 面板上时仍由它们自己的光标接管
                   // （click／basic），只有落在视频与条带渐变带的空白处才按显隐决定。
-                  // 订阅必须写在本 Obx 的 builder 里：外层 Obx 只订了 layout 的输入，
-                  // 在 LayoutBuilder 里读 reactive 值订不上（见 `_buildDesktopControls` 的 WHY）。
-                  child: Obx(() {
-                    final hideCursor = host == PlayerHost.fullscreen &&
-                        !controller.lockControlsState.value &&
-                        !controller.showControlsState.value;
-                    return MouseRegion(
-                      cursor: hideCursor ? SystemMouseCursors.none : MouseCursor.defer,
-                      onHover: (PointerHoverEvent event) {
-                        controller.onHover(event, videoState.context);
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        height: double.infinity,
-                        color: Colors.transparent,
-                      ),
-                    );
-                  }),
+                  // 光标值由外层 Obx 统一算好（见 `hideCursor`），这里不再套内层 Obx：
+                  // 内层订阅会在 LayoutBuilder 的布局期重建，避开这种时机。
+                  child: MouseRegion(
+                    cursor: hideCursor ? SystemMouseCursors.none : MouseCursor.defer,
+                    onHover: (PointerHoverEvent event) {
+                      controller.onHover(event, videoState.context);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      color: Colors.transparent,
+                    ),
+                  ),
                 ),
               ),
               // 顶部：返回 + 标题 + placeInTopBar 动作。手排而非交给 PlayerActionBar，

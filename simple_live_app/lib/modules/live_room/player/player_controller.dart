@@ -1168,8 +1168,10 @@ mixin PlayerGestureControlMixin on PlayerStateMixin, PlayerMixin, PlayerSystemMi
   }
 
   void onHover(PointerHoverEvent event, BuildContext context) {
-    // 全屏状态下，任何位置的鼠标移动都应该触发 OSD 显示
-    if (fullScreenState.value && !showControlsState.value && !lockControlsState.value) {
+    // 小窗进入时 `fullScreenState` 同样为 true（见 `enterSmallWindow`），但它不是
+    // OS 全屏——小窗/窗口化仍走边缘检测，只有真正的全屏才「任意位置都亮条带」。
+    final isFullscreen = fullScreenState.value && !smallWindowState.value;
+    if (isFullscreen && !showControlsState.value && !lockControlsState.value) {
       showControls();
     } else {
       // 非全屏状态保留原有的边缘检测逻辑（用于小窗/窗口化形态）
