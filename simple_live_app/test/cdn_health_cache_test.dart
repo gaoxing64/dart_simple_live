@@ -18,6 +18,10 @@ void main() {
       CdnHealthCache.cdnFamilyOf('pull-x3-q5.douyincdn.com'),
       'pull-x3-q5.douyincdn.com',
     );
+    expect(
+      CdnHealthCache.cdnFamilyOf('pull-x3-t5-hls.douyincdn.com'),
+      'pull-x3-t5.douyincdn.com',
+    );
   });
 
   test('拉黑一族后 FLV/HLS 两个入口都命中，其它族不受影响', () {

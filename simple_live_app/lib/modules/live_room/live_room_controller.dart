@@ -34,6 +34,7 @@ import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/services/cdn_health_cache.dart';
 import 'package:simple_live_app/services/cdn_order_cache.dart';
+import 'package:simple_live_app/services/cdn_score_cache.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/follow_block_service.dart';
 import 'package:simple_live_app/services/follow_service.dart';
@@ -1328,7 +1329,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
     }
     final cached = CdnOrderCache.get(site.id);
     if (cached.isEmpty || ranked.length < 2) {
-      return _preferHealthyCdnLines(ranked);
+      return _preferHealthyCdnLines(_sortByCdnScore(ranked));
     }
     final byUrl = <String, LivePlayLine>{
       for (final line in ranked) line.url: line,
@@ -1338,7 +1339,21 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
       hostOrder: cached,
     );
     final reordered = ordered.map((url) => byUrl[url]).whereType<LivePlayLine>().toList(growable: false);
-    return _preferHealthyCdnLines(reordered);
+    return _preferHealthyCdnLines(_sortByCdnScore(reordered));
+  }
+
+  /// 按播放中实测评分重排；同分保持原序，续流的 host 下标契约不变。
+  List<LivePlayLine> _sortByCdnScore(List<LivePlayLine> lines) {
+    final sorted = CdnScoreCache.sortByScore(site.id, lines, (line) => line.host);
+    for (var i = 0; i < sorted.length; i++) {
+      if (sorted[i].host != lines[i].host) {
+        Log.d(
+          '[cdn-score] ${sorted.map((e) => '${e.host}:${CdnScoreCache.rankScoreOf(site.id, e.host).toStringAsFixed(2)}').join(', ')}',
+        );
+        break;
+      }
+    }
+    return sorted;
   }
 
   /// 已确认饥饿的 CDN 家族排到后面，但**不丢弃**：全部节点都被拉黑时仍能起播，
@@ -1443,6 +1458,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
   }
 
   void _stopPlaybackHealthMonitor() {
+    CdnScoreCache.flush();
     _playbackHealthTimer?.cancel();
     _playbackHealthTimer = null;
     _playbackHealthSampleInFlight = false;
@@ -1479,6 +1495,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
         return;
       }
 
+      CdnScoreCache.record(site.id, lineHost(currentLineIndex), sample);
       final confirmed = _starvationDetector.add(sample);
       final inputMbps = sample.inputBitsPerSecond / 1000000;
       final videoMbps = sample.videoBitsPerSecond / 1000000;
@@ -1549,6 +1566,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
     _lastAutoCdnSwitchAt = now;
     _starvationDetector.reset();
     final blockedFamily = CdnHealthCache.markSlow(site.id, oldHost);
+    CdnScoreCache.penalize(site.id, oldHost);
     Log.w(
       '[cdn-health] 连续饥饿，拉黑 $blockedFamily，准备重新取流 '
       '(input=${(sample.inputBitsPerSecond / 1000000).toStringAsFixed(2)}Mbps '

@@ -12,11 +12,14 @@ class CdnHealthCache {
 
   /// 把 FLV/HLS 两个入口归到同一个 CDN 家族。
   ///
-  /// 抖音同一档画质通常同时给 `pull-flv-f11...` 和 `pull-hls-f11...`，它们走同一
-  /// 组边缘节点；只封其中一个会让换 HLS 后再次撞上同一条慢链路。
+  /// 抖音有两种命名：`pull-flv-f11...` / `pull-hls-f11...` 走前缀，
+  /// `pull-x3-t5...` / `pull-x3-t5-hls...` 走后缀；它们分别是同一组边缘节点，
+  /// 只封其中一个会让换 HLS 后再次撞上同一条慢链路。
   static String cdnFamilyOf(String host) {
     final normalized = host.trim().toLowerCase();
-    return normalized.replaceFirst(RegExp(r'^pull-(?:flv|hls)-'), 'pull-');
+    return normalized
+        .replaceFirst(RegExp(r'^pull-(?:flv|hls)-'), 'pull-')
+        .replaceFirst(RegExp(r'-hls\.'), '.');
   }
 
   static bool isBlocked(

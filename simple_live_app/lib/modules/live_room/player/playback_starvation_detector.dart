@@ -64,6 +64,25 @@ class PlaybackStarvationDetector {
   /// 缓存低于这个水位时，“输入不足”才真正可能马上变成暂停。
   static const double lowCacheSeconds = 0.35;
 
+  /// 缓冲百分比低于该值时才把「输入追不上」视为饥饿前兆。
+  static const double lowBufferingState = 50;
+
+  /// 输入/视频码率；视频码率过低时返回 1（不做相对判断）。
+  static double inputRatioOf(PlaybackHealthSample sample) {
+    if (sample.videoBitsPerSecond < minVideoBitsPerSecondForRatio || sample.videoBitsPerSecond <= 0) {
+      return 1.0;
+    }
+    return sample.inputBitsPerSecond / sample.videoBitsPerSecond;
+  }
+
+  /// 弱饥饿信号。评分器与滑窗判定共用，避免两处阈值漂移。
+  static bool isInputStarved(PlaybackHealthSample sample) {
+    return sample.videoBitsPerSecond >= minVideoBitsPerSecondForRatio &&
+        sample.cacheSeconds <= lowCacheSeconds &&
+        sample.cacheBufferingState < lowBufferingState &&
+        inputRatioOf(sample) < inputHeadroom;
+  }
+
   final int windowSize;
   final int minHitsInWindow;
 
@@ -91,16 +110,10 @@ class PlaybackStarvationDetector {
       return false;
     }
 
-    final ratioKnown = sample.videoBitsPerSecond >= minVideoBitsPerSecondForRatio;
-    final ratio =
-        ratioKnown && sample.videoBitsPerSecond > 0 ? sample.inputBitsPerSecond / sample.videoBitsPerSecond : 1.0;
+    final ratio = inputRatioOf(sample);
     _lastInputRatio = ratio;
 
-    final inputStarved = ratioKnown &&
-        sample.cacheSeconds <= lowCacheSeconds &&
-        sample.cacheBufferingState < 50 &&
-        ratio < inputHeadroom;
-    final hit = sample.pausedForCache || inputStarved;
+    final hit = sample.pausedForCache || isInputStarved(sample);
 
     _window.add(
       _Verdict(
