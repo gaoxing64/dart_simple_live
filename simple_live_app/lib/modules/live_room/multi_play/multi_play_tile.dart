@@ -295,7 +295,20 @@ class MultiPlayTile extends StatelessWidget {
       resumeUponEnteringForegroundMode: tile.pauseOnBackground,
       // 弹幕层必须在 controls 里：buildDanmuView 返回的是 Positioned.fill，
       // 直接当 controls 的返回值会因为不在 Stack 里而报错。
-      controls: (state) => Stack(children: [buildDanmuView(state, tile)]),
+      //
+      // 居中提示同挂这里：格子工具条上的弹幕开关、静音/音量颗都会往
+      // `showGestureTip` 写文案，没有这块浮层就只剩一次状态置位和空转的计时器。
+      controls: (state) => Stack(
+        children: [
+          buildDanmuView(state, tile),
+          Obx(
+            () => Offstage(
+              offstage: !tile.showGestureTip.value,
+              child: Center(child: buildPlayerCenterTip(tile, compact: true)),
+            ),
+          ),
+        ],
+      ),
       aspectRatio: fit.aspectRatio,
       fit: fit.fit,
       // 常亮由每一路各自的 ScreenAwakeService 持有计数，四路各开一次没有意义

@@ -448,6 +448,13 @@ mixin PlayerMixin {
               ),
   );
 }
+
+/// 播放器居中提示的停留时长。
+///
+/// 手势音量/亮度由拖动过程实时驱动，这里只服务「一次性动作」的反馈
+/// （快捷键、条带按钮、锁定、静音）。
+const Duration kPlayerTipDuration = Duration(milliseconds: 900);
+
 mixin PlayerStateMixin on PlayerMixin {
   ///音量控制条计时器
   Timer? hidevolumeTimer;
@@ -489,6 +496,32 @@ mixin PlayerStateMixin on PlayerMixin {
 
   /// 手势Tip文本
   RxString gestureTipText = "".obs;
+
+  /// 居中提示的自动隐藏计时器（见 [showCenterTip]）。
+  Timer? centerTipTimer;
+
+  /// 居中读数此刻归拖动手势管（音量拖拽进行中）。
+  ///
+  /// 拖动自己负责按下显示、抬起收起，因此一次性提示的计时器到点时不能把它关掉：
+  /// 拖动途中按了 `M`/`L` 之类的快捷键，`showCenterTip` 会开一个计时器，没有这道
+  /// 闸，读数会在手指还按着的时候消失。
+  bool gestureTipHeldByDrag = false;
+
+  /// 在画面正中短暂展示一条提示。
+  ///
+  /// 手势音量/亮度、键盘快捷键、条带按钮共用同一块浮层（[showGestureTip]）：
+  /// 同一个动作不管从哪条入口触发，反馈都落在同一个位置、同一种样式。
+  void showCenterTip(String text, {Duration duration = kPlayerTipDuration}) {
+    gestureTipText.value = text;
+    showGestureTip.value = true;
+    centerTipTimer?.cancel();
+    centerTipTimer = Timer(duration, () {
+      if (gestureTipHeldByDrag) {
+        return;
+      }
+      showGestureTip.value = false;
+    });
+  }
 
   /// 显示提示底部Tip
   RxBool showBottomTip = false.obs;
@@ -533,6 +566,9 @@ mixin PlayerStateMixin on PlayerMixin {
     } else {
       showControlsState.value = true;
     }
+    // 提示放在这里而不是调用方：两侧锁定钮与快捷键 `L` 走同一个入口，
+    // 反馈不会只出现在其中一条路径上。
+    showCenterTip(lockControlsState.value ? "控制条已锁定" : "控制条已解锁");
   }
 
   /// 显示控制器
@@ -585,6 +621,13 @@ mixin PlayerDanmakuMixin on PlayerStateMixin {
 
   void initDanmakuController(DanmakuController e) {
     danmakuController = e;
+  }
+
+  /// 弹幕开关的唯一入口：条带按钮、`⋮` 抽屉、移动端条带与快捷键都走这里，
+  /// 开关状态与居中提示不会因为入口不同而缺失。
+  void toggleDanmaku() {
+    showDanmakuState.value = !showDanmakuState.value;
+    showCenterTip(showDanmakuState.value ? "弹幕已开启" : "弹幕已关闭");
   }
 
   /// 设置按格字号并即时生效（弹幕控制器还没建时只记下 override，建的时候会用到）。
@@ -711,8 +754,15 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
     }
   }
 
-  /// 进入全屏
-  void enterFullScreen() async {
+  /// 进入全屏。
+  ///
+  /// [osFullScreen] 为 false 时只做「应用内全屏」：页面切到全屏骨架、视频铺满
+  /// **当前窗口**，不动 OS 窗口（不隐藏标题栏、不最大化、不进退全屏）。
+  /// 桌面右键走这条路径（与 PiliNara 一致）；移动端忽略该参数。
+  ///
+  /// 小窗态没有「应用内全屏」可言（窗口本身就是几百像素的浮窗），调用方即使传
+  /// false 也强制走 OS 全屏——那条路径会先正确释放小窗的锁定与置顶。
+  void enterFullScreen({bool osFullScreen = true}) async {
     fullScreenState.value = true;
     if (Platform.isAndroid || Platform.isIOS) {
       //全屏
@@ -723,12 +773,26 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
         setLandscapeOrientation();
       }
     } else {
+      // 应用内全屏：只翻 Dart 侧的页面形态。窗口几何 / 标题栏 / 置顶都不属于
+      // 这次转换——没有采还原点，也没有 OS 操作，退出时自然不用还原（见 exitFull
+      // 的 `_osFullScreenApplied` 分支）。
+      //
+      // 这里**不改** `_osFullScreenApplied`：它记的是「OS 窗口是否被本方法改动过」，
+      // 而不是「这次调用走哪条分支」。清除只发生在 exitFull 成功还原之后。
+      if (!osFullScreen && !smallWindowState.value) {
+        return;
+      }
       // todo: animation isn't smooth...
       // fix: pip->full->normal bug
       // 不再考虑从什么状态切换，逻辑混乱，而是确定窗口状态直接设置属性
       // 记忆进入全屏前的状态（几何 + 最大化标记），退出全屏时消费。
       // 此刻窗口仍在窗口态，采到的才是「退出全屏要落回去的那个」尺寸；
       // 小窗→全屏这条路径上离开窗口态那一刻已经采过，这里不会重复覆盖。
+      //
+      // 旗标必须在第一个 await 之前立起来：后面任何一步平台调用抛错/被中途
+      // 退出打断，exitFull 都还知道该走还原分支，不会把窗口留在半转换态。
+      // 保守置 true 是安全的——exitFull 的还原体对几何字段逐个判空。
+      _osFullScreenApplied = true;
       await _captureNormalGeometry();
       smallWindowState.value = false; // no pip
       WindowService.instance.isPIP = smallWindowState.value;
@@ -763,48 +827,53 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: SystemUiOverlay.values);
       setPortraitOrientation();
     } else {
-      // 退回原来的大小
-      if (windowMaxState.value) {
-        // 最大化这条臂的次序与改造前逐字一致（maximize → 不 await 的退全屏）：
-        // C++ 的退全屏在 IsZoomed 为真时只刷新边框、按 g_maximized_before_fullscreen
-        // 补一次 SC_MAXIMIZE，不回弹摆放，所以没有下面那条竞态。
-        await windowManager.maximize();
-        windowManager.setFullScreen(false);
-      } else {
-        // 退 OS 全屏必须排在还原**之前**（原先是反的，正是「小窗→全屏→双击退出」
-        // 掉进一块小窗尺寸的窗口态、既不在小窗也不在全屏的原因）：
-        //
-        // window_manager 0.5.2 的 Windows 实现里，`setFullScreen(false)` 自己就会把
-        // 窗口摆回「进全屏那一刻」的外框（C++ 的 `g_frame_before_fullscreen`）。而
-        // 从小窗进全屏时 OS 窗口一直停在小窗外框——`enterFullScreen` 只把 Dart 侧的
-        // `smallWindowState` 翻成 false，没碰几何——所以那份「全屏前外框」就是小窗
-        // 矩形。还原点若抢在它前面落，就被这次回弹整个顶掉：两个旗标都已是 false
-        // （UI 已经是窗口化），窗口却停在几百 px 的小框里。
-        //
-        // 这里必须 await：不 await 它就排到后面几笔之后才落地，等于什么都没改。
-        await windowManager.setFullScreen(false);
-        // 只在非最大化时显式还原（进全屏前若是最大化态，上面那条臂才是正解，
-        // 那时紧跟 setSize 反而会把最大化顶掉）。
-        //
-        // 落在这段时 OS 已退出全屏，setSize/setPosition 是本臂最后一笔摆窗，不
-        // 会被谁顶掉。口径也对得上：`getSize`/`setPosition` 走 GetWindowRect、
-        // `setSize` 走 SetWindowPos，两边都是**外框**，所以还原点原样落回；
-        // 随后 setTitleBarStyle(normal) 只带 SWP_NOSIZE|SWP_FRAMECHANGED，外框
-        // 不变、让出去的是客户区，与「没进过小窗的正常窗口态」完全一致。
-        // （反过来把退全屏放后面就是原来的 bug：那笔不 await 的回弹排在还原之后
-        // 落地，外框被改回小窗矩形。）
-        if (_lastWindowSize != null) {
-          await windowManager.setSize(_lastWindowSize!);
+      // 应用内全屏进去的那一次没碰过 OS 窗口：没有要退的全屏、没有要还原的
+      // 几何、标题栏也一直是 normal。把整段窗口还原跳过后，只剩页面形态回退。
+      if (_osFullScreenApplied) {
+        // 退回原来的大小
+        if (windowMaxState.value) {
+          // 最大化这条臂的次序与改造前逐字一致（maximize → 不 await 的退全屏）：
+          // C++ 的退全屏在 IsZoomed 为真时只刷新边框、按 g_maximized_before_fullscreen
+          // 补一次 SC_MAXIMIZE，不回弹摆放，所以没有下面那条竞态。
+          await windowManager.maximize();
+          windowManager.setFullScreen(false);
+        } else {
+          // 退 OS 全屏必须排在还原**之前**（原先是反的，正是「小窗→全屏→双击退出」
+          // 掉进一块小窗尺寸的窗口态、既不在小窗也不在全屏的原因）：
+          //
+          // window_manager 0.5.2 的 Windows 实现里，`setFullScreen(false)` 自己就会把
+          // 窗口摆回「进全屏那一刻」的外框（C++ 的 `g_frame_before_fullscreen`）。而
+          // 从小窗进全屏时 OS 窗口一直停在小窗外框——`enterFullScreen` 只把 Dart 侧的
+          // `smallWindowState` 翻成 false，没碰几何——所以那份「全屏前外框」就是小窗
+          // 矩形。还原点若抢在它前面落，就被这次回弹整个顶掉：两个旗标都已是 false
+          // （UI 已经是窗口化），窗口却停在几百 px 的小框里。
+          //
+          // 这里必须 await：不 await 它就排到后面几笔之后才落地，等于什么都没改。
+          await windowManager.setFullScreen(false);
+          // 只在非最大化时显式还原（进全屏前若是最大化态，上面那条臂才是正解，
+          // 那时紧跟 setSize 反而会把最大化顶掉）。
+          //
+          // 落在这段时 OS 已退出全屏，setSize/setPosition 是本臂最后一笔摆窗，不
+          // 会被谁顶掉。口径也对得上：`getSize`/`setPosition` 走 GetWindowRect、
+          // `setSize` 走 SetWindowPos，两边都是**外框**，所以还原点原样落回；
+          // 随后 setTitleBarStyle(normal) 只带 SWP_NOSIZE|SWP_FRAMECHANGED，外框
+          // 不变、让出去的是客户区，与「没进过小窗的正常窗口态」完全一致。
+          // （反过来把退全屏放后面就是原来的 bug：那笔不 await 的回弹排在还原之后
+          // 落地，外框被改回小窗矩形。）
+          if (_lastWindowSize != null) {
+            await windowManager.setSize(_lastWindowSize!);
+          }
+          if (_lastWindowPosition != null) {
+            await windowManager.setPosition(_lastWindowPosition!);
+          }
         }
-        if (_lastWindowPosition != null) {
-          await windowManager.setPosition(_lastWindowPosition!);
-        }
+        Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
+        Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
+        windowManager.setTitleBarStyle(TitleBarStyle.normal);
+        _consumeNormalGeometry();
+        await WindowService.instance.danmakuFontClamped();
+        _osFullScreenApplied = false;
       }
-      Log.d('last_window_size:${_lastWindowSize?.width}__${_lastWindowSize?.height}');
-      Log.d('last_window_position:${_lastWindowPosition?.dx}__${_lastWindowPosition?.dy}');
-      windowManager.setTitleBarStyle(TitleBarStyle.normal);
-      _consumeNormalGeometry();
-      await WindowService.instance.danmakuFontClamped();
     }
     fullScreenState.value = false;
     //danmakuController?.clear();
@@ -825,6 +894,13 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
   /// 于是从全屏进小窗时记下来的是满屏几何，退出小窗后窗口停在满屏大小——
   /// 这就是全屏里那颗「小窗播放」按钮原来不敢放的原因。
   bool _normalGeometryCaptured = false;
+
+  /// 当前这次 `fullScreenState == true` 是否真的把 OS 窗口切成了全屏。
+  ///
+  /// 桌面右键进的是「应用内全屏」（只铺满当前窗口），进去时没采还原点、没动
+  /// 标题栏；`exitFull` 若照旧无条件走窗口还原，会把一个本来正常的窗口按一份
+  /// 从未采集过的（或上一代残留的）还原点重摆一遍。按这个标记决定是否做窗口还原。
+  bool _osFullScreenApplied = false;
 
   Future<void> _captureNormalGeometry() async {
     // 只有「控制器认为自己已经回到窗口态」时才允许重采。
@@ -921,9 +997,10 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
       // 进入小窗会自动恢复默认弹幕大小
       // 从 OS 全屏进小窗必须先退全屏：`setFullScreen(true)` 期间 setSize 会被
       // 全屏的窗口样式吃掉，收不成小窗；最大化态同理会顶住目标尺寸。
-      if (wasFullScreen) {
+      if (wasFullScreen && _osFullScreenApplied) {
         await windowManager.setFullScreen(false);
       }
+      _osFullScreenApplied = false;
       // 判据取采集到的 windowMaxState 而不是 wasFullScreen：
       // 「最大化 → 直接进小窗」全程没经过全屏，但最大化窗口同样会被工作区顶住
       // 目标尺寸，setSize 收不成小窗。
@@ -1225,6 +1302,10 @@ mixin PlayerGestureControlMixin on PlayerStateMixin, PlayerMixin, PlayerSystemMi
     throttle = DelayedThrottle(200);
 
     verticalDragging = true;
+    // 拖动期间由手势自己接管这块浮层（按下即显示、随手指改文本、抬起才收起）：
+    // 先撤掉残留的一次性提示计时器，否则它可能在拖动中途把读数关掉。
+    centerTipTimer?.cancel();
+    gestureTipHeldByDrag = true;
     if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
       showGestureTip.value = true;
     }
@@ -1328,6 +1409,9 @@ mixin PlayerGestureControlMixin on PlayerStateMixin, PlayerMixin, PlayerSystemMi
 
   /// 竖向手势完成
   void onVerticalDragEnd(DragEndDetails details) async {
+    // 先解除浮层接管：下面的守卫可能在拖动途中被改动后提前 return，
+    // 那时如果还留着接管标记，之后所有一次性提示都会被计时器判为「不许隐藏」。
+    gestureTipHeldByDrag = false;
     if (lockControlsState.value && fullScreenState.value) {
       return;
     }
@@ -1665,6 +1749,7 @@ class PlayerController extends BaseController
   @override
   void onClose() async {
     Log.w("播放器关闭");
+    centerTipTimer?.cancel();
     if (smallWindowState.value) {
       await exitSmallWindow();
     }

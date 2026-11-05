@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/gestures.dart' show PointerScrollEvent;
+import 'package:flutter/gestures.dart' show PointerScrollEvent, PointerSignalEvent;
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/app_style.dart';
@@ -93,6 +93,8 @@ class VolumeTarget {
   ///   还原回去只有 5% 音量、仍然几乎听不见）。点图标是明确的「把声音还给我」，
   ///   给全量才是明确且一定听得见的答案；这与格子宿主 `_factorBeforeMute` 的初值
   ///   同为 1.0 是一致的。
+  /// 提示走 [_owner.showCenterTip]：点音量颗、`⋮` 里的静音行与快捷键 `M`
+  /// 三条入口共用同一块居中浮层，和播放器的其它开关反馈一致。
   void toggleMute() {
     if (muted) {
       if (_owner.muted) {
@@ -101,21 +103,26 @@ class VolumeTarget {
       if (isMaster && ratio <= 0.001) {
         setValueRatio(1.0);
       }
-      return;
+    } else {
+      _owner.toggleMute();
     }
-    _owner.toggleMute();
+    _owner.showCenterTip(muted ? "已静音" : "取消静音");
   }
 }
 
-/// 音量按钮的三态：点击＝静音这一路，悬停＝出滑条浮层，滚轮＝±5%。
+/// 音量按钮的两态：点击＝静音这一路，悬停＝出滑条浮层。
+///
+/// 画面上另有一套粗犷入口——滚轮与竖向拖拽（见 `PlayerMouseGestureLayer`），
+/// 不必把指针精确停在 icon 上。滚轮入口按宿主分工：单播放宿主的画面层已经
+/// 接了滚轮（调总音量），这颗按钮上不再接，免得两层入口在同一个画面上打架；
+/// 多开格子没有挂手势层，滚轮留在按钮上，调的是这一路的系数（与滑条同一个量）。
+/// 悬停弹出滑条本身不受影响。触屏没有 hover，点击改为弹滑条（[isTouch]）。
 ///
 /// 点击静音要保住：原先格子上「点一下静音」是快按，滑条做成悬停弹出之后仍然不改它，
 /// 否则「静音这路」从一次点击变成两次操作。
 ///
-/// **四宿主一种形态**（作者 2026-10-04 定）：窗口化／全屏／小窗／格子的滑条都浮在按钮
-/// **正上方居中**，样式回到改造前那条 `showVolumeSlider`——`Theme.cardColor` 圆角 12 的
-/// 面板 + 默认 Material `Slider`（宽 200）。此前桌面条带走「行内向左长」、格子走
-/// 「右上浮层」两套，他对手实物判的是：细白轨不像 Material、浮层偏在 icon 右上方。
+/// **浮层形态**（作者 2026-10-04 定）：滑条浮在按钮**正上方居中**，样式回到改造前那条
+/// `showVolumeSlider`——`Theme.cardColor` 圆角 12 的面板 + 默认 Material `Slider`（宽 200）。
 /// 面板里只放滑条（连「总音量／第 N 路」那行标题也去掉：面板就锚在这一路的按钮正上方，
 /// 上下文由锚点给）。
 ///
@@ -138,8 +145,7 @@ class VolumeTarget {
 /// 指针从按钮走到浮层要穿过两者之间那段空隙（两个 `MouseRegion` 都不命中），
 /// 所以收起走 [_hideGrace] 宽限：离开按钮先计时，落进浮层就取消。
 ///
-/// 悬停是桌面专属输入：触屏没有 `onEnter`，滑条永远不展开，但按钮的点击路径照常工作，
-/// 所以移动端不会因为这套三态而丢功能。
+/// 触屏没有 `onEnter`，滑条只能靠点击开合，停留时间由 [_touchLinger] 给。
 class VolumeActionWidget extends StatefulWidget {
   const VolumeActionWidget({
     super.key,
@@ -154,8 +160,6 @@ class VolumeActionWidget extends StatefulWidget {
   final ButtonStyle style;
   final double iconSize;
   final VoidCallback? onInteract;
-
-  static const double _step = 0.05;
 
   /// 面板宽度＝滑条宽 + 左右内边距。定位要夹取水平位置，得先知道自己是多宽。
   static const double _sliderWidth = 200;
@@ -172,9 +176,12 @@ class VolumeActionWidget extends StatefulWidget {
   /// 每次拖动滑条都会重新计时，所以「拖到一半被收掉」不会发生。
   static const Duration _touchLinger = Duration(milliseconds: 2500);
 
+  /// 滚轮一格改的系数（与改造前那版一致）。
+  static const double _wheelStep = 0.05;
+
   /// true＝触屏（没有 hover）：点击这颗按钮开/关浮层，**不再**是静音。
   /// 静音在触屏上另有入口——`⋮` 里那行 `muteTile`（见 `player_actions.dart` 的
-  /// [PlayerActionId.muteTile]）。桌面恒 false，保持「点＝静音 / 悬停＝滑条」。
+  /// [PlayerActionId.muteTile]）。
   final bool isTouch;
 
   @override
@@ -285,11 +292,22 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
     });
   }
 
-  void _onPointerSignal(PointerScrollEvent event) {
+  /// 滚轮：只给格子宿主（单播放宿主的滚轮归画面手势层，调的是总音量，
+  /// 与这颗按钮绑的量不同，不能让它在这里再改一遍）。
+  ///
+  /// 比值滚到边界后直接返回：`nudge` 后面是 `setValueRatio` → 落盘，
+  /// 在 0%/100% 上继续滚不该反复写设置、也不该反复闪读数。
+  void _onPointerSignal(PointerSignalEvent event) {
+    final target = widget.target;
+    if (target.isMaster || event is! PointerScrollEvent) {
+      return;
+    }
+    final before = target.ratio;
+    target.nudge(event.scrollDelta.dy > 0 ? -VolumeActionWidget._wheelStep : VolumeActionWidget._wheelStep);
+    if (target.ratio == before) {
+      return;
+    }
     widget.onInteract?.call();
-    widget.target.nudge(
-      event.scrollDelta.dy > 0 ? -VolumeActionWidget._step : VolumeActionWidget._step,
-    );
     _showTip();
   }
 
@@ -309,9 +327,7 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
           onChanged: (value) {
             widget.onInteract?.call();
             widget.target.setValueRatio(value);
-            // 拖动也要浮一下读数：与滚轮同一条规则。之前只有 `_onPointerSignal`
-            // 调 `_showTip`，于是「滚着调有百分比、拖着调没有」——而拖动恰恰是
-            // 眼睛盯着滑条的时候，那一刻最需要读数确认拖到了哪儿。
+            // 拖动时浮一下读数：眼睛盯着滑条的时候，最需要读数确认拖到了哪儿。
             // 每次拖动都重新计时，持续拖动期间读数会一直挂着。
             _showTip();
             if (widget.isTouch) {
@@ -323,9 +339,8 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
     });
   }
 
-  /// 滚轮改完浮一下百分比：滑条虽然一直在面板里，但滚的时候眼睛未必在看它，
-  /// 有个读数才知道这次改到了哪儿。颜色交给面板的 `Material`（`cardColor` 上不能用
-  /// 死白色，浅色主题会直接看不见）。
+  /// 拖动滑条时在面板里浮一下百分比：眼睛盯着滑条时，有个读数才知道这次改到了哪儿。
+  /// 颜色交给面板的 `Material`（`cardColor` 上不能用死白色，浅色主题会直接看不见）。
   Widget _buildTip() {
     return IgnorePointer(
       child: Obx(
@@ -395,48 +410,46 @@ class _VolumeActionWidgetState extends State<VolumeActionWidget> {
       cursor: SystemMouseCursors.click,
       onEnter: (_) => _onButtonEnter(),
       onExit: (_) => _onButtonExit(),
-      child: Listener(
-        // 只在指针停在这颗按钮上滚动才动这一路，避免与页面别处的滚轮抢。
-        onPointerSignal: (event) {
-          if (event is PointerScrollEvent) {
-            _onPointerSignal(event);
-          }
-        },
-        child: Obx(() {
-          final muted = widget.target.muted;
-          return shortcutTooltip(
-            label: widget.isTouch
-                ? "音量"
-                : muted
-                    ? "取消静音（悬停可调音量）"
-                    : "静音（悬停可调音量）",
-            // 触屏点音量颗是弹滑条、不是静音（静音在 ⋮ 的 muteTile），
-            // 所以只有非触屏才挂 M 键帽，否则提示的是「点它并不会做」的动作。
-            shortcut: widget.isTouch ? null : PlayerShortcut.mute,
-            child: IconButton(
-              tooltip: null,
-              style: widget.style,
-              iconSize: widget.iconSize,
-              icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
-              onPressed: () {
-                widget.onInteract?.call();
-                if (widget.isTouch) {
-                  _toggleByTouch();
-                  return;
-                }
-                widget.target.toggleMute();
-              },
-            ),
-          );
-        }),
-      ),
+      // 滚轮由外层 `Listener` 按宿主分派（见 [_onPointerSignal]）：格子调这一路，
+      // 单播放宿主不接（画面层统一调总音量）。这里只留点击（静音）与悬停（滑条）。
+      child: Obx(() {
+        final muted = widget.target.muted;
+        return shortcutTooltip(
+          label: widget.isTouch
+              ? "音量"
+              : muted
+                  ? "取消静音"
+                  : "静音",
+          // 触屏点音量颗是弹滑条、不是静音（静音在 ⋮ 的 muteTile），
+          // 所以只有非触屏才挂 M 键帽，否则提示的是「点它并不会做」的动作。
+          shortcut: widget.isTouch ? null : PlayerShortcut.mute,
+          child: IconButton(
+            tooltip: null,
+            style: widget.style,
+            iconSize: widget.iconSize,
+            icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
+            onPressed: () {
+              widget.onInteract?.call();
+              if (widget.isTouch) {
+                _toggleByTouch();
+                return;
+              }
+              widget.target.toggleMute();
+            },
+          ),
+        );
+      }),
     );
     // 锚点就是这个按钮区域本身：`overlayChildLayoutBuilder` 在每次布局时把它的
     // 位置与尺寸交给 `_buildPopover`，浮层因此能跟着窗口缩放/胶囊移位。
+    // 滚轮监听包在锚点上（只有指针停在这颗按钮上才收得到）。
     return OverlayPortal.overlayChildLayoutBuilder(
       controller: _popover,
       overlayChildBuilder: _buildPopover,
-      child: control,
+      child: Listener(
+        onPointerSignal: _onPointerSignal,
+        child: control,
+      ),
     );
   }
 }

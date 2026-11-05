@@ -136,7 +136,7 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver im
 
   /// 这一路相对基准音量的系数（0~1）。1 = 按焦点（及可选压低）规则算出来的值，0 = 静音。
   ///
-  /// 格子底栏的音量按钮改的就是它：点一下在 0 与上次的值之间切换，滚轮悬停微调。
+  /// 格子底栏的音量按钮改的就是它：点一下在 0 与上次的值之间切换，悬停滑条可细调。
   /// 让用户能对「这一路」做细调（两路都听得见时把吵的那路再压低；或从静音慢慢加上来）。
   final RxDouble volumeFactor = 1.0.obs;
 

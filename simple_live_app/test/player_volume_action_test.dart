@@ -5,12 +5,14 @@
 // 任何只看渲染结果的检查（截图、findsWidgets 一次）都证不到这一点。
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
+import 'package:simple_live_app/modules/live_room/player/player_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 
@@ -83,7 +85,7 @@ void main() {
   tearDown(() {
     Get.reset();
   });
-  testWidgets('鼠标从按钮移到浮层滑条上：滑条不消失，拖得动这一路', (tester) async {
+  testWidgets('鼠标从按钮移到浮层滑条上，滑条不消失，拖得动这一路', (tester) async {
     final tile = _FakeTile();
     // 起点放在中间偏左，往右拖才是「变大」（系数上限 1.0）
     tile.volumeFactor.value = 0.4;
@@ -219,7 +221,10 @@ void main() {
     await tester.tap(find.byType(IconButton));
     await tester.pump();
     expect(tile.muted, isTrue, reason: '触屏适配不能改动桌面那颗的语义');
+    expect(tile.gestureTipText.value, '已静音', reason: '点音量颗要有居中反馈，文案与状态一致');
     expect(find.byType(Slider), findsNothing);
+    // 居中提示的自动隐藏计时器：收尾把它走完，否则测试框架会报 pending timer。
+    await tester.pump(kPlayerTipDuration);
   });
 
   testWidgets('总音量拖到 0：图标显示 volume_off，但写路径一个字不动', (tester) async {
@@ -292,16 +297,21 @@ void main() {
       findsOneWidget,
       reason: '总音量恢复后图标必须回到 volume_up',
     );
+    expect(page.gestureTipText.value, '取消静音', reason: '恢复的反馈文案别写反');
 
     // 反方向也要成立：点图标静音 → 再点恢复（这一段是旧有行为，别改坏）。
     await tester.tap(button);
     await tester.pump();
     expect(page.muted, isTrue, reason: '点一下应当静音');
     expect(find.byIcon(Icons.volume_off), findsOneWidget);
+    expect(page.gestureTipText.value, '已静音');
     await tester.tap(button);
     await tester.pump();
     expect(page.muted, isFalse, reason: '再点一下应当取消静音');
     expect(find.byIcon(Icons.volume_up), findsOneWidget);
+    expect(page.gestureTipText.value, '取消静音');
+    // 居中提示的自动隐藏计时器：收尾把它走完，否则测试框架会报 pending timer。
+    await tester.pump(kPlayerTipDuration);
   });
 
   testWidgets('两处同时为 0（系数与总音量）时点图标：两处都恢复', (tester) async {
@@ -326,7 +336,106 @@ void main() {
     await tester.pump();
     expect(page.muted, isFalse, reason: '系数那一份也要被还原');
     expect(settings.playerVolume.value, greaterThan(0.0), reason: '总音量那一份也要被还原');
+    expect(page.gestureTipText.value, '取消静音');
     expect(find.byIcon(Icons.volume_up), findsOneWidget);
+    // 居中提示的自动隐藏计时器：收尾把它走完，否则测试框架会报 pending timer。
+    await tester.pump(kPlayerTipDuration);
+  });
+
+  testWidgets('页面宿主：悬停仍展开滑条，但滚轮不再在这颗按钮上改音量', (tester) async {
+    final page = _FakeMaster();
+    final settings = AppSettingsController.instance;
+    settings.playerVolume.value = 100.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.master(page),
+              style: const ButtonStyle(),
+              isTouch: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    final button = find.byType(IconButton);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer(location: tester.getCenter(button));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.byType(Slider),
+      findsOneWidget,
+      reason: '悬停滑条保留：页面宿主也靠它拖动调音量',
+    );
+
+    // tooltip 不再提「悬停可调音量」：悬停滚动那条入口已经撤掉。
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    final label = (tooltip.richMessage! as TextSpan).children!.first as TextSpan;
+    expect(label.text, '静音');
+
+    // 指针停在 icon 上滚动：滚轮只归画面手势层，颗上不该再有滚轮入口。
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(button),
+        scrollDelta: const Offset(0, 100),
+      ),
+    );
+    await tester.pump();
+    expect(settings.playerVolume.value, 100.0, reason: '悬停滚动不再改音量');
+
+    // 收尾：离开后滑条收起（顺带确认没有挂着的收起计时器）。
+    final buttonRect = tester.getRect(button);
+    await gesture.moveTo(Offset(buttonRect.right + 80, buttonRect.bottom + 80));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(Slider), findsNothing);
+  });
+
+  testWidgets('格子宿主：滚轮留在这颗按钮上，调的是这一路系数', (tester) async {
+    final tile = _FakeTile();
+    tile.volumeFactor.value = 0.4;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VolumeActionWidget(
+              target: VolumeTarget.tile(tile),
+              style: const ButtonStyle(),
+              isTouch: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    final button = find.byType(IconButton);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer(location: tester.getCenter(button));
+    await tester.pump();
+
+    // 多开格子没有挂画面手势层：滚轮只能留在这颗按钮上。
+    final wheelAt = tester.getCenter(button);
+    await tester.sendEventToBinding(
+      PointerScrollEvent(position: wheelAt, scrollDelta: const Offset(0, -100)),
+    );
+    await tester.pump();
+    expect(tile.volumeFactor.value, greaterThan(0.4), reason: '向上滚应当增大这一路系数');
+    expect(find.textContaining('%'), findsOneWidget, reason: '滚完要闪出这一路的读数');
+
+    // 到 1.0 边界后继续滚：值不变，也不该再闪读数。
+    tile.volumeFactor.value = 1.0;
+    await tester.pump();
+    await tester.sendEventToBinding(
+      PointerScrollEvent(position: wheelAt, scrollDelta: const Offset(0, -100)),
+    );
+    await tester.pump();
+    expect(tile.volumeFactor.value, 1.0);
+
+    final buttonRect = tester.getRect(button);
+    await gesture.moveTo(Offset(buttonRect.right + 80, buttonRect.bottom + 80));
+    await tester.pump(const Duration(milliseconds: 1600));
   });
 
   testWidgets('拖动滑条也会显示百分比读数（滚轮之外的那条路径）', (tester) async {

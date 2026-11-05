@@ -43,7 +43,7 @@ import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
 import 'package:simple_live_app/models/shortcut_binding.dart';
 
-/// 音量每按一次的步进，与音量浮层滚轮（`VolumeActionWidget._step`）同一个量。
+/// 音量每按一次的步进。
 const double kShortcutVolumeStep = 0.05;
 
 /// 按住音量键后的连续步进间隔。
@@ -51,9 +51,6 @@ const double kShortcutVolumeStep = 0.05;
 /// 与 `PiliNara` 的播放器键盘控制保持同一个节拍：首步立即生效，之后每 150ms
 /// 再走一步。不依赖操作系统的按键重复率，长按手感在 Windows/macOS/Linux 上一致。
 const Duration kShortcutVolumeRepeatInterval = Duration(milliseconds: 150);
-
-/// 键盘动作在画面中央短暂停留的提示时长。
-const Duration kShortcutTipDuration = Duration(milliseconds: 900);
 
 /// 把 [PlayerShortcuts] 挂到视频区外面，快捷键即在此子树有焦点时生效。
 ///
@@ -85,7 +82,6 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
   final FocusNode _focusNode = FocusNode(debugLabel: 'PlayerShortcuts');
 
   Timer? _volumeRepeatTimer;
-  Timer? _shortcutTipTimer;
   LogicalKeyboardKey? _volumeRepeatKey;
 
   @override
@@ -98,7 +94,6 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
   void dispose() {
     _focusNode.removeListener(_onFocusChanged);
     _stopVolumeRepeat();
-    _shortcutTipTimer?.cancel();
     _focusNode.dispose();
     super.dispose();
   }
@@ -207,20 +202,12 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
     _volumeRepeatKey = null;
   }
 
-  /// 复用播放器已有的手势提示浮层，给键盘操作一个不打断观看的反馈。
+  /// 复用播放器在画面正中的提示浮层（与手势、条带按钮同一块）。
   void _showShortcutTip(LiveRoomController target, String text) {
     if (target.isClosed) {
       return;
     }
-    target.gestureTipText.value = text;
-    target.showGestureTip.value = true;
-    _shortcutTipTimer?.cancel();
-    _shortcutTipTimer = Timer(kShortcutTipDuration, () {
-      if (!mounted || target.isClosed || target.verticalDragging) {
-        return;
-      }
-      target.showGestureTip.value = false;
-    });
+    target.showCenterTip(text);
   }
 
   /// 「退出/关闭播放器」在直播间里的三级语义。
@@ -307,11 +294,8 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
         target.onTap();
 
       case PlayerShortcut.lockControls:
+        // 提示在 `setLockState` 里统一给出（两侧锁定钮也走它）。
         target.setLockState();
-        _showShortcutTip(
-          target,
-          target.lockControlsState.value ? "控制条已锁定" : "控制条已解锁",
-        );
 
       case PlayerShortcut.focusSlot1:
       case PlayerShortcut.focusSlot2:
@@ -368,12 +352,6 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
             _ => PlayerActionId.quality,
           },
         );
-        if (shortcut == PlayerShortcut.danmakuToggle) {
-          _showShortcutTip(
-            target,
-            target.showDanmakuState.value ? "弹幕已开启" : "弹幕已关闭",
-          );
-        }
 
       case PlayerShortcut.fullscreen:
         // 小窗里的全屏颗是「全屏播放」，不是「退出小窗」；与按钮走同一条
@@ -392,9 +370,9 @@ class _PlayerShortcutsState extends State<PlayerShortcuts> {
       case PlayerShortcut.mute:
         // 必须与音量按钮的点击路径同源：`invokePlayerAction(volume)` 只切
         // `volumeFactor`，当总音量被拖到 0 时无法真正取消静音。
+        // 居中提示由 `toggleMute` 自己给出，按钮与快捷键不会各自漂移。
         final volumeTarget = host == PlayerHost.tile ? VolumeTarget.tile(target) : VolumeTarget.master(page);
         volumeTarget.toggleMute();
-        _showShortcutTip(target, volumeTarget.muted ? "已静音" : "取消静音");
     }
   }
 

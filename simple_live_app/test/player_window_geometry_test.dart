@@ -136,6 +136,21 @@ void main() {
     );
   });
 
+  test('应用内全屏：进/退都不碰 OS 窗口，只翻页面状态', () async {
+    final room = _FakeRoom();
+    calls.clear();
+    room.enterFullScreen(osFullScreen: false);
+    await Future<void>.delayed(Duration.zero);
+    expect(room.fullScreenState.value, isTrue);
+    expect(calls, isEmpty, reason: '应用内全屏不采还原几何、不发任何窗口调用');
+
+    calls.clear();
+    room.exitFull();
+    await Future<void>.delayed(Duration.zero);
+    expect(room.fullScreenState.value, isFalse);
+    expect(calls, isEmpty, reason: '进的时候没动 OS 窗口，退的时候也不该有任何还原');
+  });
+
   test('还原尺寸与还原位置都排在退全屏之后（两笔 setBounds 都在最后）', () async {
     final room = _FakeRoom();
     room.enterFullScreen();

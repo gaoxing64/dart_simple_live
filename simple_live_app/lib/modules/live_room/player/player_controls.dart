@@ -12,6 +12,7 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_bar.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_surfaces.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
+import 'package:simple_live_app/modules/live_room/player/player_mouse_gestures.dart';
 import 'package:simple_live_app/modules/live_room/player/player_osd_overlay.dart';
 import 'package:simple_live_app/modules/live_room/player/player_tooltip.dart';
 import 'package:simple_live_app/models/shortcut_binding.dart';
@@ -78,20 +79,51 @@ Widget buildDragToMoveArea({required Widget child}) {
 
 /// 手势提示那块黑底圆角卡片（`gestureTipText` 非空时浮在画面正中）。
 ///
-/// 两个桌面 builder 与两个移动 builder 共用一份；之前它在 `buildFullControls` 与
+/// 两个桌面 builder、两个移动 builder 与多开格子共用一份；之前它在 `buildFullControls` 与
 /// `buildControls` 各写了一遍，逐字相同。提出来不是改行为，是消重复——
 /// 移动路径的渲染与原来逐位一致。
-Widget _gestureTip(LiveRoomController controller) {
+///
+/// [compact] 给多开格子：每格只有一两百 px 高，18px 字号会占掉小半格。
+Widget buildPlayerCenterTip(LiveRoomController controller, {bool compact = false}) {
   return Container(
-    padding: const EdgeInsets.all(12),
+    padding: EdgeInsets.all(compact ? 8 : 12),
     decoration: BoxDecoration(
       color: Colors.grey.shade900,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(compact ? 8 : 12),
     ),
     child: Text(
       controller.gestureTipText.value,
-      style: const TextStyle(fontSize: 18, color: Colors.white),
+      style: TextStyle(fontSize: compact ? 13 : 18, color: Colors.white),
     ),
+  );
+}
+
+/// 桌面宿主的鼠标手势层——**本文件里所有桌面上层入口的唯一策略点**。
+///
+/// 全屏与窗口化接全套（右键应用内全屏、中键 OS 全屏、竖向拖拽+滚轮调音量），
+/// 差别只在竖向拖动的检测方式：全屏外层套着 `DragToMoveArea`，必须用 2px 的
+/// 识别器抢在它的 pan 之前认领；窗口化没有竞争的 pan，走裸 `Listener`。
+/// 小窗只接滚轮（外层同样有拖窗 pan，装了识别器整窗就竖着拖不动）；
+/// 多开格子不挂：格子上没有全屏形态、滚轮与拖拽也已由各自的音量颗承接。
+Widget _wrapDesktopMouseGestures({
+  required LiveRoomController controller,
+  required PlayerHost host,
+  required Widget child,
+}) {
+  if (host == PlayerHost.smallWindow) {
+    return PlayerMouseGestureLayer(
+      controller: controller,
+      fullGestures: false,
+      child: child,
+    );
+  }
+  if (host == PlayerHost.tile) {
+    return child;
+  }
+  return PlayerMouseGestureLayer(
+    controller: controller,
+    competesWithWindowDrag: host == PlayerHost.fullscreen,
+    child: child,
   );
 }
 
@@ -133,19 +165,23 @@ Widget _buildDesktopControls(VideoState videoState, LiveRoomController controlle
               ),
             ),
             Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: controller.onTap,
-                onDoubleTapDown: controller.onDoubleTap,
-                // 桌面分支不挂移动端竖向手势（滑动控制-音量/亮度），理由见
-                // `_buildDesktopFullControls` 里那条注释；窗口化这条没有拖拽区域，
-                // 摘掉只是去死代码，不改变任何可见行为。
-                child: MouseRegion(
-                  onEnter: controller.onEnter,
-                  child: Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: Colors.transparent,
+              // 桌面鼠标手势：右键＝应用内全屏（铺满窗口），竖向拖动与滚轮＝调音量。
+              // 窗口化没有 `DragToMoveArea`，裸跟踪模式不会抢内层 tap 的手势；
+              // 挂载策略统一在 `_wrapDesktopMouseGestures` 里，见那里的说明。
+              child: _wrapDesktopMouseGestures(
+                controller: controller,
+                host: PlayerHost.windowed,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: controller.onTap,
+                  onDoubleTapDown: controller.onDoubleTap,
+                  child: MouseRegion(
+                    onEnter: controller.onEnter,
+                    child: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      color: Colors.transparent,
+                    ),
                   ),
                 ),
               ),
@@ -233,7 +269,7 @@ Widget _buildDesktopControls(VideoState videoState, LiveRoomController controlle
             Obx(
               () => Offstage(
                 offstage: !controller.showGestureTip.value,
-                child: Center(child: _gestureTip(controller)),
+                child: Center(child: buildPlayerCenterTip(controller)),
               ),
             ),
             Positioned.fill(
@@ -279,9 +315,8 @@ Widget _buildDesktopFullControls(
     // 订阅留在本层 Obx（LayoutBuilder 之外）：内层 builder 在布局阶段执行，
     // 在那里挂 GetX 订阅会让重建发生在布局期，时机与普通 build 不同，容易踩到
     // 渲染层的边界问题（小窗灰遮罩排查时这里正是唯一的播放器路径差异）。
-    final hideCursor = host == PlayerHost.fullscreen &&
-        !controller.lockControlsState.value &&
-        !controller.showControlsState.value;
+    final hideCursor =
+        host == PlayerHost.fullscreen && !controller.lockControlsState.value && !controller.showControlsState.value;
     return buildDragToMoveArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -307,41 +342,44 @@ Widget _buildDesktopFullControls(
                 ),
               ),
               Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onTap: controller.onTap,
-                  onDoubleTapDown: controller.onDoubleTap,
-                  onLongPress: () {
-                    if (controller.lockControlsState.value) {
-                      return;
-                    }
-                    // 长按＝换台，与右上角那颗「换台」同一个去处（右侧面板）。
-                    // 曾经为了「同一块浮层」把长按改成弹条带上那颗锚定菜单的键（GlobalKey +
-                    // showButtonMenu），作者 2026-10-03 否掉了那个形态：锚定小列表只适合
-                    // 多开的格子，单画面要用改造前那块带头像与刷新的右侧面板。
-                    showFollowUser(controller);
-                  },
-                  // 桌面分支不挂移动端那套竖向手势（`onVerticalDrag*`＝滑动控制-音量/亮度，
-                  // 见播放设置那个开关）：它在桌面上本就是空转（`onVerticalDragUpdate`
-                  // 非 Android/iOS 直接 return），但作为**内层**识别器仍会进手势竞技场，
-                  // 而且是命中链深处优先——阈值还只有外层 pan 的一半（鼠标 1px vs 2px），
-                  // 于是凡起手带竖向分量的拖拽全被它吃掉，`buildDragToMoveArea` 的 pan
-                  // 永远接不到 `startDragging()`：表现就是「小窗/全屏整窗拖不动，只有被
-                  // 顶/底栏或锁定钮盖住的那几条能拖」。移动端两个 builder
-                  // （`buildFullControls`/`buildControls`）照旧保留，那里才是这套手势的归宿。
-                  // `defer` 让指针落在条带按钮／OSD 面板上时仍由它们自己的光标接管
-                  // （click／basic），只有落在视频与条带渐变带的空白处才按显隐决定。
-                  // 光标值由外层 Obx 统一算好（见 `hideCursor`），这里不再套内层 Obx：
-                  // 内层订阅会在 LayoutBuilder 的布局期重建，避开这种时机。
-                  child: MouseRegion(
-                    cursor: hideCursor ? SystemMouseCursors.none : MouseCursor.defer,
-                    onHover: (PointerHoverEvent event) {
-                      controller.onHover(event, videoState.context);
+                // 小窗宿主不挂右键/拖拽：内层竖向识别器会赢过外层 `DragToMoveArea`
+                // 的 pan（阈值只有它的一半），整窗就竖着拖不动了。小窗保留滚轮调音量；
+                // 全屏（含应用内全屏）接右键/中键/拖拽/滚轮全套。
+                child: _wrapDesktopMouseGestures(
+                  controller: controller,
+                  host: host,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: controller.onTap,
+                    onDoubleTapDown: controller.onDoubleTap,
+                    onLongPress: () {
+                      if (controller.lockControlsState.value) {
+                        return;
+                      }
+                      // 长按＝换台，与右上角那颗「换台」同一个去处（右侧面板）。
+                      // 曾经为了「同一块浮层」把长按改成弹条带上那颗锚定菜单的键（GlobalKey +
+                      // showButtonMenu），作者 2026-10-03 否掉了那个形态：锚定小列表只适合
+                      // 多开的格子，单画面要用改造前那块带头像与刷新的右侧面板。
+                      showFollowUser(controller);
                     },
-                    child: Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      color: Colors.transparent,
+                    // 移动端那套竖向手势（`onVerticalDrag*`）不挂在这里：它在桌面是
+                    // 空转的，但作为内层识别器照样进手势竞技场，会吃掉
+                    // `DragToMoveArea` 的 pan。桌面自己的鼠标手势（右键全屏、拖拽调
+                    // 音量）由外层的 `PlayerMouseGestureLayer` 提供，小窗宿主不挂。
+                    // `defer` 让指针落在条带按钮／OSD 面板上时仍由它们自己的光标接管
+                    // （click／basic），只有落在视频与条带渐变带的空白处才按显隐决定。
+                    // 光标值由外层 Obx 统一算好（见 `hideCursor`），这里不再套内层 Obx：
+                    // 内层订阅会在 LayoutBuilder 的布局期重建，避开这种时机。
+                    child: MouseRegion(
+                      cursor: hideCursor ? SystemMouseCursors.none : MouseCursor.defer,
+                      onHover: (PointerHoverEvent event) {
+                        controller.onHover(event, videoState.context);
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        color: Colors.transparent,
+                      ),
                     ),
                   ),
                 ),
@@ -483,7 +521,7 @@ Widget _buildDesktopFullControls(
               Obx(
                 () => Offstage(
                   offstage: !controller.showGestureTip.value,
-                  child: Center(child: _gestureTip(controller)),
+                  child: Center(child: buildPlayerCenterTip(controller)),
                 ),
               ),
               Positioned.fill(
@@ -699,7 +737,7 @@ Widget buildFullControls(
                     offstage: controller.showDanmakuState.value,
                     child: IconButton(
                       tooltip: "开启弹幕",
-                      onPressed: () => controller.showDanmakuState.value = !controller.showDanmakuState.value,
+                      onPressed: () => controller.toggleDanmaku(),
                       icon: const ImageIcon(
                         AssetImage('assets/icons/icon_danmaku_open.png'),
                         size: 24,
@@ -711,7 +749,7 @@ Widget buildFullControls(
                     offstage: !controller.showDanmakuState.value,
                     child: IconButton(
                       tooltip: "关闭弹幕",
-                      onPressed: () => controller.showDanmakuState.value = !controller.showDanmakuState.value,
+                      onPressed: () => controller.toggleDanmaku(),
                       icon: const ImageIcon(
                         AssetImage('assets/icons/icon_danmaku_close.png'),
                         size: 24,
@@ -824,7 +862,7 @@ Widget buildFullControls(
         Obx(
           () => Offstage(
             offstage: !controller.showGestureTip.value,
-            child: Center(child: _gestureTip(controller)),
+            child: Center(child: buildPlayerCenterTip(controller)),
           ),
         ),
         // OSD 统计浮层（Flutter 自绘，开关开启时显示）
@@ -973,7 +1011,7 @@ Widget buildControls(
                   offstage: controller.showDanmakuState.value,
                   child: IconButton(
                     tooltip: "开启弹幕",
-                    onPressed: () => controller.showDanmakuState.value = !controller.showDanmakuState.value,
+                    onPressed: () => controller.toggleDanmaku(),
                     icon: const ImageIcon(
                       AssetImage('assets/icons/icon_danmaku_open.png'),
                       size: 24,
@@ -985,7 +1023,7 @@ Widget buildControls(
                   offstage: !controller.showDanmakuState.value,
                   child: IconButton(
                     tooltip: "关闭弹幕",
-                    onPressed: () => controller.showDanmakuState.value = !controller.showDanmakuState.value,
+                    onPressed: () => controller.toggleDanmaku(),
                     icon: const ImageIcon(
                       AssetImage('assets/icons/icon_danmaku_close.png'),
                       size: 24,
@@ -1058,7 +1096,7 @@ Widget buildControls(
       Obx(
         () => Offstage(
           offstage: !controller.showGestureTip.value,
-          child: Center(child: _gestureTip(controller)),
+          child: Center(child: buildPlayerCenterTip(controller)),
         ),
       ),
       // OSD 统计浮层（Flutter 自绘，开关开启时显示）

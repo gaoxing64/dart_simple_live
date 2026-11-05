@@ -8,6 +8,7 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/multi_play/multi_play_session.dart';
 import 'package:simple_live_app/modules/live_room/player/player_actions.dart';
 import 'package:simple_live_app/modules/live_room/player/player_action_surfaces.dart';
+import 'package:simple_live_app/modules/live_room/player/player_volume_action.dart';
 import 'package:simple_live_app/widgets/app_popup_menu_item.dart';
 
 /// 动作 id → 真实调用。
@@ -41,7 +42,9 @@ void invokePlayerAction({
     case PlayerActionId.refresh:
       target.refreshRoom();
     case PlayerActionId.danmakuToggle:
-      target.showDanmakuState.value = !target.showDanmakuState.value;
+      // 与快捷键 `D`、移动端条带同一个入口：开关与居中提示都在 [toggleDanmaku] 里，
+      // 按钮点下去也有「弹幕已开启／已关闭」的反馈（原先只有快捷键有）。
+      target.toggleDanmaku();
     case PlayerActionId.danmakuSettings:
       // 容器跟着宿主走（见函数头的 [host]）：桌面窗口化落底部抽屉，全屏／小窗／格子
       // 落右侧面板。竖屏主播在这些实现内部另外还有一条落底部抽屉的兜底。
@@ -106,12 +109,15 @@ void invokePlayerAction({
       // （`_available` 的 pick 分支），所以这里不需要 [rightPanel] 那条分叉。
       showFollowUser(target);
     case PlayerActionId.volume:
+      // 带浮层的锚定件由 renderer 直接画（见 actionableMenuItems），永远不进抽屉。
+      // 这里保持 no-op：万一被误派发到非格子宿主，也绝不能拿 `VolumeTarget.tile`
+      // 去改 `volumeFactor`——那会把「这一路系数」当成用户点的那个量。
+      break;
     case PlayerActionId.muteTile:
-      // volume 那颗是悬停/点击锚定件、closeTile 需要格子的 index，两者都由 renderer
-      // 直接画，不走这里（见 actionableMenuItems：它俩也不会出现在抽屉里）。
-      // muteTile 反过来：它就是给 `⋮` 抽屉用的一行，写的量与桌面那颗点音量完全相同
-      // （`toggleMute` 落 `_owner.volumeFactor`，不落盘），两条入口共用一个权威。
-      target.toggleMute();
+      // `⋮` 抽屉里的一行，写的量与桌面那颗点音量完全相同
+      // （`toggleMute` 落 `_owner.volumeFactor`，不落盘），两条入口共用同一个权威。
+      // 居中提示也由同一条方法给出：多开格子的浮层已由 `MultiPlayTile` 挂上。
+      VolumeTarget.tile(target).toggleMute();
     case PlayerActionId.closeTile:
       break;
   }
@@ -119,7 +125,7 @@ void invokePlayerAction({
 
 /// `⋮` 抽屉真正会列出来的行。
 ///
-/// **[items] 与抽屉内容之间的唯一判定**：`volume` 是悬停锚定件、`closeTile` 需要格子的
+/// **[items] 与抽屉内容之间的唯一判定**：`volume` 是带浮层的锚定件、`closeTile` 需要格子的
 /// index，两类在 `invokePlayerAction` 里刻意是 no-op（见那里的注释），放进抽屉就是
 /// 「看得见、点了没反应」的死行，所以要滤掉。
 ///
