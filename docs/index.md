@@ -20,6 +20,6 @@ features:
   - title: 直播平台支持
     details: BiliBili/Douyu/Huya/Douyin
   - title: 平台支持
-    details: Android/Windows/Linux
+    details: Android/Windows/Linux/iOS/macOS
 ---
 

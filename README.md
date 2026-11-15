@@ -61,10 +61,12 @@ Windows建议下载UWP版[聚合直播](https://www.microsoft.com/store/apps/9N1
 
 ## 文档
 
-- [文档](https://slotsun.github.io/dart_simple_live/)  待完善
-
-架构设计文档（`docs/rust-core/`、`docs/decisions/`）与核心库组件知识库（`livecore/doc/`）
-已归档至备份分支 `backup/future-20261101-234115`。
+- [在线文档](https://slotsun.github.io/dart_simple_live/)
+- [开发贡献指南](CONTRIBUTING.md)
+- [分支与发布流程](docs/workflow.md)
+- [测试基线](docs/test-baseline.md)
+- [用户指南](docs/user.md)
+- [LiveCore 核心库](https://github.com/gaoxing64/livecore)（Rust 协议实现、`slive` CLI、C ABI）
 
 ## 项目结构
 
@@ -75,7 +77,8 @@ Windows建议下载UWP版[聚合直播](https://www.microsoft.com/store/apps/9N1
 
 ## 环境
 
-flutter latest
+- Flutter 3.47.8（以 `.fvmrc` 为准）
+- Rust stable（编译 `rust_lib_livecore` 需要）
 
 ## 参考及引用
 

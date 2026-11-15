@@ -1,6 +1,6 @@
 # 分支与发布流程
 
-本文档是仓库唯一的流程依据。`contributing.md` 负责环境搭建和提交规范，本文档负责分支模型、发布节奏和子模块管理。
+本文档是仓库唯一的流程依据。仓库根目录的 `CONTRIBUTING.md` 负责环境搭建和提交规范，本文档负责分支模型、发布节奏和子模块管理。
 
 ## 分支模型
 
@@ -88,7 +88,7 @@ dart run scripts/update_version.dart --version X.Y.Z
 - `patch` 用于修 bug，`minor` 用于加功能，`major` 用于破坏性变更。
 - `build` 号（`+` 后）必须单调递增，不允许回退。
 - `future` 上的版本号是"下一个待发布版本"，`master` 上的版本号是"当前已发布版本"，两者相差一个版本属于正常状态。
-- 不变量：`future` 的版本必须大于或等于 `master`。一旦发现 `future` 低于 `master`，说明标识变更或发布提交没有回灌，应立即停止发版并按 `docs/workflow-migration.md` 对齐。
+- 不变量：`future` 的版本必须大于或等于 `master`。一旦发现 `future` 低于 `master`，说明标识变更或发布提交没有回灌，应立即停止发版，先对齐两条线的版本号再继续。
 
 ## Core 依赖与 TV 子模块
 
@@ -116,6 +116,10 @@ flutter pub upgrade livecore rust_lib_livecore
 git clone https://github.com/gaoxing64/livecore.git
 ```
 
+克隆目录名就是 `livecore/`，与远程仓库同名；该目录已被主仓库 `.gitignore` 忽略
+（`/livecore/`），不要放进主仓库，也不要初始化为 submodule。本地这份克隆只用于开发
+LiveCore 本身，两个 App 始终按 `pubspec.lock` 里锁定的 commit 解析依赖。
+
 `simple_live_tv_app` 仍是 Git submodule，主仓库只记录它的 gitlink。克隆主仓库时用
 `git clone --recurse-submodules`，已有克隆用 `git submodule update --init simple_live_tv_app`。
 `git submodule status` 仅用于查看 TV app 的锁定 commit。
@@ -128,11 +132,24 @@ git clone https://github.com/gaoxing64/livecore.git
 
 ## 分支收敛
 
-当前仓库存在 `dev`、多个 `backup/*` 历史分支，以及 `future` 与 `master` 的双向分歧。收敛原则：
+`future` 已是唯一开发主线，`master` 只走 Release PR；标识与版本号已经对齐
+（见 `CHANGELOG.md` 的 1.9.1 / 1.9.2 条目），不再需要额外的一次性迁移步骤。
 
-1. `future` 是唯一开发主线，`dev` 停止使用；历史内容如未进 `future` 需先 cherry-pick。
-2. `backup/*` 是历史快照，确认无独有提交后删除，只保留 Tag 归档。
-3. `future` 与 `master` 的独有提交先做一次对齐，见 `docs/workflow-migration.md`，之后严格按本文档执行。
+2026-11-16 已完成一次分支清理：`dev` 与全部 `backup/*` 分支删除，只保留 `future`
+与 `master`。有独有历史的分支先打成 `archive/*` 标签再删，需要找回旧实现时从标签
+cherry-pick：
+
+| 标签 | 内容 |
+|------|------|
+| `archive/dev-safe-mode-20261101` | `dev` 线的安全模式、SC 提醒等 21 个提交（未进入 `future`） |
+| `archive/future-pre-tidy-20261031` | `future` 瘦身前快照 |
+| `archive/future-pre-md-squash-20261031` | `future` 文档压缩前快照 |
+| `archive/future-pre-submodule-squash-20261031` | `future` 子模块压缩前快照 |
+| `archive/future-pre-drop-specs-pointer-20261031` | `future` 移除 specs 指针前快照 |
+| `archive/master-pre-tidy-20261031` | `master` 瘦身前快照 |
+| `archive/backup-future-20260925` | 2026-09 的 `future` 历史快照 |
+
+规则：以后再有分支要下线，先确认无独有提交，或打 `archive/*` 标签归档，再删分支。
 
 ## 检查清单
 
