@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:simple_live_app/app/log.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class CustomLogInterceptor extends Interceptor {
   @override

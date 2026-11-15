@@ -15,7 +15,7 @@ import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 LiveMessageEmoticon _emot(String? name, String url) => LiveMessageEmoticon(name: name, url: url, width: 20, height: 20);
 

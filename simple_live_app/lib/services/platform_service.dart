@@ -11,7 +11,7 @@ import 'package:simple_live_app/models/db/account.dart';
 import 'package:simple_live_app/requests/common_request.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class PlatformService extends GetxService {
   static PlatformService get instance => Get.find<PlatformService>();

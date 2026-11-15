@@ -6,6 +6,11 @@ Format: Each version section starts with `## x.x.x`, followed by change lines st
 
 ---
 
+## 1.9.2
+
+- refactor: LiveCore 改为独立仓库与 Git 依赖，不再作为 submodule
+- chore: 同步 LiveCore `livecore` 包名与 `rust_lib_livecore` 构建插件命名
+
 ## 1.9.1
 
 - feat: 切台预取与 CDN 顺序缓存

@@ -10,7 +10,7 @@ import 'package:simple_live_app/modules/search/aggregate_search_view.dart';
 import 'package:simple_live_app/modules/search/search_controller.dart';
 import 'package:simple_live_app/modules/search/search_page.dart';
 import 'package:simple_live_app/widgets/live_room_card.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class _FakeSettings extends AppSettingsController {
   _FakeSettings() {

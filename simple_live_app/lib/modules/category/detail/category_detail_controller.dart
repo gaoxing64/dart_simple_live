@@ -1,6 +1,6 @@
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/sites.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class CategoryDetailController extends BasePageController<LiveRoomItem> {
   final Site site;

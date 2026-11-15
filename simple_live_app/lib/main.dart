@@ -42,7 +42,7 @@ import 'package:simple_live_app/services/stream_relay/stream_relay_service.dart'
 import 'package:simple_live_app/services/sync_service.dart';
 import 'package:simple_live_app/services/window_service.dart';
 import 'package:simple_live_app/widgets/status/app_loadding_widget.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main(List<String> arguments) async {

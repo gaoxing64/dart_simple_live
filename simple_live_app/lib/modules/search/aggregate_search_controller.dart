@@ -5,7 +5,7 @@ import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 聚合搜索结果。原始 Core 模型不带平台信息，这里保留来源以便正确跳转。
 class AggregateSearchItem {

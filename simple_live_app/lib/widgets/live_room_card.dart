@@ -6,7 +6,7 @@ import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/widgets/group_badge.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
 import 'package:simple_live_app/widgets/shadow_card.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 封面区域高度。同一屏里所有卡片共用，保证行高一致。
 const double _kCoverHeight = 110;

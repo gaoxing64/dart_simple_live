@@ -6,7 +6,7 @@ import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/models/db/account.dart';
 import 'package:simple_live_app/services/platform_service.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class QRLoginController extends GetxController {
   Account account = Get.arguments;

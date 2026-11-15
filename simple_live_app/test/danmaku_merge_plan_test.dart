@@ -6,7 +6,7 @@
 // - 展示项被聊天区裁掉（或 firstIndex 越界）时跳过，不拿旧计数串成新条目
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_live_app/modules/live_room/danmaku_merge_plan.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 LiveMessage _msg(String text, {String user = "u"}) => LiveMessage(
       type: LiveMessageType.chat,

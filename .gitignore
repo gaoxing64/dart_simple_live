@@ -54,3 +54,8 @@ deliverables/
 
 # 本地 Android 签名材料（keystore / key.properties / 导出的 secrets），不入库
 /slive-keys/
+
+# 可选的本地 LiveCore 源码克隆；应用通过 Git 依赖解析，不纳入主仓库
+/livecore/
+# 保留的旧路径本地克隆；已不作为主仓库的 submodule 管理
+/simple_live_core/

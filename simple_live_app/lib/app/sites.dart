@@ -3,7 +3,7 @@ import 'package:remixicon/remixicon.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/controller/app_settings_controller.dart';
 import 'package:simple_live_app/icons/live_icons.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class Sites {
   static final Map<String, Site> allSites = {

@@ -19,7 +19,7 @@ import 'package:simple_live_app/widgets/keep_alive_wrapper.dart';
 import 'package:simple_live_app/widgets/live_room_card.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
 import 'package:simple_live_app/widgets/collapsible_top_bar_scaffold.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class FollowUserPage extends GetView<FollowUserController> {
   const FollowUserPage({super.key});

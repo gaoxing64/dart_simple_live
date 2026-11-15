@@ -19,7 +19,7 @@ import 'package:simple_live_app/modules/home/home_list_controller.dart';
 import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
 import 'package:simple_live_app/modules/indexed/indexed_page.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 假设置：跳过本地存储，直接指定顶/底栏收起开关。
 class FakeSettings extends AppSettingsController {

@@ -1,6 +1,6 @@
 import 'package:simple_live_app/app/log.dart';
 import 'package:simple_live_app/app/sites.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 直播间「详情 / 清晰度 / 直链」的短时缓存，用于切台预取。
 ///

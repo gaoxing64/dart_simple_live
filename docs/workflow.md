@@ -81,7 +81,7 @@ dart run scripts/update_version.dart --version X.Y.Z
 
 注意：该脚本只更新 `app_version.json` 与 metainfo，不会回写 `pubspec.yaml`，版本号以 `pubspec.yaml` 为准。
 
-`simple_live_tv_app/pubspec.yaml` 与 `simple_live_core/pubspec.yaml` 是独立版本，跟随各自子仓库的发布节奏，不参与主应用版本号。
+`simple_live_tv_app/pubspec.yaml` 与 LiveCore 仓库中的 `pubspec.yaml` 是独立版本，跟随各自仓库的发布节奏，不参与主应用版本号。
 
 规则：
 
@@ -90,54 +90,41 @@ dart run scripts/update_version.dart --version X.Y.Z
 - `future` 上的版本号是"下一个待发布版本"，`master` 上的版本号是"当前已发布版本"，两者相差一个版本属于正常状态。
 - 不变量：`future` 的版本必须大于或等于 `master`。一旦发现 `future` 低于 `master`，说明标识变更或发布提交没有回灌，应立即停止发版并按 `docs/workflow-migration.md` 对齐。
 
-## 子模块
+## Core 依赖与 TV 子模块
 
-`simple_live_core` 和 `simple_live_tv_app` 是独立仓库，通过 Git submodule 以固定 commit 引入。
+LiveCore 是独立仓库 [gaoxing64/livecore](https://github.com/gaoxing64/livecore)。
+主 App 和 TV App 在 `pubspec.yaml` 中通过 Git URL 引用 `future` 分支；`pubspec.lock`
+记录实际解析到的 commit，确保同一份锁文件可重复构建。Rust 构建插件也从同一仓库的
+`rust_builder` 路径获取。
 
-### 正确用法
-
-```bash
-git clone --recurse-submodules <repo>
-git submodule update --init --recursive
-```
-
-父仓库记录的是子模块的具体 commit（gitlink），不是分支名。这样任何一次 checkout 都能复现完全相同的依赖，不会因为子仓库新提交而悄悄漂移。
-
-### 更新子模块
+### 更新 LiveCore 依赖
 
 ```bash
-# 1. 先在子仓库里完成并推送
-cd simple_live_core
-git switch future
-git pull --ff-only
-# 开发、提交、推送
-git rev-parse HEAD
+# 在 LiveCore 仓库完成改动并推送到 future 后，回到主仓库：
+cd simple_live_app
+flutter pub upgrade livecore rust_lib_livecore
 
-# 2. 回到父仓库锁定该 commit
-cd ..
-git submodule update --init simple_live_core
-cd simple_live_core
-git fetch origin
-git switch --detach <new-commit>
-cd ..
-git add simple_live_core
-git commit -m "chore(submodule): update core to <short-sha>"
+cd ../simple_live_tv_app
+flutter pub upgrade livecore rust_lib_livecore
+
+# 提交两个应用更新后的 pubspec.lock
 ```
 
-### 禁止的做法
+独立开发 LiveCore 时，在主仓库旁单独克隆：
 
-- 禁止 `git submodule update --remote`，它会把子模块指到分支最新提交，破坏可复现性。
-- 禁止在父仓库里直接修改子模块文件后提交，改动属于子仓库。
-- 禁止在 `.gitmodules` 里配置 `branch` 后依赖它自动同步。
+```bash
+git clone https://github.com/gaoxing64/livecore.git
+```
 
-### 当前子模块状态
+`simple_live_tv_app` 仍是 Git submodule，主仓库只记录它的 gitlink。克隆主仓库时用
+`git clone --recurse-submodules`，已有克隆用 `git submodule update --init simple_live_tv_app`。
+`git submodule status` 仅用于查看 TV app 的锁定 commit。
 
-父仓库提交中的 gitlink 就是唯一事实来源，不需要额外维护版本清单文件。用 `git submodule status` 查看：
+### 子模块维护规则
 
-| 子模块 | 锁定 commit |
-|--------|-------------|
-| `simple_live_core` | 以 `git submodule status` 输出为准 |
-| `simple_live_tv_app` | 以 `git submodule status` 输出为准 |
+- 禁止 `git submodule update --remote`，它会把 TV app 指到分支最新提交，破坏可复现性。
+- TV app 的代码改动在其独立仓库中提交；主仓库只更新对应 gitlink。
+- LiveCore 版本通过两个 App 的 `pubspec.lock` 锁定，不通过 `.gitmodules` 管理。
 
 ## 分支收敛
 

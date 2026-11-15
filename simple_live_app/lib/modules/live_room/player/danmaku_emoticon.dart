@@ -7,7 +7,7 @@ import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/painting.dart';
 import 'package:simple_live_app/app/log.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 弹幕内容的一个片段：要么是一段纯文本，要么是一个表情。
 sealed class DanmakuSegment {

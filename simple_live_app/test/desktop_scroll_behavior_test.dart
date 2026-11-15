@@ -20,7 +20,7 @@ import 'package:simple_live_app/modules/indexed/indexed_controller.dart';
 import 'package:simple_live_app/modules/indexed/indexed_page.dart';
 import 'package:simple_live_app/modules/search/search_controller.dart';
 import 'package:simple_live_app/modules/search/search_page.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 假设置：跳过本地存储，保持顶/底栏常驻（首页走 _buildNormal 分支）。
 class FakeSettings extends AppSettingsController {

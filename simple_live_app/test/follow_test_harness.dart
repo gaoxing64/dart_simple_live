@@ -22,7 +22,7 @@ import 'package:simple_live_app/services/follow_service.dart';
 import 'package:simple_live_app/services/local_storage_service.dart';
 import 'package:simple_live_app/widgets/bar_collapse.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 假设置：顶/底栏收起全开，导航栏样式可选。
 class FakeSettings extends AppSettingsController {

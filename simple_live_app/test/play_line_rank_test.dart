@@ -14,14 +14,14 @@ import 'dart:io';
 // ignore: depend_on_referenced_packages
 import 'package:flutter_rust_bridge/src/platform_types/_io.dart' show ExternalLibrary;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 构建产物路径（相对包根，`flutter test` 的 cwd 即包根）。
 String? _libraryPath() {
   if (!Platform.isWindows) {
     return null;
   }
-  final file = File('build/windows/x64/runner/Debug/rust_lib_simple_live_app.dll');
+  final file = File('build/windows/x64/runner/Debug/rust_lib_livecore.dll');
   return file.existsSync() ? file.absolute.path : null;
 }
 

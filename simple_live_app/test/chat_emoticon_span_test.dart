@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/modules/live_room/chat_emoticon_span.dart';
 import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 const double _fontSize = 14;
 

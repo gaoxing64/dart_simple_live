@@ -869,6 +869,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.0"
+  livecore:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: future
+      resolved-ref: c81fdbfb235d2d41893e2f8b8a3684dc1ebba605
+      url: "https://github.com/gaoxing64/livecore.git"
+    source: git
+    version: "2.0.0"
   logger:
     dependency: "direct main"
     description:
@@ -1294,12 +1303,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.9.3"
-  rust_lib_simple_live_app:
+  rust_lib_livecore:
     dependency: "direct main"
     description:
-      path: "../simple_live_core/rust_builder"
-      relative: true
-    source: path
+      path: rust_builder
+      ref: future
+      resolved-ref: c81fdbfb235d2d41893e2f8b8a3684dc1ebba605
+      url: "https://github.com/gaoxing64/livecore.git"
+    source: git
     version: "0.0.1"
   rxdart:
     dependency: transitive
@@ -1429,13 +1440,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.4"
-  simple_live_core:
-    dependency: "direct main"
-    description:
-      path: "../simple_live_core"
-      relative: true
-    source: path
-    version: "1.1.0"
   sky_engine:
     dependency: transitive
     description: flutter

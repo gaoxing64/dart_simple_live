@@ -1,4 +1,4 @@
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// 合并模式单批处理的**纯决策**：输入本批弹幕与 Rust 分组结果，输出要执行的动作。
 ///

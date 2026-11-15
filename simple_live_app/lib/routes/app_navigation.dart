@@ -14,7 +14,7 @@ import 'package:simple_live_app/routes/live_room_route_args.dart';
 import 'package:simple_live_app/routes/route_path.dart';
 import 'package:simple_live_app/services/db_service.dart';
 import 'package:simple_live_app/services/sync_service.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 /// APP页面跳转封装
 /// * 需要参数的页面都应使用此类

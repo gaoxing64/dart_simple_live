@@ -6,7 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/constant.dart';
 import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/modules/search/aggregate_search_controller.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 typedef _RoomProvider = Future<LiveSearchRoomResult> Function(String keyword, int page);
 typedef _AnchorProvider = Future<LiveSearchAnchorResult> Function(String keyword, int page);

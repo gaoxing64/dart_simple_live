@@ -67,7 +67,8 @@ fvm install 3.38.6
 
 ### 克隆仓库
 
-仓库中 `simple_live_core` 与 `simple_live_tv_app` 是 git submodule，克隆时需要一并拉取：
+`simple_live_tv_app` 是 Git submodule；`livecore` 是独立仓库，由两个 App 的
+`pubspec.yaml` 作为 Git 依赖解析：
 
 ```bash
 git clone --recurse-submodules https://github.com/SlotSun/dart_simple_live.git
@@ -80,9 +81,9 @@ cd dart_simple_live/simple_live_app
 git submodule update --init --recursive
 ```
 
-> **重要**：`simple_live_app`、`simple_live_tv_app` 的 `pubspec.yaml` 通过 `path: ../simple_live_core`（以及 `../simple_live_core/rust_builder`）引用核心库。没有拉取 submodule 时 `flutter pub get` 会因找不到路径依赖而失败，且跳过 `git submodule update` 直接构建也会缺文件。子模块更新后记得在对应子项目目录里重新执行 `flutter pub get`。
+> **重要**：在 `simple_live_app/` 或 `simple_live_tv_app/` 中运行 `flutter pub get` 时，Pub 会从 `gaoxing64/livecore` 获取 Dart 包和 Rust 构建插件。开发 LiveCore 本身时，可单独克隆 [livecore](https://github.com/gaoxing64/livecore)；它不需要放进主仓库，也不需要初始化为 submodule。
 >
-> 子仓库地址：[dart_simple_live_core](https://github.com/SlotSun/dart_simple_live_core) / [dart_simple_live_tv_app](https://github.com/SlotSun/dart_simple_live_tv_app)。子模块由父仓库锁定到具体 commit，不要修改 `.gitmodules` 指向自己的 fork，也不要使用 `git submodule update --remote`。
+> TV 子仓库：[dart_simple_live_tv_app](https://github.com/gaoxing64/dart_simple_live_tv_app)。TV app 仍由主仓库的 gitlink 锁定；需要更新时按 [分支与发布流程](/workflow) 操作。
 
 ## 🏷️ 认领任务
 
@@ -155,8 +156,8 @@ flutter build apk --release --split-per-abi
 ## 📁 代码结构
 
 ### 项目目录速览
-- `simple_live_core` 项目核心库（独立仓库 [dart_simple_live_core](https://github.com/gaoxing64/dart_simple_live_core)，以 submodule 引入），实现获取各个网站的信息及弹幕。
-- `simple_live_console` 基于simple_live_core的控制台程序。
+- `livecore` 项目核心库（独立 Git 仓库 [livecore](https://github.com/gaoxing64/livecore)，由 App 作为 Git 依赖使用），实现获取各个网站的信息及弹幕。
+- `simple_live_console` 基于 LiveCore 的控制台程序。
 - `simple_live_app` 基于核心库实现的Flutter APP客户端。
 - `simple_live_tv_app` 基于核心库实现的Flutter Android TV客户端（独立仓库 [dart_simple_live_tv_app](https://github.com/gaoxing64/dart_simple_live_tv_app)，以 submodule 引入）。
 

@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/app_style.dart';
 import 'package:simple_live_app/app/utils.dart';
 import 'package:simple_live_app/widgets/net_image.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class SuperChatCard extends StatefulWidget {
   final LiveSuperChatMessage message;

@@ -13,7 +13,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:simple_live_app/app/controller/base_controller.dart';
 import 'package:simple_live_app/modules/home/home_list_view.dart';
 import 'package:simple_live_app/widgets/page_grid_view.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 LiveRoomItem _room(int id) => LiveRoomItem(
       roomId: 'r$id',

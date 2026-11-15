@@ -7,7 +7,7 @@ import 'package:simple_live_app/app/sites.dart';
 import 'package:simple_live_app/app/utils/url_parse.dart';
 import 'package:simple_live_app/routes/app_navigation.dart';
 import 'package:simple_live_app/routes/route_path.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 class DouyinSearchController extends BaseController {

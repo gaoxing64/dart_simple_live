@@ -1,5 +1,5 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 import 'player/danmaku_emoticon.dart';
 

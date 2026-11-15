@@ -7,7 +7,7 @@ import 'package:simple_live_app/modules/live_room/live_room_controller.dart';
 import 'package:simple_live_app/modules/live_room/live_room_page.dart';
 import 'package:simple_live_app/models/layout/sidebar_layout.dart';
 import 'package:simple_live_app/modules/settings/appstyle_settings/appstyle_setting_controller.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 
 class _FakeSettings extends AppSettingsController {
   @override

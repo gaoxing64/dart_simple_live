@@ -27,7 +27,7 @@ import 'package:simple_live_app/modules/live_room/player/danmaku_emoticon.dart';
 import 'package:simple_live_app/modules/live_room/player/playback_starvation_detector.dart';
 import 'package:simple_live_app/modules/live_room/player/player_fit.dart';
 import 'package:simple_live_app/widgets/settings/settings_switch.dart';
-import 'package:simple_live_core/simple_live_core.dart';
+import 'package:livecore/livecore.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// 音量均衡（loudnorm / EBU R128 响度标准化）的 mpv 音频滤波链，目标响度取设置项。

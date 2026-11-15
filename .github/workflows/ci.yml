@@ -25,9 +25,8 @@ jobs:
           flutter-version-file: simple_live_app/pubspec.yaml
           cache: true
 
-      - name: Verify submodules checked out
+      - name: Verify TV submodule checked out
         run: |
-          test -f simple_live_core/pubspec.yaml
           test -f simple_live_tv_app/pubspec.yaml
           git submodule status --recursive
 

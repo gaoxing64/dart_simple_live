@@ -71,6 +71,9 @@ git clone https://github.com/SlotSun/dart_simple_live.git
 cd dart_simple_live/simple_live_app
 ```
 
+`simple_live_tv_app` 通过 submodule 拉取；LiveCore 会在 `flutter pub get` 时作为 Git 依赖获取。
+独立开发 LiveCore 时，克隆 [gaoxing64/livecore](https://github.com/gaoxing64/livecore)。
+
 ## 🏷️ 认领任务
 
 ### 查找任务
@@ -142,8 +145,8 @@ flutter build apk --release --split-per-abi
 ## 📁 代码结构
 
 ### 项目目录速览
-- `simple_live_core` 项目核心库：协议实现全部为 Rust（`crates/slive-core`），Dart 侧只保留跨平台模型与 FRB 绑定层。
-- `simple_live_core/crates/slive-cli` 命令行工具 `slive`：直连 Rust 核心，输出房间详情/播放直链、实时弹幕。
+- `livecore` 独立核心仓库：协议实现全部为 Rust（`crates/slive-core`），Dart 侧只保留跨平台模型与 FRB 绑定层。
+- LiveCore 仓库中的 `crates/slive-cli` 命令行工具 `slive`：直连 Rust 核心，输出房间详情/播放直链、实时弹幕。
 - `simple_live_app` 基于核心库实现的Flutter APP客户端。
 - `simple_live_tv_app` 基于核心库实现的Flutter Android TV客户端。
 
