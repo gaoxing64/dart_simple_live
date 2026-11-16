@@ -58,5 +58,5 @@ deliverables/
 # 可选的本地 LiveCore 源码克隆；应用通过 Git 依赖解析，不纳入主仓库
 /livecore/
 
-# 编辑工作快照（本地生成），不入库
-/.alma-snapshots/
+# 编辑工作快照（本地生成，由编辑器自动写入），不入库
+.alma-snapshots

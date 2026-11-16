@@ -148,6 +148,10 @@ cherry-pick：
 | `archive/future-pre-drop-specs-pointer-20261031` | `future` 移除 specs 指针前快照 |
 | `archive/master-pre-tidy-20261031` | `master` 瘦身前快照 |
 | `archive/backup-future-20260925` | 2026-09 的 `future` 历史快照 |
+| `archive/dev-nativeapi-20260716` | 2026-07 的 window_manager nativeapi 实验分支 |
+
+LiveCore 仓库同样清掉了 pre-rewrite 的 `chore/drop-kb-docs`，归档为
+`archive/chore-drop-kb-docs-20261031`。两个仓库现在都只剩 `future`（主仓库另有 `master`）。
 
 规则：以后再有分支要下线，先确认无独有提交，或打 `archive/*` 标签归档，再删分支。
 
